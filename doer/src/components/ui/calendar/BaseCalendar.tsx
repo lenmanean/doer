@@ -155,9 +155,8 @@ export const useBaseCalendar = (props: BaseCalendarProps) => {
     if (tasksForDate.length === 0) return false
     
     // Filter out milestone markers (🎯) - these are completion indicators, not actual tasks
-    const actualTasks = tasksForDate.filter(task => {
-      const taskStr = typeof task === 'string' ? task : task.name || String(task)
-      return !taskStr.startsWith('🎯')
+    const actualTasks = tasksForDate.filter((task: string) => {
+      return !task.startsWith('🎯')
     })
     
     // If only milestone markers exist, don't consider day as having completable tasks

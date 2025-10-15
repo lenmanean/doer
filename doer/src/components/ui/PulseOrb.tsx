@@ -131,7 +131,7 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
 
   // Get metric data
   const getMetricData = (metricName: 'progress' | 'consistency' | 'efficiency') => {
-    const values = { progress, consistency, efficiency }
+    const values = { progress, consistency, efficiency: efficiency ?? 0 }
     const colors = {
       progress: '#22c55e',
       consistency: '#eab308',

@@ -1014,13 +1014,16 @@ export default function ManualOnboardingPage() {
                             )}
                             <Button
                               onClick={saveTask}
-                              disabled={
-                                !newTaskName.trim() || 
-                                (newTaskCategory === 'milestone_task' && newTaskMilestoneId && selectedDate && (() => {
+                              disabled={(() => {
+                                if (!newTaskName.trim()) return true
+                                if (newTaskCategory === 'milestone_task' && newTaskMilestoneId && selectedDate) {
                                   const milestone = milestones.find(m => m.id === newTaskMilestoneId)
-                                  return milestone && selectedDate > milestone.target_date
-                                })())
-                              }
+                                  if (milestone && selectedDate > milestone.target_date) {
+                                    return true
+                                  }
+                                }
+                                return false
+                              })()}
                               className="w-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-white/20"
                             >
                               Add

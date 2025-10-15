@@ -26,6 +26,8 @@ interface SidebarProps {
   user?: {
     name?: string
     email?: string
+    avatar_url?: string
+    display_name?: string
   }
   onSignOut: () => void
   currentPath?: string
