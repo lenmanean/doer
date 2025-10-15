@@ -1,0 +1,7 @@
+DOER.AI is an intelligent roadmap-generation platform that transforms a user’s written goal into a structured, time-bound plan. The experience begins with a simple onboarding flow where the user enters their goal description, answers a few clarification questions, and selects a start date. From this minimal input, the system generates a clear, actionable roadmap composed of milestones, tasks, and schedules that help the user move from intention to execution.
+
+The platform is built on Next.js, TypeScript, and Supabase, emphasizing clarity and simplicity over unnecessary complexity. Each feature exists to support one seamless flow: a goal is input, converted into a structured plan, saved to the database, and displayed in an intuitive visual interface. The roadmap page features a scrollable timeline, a synced calendar, and detail panels that show tasks, milestones, and progress in a way that feels visual and motivating rather than technical.
+
+Users can edit or regenerate their plans, adjusting milestones, dates, or tasks as needed, while the underlying AI logic remains deterministic and easy to trace. Later phases introduce smarter scheduling and refinement—ensuring the system evolves toward intelligence and automation without sacrificing transparency or maintainability.
+
+The focus of DOER.AI is not to build a complex or overly engineered system, but to craft a clean, dependable, and user-friendly experience that allows anyone to turn a written goal into a clear roadmap they can follow day by day.

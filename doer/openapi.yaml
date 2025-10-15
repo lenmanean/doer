@@ -1,0 +1,753 @@
+openapi: 3.0.3
+info:
+  title: DOER.AI API
+  description: AI-powered roadmap generation API
+  version: 1.0.0
+  contact:
+    name: DOER.AI Support
+    email: support@doer.ai
+servers:
+  - url: https://api.doer.ai/v1
+    description: Production server
+  - url: http://localhost:3000
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /plans/{goalId}/preflight:
+    post:
+      summary: Generate clarification questions for a goal
+      description: Analyzes a goal and returns minimal clarifying questions needed before plan generation
+      operationId: preflightGoal
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          description: UUID of the goal
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreflightRequest'
+            examples:
+              scuba:
+                summary: Scuba diving goal
+                value:
+                  goal_text: "Scuba dive in Colombia before I turn 23"
+                  deadline: "2026-01-15"
+                  weekly_hours: 5
+                  budget_cents: 200000
+                  known_facts: []
+      responses:
+        '200':
+          description: Clarification questions generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationQuestions'
+              examples:
+                scuba_questions:
+                  summary: Scuba diving questions
+                  value:
+                    - kind: "location"
+                      question: "Do you currently live in Colombia?"
+                      required: true
+                    - kind: "prereq"
+                      question: "Do you already have a scuba certification?"
+                      required: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /plans/{goalId}/generate:
+    post:
+      summary: Generate a plan draft for a goal
+      description: Creates a structured plan with milestones and tasks based on goal requirements
+      operationId: generatePlan
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          description: UUID of the goal
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePlanRequest'
+            examples:
+              marathon:
+                summary: Marathon training goal
+                value:
+                  goal_text: "Run a marathon"
+                  deadline: "2026-05-01"
+                  weekly_hours: 6
+                  budget_cents: 15000
+                  answers: {}
+                  constraints:
+                    max_milestones: 6
+                    min_tasks_per_milestone: 2
+                    max_total_tasks: 40
+      responses:
+        '200':
+          description: Plan draft generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Goal is infeasible or schema validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                infeasible:
+                  summary: Infeasible goal
+                  value:
+                    error: "INFEASIBLE_GOAL"
+                    message: "This goal cannot be achieved within the given constraints"
+                    reason: "INFEASIBLE_GOAL"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /plans/{planId}/critique:
+    post:
+      summary: Critique and repair a plan draft
+      description: Analyzes a plan for constraint violations and proposes minimal repairs
+      operationId: critiquePlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: UUID of the plan
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CritiqueRequest'
+      responses:
+        '200':
+          description: Critique completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CritiqueResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /plans/{planId}/schedule:
+    post:
+      summary: Schedule tasks in a plan
+      description: Maps plan tasks to calendar days with dependency resolution
+      operationId: schedulePlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: UUID of the plan
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequest'
+      responses:
+        '200':
+          description: Schedule generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /plans/{planId}/publish:
+    post:
+      summary: Publish a plan
+      description: Changes plan status from draft to published
+      operationId: publishPlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: UUID of the plan
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Plan published successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Plan published successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT token
+
+  schemas:
+    PreflightRequest:
+      type: object
+      required:
+        - goal_text
+        - deadline
+        - weekly_hours
+      properties:
+        goal_text:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Free-form description of the goal
+          example: "Scuba dive in Colombia before I turn 23"
+        deadline:
+          type: string
+          format: date
+          description: ISO date when the goal must be achieved
+          example: "2026-01-15"
+        weekly_hours:
+          type: integer
+          minimum: 1
+          maximum: 70
+          description: Hours per week available for this goal
+          example: 5
+        budget_cents:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Budget in cents
+          example: 200000
+        known_facts:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Array of known facts about the goal
+          example: []
+
+    GeneratePlanRequest:
+      type: object
+      required:
+        - goal_text
+        - deadline
+        - weekly_hours
+      properties:
+        goal_text:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Free-form description of the goal
+          example: "Run a marathon"
+        deadline:
+          type: string
+          format: date
+          description: ISO date when the goal must be achieved
+          example: "2026-05-01"
+        weekly_hours:
+          type: integer
+          minimum: 1
+          maximum: 70
+          description: Hours per week available for this goal
+          example: 6
+        budget_cents:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Budget in cents
+          example: 15000
+        answers:
+          type: object
+          additionalProperties: true
+          default: {}
+          description: Answers to clarification questions
+          example: {}
+        constraints:
+          type: object
+          properties:
+            max_milestones:
+              type: integer
+              minimum: 3
+              maximum: 6
+              default: 6
+            min_tasks_per_milestone:
+              type: integer
+              minimum: 2
+              default: 2
+            max_total_tasks:
+              type: integer
+              minimum: 6
+              maximum: 40
+              default: 40
+          description: Plan generation constraints
+
+    CritiqueRequest:
+      type: object
+      required:
+        - plan
+        - deadline
+        - weekly_hours
+      properties:
+        plan:
+          $ref: '#/components/schemas/PlanDraft'
+        deadline:
+          type: string
+          format: date
+          description: ISO date when the goal must be achieved
+          example: "2026-05-01"
+        weekly_hours:
+          type: integer
+          minimum: 1
+          maximum: 70
+          description: Hours per week available for this goal
+          example: 6
+        budget_cents:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Budget in cents
+          example: 15000
+
+    ScheduleRequest:
+      type: object
+      required:
+        - plan
+        - start_date
+        - deadline
+        - weekly_hours
+      properties:
+        plan:
+          $ref: '#/components/schemas/PlanDraft'
+        start_date:
+          type: string
+          format: date
+          description: ISO date to start the schedule
+          example: "2025-01-01"
+        deadline:
+          type: string
+          format: date
+          description: ISO date when the goal must be achieved
+          example: "2026-05-01"
+        weekly_hours:
+          type: integer
+          minimum: 1
+          maximum: 70
+          description: Hours per week available for this goal
+          example: 6
+        timezone:
+          type: string
+          default: "America/Los_Angeles"
+          description: Timezone for scheduling
+          example: "America/Los_Angeles"
+
+    ClarificationQuestions:
+      type: array
+      maxItems: 3
+      items:
+        type: object
+        required:
+          - kind
+          - question
+          - required
+        properties:
+          kind:
+            type: string
+            enum: [location, prereq, budget, time, other]
+            description: Category of the clarification question
+            example: "location"
+          question:
+            type: string
+            minLength: 5
+            maxLength: 300
+            description: The clarification question text
+            example: "Do you currently live in Colombia?"
+          required:
+            type: boolean
+            description: Whether this question must be answered
+            example: true
+
+    PlanDraft:
+      type: object
+      required:
+        - assumptions
+        - risks
+        - milestones
+      properties:
+        assumptions:
+          type: array
+          maxItems: 15
+          items:
+            type: string
+            minLength: 3
+            maxLength: 160
+          description: List of assumptions made in the plan
+          example: ["Access to a local gym", "Basic fitness level"]
+        risks:
+          type: array
+          maxItems: 15
+          items:
+            type: string
+            minLength: 3
+            maxLength: 160
+          description: List of identified risks
+          example: ["Risk of injury", "Weather conditions"]
+        milestones:
+          type: array
+          minItems: 3
+          maxItems: 6
+          items:
+            $ref: '#/components/schemas/Milestone'
+          description: List of milestones in the plan
+
+    Milestone:
+      type: object
+      required:
+        - name
+        - rationale
+        - tasks
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 140
+          description: Name of the milestone
+          example: "Base Building"
+        rationale:
+          type: string
+          minLength: 20
+          maxLength: 800
+          description: Explanation of why this milestone is needed
+          example: "Establish aerobic base and running form before increasing intensity"
+        target_date:
+          type: string
+          format: date
+          description: Target completion date for this milestone
+          example: "2025-03-01"
+        tasks:
+          type: array
+          minItems: 2
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Task'
+          description: Tasks within this milestone
+
+    Task:
+      type: object
+      required:
+        - name
+        - est_days
+        - required
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the task
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 140
+          description: Name of the task
+          example: "Buy running shoes"
+        details:
+          type: string
+          maxLength: 1000
+          description: Detailed description of the task
+          example: "Research and purchase proper running shoes for marathon training"
+        est_days:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 90
+          description: Estimated duration in days
+          example: 1
+        dependency_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of tasks that must be completed first
+          example: []
+        category:
+          type: string
+          enum: [learn, buy, book, research, produce, practice, other]
+          description: Category of the task
+          example: "buy"
+        cost_cents:
+          type: integer
+          minimum: 0
+          maximum: 100000000
+          description: Estimated cost in cents
+          example: 15000
+        required:
+          type: boolean
+          description: Whether this task is required
+          example: true
+
+    CritiqueResponse:
+      type: object
+      required:
+        - violations
+        - plan
+      properties:
+        violations:
+          type: array
+          items:
+            type: string
+          description: List of identified violations
+          example: ["Task duration too long", "Budget exceeded"]
+        plan:
+          $ref: '#/components/schemas/PlanDraft'
+          description: Repaired plan (if violations were found and fixed)
+
+    ScheduleResult:
+      type: object
+      required:
+        - placements
+        - feasible
+      properties:
+        placements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Placement'
+          description: List of task placements on specific dates
+        feasible:
+          type: boolean
+          description: Whether the schedule is feasible within constraints
+          example: true
+        reason:
+          type: string
+          description: Reason if schedule is not feasible
+          example: "DEADLINE_EXCEEDED"
+        lastDate:
+          type: string
+          format: date
+          description: Last scheduled date
+          example: "2026-04-30"
+
+    Placement:
+      type: object
+      required:
+        - taskId
+        - date
+        - hours
+      properties:
+        taskId:
+          type: string
+          description: ID of the task being scheduled
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        date:
+          type: string
+          format: date
+          description: Date when the task is scheduled
+          example: "2025-01-15"
+        hours:
+          type: number
+          minimum: 0.01
+          maximum: 24
+          description: Hours allocated to this task on this date
+          example: 2.5
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+        - path
+        - method
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "INVALID_INPUT"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Missing required fields: goal_text, deadline, weekly_hours"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: "2025-01-21T12:30:00Z"
+        path:
+          type: string
+          description: API path where error occurred
+          example: "/plans/123/generate"
+        method:
+          type: string
+          description: HTTP method
+          example: "POST"
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_INPUT"
+            message: "Missing required fields"
+            timestamp: "2025-01-21T12:30:00Z"
+            path: "/plans/123/generate"
+            method: "POST"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "UNAUTHORIZED"
+            message: "Missing or invalid authorization header"
+            timestamp: "2025-01-21T12:30:00Z"
+            path: "/plans/123/generate"
+            method: "POST"
+
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "FORBIDDEN"
+            message: "Goal not found or access denied"
+            timestamp: "2025-01-21T12:30:00Z"
+            path: "/plans/123/generate"
+            method: "POST"
+
+    UnprocessableEntity:
+      description: Schema validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "SCHEMA_VALIDATION_FAILED"
+            message: "Request body does not match expected schema"
+            timestamp: "2025-01-21T12:30:00Z"
+            path: "/plans/123/generate"
+            method: "POST"
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  retryAfter:
+                    type: integer
+                    description: Seconds to wait before retrying
+                    example: 60
+          example:
+            error: "RATE_LIMIT_EXCEEDED"
+            message: "Too many requests. Please try again later."
+            retryAfter: 60
+            timestamp: "2025-01-21T12:30:00Z"
+            path: "/plans/123/generate"
+            method: "POST"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INTERNAL_SERVER_ERROR"
+            message: "An unexpected error occurred"
+            timestamp: "2025-01-21T12:30:00Z"
+            path: "/plans/123/generate"
+            method: "POST"
+
+
+
+
+
+
+
+
+
+
