@@ -20,6 +20,7 @@ import { fetchHealthMetrics } from '@/lib/analytics'
 import { useCountUp } from '@/hooks/useCountUp'
 import { HealthModal } from '@/components/ui/HealthModal'
 import { PulseOrb } from '@/components/ui/PulseOrb'
+import { HealthCountdownTimer } from '@/components/ui/HealthCountdownTimer'
 // FloatingInsightCard removed - using inline insights instead
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
 import { SwitchPlanModal } from '@/components/ui/SwitchPlanModal'
@@ -923,6 +924,14 @@ export default function DashboardPage() {
                         </motion.div>
                       )}
                     </AnimatePresence>
+                  </div>
+                  
+                  {/* Health Snapshot Countdown Timer */}
+                  <div className="w-full mt-3">
+                    <HealthCountdownTimer 
+                      cronSchedule="0 0 * * *" // Daily at midnight - update this with actual schedule
+                      className="w-full"
+                    />
                   </div>
                 </>
               )}
