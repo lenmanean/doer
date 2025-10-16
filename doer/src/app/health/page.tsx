@@ -353,7 +353,7 @@ export default function HealthPage() {
                 transition={{ duration: 0.3, delay: 0.1 }}
           >
             {/* Expanded view with 3 glowing orbs */}
-            <div className="relative w-[800px] h-[800px]">
+            <div className="relative w-[800px] h-[400px]">
               {/* Progress Orb - Top */}
               <motion.div 
                 className="absolute"
@@ -364,7 +364,7 @@ export default function HealthPage() {
                 initial={{ x: '-50%', y: '-50%', scale: 2.5, opacity: 0 }}
                 animate={{ 
                   x: '-50%', 
-                  y: 'calc(-50% - 200px)',
+                  y: 'calc(-50% - 100px)',
                   scale: 1,
                   opacity: hoveredOrb && hoveredOrb !== 'progress' ? 0.3 : 1,
                   filter: hoveredOrb && hoveredOrb !== 'progress' ? 'blur(4px)' : 'blur(0px)',
