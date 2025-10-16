@@ -879,6 +879,7 @@ export default function DashboardPage() {
                       hasScheduledTasks={false}
                       healthScore={0}
                       noPlan={true}
+                      className="scale-75"
                     />
                   </div>
                   <div className="w-full flex justify-center pb-2">
@@ -900,6 +901,7 @@ export default function DashboardPage() {
                       hasScheduledTasks={hasScheduledTasks}
                       healthScore={healthScore}
                       showHealthTooltip={true}
+                      className="scale-75"
                     />
                   </div>
                   

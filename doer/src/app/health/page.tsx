@@ -231,6 +231,7 @@ export default function HealthPage() {
               hasScheduledTasks={false}
               healthScore={0}
               noPlan={true}
+              className="scale-[1.75]"
             />
           </div>
         ) : loadingMetrics ? (
@@ -238,7 +239,7 @@ export default function HealthPage() {
         ) : (
           <AnimatePresence mode="wait">
             {!isExpanded ? (
-              <div className="relative">
+              <div className="relative flex items-center">
                 <motion.div 
                   key="collapsed"
                   initial={{ opacity: 0, scale: 0.5 }}
@@ -255,6 +256,7 @@ export default function HealthPage() {
               hasScheduledTasks={hasScheduledTasks}
               healthScore={healthScore}
               expandable={true}
+              className="scale-[1.75]"
                     onExpand={() => {
                       setIsOverallOrbHovered(false)
                       setTimeout(() => setIsExpanded(true), 200)
@@ -266,7 +268,7 @@ export default function HealthPage() {
                 <AnimatePresence>
                   {isOverallOrbHovered && (
                     <motion.div
-                      className="absolute top-1/2 -translate-y-1/2 left-[calc(100%+120px)] w-72 space-y-4"
+                      className="absolute left-[calc(100%+120px)] w-72 space-y-4"
                       initial={{ opacity: 0, x: -30 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -30 }}
@@ -352,6 +354,7 @@ export default function HealthPage() {
             animate={{ opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
           >
+            <div className="relative flex items-center">
             {/* Expanded view with 3 glowing orbs */}
             <div className="relative w-[800px] h-[400px]">
               {/* Progress Orb - Top */}
@@ -647,7 +650,7 @@ export default function HealthPage() {
 
               {/* Metric Panels - Stacked vertically on the right */}
               <motion.div
-                className="absolute top-1/2 -translate-y-1/2 w-80 space-y-4"
+                className="absolute w-80 space-y-4"
                 style={{ right: '-350px' }}
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -749,6 +752,7 @@ export default function HealthPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </motion.button>
+            </div>
             </div>
           </motion.div>
             )}
