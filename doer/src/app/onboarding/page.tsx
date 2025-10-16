@@ -334,7 +334,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
       <StaggeredFadeIn className="max-w-2xl mx-auto space-y-8">
         {/* Header */}
         <FadeInWrapper delay={0.1} direction="up">
@@ -365,7 +365,7 @@ export default function OnboardingPage() {
         </FadeInWrapper>
 
         {/* Sequential Panels */}
-        <div className="relative">
+        <div className="relative min-h-[400px]">
           {steps.map((step, index) => (
             <div
               key={index}
@@ -373,8 +373,8 @@ export default function OnboardingPage() {
                 index === currentStep
                   ? 'opacity-100 translate-x-0'
                   : index < currentStep
-                  ? 'opacity-0 -translate-x-full absolute inset-0'
-                  : 'opacity-0 translate-x-full absolute inset-0'
+                  ? 'opacity-0 -translate-x-full absolute top-0 left-0 right-0'
+                  : 'opacity-0 translate-x-full absolute top-0 left-0 right-0'
               }`}
             >
               <Card>
