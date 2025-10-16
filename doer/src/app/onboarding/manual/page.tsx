@@ -337,8 +337,8 @@ export default function ManualOnboardingPage() {
         console.log('Tasks created:', tasksData.tasks)
       }
 
-      // Navigate to onboarding review page
-      router.push('/onboarding/review')
+      // Navigate directly to completion page (manual plans don't need review since they were built manually)
+      router.push('/onboarding/complete')
     } catch (err: any) {
       console.error('Error creating manual plan:', err)
       setError(err.message || 'Failed to create plan. Please try again.')

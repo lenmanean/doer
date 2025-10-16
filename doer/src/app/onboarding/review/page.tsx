@@ -33,7 +33,7 @@ export default function OnboardingReviewPage() {
 
         setUser(user)
 
-        // Get user's most recent onboarding response
+        // Get user's most recent onboarding response (for AI-generated plans)
         const { data: onboardingData, error: onboardingError } = await supabase
           .from('onboarding_responses')
           .select('*')
@@ -42,19 +42,16 @@ export default function OnboardingReviewPage() {
           .limit(1)
           .maybeSingle()
 
-        if (onboardingError) {
+        if (onboardingError && onboardingError.code !== 'PGRST116') {
           console.error('Error fetching onboarding responses:', onboardingError)
-          router.push('/onboarding')
-          return
         }
         
-        if (!onboardingData) {
-          console.error('No onboarding responses found')
-          router.push('/onboarding')
-          return
+        // If no onboarding response found, this is a manual plan - that's okay
+        // The loadExistingRoadmap function will handle loading the plan data
+        if (onboardingData) {
+          setProfile(onboardingData)
         }
-
-        setProfile(onboardingData)
+        
         setLoading(false)
       } catch (error) {
         console.error('Error in user check:', error)
@@ -72,8 +69,8 @@ export default function OnboardingReviewPage() {
   const [hasGenerated, setHasGenerated] = useState(false)
 
   const loadExistingRoadmap = async () => {
-    if (!profile || !user) {
-      console.error('No profile or user data available')
+    if (!user) {
+      console.error('No user data available')
       setIsGenerating(false)
       return
     }
@@ -268,10 +265,10 @@ export default function OnboardingReviewPage() {
   }
 
   useEffect(() => {
-    if (user && !loading && profile) {
+    if (user && !loading) {
       loadExistingRoadmap()
     }
-  }, [user, loading, profile])
+  }, [user, loading])
 
   const handleContinueToRoadmap = async () => {
     try {
