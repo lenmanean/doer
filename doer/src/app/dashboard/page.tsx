@@ -926,11 +926,10 @@ export default function DashboardPage() {
                     </AnimatePresence>
                   </div>
                   
-                  {/* Health Snapshot Countdown Timer */}
-                  <div className="w-full mt-3">
+                  {/* Health Snapshot Countdown Timer - Simple text under insights */}
+                  <div className="w-full mt-1">
                     <HealthCountdownTimer 
-                      cronSchedule="0 0 * * *" // Daily at midnight - update this with actual schedule
-                      className="w-full"
+                      cronSchedule="0 0 * * *"
                     />
                   </div>
                 </>
