@@ -223,7 +223,7 @@ export default function HealthPage() {
 
       <main className="min-h-screen flex items-center justify-center">
         {!roadmapData?.plan && !roadmapLoading ? (
-          <div className="w-[60vh] h-[60vh]">
+          <div>
             <PulseOrb
               progress={0}
               consistency={0}
@@ -241,7 +241,6 @@ export default function HealthPage() {
               <div className="relative">
                 <motion.div 
                   key="collapsed"
-                  className="w-[60vh] h-[60vh]"
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}

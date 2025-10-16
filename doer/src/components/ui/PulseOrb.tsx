@@ -162,7 +162,7 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
           ]),
           scale,
         }}
-        className="relative w-full h-full rounded-full flex items-center justify-center"
+        className="relative w-96 h-96 rounded-full flex items-center justify-center"
       >
         {/* Pulsating outer glow ring */}
         <motion.div
