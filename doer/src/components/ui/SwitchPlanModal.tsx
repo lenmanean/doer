@@ -276,7 +276,8 @@ export function SwitchPlanModal({
                         <PlanCard
                           plan={activePlan}
                           isActive={true}
-                          showActions={false}
+                          onDelete={handleDeleteClick}
+                          showActions={true}
                         />
                       )}
 

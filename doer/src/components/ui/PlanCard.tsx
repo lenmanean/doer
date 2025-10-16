@@ -153,22 +153,23 @@ export function PlanCard({
               <Archive className="w-3.5 h-3.5" />
             </button>
           )}
-          
-          {onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(plan.id)
-              }}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-colors border border-white/10"
-              title="Delete plan"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       )}
       </div>
+
+      {/* Delete Button - Bottom Right Corner for all plans */}
+      {onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(plan.id)
+          }}
+          className="absolute bottom-3 right-3 p-1.5 rounded-lg bg-white/5 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 border border-white/10 hover:border-red-500/30 opacity-70 hover:opacity-100"
+          title="Delete plan"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       {/* Confirmation Popup for Switching */}
       <AnimatePresence>
