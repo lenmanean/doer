@@ -11,7 +11,7 @@ interface HealthHistory {
   efficiency: Array<{ value: number; snapshot_date: string }>
 }
 
-export function PulseOrb({ progress, consistency, efficiency, healthHistory, hasScheduledTasks = true, healthScore = 100, noPlan = false, showHealthTooltip = false, expandable = false, onExpand }: {
+export function PulseOrb({ progress, consistency, efficiency, healthHistory, hasScheduledTasks = true, healthScore = 100, noPlan = false, showHealthTooltip = false, expandable = false, onExpand, className }: {
   progress: number
   consistency: number
   efficiency: number | null
@@ -22,6 +22,7 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
   showHealthTooltip?: boolean
   expandable?: boolean
   onExpand?: () => void
+  className?: string
 }) {
   const [hovered, setHovered] = useState(false)
   const [time, setTime] = useState(0)
@@ -148,7 +149,7 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
 
   return (
     <div
-      className="flex flex-col items-center justify-center relative cursor-pointer select-none"
+      className={cn("flex flex-col items-center justify-center relative cursor-pointer select-none", className)}
       onMouseEnter={() => { setHovered(true); scale.set(1.1) }}
       onMouseLeave={() => { setHovered(false); scale.set(1) }}
     >

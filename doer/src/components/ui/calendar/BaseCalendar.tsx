@@ -462,7 +462,7 @@ export const BaseCalendarGrid = ({
               day.isSelected && !day.isToday ? 'bg-white/10 border-white/20' :
               day.highlightType === 'start' ? 'bg-orange-600/20 border-orange-600/40' :
               day.highlightType === 'milestone' ? 'bg-purple-500/20 border-purple-500/40' :
-              day.highlightType === 'completion' ? 'bg-green-500/20 border-green-500/40' : 'border-transparent',
+              day.highlightType === 'completion' ? 'bg-green-500/20 border-green-500/40' : 'border-white/10',
               // Ring colors based on task type: green if all completed, purple if has milestone tasks (even with regular tasks), orange if only daily tasks
               day.hasTasks ? (day.allTasksCompleted ? 'ring-1 ring-green-500/50' : day.hasMilestoneTasks ? 'ring-1 ring-purple-500/50' : 'ring-1 ring-[#ff7f00]/30') : ''
             )}

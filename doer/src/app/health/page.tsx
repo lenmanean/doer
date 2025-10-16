@@ -223,7 +223,7 @@ export default function HealthPage() {
 
       <main className="min-h-screen flex items-center justify-center">
         {!roadmapData?.plan && !roadmapLoading ? (
-          <div className="scale-[2.5]">
+          <div className="w-[400px] h-[400px]">
             <PulseOrb
               progress={0}
               consistency={0}
@@ -241,7 +241,7 @@ export default function HealthPage() {
               <div className="relative">
                 <motion.div 
                   key="collapsed"
-                  className="scale-[2.5]"
+                  className="w-[400px] h-[400px]"
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
@@ -267,8 +267,7 @@ export default function HealthPage() {
                 <AnimatePresence>
                   {isOverallOrbHovered && (
                     <motion.div
-                      className="absolute top-1/2 -translate-y-1/2 w-72 space-y-4"
-                      style={{ left: '100%', marginLeft: '120px' }}
+                      className="absolute top-1/2 -translate-y-1/2 left-[calc(100%+120px)] w-72 space-y-4"
                       initial={{ opacity: 0, x: -30 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -30 }}

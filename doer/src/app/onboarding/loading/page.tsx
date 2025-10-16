@@ -205,7 +205,7 @@ export default function OnboardingLoadingPage() {
                         ? 'bg-green-500/5 border border-green-500/20'
                         : step.status === 'error'
                         ? 'bg-red-500/10 border border-red-500/30'
-                        : 'bg-transparent border border-transparent'
+                        : 'bg-transparent border border-white/10'
                     }`}
                   >
                     {/* Icon */}
