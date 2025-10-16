@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from 'react'
 import { Upload } from 'lucide-react'
 import { cn, formatFileSize } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
-import { parseBlob } from 'music-metadata-browser'
+import { parseBlob } from 'music-metadata'
 
 interface UploadedFile {
   id: string
