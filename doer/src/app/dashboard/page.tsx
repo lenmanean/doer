@@ -907,7 +907,7 @@ export default function DashboardPage() {
                   </div>
                   
                   {/* Cycling Health Insights - At bottom of panel */}
-                  <div className="w-full flex justify-center pb-2" style={{ marginTop: 'auto', marginBottom: '4px' }}>
+                  <div className="w-full flex justify-center pb-1" style={{ marginTop: 'auto', marginBottom: '0px' }}>
                     <AnimatePresence mode="wait">
                       {cyclingInsights.length > 0 && (
                         <motion.div
@@ -927,7 +927,7 @@ export default function DashboardPage() {
                   </div>
                   
                   {/* Health Snapshot Countdown Timer - Simple text under insights */}
-                  <div className="w-full mt-1">
+                  <div className="w-full mt-0 pb-2">
                     <HealthCountdownTimer 
                       cronSchedule="0 0 * * *"
                     />
