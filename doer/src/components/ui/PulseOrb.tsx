@@ -162,7 +162,7 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
           ]),
           scale,
         }}
-        className="relative w-96 h-96 rounded-full flex items-center justify-center"
+        className="relative w-64 h-64 rounded-full flex items-center justify-center"
       >
         {/* Pulsating outer glow ring */}
         <motion.div
@@ -242,7 +242,7 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
               onMouseLeave={() => setTooltipHovered(false)}
             >
               <motion.div 
-                className="text-xs text-[#d7d2cb] rounded-lg backdrop-blur-sm border border-white/10 overflow-hidden"
+                className="text-2xl text-[#d7d2cb] rounded-xl backdrop-blur-sm border border-white/10 overflow-hidden"
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.1)'
                 }}
@@ -254,19 +254,19 @@ export function PulseOrb({ progress, consistency, efficiency, healthHistory, has
                   ease: "easeOut"
                 }}
               >
-                <div className="font-medium flex flex-col items-center px-3 py-1.5">
+                <div className="font-semibold flex flex-col items-center px-6 py-3">
                   <div>{Math.round(healthScore)}%</div>
                   <motion.div
                     animate={{ 
                       opacity: tooltipHovered ? 1 : 0,
-                      height: tooltipHovered ? '14px' : 0,
-                      marginTop: tooltipHovered ? '2px' : 0
+                      height: tooltipHovered ? '24px' : 0,
+                      marginTop: tooltipHovered ? '4px' : 0
                     }}
                     transition={{ 
                       duration: 0.2,
                       ease: "easeOut"
                     }}
-                    className="text-[10px] text-[#d7d2cb]/60"
+                    className="text-lg text-[#d7d2cb]/60"
                   >
                     +
                   </motion.div>
