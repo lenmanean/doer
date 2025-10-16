@@ -224,12 +224,13 @@ export function SwitchPlanModal({
             />
 
             {/* Modal Panel */}
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', duration: 0.5 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-full max-w-2xl max-h-[90vh] overflow-hidden"
+              className="w-full max-w-2xl max-h-[90vh] overflow-hidden"
             >
               <div className="bg-[#0a0a0a]/80 backdrop-blur-2xl border border-white/20 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
                 {/* Header */}
@@ -357,6 +358,7 @@ export function SwitchPlanModal({
                 </div>
               </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
