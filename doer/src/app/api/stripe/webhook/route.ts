@@ -17,17 +17,35 @@ if (stripeSecretKey) {
 /**
  * Converts Stripe's recurring interval to our BillingCycle enum
  * Stripe uses "month" and "year", but our enum expects "monthly" and "annual"
+ * Also handles case-insensitive matching and partial matches
  */
 function convertStripeIntervalToBillingCycle(
   interval: string | undefined | null
 ): BillingCycle {
-  if (interval === 'month') {
+  if (!interval) {
     return 'monthly'
   }
-  if (interval === 'year') {
+  
+  const normalized = interval.toLowerCase().trim()
+  
+  // Handle exact matches
+  if (normalized === 'month' || normalized === 'monthly') {
+    return 'monthly'
+  }
+  if (normalized === 'year' || normalized === 'yearly' || normalized === 'annual') {
     return 'annual'
   }
+  
+  // Handle partial matches (e.g., "monthly" contains "month")
+  if (normalized.includes('month')) {
+    return 'monthly'
+  }
+  if (normalized.includes('year') || normalized.includes('annual')) {
+    return 'annual'
+  }
+  
   // Default to monthly if interval is not recognized
+  console.warn(`[Stripe webhook] Unknown billing interval: "${interval}", defaulting to "monthly"`)
   return 'monthly'
 }
 
@@ -71,7 +89,16 @@ export async function POST(req: NextRequest) {
 
         const userId = metadata.userId
         const planSlug = metadata.planSlug
-        const billingCycle = (metadata.billingCycle as BillingCycle) || 'monthly'
+        const metadataBillingCycle = metadata.billingCycle as string | undefined
+        // Validate and convert billing cycle - metadata might contain "month" instead of "monthly"
+        let billingCycle: BillingCycle = 'monthly'
+        if (metadataBillingCycle && ['monthly', 'annual'].includes(metadataBillingCycle)) {
+          // Metadata has valid billing cycle
+          billingCycle = metadataBillingCycle as BillingCycle
+        } else if (metadataBillingCycle) {
+          // Metadata has billing cycle but it's in wrong format (e.g., "month" or "year")
+          billingCycle = convertStripeIntervalToBillingCycle(metadataBillingCycle)
+        }
 
         if (!userId || !planSlug) {
           console.warn('[Stripe webhook] Missing userId/planSlug in session metadata', {
@@ -98,9 +125,19 @@ export async function POST(req: NextRequest) {
         const planSlug = metadata.planSlug
         // Get billing cycle from Stripe's interval (month/year) or metadata, converting as needed
         const stripeInterval = subscription.items.data[0]?.price?.recurring?.interval
-        const billingCycle =
-          (metadata.billingCycle as BillingCycle) ||
-          (stripeInterval ? convertStripeIntervalToBillingCycle(stripeInterval) : 'monthly')
+        const metadataBillingCycle = metadata.billingCycle as string | undefined
+        // Validate and convert billing cycle - metadata might contain "month" instead of "monthly"
+        let billingCycle: BillingCycle = 'monthly'
+        if (metadataBillingCycle && ['monthly', 'annual'].includes(metadataBillingCycle)) {
+          // Metadata has valid billing cycle
+          billingCycle = metadataBillingCycle as BillingCycle
+        } else if (metadataBillingCycle) {
+          // Metadata has billing cycle but it's in wrong format (e.g., "month" or "year")
+          billingCycle = convertStripeIntervalToBillingCycle(metadataBillingCycle)
+        } else if (stripeInterval) {
+          // Use Stripe's interval and convert it
+          billingCycle = convertStripeIntervalToBillingCycle(stripeInterval)
+        }
 
         if (!userId || !planSlug) {
           console.log('[Stripe webhook] Subscription event without metadata, ignoring', {
