@@ -90,14 +90,32 @@ export async function POST(req: NextRequest) {
         const userId = metadata.userId
         const planSlug = metadata.planSlug
         const metadataBillingCycle = metadata.billingCycle as string | undefined
+        
+        // Log raw values for debugging
+        console.log('[Stripe webhook] Checkout session completed - raw values:', {
+          sessionId: session.id,
+          metadataBillingCycle,
+          metadata: JSON.stringify(metadata),
+        })
+        
         // Validate and convert billing cycle - metadata might contain "month" instead of "monthly"
         let billingCycle: BillingCycle = 'monthly'
         if (metadataBillingCycle && ['monthly', 'annual'].includes(metadataBillingCycle)) {
           // Metadata has valid billing cycle
           billingCycle = metadataBillingCycle as BillingCycle
+          console.log('[Stripe webhook] Using valid metadata billing cycle:', billingCycle)
         } else if (metadataBillingCycle) {
           // Metadata has billing cycle but it's in wrong format (e.g., "month" or "year")
           billingCycle = convertStripeIntervalToBillingCycle(metadataBillingCycle)
+          console.log('[Stripe webhook] Converted metadata billing cycle:', metadataBillingCycle, '->', billingCycle)
+        } else {
+          console.log('[Stripe webhook] No billing cycle in metadata, defaulting to monthly')
+        }
+        
+        // Final validation - ensure billingCycle is valid before proceeding
+        if (!['monthly', 'annual'].includes(billingCycle)) {
+          console.error('[Stripe webhook] Invalid billing cycle after conversion:', billingCycle)
+          billingCycle = 'monthly' // Force to valid default
         }
 
         if (!userId || !planSlug) {
@@ -107,6 +125,12 @@ export async function POST(req: NextRequest) {
           })
           break
         }
+        
+        console.log('[Stripe webhook] Proceeding with subscription assignment:', {
+          userId,
+          planSlug,
+          billingCycle,
+        })
 
         await assignSubscription(userId, planSlug, billingCycle)
         console.log('[Stripe webhook] Assigned subscription via checkout.session.completed', {
@@ -126,25 +150,51 @@ export async function POST(req: NextRequest) {
         // Get billing cycle from Stripe's interval (month/year) or metadata, converting as needed
         const stripeInterval = subscription.items.data[0]?.price?.recurring?.interval
         const metadataBillingCycle = metadata.billingCycle as string | undefined
+        
+        // Log raw values for debugging
+        console.log('[Stripe webhook] Subscription event - raw values:', {
+          subscriptionId: subscription.id,
+          metadataBillingCycle,
+          stripeInterval,
+          metadata: JSON.stringify(metadata),
+        })
+        
         // Validate and convert billing cycle - metadata might contain "month" instead of "monthly"
         let billingCycle: BillingCycle = 'monthly'
         if (metadataBillingCycle && ['monthly', 'annual'].includes(metadataBillingCycle)) {
           // Metadata has valid billing cycle
           billingCycle = metadataBillingCycle as BillingCycle
+          console.log('[Stripe webhook] Using valid metadata billing cycle:', billingCycle)
         } else if (metadataBillingCycle) {
           // Metadata has billing cycle but it's in wrong format (e.g., "month" or "year")
           billingCycle = convertStripeIntervalToBillingCycle(metadataBillingCycle)
+          console.log('[Stripe webhook] Converted metadata billing cycle:', metadataBillingCycle, '->', billingCycle)
         } else if (stripeInterval) {
           // Use Stripe's interval and convert it
           billingCycle = convertStripeIntervalToBillingCycle(stripeInterval)
+          console.log('[Stripe webhook] Converted Stripe interval:', stripeInterval, '->', billingCycle)
+        } else {
+          console.log('[Stripe webhook] No billing cycle found, defaulting to monthly')
+        }
+        
+        // Final validation - ensure billingCycle is valid before proceeding
+        if (!['monthly', 'annual'].includes(billingCycle)) {
+          console.error('[Stripe webhook] Invalid billing cycle after conversion:', billingCycle)
+          billingCycle = 'monthly' // Force to valid default
         }
 
         if (!userId || !planSlug) {
-          console.log('[Stripe webhook] Subscription event without metadata, ignoring', {
+          console.log('[Stripe webhook] Subscription event without userId/planSlug, ignoring', {
             subscriptionId: subscription.id,
           })
           break
         }
+        
+        console.log('[Stripe webhook] Proceeding with subscription assignment:', {
+          userId,
+          planSlug,
+          billingCycle,
+        })
 
         // Check if subscription already assigned (idempotency)
         const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
