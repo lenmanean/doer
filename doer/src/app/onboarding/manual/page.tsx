@@ -1,262 +1,348 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, Sparkles, Target, ListTodo, CheckCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
-import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, FadeInWrapper } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { Task } from '@/lib/types'
+import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Trash2, Copy, Clipboard, CopyPlus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useBaseCalendar, BaseCalendarGrid } from '@/components/ui/calendar/BaseCalendar'
-
-interface Milestone {
-  id: string
-  name: string
-  description: string
-  target_date: string
-  tasks: Task[]
-}
-
-interface Task {
-  id: string
-  name: string
-  scheduled_date: string
-  milestone_id?: string
-  category: 'milestone_task' | 'daily_task'
-}
+import { calculateDuration } from '@/lib/task-time-utils'
 
 export default function ManualOnboardingPage() {
   const router = useRouter()
   
-  // Goal details
+  // Plan details - always editable since this is manual creation
   const [goalTitle, setGoalTitle] = useState('')
   const [goalDescription, setGoalDescription] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [startDateManuallySet, setStartDateManuallySet] = useState(false)
+  const [endDateManuallySet, setEndDateManuallySet] = useState(false)
   
-  // Timeline
-  const [startDate, setStartDate] = useState(() => {
-    const today = new Date()
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-    return firstDay.toISOString().split('T')[0]
-  })
-  const [endDate, setEndDate] = useState(() => {
-    const today = new Date()
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-    return lastDay.toISOString().split('T')[0]
-  })
+  // Tasks state
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
   
-  // Calendar and milestones
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [showDayOptions, setShowDayOptions] = useState(false)
-  const [milestones, setMilestones] = useState<Milestone[]>([])
-  const [dailyTasks, setDailyTasks] = useState<Task[]>([]) // Standalone daily tasks not associated with milestones
+  // Copy/Paste/Duplicate state
+  const [copiedTask, setCopiedTask] = useState<Task | null>(null)
   
-  // Modal states
-  const [showAddMilestone, setShowAddMilestone] = useState(false)
-  const [showAddTask, setShowAddTask] = useState(false)
-  const [newMilestoneName, setNewMilestoneName] = useState('')
-  const [newMilestoneDescription, setNewMilestoneDescription] = useState('')
-  const [newTaskName, setNewTaskName] = useState('')
-  const [newTaskCategory, setNewTaskCategory] = useState<'daily_task' | 'milestone_task'>('daily_task')
-  const [newTaskMilestoneId, setNewTaskMilestoneId] = useState('')
+  // Navigation warning state
+  const [showNavigationWarning, setShowNavigationWarning] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
   
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Check if there's unsaved data
+  const hasUnsavedData = useMemo(() => {
+    return (
+      goalTitle.trim() !== '' ||
+      goalDescription.trim() !== '' ||
+      startDate !== '' ||
+      endDate !== '' ||
+      tasks.length > 0
+    )
+  }, [goalTitle, goalDescription, startDate, endDate, tasks.length])
+  
+  // Handle browser navigation (back button, closing tab, etc.)
+  useEffect(() => {
+    if (!hasUnsavedData || isSubmitting) return
 
-  // Generate unique IDs
-  const generateId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+      return e.returnValue
+    }
 
-  const parseDateFromDB = (dateStr: string): Date => {
-    const [year, month, day] = dateStr.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  }
+    // Push a state to intercept back button
+    window.history.pushState(null, '', window.location.pathname)
 
-  const handleDateClick = (dateStr: string) => {
-    setSelectedDate(dateStr)
-    setShowDayOptions(true)
-  }
-
-  // Get items for a specific date
-  const getItemsForDate = (dateStr: string) => {
-    const items: Array<{
-      id: string
-      type: 'milestone' | 'milestone_task' | 'daily_task'
-      name: string
-      milestoneId?: string
-      milestoneName?: string
-    }> = []
-    
-    // Check for milestones on this date
-    milestones.forEach(m => {
-      if (m.target_date === dateStr) {
-        items.push({
-          id: m.id,
-          type: 'milestone',
-          name: m.name
+    // Handle browser back/forward buttons
+    const handlePopState = (e: PopStateEvent) => {
+      if (hasUnsavedData && !isSubmitting) {
+        // Push state back immediately to prevent navigation
+        window.history.pushState(null, '', window.location.pathname)
+        
+        // Show warning modal
+        setShowNavigationWarning(true)
+        setPendingNavigation(() => () => {
+          window.history.back()
         })
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [hasUnsavedData, isSubmitting])
+  
+  // Intercept router navigation
+  const handleNavigation = (navigationFn: () => void) => {
+    if (hasUnsavedData && !isSubmitting) {
+      setPendingNavigation(() => navigationFn)
+      setShowNavigationWarning(true)
+    } else {
+      navigationFn()
+    }
+  }
+  
+  const confirmNavigation = () => {
+    setShowNavigationWarning(false)
+    if (pendingNavigation) {
+      pendingNavigation()
+      setPendingNavigation(null)
+    }
+  }
+  
+  const cancelNavigation = () => {
+    setShowNavigationWarning(false)
+    setPendingNavigation(null)
+  }
+
+  // Calculate total duration in minutes
+  const totalDurationMinutes = useMemo(() => {
+    return tasks.reduce((sum, task) => sum + task.estimated_duration_minutes, 0)
+  }, [tasks])
+
+  // Calculate total days
+  const totalDays = useMemo(() => {
+    if (!startDate || !endDate) return 0
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  }, [startDate, endDate])
+
+  // Helper function to calculate effective end date for a task (handles cross-day tasks)
+  const getEffectiveEndDate = (task: Task): string => {
+    if (!task.scheduled_date) return ''
+    
+    // Check if task is cross-day (end time < start time)
+    if (task.start_time && task.end_time) {
+      const [startHour, startMin] = task.start_time.split(':').map(Number)
+      const [endHour, endMin] = task.end_time.split(':').map(Number)
+      const startMinutes = startHour * 60 + startMin
+      const endMinutes = endHour * 60 + endMin
+      
+      // If end time is before start time, task spans to next day
+      if (endMinutes < startMinutes) {
+        const taskDate = new Date(task.scheduled_date)
+        taskDate.setDate(taskDate.getDate() + 1)
+        return taskDate.toISOString().split('T')[0]
+      }
+    }
+    
+    return task.scheduled_date
+  }
+
+  // Auto-calculate start and end dates from task dates
+  // Handles cross-day tasks (e.g., 8 PM to 3 AM spans to next day)
+  const calculatedDateRange = useMemo(() => {
+    const taskDates = tasks
+      .map(task => task.scheduled_date)
+      .filter(date => date && date !== '')
+      .sort()
+    
+    if (taskDates.length === 0) return { start: null, end: null }
+    
+    // Calculate effective end dates (accounts for cross-day tasks)
+    const effectiveEndDates = tasks
+      .map(task => getEffectiveEndDate(task))
+      .filter(date => date !== '')
+      .sort()
+    
+    // For single task: start is task date, end is effective end date (may be next day for cross-day)
+    // For multiple tasks: start is earliest task date, end is latest effective end date
+    const earliestStart = taskDates[0]
+    const latestEnd = effectiveEndDates.length > 0 
+      ? effectiveEndDates[effectiveEndDates.length - 1]
+      : taskDates[taskDates.length - 1]
+    
+    return {
+      start: earliestStart,
+      end: latestEnd
+    }
+  }, [tasks])
+
+  // Auto-populate start/end dates from task dates
+  // Only auto-update dates that haven't been manually set
+  useEffect(() => {
+    if (calculatedDateRange.start && !startDateManuallySet) {
+      setStartDate(calculatedDateRange.start)
+    }
+  }, [calculatedDateRange.start, startDateManuallySet])
+
+  useEffect(() => {
+    if (calculatedDateRange.end && !endDateManuallySet) {
+      setEndDate(calculatedDateRange.end)
+    }
+  }, [calculatedDateRange.end, endDateManuallySet])
+
+  // Track manual date changes - disable auto-population for that specific field
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value)
+    setStartDateManuallySet(true)
+  }
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value)
+    setEndDateManuallySet(true)
+  }
+
+  const handleTaskToggle = (taskId: string) => {
+    if (expandedTaskId === taskId) {
+      // Save the current editing task before collapsing
+      if (editingTask) {
+        setTasks(prevTasks => prevTasks.map(t => t.id === editingTask.id ? editingTask : t))
+      }
+      setExpandedTaskId(null)
+      // Don't clear editingTask - keep it for next time we expand
+      setEditingTask(null)
+    } else {
+      setExpandedTaskId(taskId)
+      const task = tasks.find(t => t.id === taskId)
+      if (task) {
+        setEditingTask(task)
+      }
+    }
+  }
+
+  const handleTaskInputChange = (field: keyof Task, value: any) => {
+    if (editingTask) {
+      const updatedTask = { ...editingTask, [field]: value }
+      
+      // Auto-calculate duration when start_time or end_time changes
+      if (field === 'start_time' || field === 'end_time') {
+        if (updatedTask.start_time && updatedTask.end_time) {
+          const duration = calculateDuration(updatedTask.start_time, updatedTask.end_time)
+          if (duration > 0) {
+            updatedTask.estimated_duration_minutes = duration
+          }
+        }
       }
       
-      // Check for milestone tasks on this date
-      m.tasks.forEach(t => {
-        if (t.scheduled_date === dateStr && t.category === 'milestone_task') {
-          items.push({
-            id: t.id,
-            type: 'milestone_task',
-            name: t.name,
-            milestoneId: m.id,
-            milestoneName: m.name
-          })
-        }
-      })
-    })
-    
-    // Check for daily tasks on this date
-    dailyTasks.forEach(t => {
-      if (t.scheduled_date === dateStr) {
-        items.push({
-          id: t.id,
-          type: 'daily_task',
-          name: t.name
-        })
-      }
-    })
-    
-    // Check for milestone tasks within milestones on this date (daily task category)
-    milestones.forEach(m => {
-      m.tasks.forEach(t => {
-        if (t.scheduled_date === dateStr && t.category === 'daily_task') {
-          items.push({
-            id: t.id,
-            type: 'daily_task',
-            name: t.name,
-            milestoneId: m.id,
-            milestoneName: m.name
-          })
-        }
-      })
-    })
-    
-    return items
-  }
-
-  const handleAddMilestone = () => {
-    setShowDayOptions(false)
-    setShowAddMilestone(true)
-  }
-
-  const handleAddTask = () => {
-    setShowDayOptions(false)
-    setShowAddTask(true)
-  }
-
-  const saveMilestone = () => {
-    if (!selectedDate || !newMilestoneName.trim()) return
-    
-    const newMilestone: Milestone = {
-      id: generateId(),
-      name: newMilestoneName,
-      description: newMilestoneDescription,
-      target_date: selectedDate,
-      tasks: []
+      setEditingTask(updatedTask)
     }
-    
-    setMilestones(prev => {
-      const updated = [...prev, newMilestone]
-      console.log('Milestones updated:', updated)
-      return updated
-    })
-    
-    setNewMilestoneName('')
-    setNewMilestoneDescription('')
-    setShowAddMilestone(false)
-    setSelectedDate(null)
   }
 
-  const saveTask = () => {
-    if (!selectedDate || !newTaskName.trim()) return
-    
-    // Validate milestone task date isn't after completion date
-    if (newTaskCategory === 'milestone_task' && newTaskMilestoneId) {
-      const milestone = milestones.find(m => m.id === newTaskMilestoneId)
-      if (milestone && selectedDate > milestone.target_date) {
-        setError(`Task cannot be scheduled after milestone completion date (${parseDateFromDB(milestone.target_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`)
-        return
-      }
+  const handleDeleteTask = (taskId: string) => {
+    setTaskToDelete(taskId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskToDelete))
+      setTaskToDelete(null)
+      setShowDeleteConfirm(false)
+      setEditingTask(null)
+      setExpandedTaskId(null)
     }
-    
+  }
+
+  const handleAddNewTask = () => {
     const newTask: Task = {
-      id: generateId(),
-      name: newTaskName,
-      scheduled_date: selectedDate,
-      category: newTaskCategory,
-      milestone_id: newTaskMilestoneId || undefined
+      id: `temp-${Date.now()}`,
+      plan_id: '',
+      idx: tasks.length,
+      name: '',
+      details: '',
+      estimated_duration_minutes: 60,
+      priority: 1 as const,
+      created_at: new Date().toISOString(),
+      scheduled_date: '',
+      start_time: '',
+      end_time: ''
     }
-    
-    // Add task to milestone if milestone_id is provided
-    if (newTaskMilestoneId) {
-      setMilestones(prev => {
-        const updated = prev.map(m => 
-          m.id === newTaskMilestoneId 
-            ? { ...m, tasks: [...m.tasks, newTask] }
-            : m
-        )
-        console.log('Milestones updated with task:', updated)
-        return updated
-      })
-    } else {
-      // Add as standalone daily task
-      setDailyTasks(prev => {
-        const updated = [...prev, newTask]
-        console.log('Daily tasks updated:', updated)
-        return updated
-      })
+    setTasks(prevTasks => [...prevTasks, newTask])
+    setEditingTask(newTask)
+    setExpandedTaskId(newTask.id)
+  }
+
+  const handleCopyTask = () => {
+    if (editingTask) {
+      setCopiedTask({ ...editingTask })
     }
-    
-    setNewTaskName('')
-    setNewTaskCategory('daily_task')
-    setNewTaskMilestoneId('')
-    setShowAddTask(false)
-    setSelectedDate(null)
   }
 
-  const removeMilestone = (milestoneId: string) => {
-    setMilestones(prev => prev.filter(m => m.id !== milestoneId))
+  const handlePasteTask = () => {
+    if (copiedTask) {
+      const newTask: Task = {
+        ...copiedTask,
+        id: `temp-${Date.now()}`,
+        idx: tasks.length,
+        created_at: new Date().toISOString()
+      }
+      setTasks(prevTasks => [...prevTasks, newTask])
+      setEditingTask(newTask)
+      setExpandedTaskId(newTask.id)
+    }
   }
 
-  const removeTask = (milestoneId: string, taskId: string) => {
-    setMilestones(prev => prev.map(m => 
-      m.id === milestoneId 
-        ? { ...m, tasks: m.tasks.filter(t => t.id !== taskId) }
-        : m
-    ))
-  }
-
-  const removeDailyTask = (taskId: string) => {
-    setDailyTasks(prev => prev.filter(t => t.id !== taskId))
+  const handleDuplicateTask = () => {
+    if (editingTask) {
+      // First, save the current editing task to ensure original is preserved
+      setTasks(prevTasks => prevTasks.map(t => t.id === editingTask.id ? editingTask : t))
+      
+      // Then create a duplicate with a new ID and timestamp
+      const newTask: Task = {
+        ...editingTask,
+        id: `temp-${Date.now()}`,
+        idx: tasks.length,
+        created_at: new Date().toISOString()
+      }
+      
+      // Add the duplicate to tasks
+      setTasks(prevTasks => [...prevTasks, newTask])
+      
+      // Switch to editing the new duplicate
+      setEditingTask(newTask)
+      setExpandedTaskId(newTask.id)
+    }
   }
 
   const handleSubmit = async () => {
+    setError(null)
+    
+    // Validation
     if (!goalTitle.trim()) {
       setError('Please enter a goal title')
       return
     }
-    
-    if (milestones.length === 0) {
-      setError('Please add at least one milestone')
+    if (!startDate) {
+      setError('Please select a start date')
       return
     }
-
+    if (!endDate) {
+      setError('Please select an end date')
+      return
+    }
+    // Compare dates (normalize to midnight to avoid timezone issues)
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(endDate)
+    end.setHours(0, 0, 0, 0)
+    
+    if (start > end) {
+      setError('End date must be on or after start date')
+      return
+    }
+    if (tasks.length === 0) {
+      setError('Please add at least one task')
+      return
+    }
+    
     setIsSubmitting(true)
-    setError(null)
     
     try {
-      console.log('Creating manual plan:', {
-        goalTitle,
-        goalDescription,
-        startDate,
-        endDate,
-        milestones: milestones.length
-      })
-
-      // Create the manual plan via API
+      // Step 1: Create manual plan via API
       const planResponse = await fetch('/api/plans/manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -264,67 +350,34 @@ export default function ManualOnboardingPage() {
           goal_text: goalTitle,
           goal_description: goalDescription,
           start_date: startDate,
-          end_date: endDate,
+          end_date: endDate
         }),
       })
 
       if (!planResponse.ok) {
         const errorData = await planResponse.json()
-        throw new Error(errorData.error || 'Failed to create manual plan')
+        throw new Error(errorData.error || 'Failed to create plan')
       }
 
       const planData = await planResponse.json()
-      const planId = planData.plan.id
-      console.log('Manual plan created successfully:', planId)
+      console.log('Manual plan created successfully:', planData.plan.id)
 
-      // Create milestones
-      const milestonesResponse = await fetch('/api/plans/manual/milestones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan_id: planId,
-          milestones: milestones.map(m => ({
-            name: m.name,
-            rationale: m.description,
-            target_date: m.target_date
-          }))
-        }),
-      })
-
-      if (!milestonesResponse.ok) {
-        const errorData = await milestonesResponse.json()
-        throw new Error(errorData.error || 'Failed to create milestones')
-      }
-
-      const milestonesData = await milestonesResponse.json()
-      console.log('Milestones created:', milestonesData.milestones)
-
-      // Map milestone temporary IDs to database IDs
-      const milestoneIdMap = new Map<string, string>()
-      milestones.forEach((m, index) => {
-        if (milestonesData.milestones[index]) {
-          milestoneIdMap.set(m.id, milestonesData.milestones[index].id)
-        }
-      })
-
-      // Collect all tasks from all milestones AND standalone daily tasks
-      const allTasks: Task[] = [...milestones.flatMap(m => m.tasks), ...dailyTasks]
-
-      // If we have tasks, create them
-      if (allTasks.length > 0) {
-        const tasksWithSchedule = allTasks.map(t => ({
-          name: t.name,
-          category: t.category,
-          milestone_id: t.milestone_id ? milestoneIdMap.get(t.milestone_id) : undefined,
-          scheduled_date: t.scheduled_date
-        }))
-
+      // Step 2: Add tasks to the plan
+      if (tasks.length > 0) {
         const tasksResponse = await fetch('/api/plans/manual/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            plan_id: planId,
-            tasks: tasksWithSchedule
+            plan_id: planData.plan.id,
+            tasks: tasks.map(task => ({
+              name: task.name,
+              details: task.details,
+              estimated_duration_minutes: task.estimated_duration_minutes,
+              priority: task.priority,
+              scheduled_date: task.scheduled_date,
+              start_time: task.start_time,
+              end_time: task.end_time
+            }))
           }),
         })
 
@@ -333,743 +386,393 @@ export default function ManualOnboardingPage() {
           throw new Error(errorData.error || 'Failed to create tasks')
         }
 
-        const tasksData = await tasksResponse.json()
-        console.log('Tasks created:', tasksData.tasks)
+        console.log('Tasks created successfully')
       }
 
-      // Navigate directly to completion page (manual plans don't need review since they were built manually)
-      router.push('/onboarding/complete')
-    } catch (err: any) {
-      console.error('Error creating manual plan:', err)
-      setError(err.message || 'Failed to create plan. Please try again.')
+      // Redirect to dashboard
+      router.push('/dashboard')
+    } catch (error: any) {
+      console.error('Error creating manual plan:', error)
+      setError(error.message || 'Failed to create plan. Please try again.')
+    } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Prepare calendar data - recalculate whenever milestones or daily tasks change
-  const calendarTasks = useMemo(() => {
-    const tasksByDateMap = new Map<string, string[]>()
-    
-    console.log('Recalculating calendar data for milestones:', milestones, 'daily tasks:', dailyTasks)
-    
-    // Add all milestone tasks to the map (prefix with 🏆 to mark as milestone tasks)
-    milestones.forEach(m => {
-      m.tasks.forEach(task => {
-        const existing = tasksByDateMap.get(task.scheduled_date) || []
-        // Mark milestone tasks with 🏆 prefix, daily tasks without prefix
-        const taskLabel = task.category === 'milestone_task' ? `🏆 ${task.name}` : task.name
-        tasksByDateMap.set(task.scheduled_date, [...existing, taskLabel])
-      })
-      
-      // Add milestone marker on milestone date with 🎯 prefix
-      const existing = tasksByDateMap.get(m.target_date) || []
-      tasksByDateMap.set(m.target_date, [...existing, `🎯 ${m.name}`])
-    })
-    
-    // Add standalone daily tasks (no prefix for daily tasks)
-    dailyTasks.forEach(task => {
-      const existing = tasksByDateMap.get(task.scheduled_date) || []
-      tasksByDateMap.set(task.scheduled_date, [...existing, task.name])
-    })
-    
-    // Convert to array format for calendar
-    const tasks = Array.from(tasksByDateMap.entries()).map(([date, tasks]) => ({
-      date,
-      tasks
-    }))
-    
-    console.log('Calendar tasks:', tasks)
-    return tasks
-  }, [milestones, dailyTasks])
-
-  // Use base calendar hook with year/decade view support
-  const {
-    currentDate,
-    isHydrated,
-    calendarDays,
-    showYearView,
-    showDecadeView,
-    goToPreviousMonth,
-    goToNextMonth,
-    goToToday,
-    setCurrentDate,
-    setShowYearView,
-    setShowDecadeView,
-    handleMonthClick,
-    handleYearClick,
-    handleDecadeClick,
-    generateYearMonths,
-    generateYearWheel,
-    futureRangeYears,
-  } = useBaseCalendar({
-    tasks: calendarTasks,
-    onDateClick: handleDateClick,
-    showYearDecadeView: true,
-    futureRangeYears: 5,
-    categorizedDates: {
-      startDate: startDate,
-      completionDate: endDate,
-      milestones: milestones.map(m => m.target_date)
-    }
-  })
+  const handleCancel = () => {
+    handleNavigation(() => router.push('/dashboard'))
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0a0a] via-[#0f0a0a] to-[#0a0a0a] text-[#d7d2cb] p-6">
-      <div className="max-w-6xl mx-auto space-y-8 py-12">
-        {/* Back Button */}
-        <FadeInWrapper delay={0.1}>
-          <Button
-            onClick={() => router.back()}
-            variant="outline"
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </FadeInWrapper>
-
-        {/* Header */}
-        <FadeInWrapper delay={0.2} direction="up">
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#ff7f00] to-[#ff9f40]">
-              <Calendar className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-[#0a0a0a] p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Timeline Section with Goal Header */}
+        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+          {/* Goal Header */}
+          <div className="mb-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                  Goal Title *
+                </label>
+                <input
+                  type="text"
+                  value={goalTitle}
+                  onChange={(e) => setGoalTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] text-3xl font-bold placeholder:text-[#d7d2cb]/20"
+                  placeholder="Enter your goal"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                  Plan Summary
+                </label>
+                <textarea
+                  value={goalDescription}
+                  onChange={(e) => setGoalDescription(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none placeholder:text-[#d7d2cb]/20"
+                  placeholder="Describe your plan"
+                />
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-[#d7d2cb]">
-              Create Manual Plan
-            </h1>
-            <p className="text-[#d7d2cb]/70 text-lg max-w-2xl mx-auto">
-              Define your goal, set your timeline, and build your roadmap with milestones and tasks
-            </p>
           </div>
-        </FadeInWrapper>
+          
+          {/* Timeline Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+              <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                Start Date *
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                End Date *
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+              />
+            </div>
+            <div>
+              <div className="text-sm text-[#d7d2cb]/60 mb-1">Total Duration</div>
+              <div className="text-base font-medium text-[#d7d2cb]">
+                {totalDurationMinutes > 0 ? `${totalDurationMinutes} minutes` : '0 minutes'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-[#d7d2cb]/60 mb-1">Total Days</div>
+              <div className="text-base font-medium text-[#d7d2cb]">
+                {totalDays} {totalDays === 1 ? 'day' : 'days'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-[#d7d2cb]/60 mb-1">Total Tasks</div>
+              <div className="text-base font-medium text-[#d7d2cb]">
+                {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tasks Section with Accordion */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-[#d7d2cb]">Tasks</h2>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+            <div className="space-y-2">
+              {tasks.map((task, index) => {
+                  const isExpanded = expandedTaskId === task.id
+                  return (
+                    <div key={task.id} className="border border-white/10 rounded-lg overflow-hidden">
+                      {/* Collapsed Task Header */}
+                      <button
+                        onClick={() => handleTaskToggle(task.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[#ff7f00] font-semibold">
+                          {index + 1}.
+                        </span>
+                        <span className="flex-1 text-[#d7d2cb] font-medium">
+                          {editingTask && editingTask.id === task.id 
+                            ? (editingTask.name || '(Untitled Task)')
+                            : (task.name || '(Untitled Task)')
+                          }
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-[#d7d2cb]/60" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-[#d7d2cb]/60" />
+                        )}
+                      </button>
+
+                      {/* Expanded Task Content */}
+                      <AnimatePresence>
+                        {isExpanded && editingTask && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-4 py-4 space-y-4 border-t border-white/10">
+                              {/* Task Name */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  Task Name *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editingTask.name || ''}
+                                  onChange={(e) => handleTaskInputChange('name', e.target.value)}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+                                  placeholder="Enter task name"
+                                />
+                              </div>
+
+                              {/* Description */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  Description
+                                </label>
+                                <textarea
+                                  value={editingTask.details || ''}
+                                  onChange={(e) => handleTaskInputChange('details', e.target.value)}
+                                  rows={3}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none"
+                                  placeholder="Enter task description"
+                                />
+                              </div>
+
+                              {/* Date and Time Row */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Scheduled Date */}
+                                <div>
+                                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                    Date
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={editingTask.scheduled_date || ''}
+                                    onChange={(e) => handleTaskInputChange('scheduled_date', e.target.value)}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+                                  />
+                                </div>
+
+                                {/* Start Time */}
+                                <div>
+                                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                    Start Time
+                                  </label>
+                                  <input
+                                    type="time"
+                                    value={editingTask.start_time || ''}
+                                    onChange={(e) => handleTaskInputChange('start_time', e.target.value)}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+                                  />
+                                </div>
+
+                                {/* End Time */}
+                                <div>
+                                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                    End Time
+                                  </label>
+                                  <input
+                                    type="time"
+                                    value={editingTask.end_time || ''}
+                                    onChange={(e) => handleTaskInputChange('end_time', e.target.value)}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Duration and Priority Row */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Duration - Auto-calculated */}
+                                <div>
+                                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                    Duration (minutes)
+                                  </label>
+                                  <div className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]/60">
+                                    {editingTask.start_time && editingTask.end_time && calculateDuration(editingTask.start_time, editingTask.end_time) > 0
+                                      ? `${calculateDuration(editingTask.start_time, editingTask.end_time)} minutes`
+                                      : 'Set start and end time to calculate duration'
+                                    }
+                                  </div>
+                                </div>
+
+                                {/* Priority */}
+                                <div>
+                                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                    Priority
+                                  </label>
+                                  <select
+                                    value={editingTask.priority || 1}
+                                    onChange={(e) => handleTaskInputChange('priority', parseInt(e.target.value) as 1 | 2 | 3 | 4)}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+                                  >
+                                    <option value={1}>1 - Low</option>
+                                    <option value={2}>2 - Medium</option>
+                                    <option value={3}>3 - High</option>
+                                    <option value={4}>4 - Critical</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="space-y-3 pt-2">
+                                {/* Task Actions Row */}
+                                <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                                  <button
+                                    onClick={handleCopyTask}
+                                    disabled={!editingTask}
+                                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[#d7d2cb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                    <span>Copy</span>
+                                  </button>
+                                  <button
+                                    onClick={handlePasteTask}
+                                    disabled={!copiedTask}
+                                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[#d7d2cb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                  >
+                                    <Clipboard className="w-4 h-4" />
+                                    <span>Paste</span>
+                                  </button>
+                                  <button
+                                    onClick={handleDuplicateTask}
+                                    disabled={!editingTask}
+                                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[#d7d2cb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                  >
+                                    <CopyPlus className="w-4 h-4" />
+                                    <span>Duplicate</span>
+                                  </button>
+                                </div>
+                                
+                                {/* Delete Button */}
+                                <div className="flex justify-start">
+                                  <button
+                                    onClick={() => handleDeleteTask(task.id)}
+                                    className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete Task
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )
+                })}
+            </div>
+
+            {/* Add New Task Button */}
+            <button
+              onClick={handleAddNewTask}
+              className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-white/20 hover:border-[#ff7f00] rounded-lg text-[#d7d2cb]/60 hover:text-[#ff7f00] transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Add New Task
+            </button>
+          </div>
+        </div>
 
         {/* Error Message */}
         {error && (
-          <FadeInWrapper delay={0.3}>
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          </FadeInWrapper>
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
+            {error}
+          </div>
         )}
 
-        {/* Goal Details Card */}
-        <FadeInWrapper delay={0.3} direction="up">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                Goal Details
-              </CardTitle>
-              <CardDescription>
-                Define your goal and timeline
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Goal Title */}
-                <div className="space-y-2">
-                  <label 
-                    htmlFor="goalTitle" 
-                    className="text-sm font-medium text-[#d7d2cb]"
-                  >
-                    Goal Title
-                  </label>
-                  <input
-                    id="goalTitle"
-                    type="text"
-                    value={goalTitle}
-                    onChange={(e) => setGoalTitle(e.target.value)}
-                    placeholder="e.g., Learn Web Development"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50 transition-all"
-                    required
-                  />
-                </div>
-
-                {/* Goal Description */}
-                <div className="space-y-2">
-                  <label 
-                    htmlFor="goalDescription" 
-                    className="text-sm font-medium text-[#d7d2cb]"
-                  >
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    id="goalDescription"
-                    value={goalDescription}
-                    onChange={(e) => setGoalDescription(e.target.value)}
-                    placeholder="Describe your goal in more detail..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50 transition-all resize-none"
-                  />
-                </div>
-
-                {/* Date Range */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-[#d7d2cb]">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50 transition-all [color-scheme:dark]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-[#d7d2cb]">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      min={startDate}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50 transition-all [color-scheme:dark]"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </FadeInWrapper>
-
-        {/* Interactive Calendar */}
-        <FadeInWrapper delay={0.4} direction="up">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Build Your Roadmap</CardTitle>
-              <CardDescription>
-                Click on any date to add milestones or tasks
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="relative">
-              {/* Month Navigation */}
-              <div className="flex items-center justify-center gap-3 mb-6 px-4">
-                {/* Hide arrows in decade view */}
-                {!showDecadeView && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={showYearView ? () => {
-                      const newYear = currentDate.getFullYear() - 1
-                      setCurrentDate(new Date(newYear, currentDate.getMonth(), 1))
-                    } : goToPreviousMonth}
-                    className="text-[#d7d2cb]/70 hover:text-[#ff7f00] hover:bg-white/10 w-10 h-10"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </Button>
-                )}
-                <div className="min-w-[200px] text-center">
-                  <div 
-                    className={`${showYearView ? 'text-4xl font-bold' : 'text-2xl font-semibold'} text-[#d7d2cb] ${
-                      showDecadeView ? '' : 'cursor-pointer hover:text-[#ff7f00]'
-                    } transition-colors`}
-                    onClick={showDecadeView ? undefined : (showYearView ? handleDecadeClick : handleYearClick)}
-                  >
-                    {showYearView ? currentDate.getFullYear() : currentDate.toLocaleDateString('en-US', { month: 'long' })}
-                  </div>
-                  {!showYearView && (
-                    <div className="text-lg text-[#d7d2cb]/70 mt-1">
-                      {currentDate.getFullYear()}
-                    </div>
-                  )}
-                </div>
-                {/* Hide arrows in decade view */}
-                {!showDecadeView && !(showYearView && currentDate.getFullYear() >= new Date().getFullYear() + futureRangeYears) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={showYearView ? () => {
-                      const newYear = currentDate.getFullYear() + 1
-                      const maxYear = new Date().getFullYear() + futureRangeYears
-                      if (newYear <= maxYear) {
-                        setCurrentDate(new Date(newYear, currentDate.getMonth(), 1))
-                      }
-                    } : goToNextMonth}
-                    className="text-[#d7d2cb]/70 hover:text-[#ff7f00] hover:bg-white/10 w-10 h-10"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </Button>
-                )}
-                {!showYearView && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={goToToday}
-                    className="ml-3 border-white/20 text-[#d7d2cb] hover:bg-white/10 text-base px-4 py-2"
-                  >
-                    Today
-                  </Button>
-                )}
-              </div>
-
-              {/* Calendar with blur effect when popup is open */}
-              <motion.div
-                animate={showDayOptions ? { scale: 0.98, opacity: 0.7 } : { scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                style={{
-                  filter: showDayOptions ? 'blur(10px)' : 'blur(0px)',
-                  transition: 'filter 0.3s ease-out'
-                }}
-              >
-                {/* Year View - Month Grid */}
-                {showYearView && !showDecadeView ? (
-                  <div className="grid grid-cols-4 gap-3 px-4">
-                    {generateYearMonths().map((monthData) => (
-                      <motion.button
-                        key={monthData.month}
-                        onClick={() => {
-                          handleMonthClick(monthData.month)
-                        }}
-                        className="p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[#d7d2cb] font-medium"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {monthData.name}
-                      </motion.button>
-                    ))}
-                  </div>
-                ) : showDecadeView ? (
-                  /* Decade View - Year Wheel */
-                  <div className="relative" style={{ height: '400px' }}>
-                    <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
-                      <div className="space-y-2 overflow-y-auto max-h-[400px] px-4 py-2 custom-scrollbar">
-                        {generateYearWheel().map((year) => {
-                          const isCurrent = year === currentDate.getFullYear()
-                          const actualCurrentYear = new Date().getFullYear()
-                          const isPast = year < actualCurrentYear
-                          return (
-                            <motion.button
-                              key={year}
-                              onClick={() => {
-                                setCurrentDate(new Date(year, currentDate.getMonth(), 1))
-                                setShowDecadeView(false)
-                                setShowYearView(true)
-                              }}
-                              className={`w-full p-3 rounded-xl border transition-all font-semibold text-lg ${
-                                isCurrent 
-                                  ? 'bg-[#ff7f00]/20 border-[#ff7f00]/50 text-[#ff7f00]' 
-                                  : isPast 
-                                  ? 'bg-white/5 border-white/10 text-[#d7d2cb]/40 hover:bg-white/10 hover:border-white/20'
-                                  : 'bg-white/5 border-white/10 text-[#d7d2cb] hover:bg-white/10 hover:border-white/20'
-                              }`}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              {year}
-                            </motion.button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Month View - Day Grid */
-                  <BaseCalendarGrid 
-                    calendarDays={calendarDays}
-                    onDateClick={handleDateClick}
-                    isHydrated={isHydrated}
-                    isTaskCompleted={() => false}
-                    areAllTasksCompleted={() => false}
-                    tasksByDate={new Map(calendarTasks.map(t => [t.date, t.tasks]))}
-                    categorizedDates={{
-                      startDate: startDate,
-                      completionDate: endDate,
-                      milestones: milestones.map(m => m.target_date)
-                    }}
-                  />
-                )}
-              </motion.div>
-
-              {/* Day Options Popup */}
-              <AnimatePresence>
-                {showDayOptions && selectedDate && (
-                  <motion.div 
-                    className="absolute inset-0 z-10 flex items-center justify-center p-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                  >
-                    <motion.div 
-                      className="absolute inset-0"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      onClick={() => {
-                        setShowDayOptions(false)
-                        setSelectedDate(null)
-                      }}
-                    />
-                    
-                    <motion.div 
-                      className="relative w-full max-w-md bg-[#0a0a0a]/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl max-h-[80vh] overflow-y-auto"
-                      initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold text-[#d7d2cb]">
-                            {(() => {
-                              const [year, month, day] = selectedDate.split('-').map(Number)
-                              const date = new Date(year, month - 1, day)
-                              return date.toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric'
-                              })
-                            })()}
-                          </h3>
-                          <button
-                            onClick={() => {
-                              setShowDayOptions(false)
-                              setSelectedDate(null)
-                            }}
-                            className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                </div>
-
-                        {/* Existing Items */}
-                        {(() => {
-                          const items = getItemsForDate(selectedDate)
-                          return items.length > 0 ? (
-                            <div className="mb-4 space-y-2">
-                              <h4 className="text-xs font-semibold text-[#d7d2cb]/60 uppercase tracking-wide mb-2">
-                                Items on this day
-                              </h4>
-                              {items.map(item => (
-                                <div
-                                  key={item.id}
-                                  className={`p-3 rounded-lg border flex items-start gap-3 ${
-                                    item.type === 'milestone' 
-                                      ? 'bg-pink-500/10 border-pink-500/30' 
-                                      : item.type === 'milestone_task'
-                                      ? 'bg-purple-500/10 border-purple-500/30'
-                                      : 'bg-white/5 border-white/10'
-                                  }`}
-                                >
-                                  {item.type === 'milestone' ? (
-                                    <Target className="w-4 h-4 text-pink-400 flex-shrink-0 mt-0.5" />
-                                  ) : (
-                                    <ListTodo className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
-                                      item.type === 'milestone_task' ? 'text-purple-400' : 'text-[#ff7f00]'
-                                    }`} />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className={`text-sm font-medium ${
-                                      item.type === 'milestone' 
-                                        ? 'text-pink-400' 
-                                        : item.type === 'milestone_task'
-                                        ? 'text-purple-400'
-                                        : 'text-[#d7d2cb]'
-                                    }`}>
-                                      {item.name}
-                                    </div>
-                                    {item.milestoneName && (
-                                      <div className="text-xs text-[#d7d2cb]/60 mt-1">
-                                        Part of: {item.milestoneName}
-                  </div>
-                )}
-                                    <div className="text-xs text-[#d7d2cb]/50 mt-1">
-                                      {item.type === 'milestone' ? 'Milestone Completion' : item.type === 'milestone_task' ? 'Milestone Task' : 'Daily Task'}
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      if (item.type === 'milestone') {
-                                        removeMilestone(item.id)
-                                      } else if (item.type === 'daily_task' && !item.milestoneId) {
-                                        removeDailyTask(item.id)
-                                      } else if (item.milestoneId) {
-                                        removeTask(item.milestoneId, item.id)
-                                      }
-                                      // Refresh popup by closing and reopening
-                                      const currentDate = selectedDate
-                                      setShowDayOptions(false)
-                                      setTimeout(() => {
-                                        setSelectedDate(currentDate)
-                                        setShowDayOptions(true)
-                                      }, 100)
-                                    }}
-                                    className="text-[#d7d2cb]/40 hover:text-red-400 transition-colors p-1 rounded hover:bg-white/5"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ))}
-                              <div className="border-t border-white/10 my-4"></div>
-                            </div>
-                          ) : null
-                        })()}
-                        
-                        {/* Add New Items */}
-                        <div className="space-y-2">
-                          <Button
-                            onClick={handleAddMilestone}
-                            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-white/20"
-                            size="sm"
-                          >
-                            <Target className="w-4 h-4 mr-2" />
-                            Add Milestone
-                          </Button>
-                          <Button
-                            onClick={handleAddTask}
-                            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-white/20"
-                            size="sm"
-                          >
-                            <ListTodo className="w-4 h-4 mr-2" />
-                            Add Task
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Add Milestone Modal */}
-              <AnimatePresence>
-                {showAddMilestone && selectedDate && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                    onClick={() => {
-                      setShowAddMilestone(false)
-                      setNewMilestoneName('')
-                      setNewMilestoneDescription('')
-                      setSelectedDate(null)
-                    }}
-                  >
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      className="bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl p-6 w-full max-w-md"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4 flex items-center gap-2">
-                        <Target className="w-5 h-5 text-pink-400" />
-                        Add Milestone
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium text-[#d7d2cb] mb-2 block">
-                            Milestone Name
-                          </label>
-                          <input
-                            type="text"
-                            value={newMilestoneName}
-                            onChange={(e) => setNewMilestoneName(e.target.value)}
-                            placeholder="Enter milestone name"
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all"
-                            autoFocus
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-[#d7d2cb] mb-2 block">
-                            Description (Optional)
-                          </label>
-                          <textarea
-                            value={newMilestoneDescription}
-                            onChange={(e) => setNewMilestoneDescription(e.target.value)}
-                            placeholder="Enter description"
-                            rows={3}
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all resize-none"
-                          />
-                        </div>
-                  <div className="flex gap-3">
-                          <Button
-                            onClick={() => {
-                              setShowAddMilestone(false)
-                              setNewMilestoneName('')
-                              setNewMilestoneDescription('')
-                              setSelectedDate(null)
-                            }}
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={saveMilestone}
-                            disabled={!newMilestoneName.trim()}
-                            className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 disabled:opacity-50 transition-all focus:outline-none focus:ring-2 focus:ring-white/20"
-                          >
-                            Add
-                          </Button>
-                      </div>
-                    </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Add Task Modal */}
-              <AnimatePresence>
-                {showAddTask && selectedDate && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                    onClick={() => {
-                      setShowAddTask(false)
-                      setNewTaskName('')
-                      setNewTaskCategory('daily_task')
-                      setNewTaskMilestoneId('')
-                      setSelectedDate(null)
-                    }}
-                  >
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      className="bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl p-6 w-full max-w-md"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4 flex items-center gap-2">
-                        <ListTodo className={`w-5 h-5 ${newTaskCategory === 'milestone_task' ? 'text-purple-400' : 'text-[#ff7f00]'}`} />
-                        Add Task
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium text-[#d7d2cb] mb-2 block">
-                            Task Name
-                          </label>
-                          <input
-                            type="text"
-                            value={newTaskName}
-                            onChange={(e) => setNewTaskName(e.target.value)}
-                            placeholder="Enter task name"
-                            className={`w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#d7d2cb]/50 focus:outline-none focus:ring-2 transition-all ${
-                              newTaskCategory === 'milestone_task' ? 'focus:ring-purple-500/50' : 'focus:ring-[#ff7f00]/50'
-                            }`}
-                            autoFocus
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-[#d7d2cb] mb-2 block">
-                            Task Type
-                          </label>
-                          <select
-                            value={newTaskCategory}
-                            onChange={(e) => setNewTaskCategory(e.target.value as 'daily_task' | 'milestone_task')}
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50 transition-all [&>option]:bg-[#0a0a0a] [&>option]:text-[#d7d2cb]"
-                          >
-                            <option value="daily_task">Daily Task</option>
-                            <option value="milestone_task">Milestone Task</option>
-                          </select>
-                        </div>
-                        {newTaskCategory === 'milestone_task' && (
-                    <div>
-                            <label className="text-sm font-medium text-[#d7d2cb] mb-2 block">
-                              Associated Milestone
-                            </label>
-                            <select
-                              value={newTaskMilestoneId}
-                              onChange={(e) => setNewTaskMilestoneId(e.target.value)}
-                              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50 transition-all [&>option]:bg-[#0a0a0a] [&>option]:text-[#d7d2cb]"
-                            >
-                              <option value="">Select milestone...</option>
-                              {milestones.map((m) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        <div className="flex gap-3">
-                          <Button
-                            onClick={() => {
-                              setShowAddTask(false)
-                              setNewTaskName('')
-                              setNewTaskCategory('daily_task')
-                              setNewTaskMilestoneId('')
-                              setSelectedDate(null)
-                            }}
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <div className="flex-1 relative group">
-                            {newTaskCategory === 'milestone_task' && newTaskMilestoneId && selectedDate && (() => {
-                              const milestone = milestones.find(m => m.id === newTaskMilestoneId)
-                              return milestone && selectedDate > milestone.target_date
-                            })() && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                <div className="bg-red-500/90 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                  Task cannot be after milestone completion date
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-red-500/90"></div>
-                                </div>
-                              </div>
-                            )}
-                            <Button
-                              onClick={saveTask}
-                              disabled={(() => {
-                                if (!newTaskName.trim()) return true
-                                if (newTaskCategory === 'milestone_task' && newTaskMilestoneId && selectedDate) {
-                                  const milestone = milestones.find(m => m.id === newTaskMilestoneId)
-                                  if (milestone && selectedDate > milestone.target_date) {
-                                    return true
-                                  }
-                                }
-                                return false
-                              })()}
-                              className="w-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-white/20"
-                            >
-                              Add
-                            </Button>
-                    </div>
-                  </div>
-                </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-        </FadeInWrapper>
-
-
-                {/* Action Buttons */}
-        <FadeInWrapper delay={0.6}>
-          <div className="flex gap-4">
-                  <Button
-              onClick={() => router.back()}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !goalTitle.trim() || milestones.length === 0}
-              className="flex-1 bg-gradient-to-r from-[#ff7f00] to-[#ff9f40] hover:from-[#e67300] hover:to-[#ff7f00] disabled:opacity-50 disabled:cursor-not-allowed transition-all border-0 shadow-none focus:outline-none focus:ring-2 focus:ring-[#ff7f00]/50"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating Roadmap...
-                      </>
-                    ) : (
-                      <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Complete Setup
-                      </>
-                    )}
-                  </Button>
-                </div>
-        </FadeInWrapper>
+        {/* Action Buttons */}
+        <div className="flex justify-center gap-4 pt-4">
+          <Button
+            onClick={handleCancel}
+            variant="outline"
+            className="flex items-center gap-2 px-8"
+            disabled={isSubmitting}
+          >
+            <RotateCcw className="w-4 h-4" />
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            className="flex items-center gap-2 px-8 bg-[#ff7f00] hover:bg-[#ff7f00]/90"
+            disabled={isSubmitting}
+          >
+            <CheckCircle className="w-4 h-4" />
+            {isSubmitting ? 'Creating Plan...' : 'Create Plan'}
+          </Button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0a] border border-white/20 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4">Delete Task?</h3>
+            <p className="text-base text-[#d7d2cb]/80 mb-6">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setTaskToDelete(null)
+                }} 
+                variant="outline" 
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmDeleteTask} 
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Warning Modal */}
+      {showNavigationWarning && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0a] border border-white/20 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4">Unsaved Changes</h3>
+            <p className="text-base text-[#d7d2cb]/80 mb-6">
+              You have unsaved information. If you leave now, all your progress will be lost. Are you sure you want to continue?
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                onClick={cancelNavigation} 
+                variant="outline" 
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmNavigation} 
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                Leave Page
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

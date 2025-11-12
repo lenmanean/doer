@@ -13,6 +13,7 @@ export interface RoadmapCalendarProps extends BaseCalendarProps {
   // Roadmap-specific props can be added here
   getMilestoneStatus?: (milestone: any) => 'completed' | 'in_progress'
   disableDayPopup?: boolean // Disable the automatic day popup for tasks
+  onHourViewClick?: (date: string) => void // Callback when hour view icon is clicked
 }
 
 export const RoadmapCalendar = (props: RoadmapCalendarProps) => {
@@ -20,6 +21,7 @@ export const RoadmapCalendar = (props: RoadmapCalendarProps) => {
     defaultView = 'month',
     hideDayView = true,
     disableDayPopup = false,
+    onHourViewClick,
     ...baseProps
   } = props
 
@@ -60,7 +62,8 @@ export const RoadmapCalendar = (props: RoadmapCalendarProps) => {
     // Props
     hideDayView: baseHideDayView,
     showYearDecadeView,
-    futureRangeYears
+    futureRangeYears,
+    getMilestoneStatus: baseMilestoneStatus
   } = useBaseCalendar({ ...baseProps, hideDayView })
 
   // Enhanced date click handler for roadmap
@@ -233,6 +236,7 @@ export const RoadmapCalendar = (props: RoadmapCalendarProps) => {
                 areAllTasksCompleted={areAllTasksCompleted}
                 tasksByDate={tasksByDate}
                 categorizedDates={categorizedDates}
+                getMilestoneStatus={baseMilestoneStatus}
               />
             </motion.div>
           )}
@@ -288,14 +292,30 @@ export const RoadmapCalendar = (props: RoadmapCalendarProps) => {
                       )
                     })()}
                   </h3>
-                  <button
-                    onClick={() => setSelectedDayTasks(null)}
-                    className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (onHourViewClick) {
+                          onHourViewClick(selectedDayTasks.date)
+                          setSelectedDayTasks(null) // Close the day popup
+                        }
+                      }}
+                      className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-2 rounded-lg hover:bg-white/5"
+                      title="Hour View"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setSelectedDayTasks(null)}
+                      className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Tasks List */}

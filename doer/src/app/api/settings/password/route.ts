@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validatePassword } from '@/lib/password-security-server'
 
 /**
  * POST /api/settings/password
@@ -26,9 +27,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (new_password.length < 6) {
+    // Validate password strength
+    const passwordValidation = await validatePassword(new_password)
+    if (!passwordValidation.isValid) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: passwordValidation.error || 'Password does not meet requirements' },
         { status: 400 }
       )
     }
@@ -58,6 +61,44 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

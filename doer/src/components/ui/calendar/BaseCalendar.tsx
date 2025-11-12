@@ -415,7 +415,8 @@ export const useBaseCalendar = (props: BaseCalendarProps) => {
     // Props passed through
     hideDayView,
     showYearDecadeView,
-    futureRangeYears
+    futureRangeYears,
+    getMilestoneStatus
   }
 }
 
@@ -428,7 +429,8 @@ export const BaseCalendarGrid = ({
   areAllTasksCompleted,
   tasksByDate,
   categorizedDates,
-  showAllTaskIndicators = false
+  showAllTaskIndicators = false,
+  getMilestoneStatus
 }: { 
   calendarDays: CalendarDay[]
   onDateClick: (dateString: string) => void
@@ -438,13 +440,14 @@ export const BaseCalendarGrid = ({
   tasksByDate: Map<string, string[]>
   categorizedDates?: HighlightedDates
   showAllTaskIndicators?: boolean
+  getMilestoneStatus?: (milestone: any) => 'completed' | 'in_progress'
 }) => {
   return (
     <>
       {/* Day Headers */}
       <div className="grid grid-cols-7 gap-1">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="text-center text-sm font-medium text-[#d7d2cb]/60 py-2">
+          <div key={day} className="text-center text-sm font-medium text-[var(--muted-foreground)] py-2">
             {day}
           </div>
         ))}
@@ -452,37 +455,79 @@ export const BaseCalendarGrid = ({
 
       {/* Calendar Days */}
       <div className="grid grid-cols-7 gap-1">
-        {calendarDays.map((day) => (
-          <motion.button
-            key={day.dateString}
-            onClick={() => onDateClick(day.dateString)}
-            className={cn(
-              'relative p-2 h-20 rounded-lg border transition-all duration-200 hover:bg-white/5',
-              // Background/border styling - isToday should NOT have background, only other highlights
-              day.isSelected && !day.isToday ? 'bg-white/10 border-white/20' :
-              day.highlightType === 'start' ? 'bg-orange-600/20 border-orange-600/40' :
-              day.highlightType === 'milestone' ? 'bg-purple-500/20 border-purple-500/40' :
-              day.highlightType === 'completion' ? 'bg-green-500/20 border-green-500/40' : 'border-white/10',
-              // Ring colors based on task type: green if all completed, purple if has milestone tasks (even with regular tasks), orange if only daily tasks
-              day.hasTasks ? (day.allTasksCompleted ? 'ring-1 ring-green-500/50' : day.hasMilestoneTasks ? 'ring-1 ring-purple-500/50' : 'ring-1 ring-[#ff7f00]/30') : ''
-            )}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.1 }}
-          >
-            <span className={cn(
-              'text-sm font-medium',
-              // isToday takes priority over isSelected for text color
-              day.isToday ? 'text-[#ff7f00]' :
-              day.isSelected ? 'text-[#d7d2cb]' :
-              day.highlightType === 'start' ? 'text-[#d7d2cb]' :
-              day.highlightType === 'milestone' ? 'text-purple-400' :
-              day.highlightType === 'completion' ? 'text-green-400' : 'text-[#d7d2cb]',
-            )}>
-              {day.date.getDate()}
-            </span>
-          </motion.button>
-        ))}
+        {calendarDays.map((day) => {
+          // Determine if milestone day is complete: all milestone tasks + daily tasks for that day must be complete
+          // Check if this is a milestone date and get the milestone status
+          let isMilestoneComplete = false
+          if (day.highlightType === 'milestone' && categorizedDates?.milestoneObjects) {
+            const toDateString = (dateInput: string | Date | undefined) => {
+              if (!dateInput) return ''
+              if (dateInput instanceof Date) {
+                return `${dateInput.getFullYear()}-${String(dateInput.getMonth() + 1).padStart(2, '0')}-${String(dateInput.getDate()).padStart(2, '0')}`
+              }
+              return dateInput
+            }
+            
+            const milestoneDateStrs = categorizedDates.milestones?.map(toDateString) || []
+            const milestoneIndex = milestoneDateStrs.indexOf(day.dateString)
+            
+            if (milestoneIndex >= 0 && categorizedDates.milestoneObjects[milestoneIndex]) {
+              const milestone = categorizedDates.milestoneObjects[milestoneIndex]
+              // Milestone is complete if ALL its milestone tasks are done AND all daily tasks for that day are done
+              if (areAllTasksCompleted(day.dateString) && getMilestoneStatus) {
+                isMilestoneComplete = getMilestoneStatus(milestone) === 'completed'
+              }
+            }
+          }
+          
+          return (
+            <motion.button
+              key={day.dateString}
+              onClick={() => onDateClick(day.dateString)}
+              className={cn(
+                'relative p-2 h-20 rounded-lg border transition-all duration-200 hover:opacity-90',
+                // Background/border styling with solid backgrounds for special days
+                day.highlightType === 'start' ? 'bg-[#ff7f00] border-[#ff7f00] text-white' :
+                day.highlightType === 'milestone' ? (
+                  isMilestoneComplete ? 'bg-green-400 border-green-400 text-white' : 'bg-pink-500 border-pink-500 text-white'
+                ) :
+                day.highlightType === 'completion' ? 'bg-green-500 border-green-500 text-white' : 
+                'border-[var(--border)] bg-[var(--accent)]',
+                // Ring colors based on task type and highlight type
+                day.hasTasks && day.highlightType === 'none' ? (
+                  // Normal days with tasks
+                  day.allTasksCompleted ? 'ring-1 ring-green-500/50' : 
+                  day.hasMilestoneTasks ? 'ring-1 ring-purple-500/50' : 
+                  'ring-1 ring-[#ff7f00]/30'
+                ) : day.hasTasks && (day.highlightType === 'milestone' || day.highlightType === 'completion') ? (
+                  // Milestone/completion days with tasks - show green ring when complete, otherwise show task type color
+                  day.highlightType === 'milestone' && isMilestoneComplete ? 'ring-2 ring-green-300' :
+                  day.highlightType === 'completion' && day.allTasksCompleted ? 'ring-2 ring-green-500' :
+                  day.hasMilestoneTasks ? 'ring-2 ring-purple-500' : 'ring-2 ring-[#ff7f00]'
+                ) : '',
+                // Add a thicker border/ring to indicate selection without changing the background color
+                // Also add z-index to ensure selection ring appears above other tiles
+                day.isSelected ? 'ring-4 ring-blue-500/40 z-10' : ''
+              )}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              animate={{ scale: day.isSelected ? 1.05 : 1 }}
+              transition={{ duration: 0.15 }}
+            >
+              <span className={cn(
+                'text-sm font-medium',
+                // Color based on highlight type - white for special days, theme-aware for normal days
+                day.highlightType === 'start' || day.highlightType === 'completion' || 
+                (day.highlightType === 'milestone' && isMilestoneComplete) ? 'text-white' :
+                day.highlightType === 'milestone' ? 'text-white' :
+                day.isToday ? 'text-[var(--primary)]' :
+                'text-[var(--foreground)]'
+              )}>
+                {day.date.getDate()}
+              </span>
+            </motion.button>
+          )
+        })}
       </div>
     </>
   )

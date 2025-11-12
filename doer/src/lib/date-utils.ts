@@ -97,7 +97,47 @@ export function formatDateForDisplay(date: Date, options?: Intl.DateTimeFormatOp
     day: 'numeric',
     ...options
   }
-  return toLocalMidnight(date).toLocaleDateString('en-US', defaultOptions)
+  
+  // Remove undefined values to prevent toLocaleDateString from including them
+  const cleanedOptions: Intl.DateTimeFormatOptions = {}
+  Object.keys(defaultOptions).forEach((key) => {
+    const value = defaultOptions[key as keyof Intl.DateTimeFormatOptions]
+    if (value !== undefined) {
+      (cleanedOptions as any)[key] = value
+    }
+  })
+  
+  return toLocalMidnight(date).toLocaleDateString('en-US', cleanedOptions)
+}
+
+/**
+ * Format time for display based on user preferences
+ */
+export function formatTimeForDisplay(date: Date | string, timeFormat?: '12h' | '24h'): string {
+  const dateObj = typeof date === 'string' ? parseDateFromDB(date) : date
+  
+  if (timeFormat === '24h') {
+    return dateObj.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    })
+  } else {
+    return dateObj.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    })
+  }
+}
+
+/**
+ * Format date and time for display based on user preferences
+ */
+export function formatDateTimeForDisplay(date: Date | string, timeFormat?: '12h' | '24h'): string {
+  const dateStr = formatDateForDisplay(typeof date === 'string' ? parseDateFromDB(date) : date)
+  const timeStr = formatTimeForDisplay(date, timeFormat)
+  return `${dateStr} at ${timeStr}`
 }
 
 /**

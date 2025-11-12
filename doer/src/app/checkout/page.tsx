@@ -1,0 +1,417 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { StripeProvider } from '@/components/providers/stripe-provider'
+import { supabase } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/Toast'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { ArrowLeft, Loader2, Lock, Shield, CheckCircle } from 'lucide-react'
+import { getPlanCycleBySlugAndCycle, type BillingCycle } from '@/lib/billing/plans'
+import Link from 'next/link'
+
+interface PlanDetails {
+  name: string
+  cycle: BillingCycle
+  priceCents: number | null
+  apiCreditLimit: number
+  integrationActionLimit: number
+}
+
+function CheckoutForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const stripe = useStripe()
+  const elements = useElements()
+  const { addToast } = useToast()
+
+  const [loading, setLoading] = useState(false)
+  const [planDetails, setPlanDetails] = useState<PlanDetails | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [setupIntentClientSecret, setSetupIntentClientSecret] = useState<string | null>(null)
+
+  const planSlug = searchParams.get('plan')?.toLowerCase()
+  const billingCycle = (searchParams.get('cycle')?.toLowerCase() || 'monthly') as BillingCycle
+
+  useEffect(() => {
+    // Validate query params
+    if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
+      addToast({
+        type: 'error',
+        title: 'Invalid Plan',
+        description: 'Please select a valid plan from the pricing page.',
+        duration: 5000,
+      })
+      router.push('/pricing')
+      return
+    }
+
+    if (!['monthly', 'annual'].includes(billingCycle)) {
+      addToast({
+        type: 'error',
+        title: 'Invalid Billing Cycle',
+        description: 'Please select a valid billing cycle.',
+        duration: 5000,
+      })
+      router.push('/pricing')
+      return
+    }
+
+    // Fetch user and profile
+    const fetchUserData = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        if (!currentUser) {
+          router.push('/login')
+          return
+        }
+
+        setUser(currentUser)
+
+        // Fetch profile
+        const { data: userProfile } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .single()
+
+        setProfile(userProfile)
+
+        // Fetch plan details
+        const response = await fetch(`/api/billing/plan-details?planSlug=${planSlug}&cycle=${billingCycle}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch plan details')
+        }
+        const planData = await response.json()
+        setPlanDetails(planData)
+
+        // Create setup intent
+        const setupResponse = await fetch('/api/checkout/create-setup-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planSlug, billingCycle }),
+        })
+
+        if (!setupResponse.ok) {
+          const errorData = await setupResponse.json()
+          throw new Error(errorData.error || 'Failed to initialize payment')
+        }
+
+        const { clientSecret } = await setupResponse.json()
+        setSetupIntentClientSecret(clientSecret)
+      } catch (err) {
+        console.error('Error fetching checkout data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load checkout page')
+        addToast({
+          type: 'error',
+          title: 'Error',
+          description: err instanceof Error ? err.message : 'Failed to load checkout page',
+          duration: 5000,
+        })
+      }
+    }
+
+    fetchUserData()
+  }, [planSlug, billingCycle, router, addToast])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!stripe || !elements || !setupIntentClientSecret) {
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    const cardElement = elements.getElement(CardElement)
+    if (!cardElement) {
+      setError('Card element not found')
+      setLoading(false)
+      return
+    }
+
+    try {
+      // Confirm setup intent to collect payment method
+      const { error: setupError, setupIntent } = await stripe.confirmCardSetup(
+        setupIntentClientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              email: user?.email || undefined,
+              name: profile?.first_name && profile?.last_name
+                ? `${profile.first_name} ${profile.last_name}`
+                : profile?.display_name || user?.email?.split('@')[0] || undefined,
+            },
+          },
+        }
+      )
+
+      if (setupError) {
+        throw new Error(setupError.message || 'Payment method setup failed')
+      }
+
+      if (!setupIntent?.payment_method) {
+        throw new Error('Payment method not created')
+      }
+
+      // Create subscription with payment method
+      const subscriptionResponse = await fetch('/api/checkout/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planSlug,
+          billingCycle,
+          paymentMethodId: setupIntent.payment_method,
+        }),
+      })
+
+      if (!subscriptionResponse.ok) {
+        const errorData = await subscriptionResponse.json()
+        throw new Error(errorData.error || 'Failed to create subscription')
+      }
+
+      const { clientSecret: paymentIntentClientSecret } = await subscriptionResponse.json()
+
+      // Confirm payment
+      const paymentMethodId = typeof setupIntent.payment_method === 'string' 
+        ? setupIntent.payment_method 
+        : setupIntent.payment_method?.id
+      
+      if (!paymentMethodId) {
+        throw new Error('Payment method ID not found')
+      }
+
+      const { error: paymentError, paymentIntent } = await stripe.confirmCardPayment(
+        paymentIntentClientSecret,
+        {
+          payment_method: paymentMethodId,
+        }
+      )
+
+      if (paymentError) {
+        // Handle specific error types
+        let errorMessage = paymentError.message || 'Payment failed'
+        if (paymentError.type === 'card_error') {
+          switch (paymentError.code) {
+            case 'card_declined':
+              errorMessage = 'Your card was declined. Please try a different payment method.'
+              break
+            case 'insufficient_funds':
+              errorMessage = 'Insufficient funds. Please use a different card.'
+              break
+            case 'expired_card':
+              errorMessage = 'Your card has expired. Please use a different card.'
+              break
+            case 'incorrect_cvc':
+              errorMessage = "Your card's security code is incorrect."
+              break
+            default:
+              errorMessage = paymentError.message || 'Payment failed. Please try again.'
+          }
+        }
+        throw new Error(errorMessage)
+      }
+
+      if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
+        // Redirect to success page
+        router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}`)
+      } else if (paymentIntent?.status === 'requires_action') {
+        // Handle 3D Secure or other actions
+        throw new Error('Additional authentication required. Please complete the verification.')
+      } else {
+        throw new Error('Payment not completed')
+      }
+    } catch (err) {
+      console.error('Checkout error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Payment failed. Please try again.'
+      setError(errorMessage)
+      addToast({
+        type: 'error',
+        title: 'Payment Failed',
+        description: errorMessage,
+        duration: 7000,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatPrice = (cents: number | null) => {
+    if (!cents) return 'Free'
+    return `$${(cents / 100).toFixed(2)}`
+  }
+
+  if (!planDetails || !user) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#ff7f00] animate-spin" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <Link
+          href="/pricing"
+          className="inline-flex items-center text-[#d7d2cb]/60 hover:text-[#d7d2cb] mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Pricing
+        </Link>
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Left Column: Payment Form */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Email (pre-filled, read-only) */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={user?.email || ''}
+                      readOnly
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Card Element */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                      Card Information
+                    </label>
+                    <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg">
+                      <CardElement
+                        options={{
+                          style: {
+                            base: {
+                              fontSize: '16px',
+                              color: '#d7d2cb',
+                              '::placeholder': {
+                                color: '#9ca3af',
+                              },
+                            },
+                            invalid: {
+                              color: '#ef4444',
+                            },
+                          },
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                      {error}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={loading || !stripe || !elements}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 mr-2" />
+                        Subscribe Now
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-[#d7d2cb]/60">
+                    <Shield className="w-4 h-4" />
+                    <span>Your payment information is secure and encrypted</span>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column: Order Summary */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-[#d7d2cb] mb-2">
+                    {planDetails.name} Plan
+                  </h3>
+                  <p className="text-sm text-[#d7d2cb]/60 capitalize">
+                    {billingCycle} billing
+                  </p>
+                </div>
+
+                <div className="border-t border-white/10 pt-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#d7d2cb]">Plan Price</span>
+                    <span className="text-xl font-bold text-[#d7d2cb]">
+                      {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-lg font-semibold text-[#d7d2cb]">Total</span>
+                    <span className="text-2xl font-bold text-[#ff7f00]">
+                      {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-4 space-y-3">
+                  <h4 className="font-semibold text-[#d7d2cb] mb-2">What's Included</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-[#d7d2cb]/80">
+                        {planDetails.apiCreditLimit.toLocaleString()} API Credits per {billingCycle === 'monthly' ? 'month' : 'year'}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-[#d7d2cb]/80">
+                        {planDetails.integrationActionLimit.toLocaleString()} Integration Actions per {billingCycle === 'monthly' ? 'month' : 'year'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function CheckoutPage() {
+  return (
+    <StripeProvider>
+      <CheckoutForm />
+    </StripeProvider>
+  )
+}
+

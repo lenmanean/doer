@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/plans/list
  * Returns all plans for the authenticated user
@@ -52,6 +54,7 @@ export async function GET(req: NextRequest) {
     )
   }
 }
+
 
 
 

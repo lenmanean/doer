@@ -90,17 +90,18 @@ export async function POST(request: NextRequest) {
       console.error('Error deleting tasks:', tasksError)
     }
     
-    // 4. Delete milestones
-    const { error: milestonesError } = await supabase
-      .from('milestones')
+    // 4. Delete onboarding responses associated with this plan
+    const { error: onboardingError } = await supabase
+      .from('onboarding_responses')
       .delete()
       .eq('plan_id', plan_id)
+      .eq('user_id', user.id)
     
-    if (milestonesError) {
-      console.error('Error deleting milestones:', milestonesError)
+    if (onboardingError) {
+      console.error('Error deleting onboarding responses:', onboardingError)
     }
     
-    // 5. Delete the plan itself
+    // 6. Delete the plan itself
     const { error: planDeleteError } = await supabase
       .from('plans')
       .delete()

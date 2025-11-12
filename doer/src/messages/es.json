@@ -1,0 +1,268 @@
+{
+  "common": {
+    "startPlanning": "Comenzar a planificar",
+    "logIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "startBuilding": "Comenzar"
+  },
+  "header": {
+    "product": "Producto",
+    "features": "Características",
+    "pricing": "Precios",
+    "integrations": "Integraciones",
+    "changelog": "Registro de cambios",
+    "resources": "Recursos",
+    "documentation": "Documentación",
+    "community": "Comunidad",
+    "blog": "Blog",
+    "solutions": "Soluciones",
+    "forTeams": "Para equipos",
+    "forCoaches": "Para entrenadores y preparadores físicos",
+    "forEducators": "Para educadores"
+  },
+  "hero": {
+    "headline": "Convierte tus metas en realidad",
+    "subheadline": "Cuéntale a DOER tu objetivo y observa cómo se transforma en un plan estructurado, completo con hitos, tareas y un cronograma personalizado.",
+    "placeholder": "ej., Aprender a tocar guitarra, Iniciar un blog, Ponerse en forma...",
+    "inputSuggestions": "¿No estás seguro por dónde empezar? Prueba uno de estos:",
+    "suggestion1": "Aprender a cocinar Tikka Masala",
+    "suggestion2": "Crear un plan de estudio para mi examen de Física AP este viernes",
+    "suggestion3": "Organizar mi armario este fin de semana",
+    "suggestion4": "Iniciar un blog y publicar artículos semanales"
+  },
+  "tabs": {
+    "step1": "Comparte tu objetivo",
+    "step2": "Personaliza tu plan",
+    "step3": "Ejecuta y rastrea",
+    "step1Title": "Describe tu objetivo o desafío específico.",
+    "step1Description": "Dile a DOER lo que quieres lograr, y lo transformaremos en un plan estructurado con hitos, tareas y un cronograma personalizado.",
+    "step2Title": "Vista previa y refinamiento de tu plan generado por IA.",
+    "step2Description": "Revisa tu hoja de ruta personalizada, ajusta los hitos y personaliza tu plan según tus preferencias.",
+    "step3Title": "Lanza tu plan personalizado y rastrea tu progreso.",
+    "step3Description": "Activa tu plan, monitorea el progreso en tiempo real y trabaja junto con otros para lograr tus objetivos."
+  },
+  "features": {
+    "title": "Comenzando con DOER",
+    "description": "Transforma tus objetivos en planes accionables con planificación impulsada por IA, seguimiento de hitos e integraciones perfectas."
+  },
+  "integrations": {
+    "title": "Integraciones",
+    "description": "Conecta DOER con tus herramientas y servicios favoritos para optimizar tu planificación y logro de objetivos."
+  },
+  "testimonials": {
+    "title": "Lo que dice la gente",
+    "description": "Comentarios reales de usuarios que están logrando sus objetivos con DOER"
+  },
+  "faq": {
+    "title": "Preguntas frecuentes",
+    "description": "Todo lo que necesitas saber sobre DOER",
+    "q1": "¿Cómo genera DOER mi plan?",
+    "a1": "DOER utiliza IA avanzada para analizar tu objetivo, desglosarlo en tareas accionables, estimar cronogramas y crear una hoja de ruta personalizada. La IA considera la complejidad, las dependencias y la programación realista para darte un plan alcanzable.",
+    "q2": "¿Puedo modificar el plan generado por IA?",
+    "a2": "¡Absolutamente! Mientras DOER crea un punto de partida inteligente, tienes control total para personalizar tareas, ajustar cronogramas, reordenar hitos y adaptar el plan a tus necesidades y preferencias específicas.",
+    "q3": "¿Qué integraciones admite DOER?",
+    "a3": "DOER se integra con herramientas populares como Google Calendar, Outlook, Slack, Notion, Todoist, Asana, Trello y más. Los usuarios Pro obtienen acceso a integraciones avanzadas con HubSpot, Jira y Google Workspace.",
+    "q4": "¿Hay un plan gratuito disponible?",
+    "a4": "¡Sí! DOER ofrece un plan gratuito con todas las funciones principales, incluida la generación de planes con IA, gestión de tareas, integraciones básicas y automatización diaria. Perfecto para uso personal y para comenzar con el logro de objetivos.",
+    "q5": "¿Cómo funciona la programación inteligente?",
+    "a5": "Nuestro programador impulsado por IA analiza tu tiempo disponible, prioridades de tareas y dependencias para colocar automáticamente tareas en tu calendario. Considera tus horarios de trabajo, compromisos existentes y patrones óptimos de productividad.",
+    "q6": "¿Los equipos pueden usar DOER juntos?",
+    "a6": "¡Sí! Los planes Pro y Enterprise incluyen funciones de colaboración en equipo como planes compartidos, permisos basados en roles, paneles de equipo y programación coordinada para mantener a todos alineados en iniciativas complejas.",
+    "stillHaveQuestions": "¿Todavía tienes preguntas?",
+    "visitDocs": "Visita nuestra documentación"
+  },
+  "cta": {
+    "headline": "Entonces, ¿qué estamos haciendo?",
+    "subheadline": "¿Eres un hablador? ¿O eres un",
+    "doer": "HACEDOR",
+    "question": "?",
+    "button": "Comenzar"
+  },
+  "pricing": {
+    "title": "Precios flexibles para cada objetivo",
+    "subtitle": "Elige el plan que se adapte a tu viaje y actualiza cuando estés listo.",
+    "startFree": "Gratis",
+    "getAccessTo": "Todo lo que necesitas para comenzar:",
+    "allCoreFeatures": "Conjunto completo de funciones",
+    "builtInIntegrations": "Integraciones nativas",
+    "authenticationSystem": "Autenticación segura",
+    "databaseFunctionality": "Acceso completo a la base de datos",
+    "paidPlansFrom": "Planes premium desde",
+    "upgradeDescription": "Desbloquea capacidad adicional, funciones avanzadas y soporte prioritario cuando lo necesites.",
+    "seeAllPlans": "Ver detalles de precios"
+  },
+  "footer": {
+    "description": "Doer es la plataforma impulsada por IA que transforma tus objetivos en planes estructurados y accionables. Usando lenguaje natural, Doer permite a cualquiera convertir sus ambiciones en hojas de ruta personalizadas con hitos, tareas y programación inteligente.",
+    "company": "EMPRESA",
+    "product": "PRODUCTO",
+    "resources": "RECURSOS",
+    "legal": "LEGAL",
+    "aboutUs": "Acerca de nosotros",
+    "affiliateProgram": "Programa de afiliados",
+    "careers": "Carreras",
+    "roadmap": "Hoja de ruta",
+    "featureRequest": "Solicitud de función",
+    "docsAndFAQs": "Documentación y preguntas frecuentes",
+    "privacyPolicy": "Política de privacidad",
+    "termsOfService": "Términos de servicio",
+    "security": "Seguridad",
+    "reportMisuse": "Reportar uso indebido",
+    "responsibleUsePolicy": "Política de uso responsable",
+    "copyright": "2025 Doer. Todos los derechos reservados."
+  },
+  "pages": {
+    "features": {
+      "title": "Características",
+      "description": "Descubre todas las características que te ayudan a transformar tus objetivos en realidad.",
+      "moreComing": "¡Y aún hay más!",
+      "moreComingDescription": "Cada semana lanzamos nuevas capacidades para que puedas planificar, ejecutar y adaptarte sin fricciones. Únete hoy y desbloquea todo el conjunto de herramientas de DOER.",
+      "moreComingCta": "Empieza hoy",
+      "sections": {
+        "aiPlan": {
+          "title": "Generador de planes con IA",
+          "description": "Convierte cualquier meta o iniciativa en una hoja de ruta accionable en segundos. DOER analiza la intención, divide el trabajo en hitos y estima el esfuerzo necesario para que el equipo comience de inmediato.",
+          "videoPrompt": "Incrusta un recorrido en Loom: escribir una meta y revisar el plan de hitos generado."
+        },
+        "smartScheduling": {
+          "title": "Programación inteligente y reajustes",
+          "description": "Mantén cada tarea en el lugar correcto sin vigilar el calendario. DOER programa de forma proactiva, resuelve conflictos y reasigna el trabajo cuando cambian las prioridades.",
+          "videoPrompt": "Incrusta un recorrido en Loom: ver el calendario, resolver un conflicto y reprogramar automáticamente."
+        },
+        "automations": {
+          "title": "Automatizaciones e integraciones",
+          "description": "Conecta DOER con las herramientas que tu equipo ya utiliza. Activa automatizaciones con actualizaciones de progreso y mantén a todos alineados sin seguimiento manual.",
+          "videoPrompt": "Incrusta un recorrido en Loom: configurar una automatización y verla ejecutarse en Slack."
+        },
+        "analytics": {
+          "title": "Analíticas de progreso y salud",
+          "description": "Comprende el estado de cada plan de un vistazo. DOER destaca tendencias, riesgos y logros para que los líderes respondan antes de que se pierdan los plazos.",
+          "videoPrompt": "Incrusta un recorrido en Loom: navegar por paneles, detectar riesgos y compartir un resumen."
+        }
+      }
+    },
+    "pricing": {
+      "title": "Precios",
+      "description": "Elige el plan que se adapte a tus necesidades.",
+      "billing": {
+        "label": "Ciclo de facturación",
+        "monthly": "Mensual",
+        "annual": "Anual (ahorra un 20 %)"
+      },
+      "creditTooltip": "Los créditos cubren los endpoints de la API de Doer: generación de planes, programación automática, retroalimentaciones de IA e integraciones. Cada llamada a la API o acción de integración consume un crédito.",
+      "includedFeatures": "Funciones incluidas",
+      "plans": {
+        "basic": {
+          "name": "Básico",
+          "blurb": "Organiza tus rutinas, captura tareas y automatiza lo esencial con las funciones principales de Doer sin costo.",
+          "price": "$0",
+          "suffix": "",
+          "note": "Siempre gratis",
+          "credits": {
+            "api": {
+              "label": "Créditos de API",
+              "value": "25 / mes"
+            },
+            "integrations": {
+              "label": "Acciones de integración",
+              "value": "100 / mes"
+            }
+          },
+          "highlights": [
+            "Espacio de trabajo personal y automatización del horario diario",
+            "Recordatorios de IA y resumen diario hasta 3 veces al día",
+            "Rutinas recurrentes con sincronización de calendario, correo y Discord",
+            "Dos automatizaciones activas más plantillas de listas de verificación",
+            "Base de conocimiento comunitaria, grupos de responsabilidad y guías de incorporación"
+          ],
+          "ctaLabel": "Comienza gratis"
+        },
+        "pro": {
+          "name": "Pro",
+          "blurb": "Coordina iniciativas complejas con programación asistida por IA, automatización de tareas e integraciones que mantienen a todos alineados.",
+          "price": {
+            "monthly": {
+              "primary": "$20",
+              "suffix": "/mes"
+            },
+            "annual": {
+              "primary": "$16",
+              "suffix": "/mes"
+            }
+          },
+          "note": {
+            "monthly": "Facturación mensual — cancela cuando quieras",
+            "annual": "Facturación anual — $192 al año (ahorra un 20 %)"
+          },
+          "credits": {
+            "api": {
+              "label": "Créditos de API",
+              "value": {
+                "monthly": "100 / mes",
+                "annual": "120 / mes"
+              }
+            },
+            "integrations": {
+              "label": "Acciones de integración",
+              "value": {
+                "monthly": "3.000 / mes",
+                "annual": "4.000 / mes"
+              }
+            }
+          },
+          "highlights": [
+            "Límites ampliados para automatizaciones de planes, metas y tareas",
+            "Asistente de programación con IA para la planificación diaria y semanal",
+            "Planificación de escenarios con cronogramas proyectados y alertas de riesgo",
+            "Integraciones nativas con Slack, HubSpot, Notion, Jira y Google Workspace",
+            "Analíticas de portafolio, paneles de KPI y alertas proactivas de progreso",
+            "Permisos basados en roles, plantillas compartidas y biblioteca de automatización",
+            "Informes ejecutivos enviados por correo electrónico, Slack y móvil"
+          ],
+          "ctaLabel": "Mejora a Pro"
+        },
+        "custom": {
+          "name": "Personalizado",
+          "blurb": "Atención dedicada y automatizaciones a la medida para equipos ambiciosos.",
+          "ctaLabel": "Contactar ventas"
+        }
+      }
+    },
+    "integrations": {
+      "title": "Integraciones",
+      "description": "Conecta Doer con tus herramientas y servicios favoritos."
+    },
+    "changelog": {
+      "title": "Registro de cambios",
+      "description": "Consulta las últimas actualizaciones, nuevas características y mejoras."
+    },
+    "documentation": {
+      "title": "Documentación",
+      "description": "Aprende a usar Doer para alcanzar tus objetivos."
+    },
+    "blog": {
+      "title": "Blog",
+      "description": "Lee nuestros últimos artículos e ideas."
+    },
+    "solutions": {
+      "title": "Soluciones",
+      "description": "Descubre cómo Doer puede ayudar a equipos, entrenadores y educadores."
+    },
+    "solutionsTeams": {
+      "title": "Para equipos",
+      "description": "Colabora eficazmente y logra objetivos colectivos con Doer."
+    },
+    "solutionsCoaches": {
+      "title": "Para entrenadores y preparadores físicos",
+      "description": "Diseña planes personalizados para clientes y rastrea su progreso."
+    },
+    "solutionsEducators": {
+      "title": "Para educadores",
+      "description": "Desarrolla planes de aprendizaje estructurados y supervisa los logros de los estudiantes."
+    }
+  }
+}
+
+
+
+
+

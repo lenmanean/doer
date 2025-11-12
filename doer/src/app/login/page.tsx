@@ -7,7 +7,7 @@ import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 
 function CustomLoginForm() {
-  const [email, setEmail] = useState('')
+  const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -19,8 +19,47 @@ function CustomLoginForm() {
     setIsLoading(true)
 
     try {
+      // Determine if input is email or username
+      const isEmail = usernameOrEmail.includes('@')
+      let emailToUse = usernameOrEmail
+
+      // If it's not an email, look up the email from username
+      if (!isEmail) {
+        try {
+          const response = await fetch('/api/auth/get-email-from-username', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: usernameOrEmail })
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            emailToUse = data.email
+          } else {
+            // Username not found, show generic error
+            addToast({
+              type: 'error',
+              title: 'Login Failed',
+              description: 'Invalid login credentials. Please check your username/email and password.',
+              duration: 5000
+            })
+            setIsLoading(false)
+            return
+          }
+        } catch (err) {
+          addToast({
+            type: 'error',
+            title: 'Login Error',
+            description: 'Failed to authenticate. Please try again.',
+            duration: 5000
+          })
+          setIsLoading(false)
+          return
+        }
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailToUse,
         password,
       })
 
@@ -30,14 +69,14 @@ function CustomLoginForm() {
           addToast({
             type: 'error',
             title: 'Email Not Confirmed',
-            description: 'Please check your email and click the confirmation link before signing in.',
+            description: 'Please check your email and enter the confirmation code before signing in.',
             duration: 7000
           })
         } else {
           addToast({
             type: 'error',
             title: 'Login Failed',
-            description: 'Invalid login credentials. Please check your email and password.',
+            description: 'Invalid login credentials. Please check your username/email and password.',
             duration: 5000
           })
         }
@@ -49,24 +88,15 @@ function CustomLoginForm() {
           duration: 3000
         })
         
-        // Get the current user after successful login
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
-        
-        if (currentUser) {
-          // Check if user has a plan (completed onboarding)
-          const { data: plan } = await supabase
-            .from('plans')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .single()
-          
-          if (!plan) {
-            router.push('/onboarding')
-          } else {
-            router.push('/dashboard')
-          }
+        // Check if there's a pending goal from homepage
+        const pendingGoal = localStorage.getItem('pendingGoal')
+        if (pendingGoal) {
+          localStorage.removeItem('pendingGoal')
+          // Redirect to onboarding with the goal
+          router.push(`/onboarding?goal=${encodeURIComponent(pendingGoal)}`)
         } else {
-          router.push('/onboarding')
+          // Always redirect to dashboard after successful login
+          router.push('/dashboard')
         }
       }
     } catch (err) {
@@ -103,19 +133,19 @@ function CustomLoginForm() {
       {/* Email/Password Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-[#d7d2cb]">
-            Email Address
+          <label htmlFor="usernameOrEmail" className="block text-sm font-medium text-[#d7d2cb]">
+            Username or Email
           </label>
           <div className="mt-1 relative">
             <input
-              id="email"
-              name="email"
-              type="email"
+              id="usernameOrEmail"
+              name="usernameOrEmail"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={usernameOrEmail}
+              onChange={(e) => setUsernameOrEmail(e.target.value)}
               className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
-              placeholder="Enter your email"
+              placeholder="Enter your username or email"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-[#d7d2cb]/60" />
@@ -215,9 +245,12 @@ export default function LoginPage() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        router.push('/dashboard')
+    } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN') {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          router.push('/dashboard')
+        }
       }
     })
 
@@ -229,7 +262,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-[#d7d2cb]">
-            Welcome to DOER.AI
+            Welcome to DOER
           </h2>
           <p className="mt-2 text-center text-sm text-[#d7d2cb]/70">
             Sign in to your account to continue your journey

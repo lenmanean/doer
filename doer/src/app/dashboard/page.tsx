@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { LogOut, Calendar, Upload, Activity, Target, Clock, TrendingUp, Award, CheckCircle, Star, Zap, Users, BarChart3, Plus, TrendingDown, ExternalLink } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { LogOut, Calendar, Upload, Activity, Target, Clock, TrendingUp, Award, CheckCircle, Star, Zap, Users, BarChart3, Plus, TrendingDown, ExternalLink, RefreshCw } from 'lucide-react'
 // import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -11,12 +11,10 @@ import { Button } from '@/components/ui/Button'
 import { Progress } from '@/components/ui/Progress'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { FadeInWrapper, StaggeredFadeIn } from '@/components/ui/FadeInWrapper'
-import { useUserRoadmap } from '@/hooks/useUserRoadmap'
-import { getTodayTasks, getMilestoneCompletionStatus, getTasksForDate, cleanupDuplicateCompletions } from '@/lib/roadmap-client'
 import { supabase } from '@/lib/supabase/client'
 import { parseDateFromDB, formatDateForDisplay } from '@/lib/date-utils'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
-import { fetchHealthMetrics } from '@/lib/analytics'
+import { useSupabase } from '@/components/providers/supabase-provider'
 import { useCountUp } from '@/hooks/useCountUp'
 import { HealthModal } from '@/components/ui/HealthModal'
 import { PulseOrb } from '@/components/ui/PulseOrb'
@@ -25,9 +23,17 @@ import { HealthCountdownTimer } from '@/components/ui/HealthCountdownTimer'
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
 import { SwitchPlanModal } from '@/components/ui/SwitchPlanModal'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
+import { Bell } from 'lucide-react'
+import { isEmailConfirmed } from '@/lib/email-confirmation'
+import { PlanSelectionOverlay, shouldShowPlanOverlay } from '@/components/ui/PlanSelectionOverlay'
+import { fetchActiveSubscription } from '@/lib/billing/plans'
+import { useToast } from '@/components/ui/Toast'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { addToast } = useToast()
   const [isClient, setIsClient] = useState(false)
   // Health metrics (degrading health model)
   const [healthScore, setHealthScore] = useState(100)
@@ -38,21 +44,33 @@ export default function DashboardPage() {
   const [loadingHealth, setLoadingHealth] = useState(true)
   const [healthColor, setHealthColor] = useState('#10b981') // Start green
   const [healthHistory, setHealthHistory] = useState<any>(null)
-  const [todayTasks, setTodayTasks] = useState<Array<{id: string, text: string, completed: boolean, dbTask?: boolean, scheduled_date?: string}>>([])
+  const [todayTasks, setTodayTasks] = useState<Array<{id: string, text: string, completed: boolean, dbTask?: boolean, scheduled_date?: string, estimated_duration_minutes?: number, complexity_score?: number}>>([])
   const [tasksGlowing, setTasksGlowing] = useState(false)
-  const [milestoneCompletionStatus, setMilestoneCompletionStatus] = useState<{ [milestoneId: string]: boolean }>({})
-  const [nextMilestone, setNextMilestone] = useState<any>(null)
-  const [nextMilestoneTasks, setNextMilestoneTasks] = useState<Array<any>>([])
   const [recentActivities, setRecentActivities] = useState<Array<any>>([])
-  const [milestoneGlowing, setMilestoneGlowing] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [notifications, setNotifications] = useState<Array<any>>([])
+  const [loadingNotifications, setLoadingNotifications] = useState(false)
+  
+  // New plan system state
+  const [activePlan, setActivePlan] = useState<any>(null)
+  const [plans, setPlans] = useState<any[]>([])
+  const [loadingPlans, setLoadingPlans] = useState(true)
+  const [loadPlansError, setLoadPlansError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showSwitchPlanModal, setShowSwitchPlanModal] = useState(false)
+  
+  // Tasks state for Goal Panel
+  const [planTasks, setPlanTasks] = useState<Array<{id: string, name: string, idx: number, completed: boolean, schedule_date?: string, start_time?: string, end_time?: string}>>([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
+  const [hoveredTaskIndex, setHoveredTaskIndex] = useState<number | null>(null)
   
   // Cycling insights state
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0)
   const [cyclingInsights, setCyclingInsights] = useState<string[]>([])
   
+  // Smart scheduling state
+  const [schedulingStats, setSchedulingStats] = useState<any>(null)
+  const [smartSchedulingEnabled, setSmartSchedulingEnabled] = useState(true)
   
   // Count-up animation for health score display
   const animatedValue = useCountUp(healthScore, 800)
@@ -60,64 +78,468 @@ export default function DashboardPage() {
   // Use onboarding protection hook
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
   
-  // Fetch real roadmap data
-  const { roadmapData, loading: roadmapLoading, refetch, updateTask } = useUserRoadmap(user?.id)
+  // Also check provider loading state - don't show fallback if provider is still loading
+  const { loading: providerLoading } = useSupabase()
+  
+  // Use global hook to check for pending reschedules (for sidebar badge)
+  const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
+  
+  // State for email confirmation status
+  const [emailConfirmed, setEmailConfirmed] = useState(true)
+  
+  // Plan selection overlay state
+  const [showPlanOverlay, setShowPlanOverlay] = useState(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+  
+  // Refresh email confirmation status - check immediately and on user changes
+  useEffect(() => {
+    if (!user) {
+      setEmailConfirmed(true) // Default to true if no user
+      return
+    }
+    
+    const checkEmailStatus = async () => {
+      try {
+        // Get fresh user data to ensure we have latest email_confirmed_at
+        const { data: { user: currentUser }, error } = await supabase.auth.getUser()
+        
+        if (error) {
+          console.error('[Dashboard] Error getting user for email check:', error)
+          // Fallback to checking the user we have
+          const confirmed = isEmailConfirmed(user)
+          setEmailConfirmed(confirmed)
+          return
+        }
+        
+        if (currentUser) {
+          const confirmed = isEmailConfirmed(currentUser)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Dashboard] Email confirmation status:', {
+              userId: currentUser.id,
+              email: currentUser.email,
+              confirmed,
+              email_confirmed_at: currentUser.email_confirmed_at
+            })
+          }
+          setEmailConfirmed(confirmed)
+        } else {
+          // Fallback to checking the user we have
+          const confirmed = isEmailConfirmed(user)
+          setEmailConfirmed(confirmed)
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error checking email status:', error)
+        // Fallback to checking the user we have
+        const confirmed = isEmailConfirmed(user)
+        setEmailConfirmed(confirmed)
+      }
+    }
+    
+    // Check immediately
+    checkEmailStatus()
+    
+    // Listen for auth state changes to update email confirmation status
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Dashboard] Auth state changed:', event)
+        }
+        if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          const { data: { user: currentUser } } = await supabase.auth.getUser()
+          if (currentUser) {
+            const confirmed = isEmailConfirmed(currentUser)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Dashboard] Updated email confirmation status:', confirmed)
+            }
+            setEmailConfirmed(confirmed)
+          }
+        }
+      }
+    )
+    
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [user?.id]) // Re-run when user ID changes
+
+  // Check subscription status and show plan overlay if needed
+  useEffect(() => {
+    if (!user?.id || loading || providerLoading) return
+
+    const checkSubscription = async () => {
+      try {
+        const subscription = await fetchActiveSubscription(user.id)
+        const hasSubscription = subscription !== null
+        setHasActiveSubscription(hasSubscription)
+
+        // Show overlay if: no subscription AND hasn't been dismissed AND should show
+        if (!hasSubscription && shouldShowPlanOverlay()) {
+          setShowPlanOverlay(true)
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error checking subscription:', error)
+        // On error, assume no subscription and show overlay if not dismissed
+        setHasActiveSubscription(false)
+        if (shouldShowPlanOverlay()) {
+          setShowPlanOverlay(true)
+        }
+      }
+    }
+
+    checkSubscription()
+  }, [user?.id, loading, providerLoading])
+
+  // Success notification for plan upgrade
+  useEffect(() => {
+    const upgraded = searchParams.get('upgraded')
+    const planSlug = searchParams.get('plan')
+
+    if (upgraded === 'true' && planSlug) {
+      const planName = planSlug === 'pro' ? 'Pro' : 'Basic'
+      addToast({
+        type: 'success',
+        title: 'Plan Upgraded Successfully!',
+        description: `Your plan has been successfully upgraded to ${planName}.`,
+        duration: 7000,
+      })
+
+      // Clear URL params
+      router.replace('/dashboard', { scroll: false })
+    }
+  }, [searchParams, router, addToast])
+
+  // Check for overdue tasks and auto-reschedule
+  // IMPORTANT: Check BOTH plan tasks AND free-mode tasks
+  useEffect(() => {
+    if (!user?.id) return
+    
+    const checkAndRescheduleOverdue = async () => {
+      try {
+        // Always check free-mode tasks (planId = null)
+        console.log('[Dashboard] Checking for overdue free-mode tasks...', { userId: user.id })
+        const freeModeResponse = await fetch('/api/tasks/reschedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: null })
+        })
+
+        if (freeModeResponse.ok) {
+          const freeModeData = await freeModeResponse.json()
+          console.log('[Dashboard] Free-mode reschedule check:', {
+            success: freeModeData.success,
+            resultsCount: freeModeData.results?.length || 0
+          })
+          if (freeModeData.success && freeModeData.results && freeModeData.results.length > 0) {
+            console.log(`✅ Created ${freeModeData.results.length} free-mode reschedule proposal(s)`)
+          }
+        }
+
+        // Also check plan tasks if there's an active plan
+        if (activePlan?.id) {
+          console.log('[Dashboard] Checking for overdue plan tasks...', { planId: activePlan.id, userId: user.id })
+          const planResponse = await fetch('/api/tasks/reschedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planId: activePlan.id })
+          })
+
+          if (planResponse.ok) {
+            const planData = await planResponse.json()
+            console.log('[Dashboard] Plan reschedule check:', {
+              success: planData.success,
+              resultsCount: planData.results?.length || 0
+            })
+            if (planData.success && planData.results && planData.results.length > 0) {
+              console.log(`✅ Created ${planData.results.length} plan reschedule proposal(s)`)
+            }
+          }
+        }
+
+        // Real-time subscription will automatically fetch pending reschedules when proposals change
+        // No need to manually refetch here to avoid infinite loops
+      } catch (error) {
+        console.error('[Dashboard] Error checking overdue tasks:', error)
+      }
+    }
+
+    // Check immediately on mount
+    checkAndRescheduleOverdue()
+    
+    // Also check every 30 seconds
+    const interval = setInterval(checkAndRescheduleOverdue, 30000)
+
+    return () => clearInterval(interval)
+  }, [user?.id, activePlan?.id]) // Removed refetchPending to prevent infinite loops
+
+  // Note: Reschedule approval modal only shows on schedule page, not dashboard
+  
+  // Load plans using the new system with retry logic
+  const loadPlans = async (retryCount = 0): Promise<boolean> => {
+    if (!user?.id) return false
+    
+    const MAX_RETRIES = 3
+    const TIMEOUT_MS = 15000 // 15 seconds
+    
+    try {
+      setLoadingPlans(true)
+      setLoadPlansError(null)
+      console.log(`[Dashboard] Loading plans (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`)
+      
+      // Create abort controller for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+      
+      const response = await fetch('/api/plans/list', {
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[Dashboard] Plans loaded successfully:', {
+          count: data.plans?.length || 0,
+          plans: data.plans?.map((p: any) => ({ id: p.id, status: p.status }))
+        })
+        setPlans(data.plans || [])
+        
+        // Find active plan
+        const active = data.plans?.find((plan: any) => plan.status === 'active')
+        setActivePlan(active || null)
+        setLoadingPlans(false)
+        setLoadPlansError(null)
+        return true
+      } else {
+        throw new Error(`Failed to load plans: ${response.status} ${response.statusText}`)
+      }
+    } catch (error: any) {
+      console.error(`[Dashboard] Error loading plans (attempt ${retryCount + 1}):`, error)
+      
+      // Check if it's a timeout or network error
+      const isTimeout = error.name === 'AbortError'
+      const isNetworkError = error instanceof TypeError
+      
+      // Retry with exponential backoff for timeout/network errors
+      if ((isTimeout || isNetworkError) && retryCount < MAX_RETRIES) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000) // Max 5 seconds
+        console.log(`[Dashboard] Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return loadPlans(retryCount + 1)
+      }
+      
+      // Max retries reached or non-retryable error
+      setLoadingPlans(false)
+      
+      // Set error state for UI display
+      if (isTimeout) {
+        setLoadPlansError('The dashboard is taking longer than expected to load. Please check your internet connection.')
+      } else if (isNetworkError) {
+        setLoadPlansError('Unable to connect to the server. Please check your internet connection.')
+      } else {
+        setLoadPlansError('Failed to load your plans. Please try again or contact support if the issue persists.')
+      }
+      
+      return false
+    }
+  }
+
+  // Load tasks for the active plan
+  const loadPlanTasks = async () => {
+    if (!activePlan?.id || !user?.id) {
+      setPlanTasks([])
+      return
+    }
+    
+    try {
+      setLoadingTasks(true)
+      
+      // Fetch tasks with their schedule data
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id, name, idx')
+        .eq('plan_id', activePlan.id)
+        .order('idx', { ascending: true })
+      
+      if (tasksError) {
+        console.error('Error loading plan tasks:', tasksError)
+        setPlanTasks([])
+        return
+      }
+      
+      // Fetch schedule data for each task
+      const taskIds = tasks?.map(t => t.id) || []
+      const { data: schedules, error: schedulesError } = await supabase
+        .from('task_schedule')
+        .select('task_id, date, start_time, end_time')
+        .eq('plan_id', activePlan.id)
+        .in('task_id', taskIds)
+      
+      if (schedulesError) {
+        console.error('Error loading task schedules:', schedulesError)
+      }
+      
+      // Fetch completion status - match by task_id, scheduled_date, and plan_id
+      // Note: task_completions uses scheduled_date (not just task_id)
+      const { data: completions, error: completionsError } = await supabase
+        .from('task_completions')
+        .select('task_id, scheduled_date, plan_id')
+        .eq('user_id', user.id)
+        .eq('plan_id', activePlan.id)
+        .in('task_id', taskIds)
+      
+      if (completionsError) {
+        console.error('Error loading task completions:', completionsError)
+      }
+      
+      // Create maps for easy lookup - for multiple schedules per task, get the earliest upcoming date
+      const scheduleMap = new Map<string, {date: string, start_time?: string, end_time?: string}>()
+      const today = new Date().toISOString().split('T')[0]
+      schedules?.forEach(schedule => {
+        const existing = scheduleMap.get(schedule.task_id)
+        if (!existing) {
+          scheduleMap.set(schedule.task_id, {
+            date: schedule.date,
+            start_time: schedule.start_time,
+            end_time: schedule.end_time
+          })
+        } else {
+          // If task has multiple schedules, keep the earliest upcoming one
+          const existingDate = existing.date
+          const newDate = schedule.date
+          if (newDate >= today && (existingDate < today || newDate < existingDate)) {
+            scheduleMap.set(schedule.task_id, {
+              date: schedule.date,
+              start_time: schedule.start_time,
+              end_time: schedule.end_time
+            })
+          }
+        }
+      })
+      
+      // Create completion map: key is task_id-scheduled_date (for plan-based tasks)
+      const completionMap = new Set<string>()
+      completions?.forEach(completion => {
+        const key = `${completion.task_id}-${completion.scheduled_date}`
+        completionMap.add(key)
+      })
+      
+      // Enrich tasks with schedule and completion data
+      const enrichedTasks = tasks?.map(task => {
+        const schedule = scheduleMap.get(task.id)
+        const scheduleDate = schedule?.date
+        // Check completion: match by task_id and scheduled_date
+        const completionKey = scheduleDate ? `${task.id}-${scheduleDate}` : null
+        const isCompleted = completionKey ? completionMap.has(completionKey) : false
+        
+        return {
+          ...task,
+          completed: isCompleted,
+          schedule_date: scheduleDate,
+          start_time: schedule?.start_time,
+          end_time: schedule?.end_time
+        }
+      }) || []
+      
+      setPlanTasks(enrichedTasks)
+    } catch (error) {
+      console.error('Error loading plan tasks:', error)
+      setPlanTasks([])
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
+
+  // Load scheduling statistics
+  const loadSchedulingStats = async (planId: string) => {
+    try {
+      const response = await fetch(`/api/scheduling/history?planId=${planId}`)
+      if (response.ok) {
+        const data = await response.json()
+        const history = data.history || []
+        
+        // Calculate stats
+        const totalAdjustments = history.length
+        const totalDaysExtended = history.reduce((sum: number, entry: any) => sum + (entry.daysExtended || 0), 0)
+        const totalTasksRescheduled = history.reduce((sum: number, entry: any) => sum + (entry.tasksRescheduled || 0), 0)
+        const lastAdjustment = history.length > 0 ? history[0] : null
+        
+        setSchedulingStats({
+          totalAdjustments,
+          totalDaysExtended,
+          totalTasksRescheduled,
+          lastAdjustment,
+          hasBeenAdjusted: totalAdjustments > 0
+        })
+      }
+    } catch (error) {
+      console.error('Error loading scheduling stats:', error)
+    }
+  }
+
+  // Check smart scheduling status
+  const checkSmartSchedulingStatus = async () => {
+    try {
+      const response = await fetch('/api/settings/smart-scheduling')
+      if (response.ok) {
+        const data = await response.json()
+        setSmartSchedulingEnabled(data.smartSchedulingEnabled)
+      }
+    } catch (error) {
+      console.error('Error checking smart scheduling status:', error)
+    }
+  }
 
   useEffect(() => {
     setIsClient(true)
-  }, [])
+    if (user?.id && !providerLoading) {
+      // Add a small delay to ensure auth session is fully initialized
+      const timer = setTimeout(() => {
+        console.log('[Dashboard] User authenticated, loading plans...')
+        loadPlans()
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [user?.id, providerLoading])
+
+  // Load tasks when active plan changes
+  useEffect(() => {
+    if (activePlan?.id && !loadingPlans) {
+      loadPlanTasks()
+    } else {
+      setPlanTasks([])
+    }
+  }, [activePlan?.id, loadingPlans])
+
+  // Load scheduling data when plan is available
+  useEffect(() => {
+    if (activePlan?.id) {
+      loadSchedulingStats(activePlan.id)
+      checkSmartSchedulingStatus()
+    }
+  }, [activePlan?.id])
 
 
-  // Load today's tasks from the database when roadmap data is available
+  // Load today's tasks from the database when active plan is available
   useEffect(() => {
     const loadTodayTasks = async () => {
-      if (roadmapData && roadmapData.plan) {
+      if (activePlan && user?.id) {
         try {
-          const tasks = await getTodayTasks(roadmapData.plan.id)
-          
-          if (tasks && tasks.length > 0) {
-            // Convert database tasks to UI format
-            const formattedTasks = tasks.map((task: any) => ({
-              id: task.id,
-              text: task.name,
-              completed: task.is_completed,
-              dbTask: true, // Flag to identify DB tasks
-              scheduled_date: task.scheduled_date // Store actual scheduled date
-            }))
-            setTodayTasks(formattedTasks)
-          }
+          // For now, just set empty tasks since we're using the schedule system
+          setTodayTasks([])
         } catch (error) {
           console.error('Error loading today tasks:', error)
         }
       }
     }
 
-    if (!roadmapLoading) {
+    if (!loadingPlans) {
       loadTodayTasks()
     }
-  }, [roadmapData, roadmapLoading])
-
-  // Load milestone completion status
-  useEffect(() => {
-    const loadMilestoneStatus = async () => {
-      if (roadmapData && roadmapData.plan) {
-        try {
-          const status = await getMilestoneCompletionStatus(roadmapData.plan.id)
-          setMilestoneCompletionStatus(status)
-        } catch (error) {
-          console.error('Error loading milestone completion status:', error)
-        }
-      }
-    }
-
-    if (!roadmapLoading) {
-      loadMilestoneStatus()
-    }
-  }, [roadmapData, roadmapLoading])
+  }, [activePlan, loadingPlans])
   
   // Generate cycling insights based on health metrics (memoized to prevent erratic cycling)
   useEffect(() => {
-    if (roadmapData?.plan && !loadingHealth) {
+    if (activePlan && !loadingHealth) {
       const insights: string[] = []
       
       // Calculate metric changes from history
@@ -168,7 +590,7 @@ export default function DashboardPage() {
     } else {
       setCyclingInsights(['No insights yet'])
     }
-  }, [roadmapData?.plan, loadingHealth, healthHistory, efficiency, consistency, progress, healthScore])
+  }, [activePlan, loadingHealth, healthHistory, efficiency, consistency, progress, healthScore])
   
   // Cycle through insights
   useEffect(() => {
@@ -184,116 +606,179 @@ export default function DashboardPage() {
   // Load next upcoming milestone and its tasks
   useEffect(() => {
     const loadNextMilestone = async () => {
-      if (roadmapData && roadmapData.plan && roadmapData.milestones) {
+      if (activePlan) {
         try {
-          const status = await getMilestoneCompletionStatus(roadmapData.plan.id)
-          
-          // Find the first incomplete milestone
-          const incomplete = roadmapData.milestones.find((m: any) => !status[m.id])
-          
-          if (incomplete) {
-            setNextMilestone(incomplete)
-            
-            // Get tasks for this milestone with scheduled dates
-            const { data: tasks } = await supabase
-              .from('tasks')
-              .select(`
-                id, 
-                name, 
-                category, 
-                milestone_id,
-                task_schedule (
-                  date
-                )
-              `)
-              .eq('plan_id', roadmapData.plan.id)
-              .eq('milestone_id', incomplete.id)
-              .order('idx', { ascending: true })
-              .limit(5)
-            
-            if (tasks) {
-              // Get completion status for these tasks
-              const taskIds = tasks.map(t => t.id)
-              const { data: completions } = await supabase
-                .from('task_completions')
-                .select('task_id')
-                .in('task_id', taskIds)
-                .eq('plan_id', roadmapData.plan.id)
-              
-              const completedIds = new Set(completions?.map(c => c.task_id) || [])
-              const tasksWithStatus = tasks.map(t => ({
-                ...t,
-                is_completed: completedIds.has(t.id)
-              }))
-              
-              setNextMilestoneTasks(tasksWithStatus)
-            }
-          }
+          // Milestones are no longer used - set empty state
+          // This function is kept for compatibility but does nothing
         } catch (error) {
           console.error('Error loading next milestone:', error)
         }
       }
     }
 
-    if (!roadmapLoading) {
+    if (!loadingPlans) {
       loadNextMilestone()
     }
-  }, [roadmapData, roadmapLoading, milestoneCompletionStatus])
+  }, [activePlan, loadingPlans])
 
-  // Load recent activities
-  useEffect(() => {
-    const loadRecentActivities = async () => {
-      if (roadmapData && roadmapData.plan) {
-        try {
-          const { data: completions } = await supabase
-            .from('task_completions')
-            .select(`
-              task_id,
-              completed_at,
-              tasks (
-                name,
-                category
-              )
-            `)
-            .eq('plan_id', roadmapData.plan.id)
-            .order('completed_at', { ascending: false })
-            .limit(4)
-          
-          if (completions) {
-            setRecentActivities(completions)
-          }
-        } catch (error) {
-          console.error('Error loading recent activities:', error)
+  // Load notifications (recent activity) - extracted to useCallback so it can be called from multiple places
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoadingNotifications(true)
+      const allNotifications: any[] = []
+      
+      // 1. Load recent task completions (both plan-based and free-mode)
+      const { data: completions } = await supabase
+        .from('task_completions')
+        .select(`
+          id,
+          task_id,
+          plan_id,
+          completed_at,
+          tasks (
+            name,
+            plan_id
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false })
+        .limit(10)
+      
+      if (completions) {
+        completions.forEach((completion: any) => {
+          allNotifications.push({
+            id: completion.id,
+            type: 'task_completion',
+            message: `Completed task: ${completion.tasks?.name || 'Unknown task'}`,
+            timestamp: completion.completed_at,
+            planId: completion.plan_id
+          })
+        })
+      }
+      
+      // 2. Load recent pending reschedule proposals
+      const { data: pendingReschedules } = await supabase
+        .from('pending_reschedules')
+        .select(`
+          id,
+          task_name,
+          plan_id,
+          created_at,
+          status
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      if (pendingReschedules) {
+        pendingReschedules.forEach((proposal: any) => {
+          allNotifications.push({
+            id: proposal.id,
+            type: 'reschedule_proposal',
+            message: `Reschedule proposal: ${proposal.task_name}`,
+            timestamp: proposal.created_at,
+            planId: proposal.plan_id
+          })
+        })
+      }
+      
+      // 3. Load recent scheduling history (plan adjustments)
+      if (activePlan?.id) {
+        const { data: schedulingHistory } = await supabase
+          .from('scheduling_history')
+          .select('id, adjustment_date, days_extended, tasks_rescheduled, created_at')
+          .eq('user_id', user.id)
+          .eq('plan_id', activePlan.id)
+          .order('created_at', { ascending: false })
+          .limit(10)
+        
+        if (schedulingHistory) {
+          schedulingHistory.forEach((history: any) => {
+            allNotifications.push({
+              id: history.id,
+              type: 'schedule_adjustment',
+              message: `Plan adjusted: ${history.days_extended} days extended, ${history.tasks_rescheduled} tasks rescheduled`,
+              timestamp: history.created_at,
+              planId: activePlan.id
+            })
+          })
         }
       }
+      
+      // 4. Load recent plan status changes
+      const { data: planUpdates } = await supabase
+        .from('plans')
+        .select('id, goal_text, status, updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(5)
+      
+      if (planUpdates) {
+        planUpdates.forEach((plan: any) => {
+          if (plan.status === 'active' || plan.status === 'completed') {
+            allNotifications.push({
+              id: `plan-${plan.id}`,
+              type: 'plan_status',
+              message: plan.status === 'completed' 
+                ? `Plan completed: ${plan.goal_text}`
+                : `Plan updated: ${plan.goal_text}`,
+              timestamp: plan.updated_at,
+              planId: plan.id
+            })
+          }
+        })
+      }
+      
+      // Sort all notifications by timestamp (most recent first) and limit to 20
+      allNotifications.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      
+      setNotifications(allNotifications.slice(0, 20))
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+    } finally {
+      setLoadingNotifications(false)
     }
+  }, [user?.id, activePlan?.id])
 
-    if (!roadmapLoading) {
-      loadRecentActivities()
+  // Load notifications on mount and when active plan changes
+  useEffect(() => {
+    if (!loadingPlans && user?.id) {
+      loadNotifications()
     }
-  }, [roadmapData, roadmapLoading])
+  }, [activePlan, loadingPlans, user?.id, loadNotifications])
+  
+  // Reload notifications when plan tasks change (to catch completion updates)
+  useEffect(() => {
+    if (user?.id && !loadingPlans) {
+      loadNotifications()
+    }
+  }, [planTasks.length, user?.id, loadingPlans, loadNotifications])
 
   // Load health metrics (degrading health model)
   useEffect(() => {
     const loadHealthMetrics = async () => {
-      if (user?.id && roadmapData?.plan) {
+      if (user?.id && activePlan) {
         try {
           setLoadingHealth(true)
-          const metrics = await fetchHealthMetrics(user.id, roadmapData.plan.id)
-          
-          setHealthScore(metrics.healthScore)
-          setHasScheduledTasks(metrics.hasScheduledTasks)
-          setProgress(metrics.progressVal)
-          setConsistency(metrics.consistencyVal)
-          setEfficiency(metrics.efficiencyVal)
-          setHealthHistory(metrics.history)
+          // Mock health metrics for now - can be implemented later
+          setHealthScore(85)
+          setHasScheduledTasks(true)
+          setProgress(75)
+          setConsistency(80)
+          setEfficiency(70)
+          setHealthHistory([])
           
           // Set health color based on health score (degrading health model)
-          if (!metrics.hasScheduledTasks) {
+          if (!true) { // hasScheduledTasks is true
             setHealthColor('#9ca3af') // gray - no tasks scheduled
-          } else if (metrics.healthScore >= 80) {
+          } else if (85 >= 80) {
             setHealthColor('#10b981') // green - excellent health
-          } else if (metrics.healthScore >= 60) {
+          } else if (85 >= 60) {
             setHealthColor('#f59e0b') // yellow/orange - health degrading
           } else {
             setHealthColor('#ef4444') // red - critical health
@@ -315,13 +800,13 @@ export default function DashboardPage() {
     }
 
     loadHealthMetrics()
-  }, [user?.id, roadmapData?.plan?.id])
+  }, [user?.id, activePlan?.id])
 
   // OLD INSIGHTS LOGIC REMOVED - Using new metric-based insights above (lines 118-182)
 
   // Realtime subscription for auto-refresh when tasks change
   useEffect(() => {
-    if (!user?.id || !roadmapData?.plan?.id) return
+    if (!user?.id || !activePlan?.id) return
     
     const channel = supabase
       .channel('plan_update')
@@ -330,24 +815,24 @@ export default function DashboardPage() {
             event: '*', 
             schema: 'public', 
             table: 'task_completions',
-            filter: `plan_id=eq.${roadmapData.plan.id}`
+            filter: `plan_id=eq.${activePlan.id}`
           },
           async (payload) => {
             // Refresh health metrics
             const loadHealthMetrics = async () => {
               try {
-                const metrics = await fetchHealthMetrics(user.id, roadmapData.plan.id)
-                setHealthScore(metrics.healthScore)
-                setHasScheduledTasks(metrics.hasScheduledTasks)
-                setProgress(metrics.progressVal)
-                setConsistency(metrics.consistencyVal)
-                setEfficiency(metrics.efficiencyVal)
-                setHealthHistory(metrics.history)
+                // Mock health metrics for now - can be implemented later
+                setHealthScore(85)
+                setHasScheduledTasks(true)
+                setProgress(75)
+                setConsistency(80)
+                setEfficiency(70)
+                setHealthHistory([])
                 
                 // Set color based on health score (degrading health model)
-                if (!metrics.hasScheduledTasks) setHealthColor('#9ca3af')
-                else if (metrics.healthScore >= 80) setHealthColor('#10b981')
-                else if (metrics.healthScore >= 60) setHealthColor('#f59e0b')
+                if (!true) setHealthColor('#9ca3af') // hasScheduledTasks is true
+                else if (85 >= 80) setHealthColor('#10b981')
+                else if (85 >= 60) setHealthColor('#f59e0b')
                 else setHealthColor('#ef4444')
               } catch (error) {
                 console.error('Error refreshing health metrics:', error)
@@ -355,251 +840,41 @@ export default function DashboardPage() {
             }
             loadHealthMetrics()
             
-            // Reload today's tasks to sync with database
-            const tasks = await getTodayTasks(roadmapData.plan.id)
-            if (tasks) {
-              const formattedTasks = tasks.map((task: any) => ({
-                id: task.id,
-                text: task.name,
-                completed: task.is_completed,
-                dbTask: true,
-                scheduled_date: task.scheduled_date // Include scheduled date for proper completion tracking
-              }))
-              setTodayTasks(formattedTasks)
-              
-              // Check if all today's tasks are completed for glow effect
-              const allComplete = formattedTasks.every(t => t.completed)
-              if (allComplete && formattedTasks.length > 0) {
-                setTasksGlowing(true)
-                setTimeout(() => setTasksGlowing(false), 2000)
-              }
-            }
+            // For now, just set empty tasks since we're using the schedule system
+            setTodayTasks([])
             
-            // Also refetch roadmap data
-            refetch()
+            // Also reload plans and plan tasks
+            loadPlans()
+            loadPlanTasks()
           })
       .subscribe()
     
     return () => { 
       supabase.removeChannel(channel) 
     }
-  }, [user?.id, roadmapData?.plan?.id, refetch])
-
-  // ONE-TIME CLEANUP: Remove duplicate milestone task completions
-  // This can be removed after running once
-  useEffect(() => {
-    const runCleanup = async () => {
-      if (roadmapData && roadmapData.plan && user?.id) {
-        try {
-          const result = await cleanupDuplicateCompletions(user.id, roadmapData.plan.id)
-          
-          // Refetch data to show clean state
-          if (result.removed > 0) {
-            await refetch()
-            // Reload recent activities
-            const { data: completions } = await supabase
-              .from('task_completions')
-              .select(`
-                task_id,
-                completed_at,
-                tasks (
-                  name,
-                  category
-                )
-              `)
-              .eq('plan_id', roadmapData.plan.id)
-              .order('completed_at', { ascending: false })
-              .limit(4)
-            
-            if (completions) {
-              setRecentActivities(completions)
-            }
-          }
-        } catch (error) {
-          console.error('Error running cleanup:', error)
-        }
-      }
-    }
-
-    if (!roadmapLoading) {
-      runCleanup()
-    }
-  }, [roadmapData, roadmapLoading, user?.id])
+  }, [user?.id, activePlan?.id])
 
 
   const toggleTask = async (taskId: any, isMilestoneTask = false) => {
-    const task = isMilestoneTask 
-      ? nextMilestoneTasks.find(t => t.id === taskId)
-      : todayTasks.find(t => t.id === taskId)
-    
-    // If it's a DB task, update in Supabase
-    if (task && (isMilestoneTask || (task as any).dbTask)) {
-      const isCompleting = isMilestoneTask ? !task.is_completed : !task.completed
-      
-      // OPTIMISTIC UPDATE: Update UI immediately for instant feedback
-      if (isMilestoneTask) {
-        setNextMilestoneTasks(prev => 
-          prev.map(t => t.id === taskId ? { ...t, is_completed: isCompleting } : t)
+    // For now, just toggle the UI state
+    // The schedule page handles task completion updates
+    if (!isMilestoneTask) {
+      setTodayTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(task => 
+          task.id === taskId ? { ...task, completed: !task.completed } : task
         )
         
-        // Update milestone completion status optimistically
-        // Only mark milestone as complete if ALL tasks will be complete after this change
-        if (task.milestone_id) {
-          const updatedTasks = nextMilestoneTasks.map(t => 
-            t.id === taskId ? { ...t, is_completed: isCompleting } : t
-          )
-          const allComplete = updatedTasks.every(t => t.is_completed)
-          
-          setMilestoneCompletionStatus(prev => ({
-            ...prev,
-            [task.milestone_id]: allComplete
-          }))
-        }
-      }
-      
-      try {
-        // CRITICAL: Always use the task's actual scheduled date from the database
-        // This ensures consistency across all pages and prevents duplicate completions
-        let scheduledDate: string
-        
-        if (isMilestoneTask && task.task_schedule && task.task_schedule.length > 0) {
-          // Milestone tasks: use task_schedule date
-          scheduledDate = task.task_schedule[0].date
-        } else if (!isMilestoneTask && (task as any).scheduled_date) {
-          // Daily tasks from Today's Tasks panel: use stored scheduled_date
-          scheduledDate = (task as any).scheduled_date
-        } else {
-          // Fallback (should rarely happen): use today's date
-          scheduledDate = new Date().toISOString().split('T')[0]
-          console.warn('No scheduled_date found for task, using today as fallback:', taskId)
+        // Check if all tasks are completed
+        const allCompleted = updatedTasks.every(task => task.completed)
+        if (allCompleted) {
+          setTasksGlowing(true)
+          // Reset glow after 2 seconds
+          setTimeout(() => setTasksGlowing(false), 2000)
         }
         
-        // Fire and forget the DB update in the background
-        updateTask(taskId, isCompleting, roadmapData?.plan?.id, scheduledDate)
-          .then(async () => {
-            // Background refresh without blocking UI
-            if (roadmapData && roadmapData.plan) {
-              // Only reload data that changed, not full refetch
-              const status = await getMilestoneCompletionStatus(roadmapData.plan.id)
-              setMilestoneCompletionStatus(status)
-              
-              // Update recent activities
-              const { data: completions } = await supabase
-                .from('task_completions')
-                .select(`
-                  task_id,
-                  completed_at,
-                  tasks (
-                    name,
-                    category
-                  )
-                `)
-                .eq('plan_id', roadmapData.plan.id)
-                .order('completed_at', { ascending: false })
-                .limit(4)
-              
-              if (completions) {
-                setRecentActivities(completions)
-              }
-              
-              // Check if we need to load next milestone
-              const incomplete = roadmapData.milestones.find((m: any) => !status[m.id])
-              
-              if (incomplete && (!nextMilestone || incomplete.id !== nextMilestone.id)) {
-                setNextMilestone(incomplete)
-                
-                const { data: tasks } = await supabase
-                  .from('tasks')
-                  .select('id, name, category, milestone_id')
-                  .eq('plan_id', roadmapData.plan.id)
-                  .eq('milestone_id', incomplete.id)
-                  .order('idx', { ascending: true })
-                  .limit(5)
-                
-                if (tasks) {
-                  const taskIds = tasks.map(t => t.id)
-                  const { data: completions } = await supabase
-                    .from('task_completions')
-                    .select('task_id')
-                    .in('task_id', taskIds)
-                    .eq('plan_id', roadmapData.plan.id)
-                  
-                  const completedIds = new Set(completions?.map(c => c.task_id) || [])
-                  const tasksWithStatus = tasks.map(t => ({
-                    ...t,
-                    is_completed: completedIds.has(t.id)
-                  }))
-                  
-                  setNextMilestoneTasks(tasksWithStatus)
-                  
-                  // Check if all tasks in this milestone are now complete → trigger glow
-                  const allTasksComplete = tasksWithStatus.every(t => t.is_completed)
-                  if (allTasksComplete && tasksWithStatus.length > 0) {
-                    setMilestoneGlowing(true)
-                    setTimeout(() => setMilestoneGlowing(false), 2000)
-                  }
-                }
-              } else if (!incomplete) {
-                // All milestones complete!
-                setNextMilestone(null)
-                setNextMilestoneTasks([])
-              }
-              
-              // Also reload today's tasks to keep in sync
-              const tasks = await getTodayTasks(roadmapData.plan.id)
-              if (tasks && tasks.length > 0) {
-                const formattedTasks = tasks.map((task: any) => ({
-                  id: task.id,
-                  text: task.name,
-                  completed: task.is_completed,
-                  dbTask: true,
-                  scheduled_date: task.scheduled_date // Include scheduled date for proper completion tracking
-                }))
-                setTodayTasks(formattedTasks)
-              }
-            }
-          })
-          .catch(error => {
-            console.error('Error in background update:', error)
-            // Revert optimistic update on error
-            if (isMilestoneTask) {
-              setNextMilestoneTasks(prev => 
-                prev.map(t => t.id === taskId ? { ...t, is_completed: !isCompleting } : t)
-              )
-            }
-          })
-        
-      } catch (error) {
-        console.error('Error updating task:', error)
-        // Revert optimistic update on error
-        if (isMilestoneTask) {
-          setNextMilestoneTasks(prev => 
-            prev.map(t => t.id === taskId ? { ...t, is_completed: !isCompleting } : t)
-          )
-        }
-        return
-      }
+        return updatedTasks
+      })
     }
-    
-    if (isMilestoneTask) {
-      return // All UI updates happen via refetch above
-    }
-    
-    setTodayTasks(prevTasks => {
-      const updatedTasks = prevTasks.map(task => 
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      )
-      
-      // Check if all tasks are completed
-      const allCompleted = updatedTasks.every(task => task.completed)
-      if (allCompleted) {
-        setTasksGlowing(true)
-        // Reset glow after 2 seconds
-        setTimeout(() => setTasksGlowing(false), 2000)
-      }
-      
-      return updatedTasks
-    })
   }
 
   const getCurrentDate = () => {
@@ -611,22 +886,41 @@ export default function DashboardPage() {
       day: 'numeric'
     })
   }
-
+  // Show loading state - wait for auth to be resolved on the client
+  const authLoading = loading || providerLoading
   
-
-  // Show loading state while user data is being fetched
-  if (loading || !user) {
+  if (!isClient) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#d7d2cb]">Loading...</div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
       </div>
     )
   }
-
+  
+  // Only block the dashboard while we genuinely don't have a user yet.
+  if (authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
+      </div>
+    )
+  }
+  
+  // If loading is false but no user, the hook will handle redirect
+  // Don't show loading here - let the hook redirect to login
+  if (!authLoading && !user) {
+    // Hook will redirect, but show a brief message while redirect happens
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Redirecting...</div>
+      </div>
+    )
+  }
+  
   // Dashboard now uses real data from useUserRoadmap hook
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Custom CSS for sequential glow animation */}
       <style jsx>{`
         @keyframes sequential-glow {
@@ -662,6 +956,8 @@ export default function DashboardPage() {
         user={profile || { email: user?.email || '' }}
         onSignOut={handleSignOut}
         currentPath="/dashboard"
+        hasPendingReschedules={hasPendingReschedules}
+        emailConfirmed={emailConfirmed}
       />
 
       {/* Main Content */}
@@ -671,26 +967,27 @@ export default function DashboardPage() {
           <FadeInWrapper delay={0.1} direction="up">
             <div className="mb-8">
               <h1 className="text-5xl font-bold tracking-tight text-[#d7d2cb] mb-4">
-                Welcome back, {profile?.display_name || 'Achiever'}!
+                Welcome back, {profile?.first_name || profile?.display_name || 'Achiever'}!
               </h1>
               <p className="text-base leading-relaxed text-[#d7d2cb]/70 max-w-prose">
-                {roadmapData?.plan 
-                  ? "Ready to make progress on your goals? Let's create something amazing together."
-                  : "Start your journey by creating your first goal."}
+                {activePlan 
+                  ? "Ready to make progress on your plans? Let's create something amazing together."
+                  : "Start your journey by creating your first plan."}
               </p>
             </div>
           </FadeInWrapper>
 
-        {/* Goal Panel and Plan Health - Side by Side */}
+        {/* Goal Panel */}
         <FadeInWrapper delay={0.2} direction="up">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Goal Panel */}
+          <div className="mb-8">
             <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardDescription className="text-base">
-                  Current Goal
-                </CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardDescription className="text-base">
+                    Current Goal
+                  </CardDescription>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowSwitchPlanModal(true)}
@@ -715,13 +1012,38 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Goal Title */}
-              {roadmapLoading ? (
+              {loadPlansError ? (
+                <div className="space-y-4">
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-red-400 mb-1">Failed to Load Plans</h4>
+                        <p className="text-sm text-[#d7d2cb]/70">{loadPlansError}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <Button 
+                      onClick={() => loadPlans(0)}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Retry Loading Plans
+                    </Button>
+                  </div>
+                </div>
+              ) : loadingPlans ? (
                 <div className="space-y-2">
                   <Skeleton className="h-7 w-3/4 bg-white/5" />
                   <Skeleton className="h-4 w-full bg-white/5" />
                   <Skeleton className="h-4 w-5/6 bg-white/5" />
                 </div>
-              ) : !roadmapData?.plan ? (
+              ) : !activePlan ? (
                 <div>
                   <h3 className="text-5xl font-bold text-[#d7d2cb]/40 mb-4">
                     No Active Plan
@@ -732,56 +1054,140 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div>
-                  <h3 className="text-5xl font-bold text-[#ff7f00] mb-4">
-                    {roadmapData.plan.summary_data?.goal_title || roadmapData.goal?.title || 'No goal set'}
+                  <h3 className="text-5xl font-bold text-[var(--primary)] mb-4">
+                    {activePlan.summary_data?.goal_text || activePlan.goal_text || 'No goal set'}
                   </h3>
                   <p className="text-sm text-[#d7d2cb]/70">
-                    {roadmapData.plan.summary_data?.goal_summary || roadmapData.goal?.description || 'Set your goal to get started on your journey.'}
+                    {activePlan.summary_data?.plan_summary || 'Set your goal to get started on your journey.'}
                   </p>
                   
-                  {/* Milestones List */}
-                  {roadmapData?.milestones && roadmapData.milestones.length > 0 && (
+                  {/* Plan Tasks List */}
+                  {loadingTasks ? (
                     <div className="mt-4 pt-4 border-t border-white/10">
-                      <h4 className="text-xs font-semibold text-[#d7d2cb]/60 uppercase tracking-wide mb-2">
-                        Plan Milestones
+                      <Skeleton className="h-4 w-32 bg-white/5 mb-3" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full bg-white/5" />
+                        <Skeleton className="h-4 w-5/6 bg-white/5" />
+                        <Skeleton className="h-4 w-4/6 bg-white/5" />
+                      </div>
+                    </div>
+                  ) : planTasks.length > 0 ? (
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <h4 className="text-xs font-semibold text-[#d7d2cb]/60 uppercase tracking-wide mb-3">
+                        Plan Tasks
                       </h4>
-                      <ul className="space-y-2">
-                        {roadmapData.milestones.map((milestone: any, index: number) => {
-                          const isCompleted = milestoneCompletionStatus[milestone.id] || false
+                      <ol className="space-y-2 list-none">
+                        {planTasks.map((task, index) => {
+                          const handleTaskToggle = async () => {
+                            if (!user?.id || !activePlan?.id || !task.schedule_date) return
+                            
+                            try {
+                              const isCurrentlyCompleted = task.completed
+                              
+                              if (isCurrentlyCompleted) {
+                                // Mark as incomplete: delete the completion record
+                                const { error } = await supabase
+                                  .from('task_completions')
+                                  .delete()
+                                  .eq('user_id', user.id)
+                                  .eq('task_id', task.id)
+                                  .eq('plan_id', activePlan.id)
+                                  .eq('scheduled_date', task.schedule_date)
+                                
+                                if (error) {
+                                  console.error('Error removing task completion:', error)
+                                  return
+                                }
+                              } else {
+                                // Mark as complete: insert a completion record
+                                const { error } = await supabase
+                                  .from('task_completions')
+                                  .insert({
+                                    user_id: user.id,
+                                    task_id: task.id,
+                                    plan_id: activePlan.id,
+                                    scheduled_date: task.schedule_date,
+                                    completed_at: new Date().toISOString()
+                                  })
+                                
+                                if (error) {
+                                  console.error('Error inserting task completion:', error)
+                                  return
+                                }
+                              }
+                              
+                              // Reload plan tasks and notifications
+                              loadPlanTasks()
+                              loadNotifications()
+                            } catch (error) {
+                              console.error('Error toggling task completion:', error)
+                            }
+                          }
+                          
                           return (
-                            <li key={milestone.id} className="flex items-start gap-2 text-sm group">
-                              <span className={`font-medium mt-0.5 transition-colors duration-200 ${
-                                isCompleted ? 'text-[#ff7f00]/40' : 'text-[#ff7f00]'
-                              }`}>
-                                {index + 1}.
-                              </span>
-                              <div className="flex-1">
-                                <span className={`transition-colors duration-200 ${
-                                  isCompleted 
-                                    ? 'text-[#d7d2cb]/40 line-through' 
-                                    : 'text-[#d7d2cb]'
-                                }`}>
-                                  {milestone.name}
-                                </span>
-                                {milestone.target_date && (
-                                  <span className={`ml-2 transition-all duration-200 ${
-                                    isCompleted 
-                                      ? 'text-[#d7d2cb]/30 opacity-0 group-hover:opacity-100' 
-                                      : 'text-[#d7d2cb]/50 opacity-0 group-hover:opacity-100'
-                                  }`}>
-                                    ({formatDateForDisplay(parseDateFromDB(milestone.target_date), {
-                                      month: 'short',
-                                      day: 'numeric'
-                                    })})
-                                  </span>
-                                )}
-                              </div>
-                            </li>
+                          <li 
+                            key={task.id} 
+                            className="relative text-sm leading-relaxed flex items-center group cursor-pointer"
+                            onMouseEnter={() => setHoveredTaskIndex(index)}
+                            onMouseLeave={() => setHoveredTaskIndex(null)}
+                            onClick={handleTaskToggle}
+                          >
+                            <span className="text-[var(--primary)] mr-2 font-semibold">
+                              {index + 1}.
+                            </span>
+                            <span className={`text-[#d7d2cb]/80 ${task.completed ? 'line-through text-[#d7d2cb]/40' : ''}`}>
+                              {task.name}
+                            </span>
+                            
+                            {/* Hover Date/Time Display - Inline after task title */}
+                            {hoveredTaskIndex === index && (task.schedule_date || task.start_time || task.end_time) && (
+                              <AnimatePresence>
+                                <motion.span
+                                  initial={{ opacity: 0, x: -5 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -5 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="ml-2 text-xs text-[#d7d2cb]/60 flex items-center gap-2"
+                                >
+                                  {task.schedule_date && (
+                                    <span className="whitespace-nowrap">
+                                      {formatDateForDisplay(parseDateFromDB(task.schedule_date), {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                      })}
+                                    </span>
+                                  )}
+                                  {(task.start_time || task.end_time) && (
+                                    <span className="whitespace-nowrap">
+                                      {(() => {
+                                        const formatTime = (time: string | undefined) => {
+                                          if (!time) return ''
+                                          const [hours, minutes] = time.split(':')
+                                          const hour = parseInt(hours)
+                                          const ampm = hour >= 12 ? 'PM' : 'AM'
+                                          const hour12 = hour % 12 || 12
+                                          return `${hour12}:${minutes} ${ampm}`
+                                        }
+                                        
+                                        if (task.start_time && task.end_time) {
+                                          return `${formatTime(task.start_time)} - ${formatTime(task.end_time)}`
+                                        } else if (task.start_time) {
+                                          return formatTime(task.start_time)
+                                        }
+                                        return ''
+                                      })()}
+                                    </span>
+                                  )}
+                                </motion.span>
+                              </AnimatePresence>
+                            )}
+                          </li>
                           )
                         })}
-                      </ul>
+                      </ol>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
               
@@ -792,12 +1198,12 @@ export default function DashboardPage() {
                     <Calendar className="w-4 h-4 text-[#d7d2cb]/60" />
                     <p className="text-xs text-[#d7d2cb]/60">Start Date</p>
                   </div>
-                  {!roadmapData?.plan ? (
+                  {!activePlan ? (
                     <Skeleton className="h-5 w-24 bg-white/5" />
                   ) : (
                     <p className="text-sm font-medium text-[#d7d2cb]">
-                      {roadmapData.plan.start_date 
-                        ? formatDateForDisplay(parseDateFromDB(roadmapData.plan.start_date), {
+                      {activePlan.start_date 
+                        ? formatDateForDisplay(parseDateFromDB(activePlan.start_date), {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
@@ -812,12 +1218,12 @@ export default function DashboardPage() {
                     <Calendar className="w-4 h-4 text-[#d7d2cb]/60" />
                     <p className="text-xs text-[#d7d2cb]/60">End Date</p>
                   </div>
-                  {!roadmapData?.plan ? (
+                  {!activePlan ? (
                     <Skeleton className="h-5 w-24 bg-white/5" />
                   ) : (
                     <p className="text-sm font-medium text-[#d7d2cb]">
-                      {roadmapData.plan.end_date
-                        ? formatDateForDisplay(parseDateFromDB(roadmapData.plan.end_date), {
+                      {activePlan.end_date
+                        ? formatDateForDisplay(parseDateFromDB(activePlan.end_date), {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
@@ -827,17 +1233,17 @@ export default function DashboardPage() {
                   )}
                 </div>
                 
-                <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className="p-3 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/30">
                   <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-4 h-4 text-orange-400" />
-                    <p className="text-xs text-[#d7d2cb]/60">Days Remaining</p>
+                    <Clock className="w-4 h-4 text-[var(--primary)]" />
+                    <p className="text-xs text-[var(--primary)]/70">Days Remaining</p>
                   </div>
-                  {!roadmapData?.plan ? (
-                    <Skeleton className="h-5 w-16 bg-white/5" />
+                  {!activePlan ? (
+                    <Skeleton className="h-5 w-16 bg-[var(--primary)]/5" />
                   ) : (
-                    <p className="text-sm font-bold text-orange-400">
-                      {roadmapData.plan.end_date ? (() => {
-                        const endDate = parseDateFromDB(roadmapData.plan.end_date)
+                    <p className="text-sm font-bold text-[var(--primary)]">
+                      {activePlan.end_date ? (() => {
+                        const endDate = parseDateFromDB(activePlan.end_date)
                         const today = new Date()
                         const diffTime = endDate.getTime() - today.getTime()
                         const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
@@ -849,102 +1255,15 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Plan Health Orb */}
-          <Card className="relative bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm border border-white/10" id="plan-health-orb">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-2xl font-semibold">Plan Health</CardTitle>
-                  <CardDescription>Your plan's overall health</CardDescription>
-                </div>
-                <button
-                  onClick={() => router.push('/health')}
-                  className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors"
-                  title="View detailed health metrics"
-                >
-                  <ExternalLink className="w-5 h-5" />
-                </button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="flex flex-col items-center justify-between pt-10 pb-4 relative min-h-[400px]">
-              {!roadmapData?.plan ? (
-                <>
-                  <div className="flex-1 flex items-center justify-center">
-                    <PulseOrb
-                      progress={0}
-                      consistency={0}
-                      efficiency={null}
-                      healthHistory={undefined}
-                      hasScheduledTasks={false}
-                      healthScore={0}
-                      noPlan={true}
-                      className="scale-75"
-                    />
-                  </div>
-                  <div className="w-full flex justify-center pb-2">
-                    <div className="text-[#d7d2cb]/60 text-base font-normal">
-                      Create a plan to track your health
-                    </div>
-                  </div>
-                </>
-              ) : loadingHealth ? (
-                <div className="text-[#d7d2cb]/60">Calculating health…</div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-center" style={{ marginTop: '10px' }}>
-                    <PulseOrb
-                      progress={progress}
-                      consistency={consistency}
-                      efficiency={efficiency}
-                      healthHistory={healthHistory}
-                      hasScheduledTasks={hasScheduledTasks}
-                      healthScore={healthScore}
-                      showHealthTooltip={true}
-                      className="scale-75"
-                    />
-                  </div>
-                  
-                  {/* Cycling Health Insights - At bottom of panel */}
-                  <div className="w-full flex justify-center pb-1" style={{ marginTop: 'auto', marginBottom: '0px' }}>
-                    <AnimatePresence mode="wait">
-                      {cyclingInsights.length > 0 && (
-                        <motion.div
-                          key={currentInsightIndex}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.5 }}
-                          className="text-center"
-                        >
-                          <p className="text-[#d7d2cb]/70 text-base font-medium">
-                            {cyclingInsights[currentInsightIndex]}
-                          </p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  
-                  {/* Health Snapshot Countdown Timer - Simple text under insights */}
-                  <div className="w-full mt-0 pb-2">
-                    <HealthCountdownTimer 
-                      cronSchedule="0 0 * * *"
-                    />
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
           </div>
         </FadeInWrapper>
 
-        {/* Today's Tasks and Stats Grid */}
+        {/* Today's Tasks and Recent Activity Grid */}
         <FadeInWrapper delay={0.4} direction="up">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Today's Tasks */}
-          <div>
-            <Card className={`relative transition-all duration-500 ${tasksGlowing ? 'bg-green-500/10 border-green-500/30 shadow-[0_0_20px_rgba(34,197,94,0.3)]' : ''}`}>
+          <div className="flex">
+            <Card className={`relative flex flex-col w-full transition-all duration-500 ${tasksGlowing ? 'bg-green-500/10 border-green-500/30 shadow-[0_0_20px_rgba(34,197,94,0.3)]' : ''}`}>
               {/* External Link Button - Absolute positioned in top-right corner */}
               <button
                 onClick={() => router.push('/roadmap')}
@@ -962,11 +1281,11 @@ export default function DashboardPage() {
                   {getCurrentDate()}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                {!roadmapData?.plan ? (
+              <CardContent className="flex-1">
+                {!activePlan ? (
                   <div className="text-center py-8">
                     <p className="text-[#d7d2cb]/50 text-sm">
-                      No plan
+                      No active plan
                     </p>
                     <p className="text-[#d7d2cb]/40 text-xs mt-1">
                       Create a plan to see your tasks
@@ -1020,258 +1339,156 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Next Milestone */}
-          <div>
-            <Card className={`relative transition-all duration-500 ${
-              milestoneGlowing ? 'bg-purple-500/10 border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : ''
-            }`}>
-              {/* External Link Button - Absolute positioned in top-right corner */}
-              <button
-                onClick={() => router.push('/roadmap')}
-                className="absolute top-6 right-6 z-10 text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors"
-                title="View roadmap"
-              >
-                <ExternalLink className="w-5 h-5" />
-              </button>
-              
+          {/* Recent Activity */}
+          <div className="flex">
+            <Card className="flex flex-col w-full">
               <CardHeader>
-                <CardTitle className="text-2xl font-semibold">
-                  Next Milestone
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-[#d7d2cb]" />
+                  <CardTitle className="text-2xl font-semibold">
+                    Recent Activity
+                  </CardTitle>
+                </div>
                 <CardDescription>
-                  {nextMilestoneTasks.length} milestone tasks
+                  Your recent task completions, reschedules, and plan updates
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                {!roadmapData?.plan ? (
-                  <div className="text-center py-8">
-                    <p className="text-[#d7d2cb]/50 text-sm">
-                      No plan
-                    </p>
-                    <p className="text-[#d7d2cb]/40 text-xs mt-1">
-                      Create a plan to see your milestones
-                    </p>
-                  </div>
-                ) : nextMilestone && nextMilestoneTasks.length > 0 ? (
+              <CardContent className="flex-1">
+                {loadingNotifications ? (
                   <div className="space-y-3">
-                    {/* Milestone Date */}
-                    {nextMilestone.target_date && (
-                      <div className="group p-3 rounded-lg bg-pink-500/10 border border-pink-500/30 mb-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-[#d7d2cb] font-semibold">
-                            {nextMilestone.name}
-                          </span>
-                          <span className="text-[#d7d2cb]/60 text-xs opacity-0 group-hover:opacity-100 transition-all duration-200">
-                            {formatDateForDisplay(parseDateFromDB(nextMilestone.target_date), {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Milestone Tasks */}
-                    {nextMilestoneTasks.map((task) => (
-                      <motion.div
-                        key={task.id}
-                        className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                          task.is_completed
-                            ? 'bg-purple-500/5 border border-purple-500/20 opacity-60'
-                            : 'bg-purple-500/10 hover:bg-purple-500/15 border border-purple-500/20'
-                        }`}
-                        onClick={() => toggleTask(task.id, true)}
-                        whileHover={{ scale: 1.01 }}
-                        transition={{ duration: 0.1 }}
-                      >
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                          task.is_completed
-                            ? 'bg-purple-500 border-purple-500'
-                            : 'border-purple-400 hover:border-purple-300'
-                        }`}>
-                          {task.is_completed && (
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1 flex flex-col justify-center">
-                          <span className={`text-sm transition-all duration-200 group-hover:-translate-y-1 ${
-                            task.is_completed 
-                              ? 'text-purple-300/60 line-through' 
-                              : 'text-purple-300'
-                          }`}>
-                            {task.name}
-                          </span>
-                          {task.task_schedule && task.task_schedule.length > 0 && (
-                            <div className="text-xs text-purple-400/60 max-h-0 opacity-0 group-hover:max-h-6 group-hover:opacity-100 group-hover:mt-1 transition-all duration-200 overflow-hidden">
-                              {formatDateForDisplay(parseDateFromDB(task.task_schedule[0].date), {
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full bg-white/5" />
                     ))}
                   </div>
-                ) : (
+                ) : notifications.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-[#d7d2cb]/60 mb-2">
-                      <Target className="w-12 h-12 mx-auto mb-3" />
-                    </div>
-                    <p className="text-[#d7d2cb]/70 text-sm">
-                      {nextMilestone ? 'No tasks for this milestone yet' : 'All milestones completed! 🎉'}
+                    <Bell className="w-12 h-12 mx-auto mb-3 text-[#d7d2cb]/40" />
+                    <p className="text-[#d7d2cb]/60 text-sm">
+                      No recent activity
                     </p>
+                    <p className="text-[#d7d2cb]/40 text-xs mt-1">
+                      Complete tasks or make changes to see activity here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {notifications.map((notification) => {
+                      const getIcon = () => {
+                        switch (notification.type) {
+                          case 'task_completion':
+                            return <CheckCircle className="w-4 h-4 text-green-400" />
+                          case 'reschedule_proposal':
+                            return <RefreshCw className="w-4 h-4 text-orange-400" />
+                          case 'schedule_adjustment':
+                            return <Calendar className="w-4 h-4 text-blue-400" />
+                          case 'plan_status':
+                            return <Clock className="w-4 h-4 text-purple-400" />
+                          default:
+                            return <Bell className="w-4 h-4 text-[#d7d2cb]/60" />
+                        }
+                      }
+                      
+                      const formatTimeAgo = (timestamp: string) => {
+                        const now = new Date()
+                        const time = new Date(timestamp)
+                        const diffMs = now.getTime() - time.getTime()
+                        const diffMins = Math.floor(diffMs / 60000)
+                        const diffHours = Math.floor(diffMs / 3600000)
+                        const diffDays = Math.floor(diffMs / 86400000)
+                        
+                        if (diffMins < 1) return 'Just now'
+                        if (diffMins < 60) return `${diffMins}m ago`
+                        if (diffHours < 24) return `${diffHours}h ago`
+                        if (diffDays < 7) return `${diffDays}d ago`
+                        return time.toLocaleDateString()
+                      }
+                      
+                      return (
+                        <div
+                          key={notification.id}
+                          className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                        >
+                          <div className="mt-0.5">
+                            {getIcon()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-[#d7d2cb]">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-[#d7d2cb]/50 mt-1">
+                              {formatTimeAgo(notification.timestamp)}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
+
           </div>
         </FadeInWrapper>
 
-        {/* Recent Activity */}
-        <FadeInWrapper delay={0.5} direction="up">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Recent Activity */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-2xl font-semibold">
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                Your latest task completions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentActivities.length > 0 ? (
-                <div className="space-y-4">
-                  {recentActivities.map((activity: any, index: number) => {
-                    const timeAgo = (() => {
-                      const now = new Date()
-                      const completedAt = new Date(activity.completed_at)
-                      const diffMs = now.getTime() - completedAt.getTime()
-                      const diffMins = Math.floor(diffMs / 60000)
-                      const diffHours = Math.floor(diffMs / 3600000)
-                      const diffDays = Math.floor(diffMs / 86400000)
-                      
-                      if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`
-                      if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`
-                      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`
-                    })()
+        {/* Smart Scheduling Panel - Only show if applicable */}
+        {schedulingStats && schedulingStats.hasBeenAdjusted && (
+          <FadeInWrapper delay={0.4} direction="up">
+            <div className="mb-8">
+              <Card className="border-orange-500/20 bg-orange-500/5">
+                <CardHeader>
+                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 text-orange-400" />
+                    Smart Scheduling
+                  </CardTitle>
+                  <CardDescription>
+                    Your plan has been automatically adjusted to help you stay on track
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-400">
+                          {schedulingStats.totalAdjustments}
+                        </div>
+                        <div className="text-sm text-[#d7d2cb]/70">
+                          Total Adjustments
+                        </div>
+                      </div>
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-400">
+                          {schedulingStats.totalDaysExtended}
+                        </div>
+                        <div className="text-sm text-[#d7d2cb]/70">
+                          Days Extended
+                        </div>
+                      </div>
+                    </div>
                     
-                    return (
-                      <motion.div
-                        key={activity.task_id || index}
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ 
-                          duration: 0.3,
-                          delay: index * 0.1,
-                          ease: "easeOut"
-                        }}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
-                      >
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-4 h-4 text-white" />
+                    {schedulingStats.lastAdjustment && (
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                        <div className="text-sm text-[#d7d2cb]/70 mb-1">Last Adjustment</div>
+                        <div className="text-sm text-[#d7d2cb]">
+                          {schedulingStats.lastAdjustment.reason?.message || 'Plan was automatically adjusted'}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-[#d7d2cb]">{activity.tasks.name}</p>
-                            {activity.tasks.category === 'milestone_task' && (
-                              <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-full border border-purple-500/30">
-                                Milestone
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-[#d7d2cb]/60">{timeAgo}</p>
+                        <div className="text-xs text-[#d7d2cb]/60 mt-1">
+                          {new Date(schedulingStats.lastAdjustment.adjustmentDate).toLocaleDateString()}
                         </div>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-[#d7d2cb]/60 mb-2">
-                    <Activity className="w-12 h-12 mx-auto mb-3" />
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2 text-sm text-[#d7d2cb]/60">
+                      <RefreshCw className="w-4 h-4" />
+                      Smart scheduling is {smartSchedulingEnabled ? 'enabled' : 'disabled'}
+                    </div>
                   </div>
-                  <p className="text-[#d7d2cb]/70 text-sm">
-                    No recent activity yet
-                  </p>
-                  <p className="text-[#d7d2cb]/50 text-xs mt-1">
-                    Complete some tasks to see your activity here
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </FadeInWrapper>
+        )}
 
-          {/* Community Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold">
-                Community
-              </CardTitle>
-              <CardDescription>
-                Stay connected with updates and discussions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Discord Notifications */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
-                  <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Users className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#d7d2cb]">New Discord message</p>
-                    <p className="text-xs text-[#d7d2cb]/60">@general: Great progress everyone!</p>
-                    <p className="text-xs text-[#d7d2cb]/50 mt-1">2 minutes ago</p>
-                  </div>
-                </div>
-
-                {/* News Update */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Star className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#d7d2cb]">Platform Update</p>
-                    <p className="text-xs text-[#d7d2cb]/60">New features available in beta</p>
-                    <p className="text-xs text-[#d7d2cb]/50 mt-1">1 hour ago</p>
-                  </div>
-                </div>
-
-                {/* Message Notification */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#d7d2cb]">Direct Message</p>
-                    <p className="text-xs text-[#d7d2cb]/60">Sarah shared a helpful tip</p>
-                    <p className="text-xs text-[#d7d2cb]/50 mt-1">3 hours ago</p>
-                  </div>
-                </div>
-
-                {/* Forum Discussion */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#d7d2cb]">Forum Discussion</p>
-                    <p className="text-xs text-[#d7d2cb]/60">"Goal tracking strategies" has new replies</p>
-                    <p className="text-xs text-[#d7d2cb]/50 mt-1">1 day ago</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          </div>
-        </FadeInWrapper>
 
         </StaggeredFadeIn>
       </main>
@@ -1281,29 +1498,29 @@ export default function DashboardPage() {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={async () => {
-          if (!user?.id || !roadmapData?.plan?.id) return
+          if (!user?.id || !activePlan?.id) return
           
           setIsDeleting(true)
           try {
-            // Call the delete_plan_data function
-            const { data, error } = await supabase.rpc('delete_plan_data', {
-              target_user_id: user.id,
-              target_plan_id: roadmapData.plan.id
+            // Use the proper API endpoint
+            const response = await fetch('/api/plans/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ plan_id: activePlan.id })
             })
             
-            if (error) {
-              console.error('Error deleting plan:', error)
-              alert('Failed to delete plan. Please try again.')
-              setIsDeleting(false)
-              setShowDeleteModal(false)
-              return
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.error || 'Failed to delete plan')
             }
+            
+            const result = await response.json()
             
             // Stay on dashboard and show "no plan" state
             setShowDeleteModal(false)
             setIsDeleting(false)
-            // Refetch to update UI with "no plan" state
-            refetch()
+            // Reload plans to update UI with "no plan" state
+            loadPlans()
           } catch (error) {
             console.error('Error deleting plan:', error)
             alert('Failed to delete plan. Please try again.')
@@ -1317,19 +1534,26 @@ export default function DashboardPage() {
         isDeleting={isDeleting}
       />
 
+      {/* Reschedule Approval Modal */}
+
       {/* Switch Plan Modal */}
       <SwitchPlanModal
         isOpen={showSwitchPlanModal}
         onClose={() => setShowSwitchPlanModal(false)}
-        hasActivePlan={!!roadmapData?.plan}
-        currentPlanTitle={roadmapData?.plan?.summary_data?.goal_title || roadmapData?.goal?.title}
+        hasActivePlan={!!activePlan}
+        currentPlanTitle={activePlan?.goal_text}
         onPlanChanged={() => {
-          // Refetch roadmap data when plan is switched/changed
-          refetch()
+          // Reload plans when plan is switched/changed
+          loadPlans()
         }}
+      />
+
+      {/* Plan Selection Overlay */}
+      <PlanSelectionOverlay
+        isOpen={showPlanOverlay}
+        onClose={() => setShowPlanOverlay(false)}
+        userEmail={user?.email}
       />
     </div>
   )
 }
-
-

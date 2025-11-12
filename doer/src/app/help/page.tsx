@@ -116,18 +116,29 @@ export default function HelpPage() {
     setSubmittingBug(true)
 
     try {
-      // Here you would typically send to your backend
-      console.log('Bug report submitted:', bugReport)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // Submit bug report via email or support system
+      const response = await fetch('/api/support/bug-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...bugReport,
+          userId: user?.id,
+          timestamp: new Date().toISOString(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to submit bug report')
+      }
 
       setSubmitSuccess(true)
       setBugReport({ title: '', description: '', category: 'bug', severity: 'medium' })
       setTimeout(() => setSubmitSuccess(false), 3000)
     } catch (error) {
       console.error('Error submitting bug report:', error)
-      alert('Failed to submit bug report. Please try again.')
+      alert('Failed to submit bug report. Please try again or contact support directly.')
     } finally {
       setSubmittingBug(false)
     }

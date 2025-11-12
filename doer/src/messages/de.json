@@ -1,0 +1,268 @@
+{
+  "common": {
+    "startPlanning": "Planung starten",
+    "logIn": "Anmelden",
+    "signUp": "Registrieren",
+    "startBuilding": "Jetzt starten"
+  },
+  "header": {
+    "product": "Produkt",
+    "features": "Funktionen",
+    "pricing": "Preise",
+    "integrations": "Integrationen",
+    "changelog": "Änderungsprotokoll",
+    "resources": "Ressourcen",
+    "documentation": "Dokumentation",
+    "community": "Community",
+    "blog": "Blog",
+    "solutions": "Lösungen",
+    "forTeams": "Für Teams",
+    "forCoaches": "Für Trainer & Personal Trainer",
+    "forEducators": "Für Pädagogen"
+  },
+  "hero": {
+    "headline": "Verwandeln Sie Ihre Ziele in Realität",
+    "subheadline": "Teilen Sie DOER Ihr Ziel mit und sehen Sie, wie es sich in einen strukturierten Plan verwandelt – mit Meilensteinen, Aufgaben und einem personalisierten Zeitplan.",
+    "placeholder": "z.B. Gitarre spielen lernen, Blog starten, fit werden...",
+    "inputSuggestions": "Nicht sicher, wo Sie anfangen sollen? Versuchen Sie eines davon:",
+    "suggestion1": "Lernen Sie, Tikka Masala zu kochen",
+    "suggestion2": "Erstellen Sie einen Lernplan für meine AP-Physikprüfung diesen Freitag",
+    "suggestion3": "Organisieren Sie meinen Schrank an diesem Wochenende",
+    "suggestion4": "Starten Sie einen Blog und veröffentlichen Sie wöchentliche Artikel"
+  },
+  "tabs": {
+    "step1": "Teilen Sie Ihr Ziel",
+    "step2": "Passen Sie Ihren Plan an",
+    "step3": "Ausführen und verfolgen",
+    "step1Title": "Beschreiben Sie Ihr Ziel oder Ihre spezifische Herausforderung.",
+    "step1Description": "Sagen Sie DOER, was Sie erreichen möchten, und wir verwandeln es in einen strukturierten Plan mit Meilensteinen, Aufgaben und einem personalisierten Zeitplan.",
+    "step2Title": "Vorschau und Verfeinerung Ihres KI-generierten Plans.",
+    "step2Description": "Überprüfen Sie Ihre personalisierte Roadmap, passen Sie Meilensteine an und personalisieren Sie Ihren Plan nach Ihren Vorlieben.",
+    "step3Title": "Starten Sie Ihren angepassten Plan und verfolgen Sie Ihren Fortschritt.",
+    "step3Description": "Aktivieren Sie Ihren Plan, überwachen Sie den Fortschritt in Echtzeit und arbeiten Sie mit anderen zusammen, um Ihre Ziele zu erreichen."
+  },
+  "features": {
+    "title": "Erste Schritte mit DOER",
+    "description": "Verwandeln Sie Ihre Ziele in umsetzbare Pläne mit KI-gestützter Planung, Meilensteinverfolgung und nahtlosen Integrationen."
+  },
+  "integrations": {
+    "title": "Integrationen",
+    "description": "Verbinden Sie DOER mit Ihren bevorzugten Tools und Diensten, um Ihre Planung und Zielerreichung zu optimieren."
+  },
+  "testimonials": {
+    "title": "Was die Leute sagen",
+    "description": "Echtes Feedback von Benutzern, die ihre Ziele mit DOER erreichen"
+  },
+  "faq": {
+    "title": "Häufig gestellte Fragen",
+    "description": "Alles, was Sie über DOER wissen müssen",
+    "q1": "Wie generiert DOER meinen Plan?",
+    "a1": "DOER verwendet fortschrittliche KI, um Ihr Ziel zu analysieren, es in umsetzbare Aufgaben zu unterteilen, Zeitpläne zu schätzen und eine personalisierte Roadmap zu erstellen. Die KI berücksichtigt Komplexität, Abhängigkeiten und realistische Planung, um Ihnen einen erreichbaren Plan zu geben.",
+    "q2": "Kann ich den KI-generierten Plan ändern?",
+    "a2": "Absolut! Während DOER einen intelligenten Ausgangspunkt erstellt, haben Sie volle Kontrolle, um Aufgaben anzupassen, Zeitpläne zu ändern, Meilensteine neu zu ordnen und den Plan an Ihre spezifischen Bedürfnisse und Vorlieben anzupassen.",
+    "q3": "Welche Integrationen unterstützt DOER?",
+    "a3": "DOER integriert sich mit beliebten Tools wie Google Calendar, Outlook, Slack, Notion, Todoist, Asana, Trello und mehr. Pro-Benutzer erhalten Zugriff auf erweiterte Integrationen mit HubSpot, Jira und Google Workspace.",
+    "q4": "Gibt es einen kostenlosen Plan?",
+    "a4": "Ja! DOER bietet einen kostenlosen Plan mit allen Kernfunktionen, einschließlich KI-Plangenerierung, Aufgabenverwaltung, grundlegenden Integrationen und täglicher Automatisierung. Perfekt für den persönlichen Gebrauch und den Einstieg in die Zielerreichung.",
+    "q5": "Wie funktioniert die intelligente Planung?",
+    "a5": "Unser KI-gesteuerter Planer analysiert Ihre verfügbare Zeit, Aufgabenprioritäten und Abhängigkeiten, um Aufgaben automatisch in Ihrem Kalender zu platzieren. Er berücksichtigt Ihre Arbeitszeiten, bestehende Verpflichtungen und optimale Produktivitätsmuster.",
+    "q6": "Können Teams DOER gemeinsam nutzen?",
+    "a6": "Ja! Pro- und Enterprise-Pläne umfassen Team-Kollaborationsfunktionen wie gemeinsame Pläne, rollenbasierte Berechtigungen, Team-Dashboards und koordinierte Planung, um alle bei komplexen Initiativen aufeinander abzustimmen.",
+    "stillHaveQuestions": "Haben Sie noch Fragen?",
+    "visitDocs": "Besuchen Sie unsere Dokumentation"
+  },
+  "cta": {
+    "headline": "Also, was machen wir?",
+    "subheadline": "Bist du ein Redner? Oder bist du ein",
+    "doer": "MACHER",
+    "question": "?",
+    "button": "Loslegen"
+  },
+  "pricing": {
+    "title": "Flexible Preise für jedes Ziel",
+    "subtitle": "Wählen Sie den Plan, der zu Ihrer Reise passt, und upgraden Sie jederzeit.",
+    "startFree": "Kostenlos",
+    "getAccessTo": "Alles, was Sie für den Einstieg benötigen:",
+    "allCoreFeatures": "Vollständiger Funktionsumfang",
+    "builtInIntegrations": "Native Integrationen",
+    "authenticationSystem": "Sichere Authentifizierung",
+    "databaseFunctionality": "Voller Datenbankzugriff",
+    "paidPlansFrom": "Premium-Pläne ab",
+    "upgradeDescription": "Schalten Sie zusätzliche Kapazität, erweiterte Funktionen und vorrangigen Support frei, wenn Sie ihn benötigen.",
+    "seeAllPlans": "Preisdetails anzeigen"
+  },
+  "footer": {
+    "description": "Doer ist die KI-gestützte Plattform, die Ihre Ziele in strukturierte, umsetzbare Pläne verwandelt. Mit natürlicher Sprache ermöglicht Doer jedem, seine Ambitionen in personalisierte Roadmaps mit Meilensteinen, Aufgaben und intelligentem Scheduling umzuwandeln.",
+    "company": "UNTERNEHMEN",
+    "product": "PRODUKT",
+    "resources": "RESSOURCEN",
+    "legal": "RECHTLICHES",
+    "aboutUs": "Über uns",
+    "affiliateProgram": "Partnerprogramm",
+    "careers": "Karriere",
+    "roadmap": "Roadmap",
+    "featureRequest": "Funktionsanfrage",
+    "docsAndFAQs": "Dokumentation & FAQs",
+    "privacyPolicy": "Datenschutzerklärung",
+    "termsOfService": "Nutzungsbedingungen",
+    "security": "Sicherheit",
+    "reportMisuse": "Missbrauch melden",
+    "responsibleUsePolicy": "Richtlinie für verantwortungsvolle Nutzung",
+    "copyright": "2025 Doer. Alle Rechte vorbehalten."
+  },
+  "pages": {
+    "features": {
+      "title": "Funktionen",
+      "description": "Entdecken Sie alle Funktionen, die Ihnen helfen, Ihre Ziele in die Realität umzusetzen.",
+      "moreComing": "Und noch viel mehr!",
+      "moreComingDescription": "Jede Woche liefern wir neue Funktionen, damit Sie ohne Reibung planen, umsetzen und sich anpassen können. Starten Sie heute, um das komplette DOER-Toolkit freizuschalten.",
+      "moreComingCta": "Jetzt starten",
+      "sections": {
+        "aiPlan": {
+          "title": "KI-Plan-Generator",
+          "description": "Verwandeln Sie jedes Ziel in Sekundenschnelle in einen umsetzbaren Fahrplan. DOER analysiert die Absicht, zerlegt die Arbeit in Meilensteine und schätzt den Aufwand, damit Teams sofort loslegen können.",
+          "videoPrompt": "Loom-Demo einbetten: Ein Ziel eintippen und den erzeugten Meilensteinplan prüfen."
+        },
+        "smartScheduling": {
+          "title": "Intelligente Planung & Neuverteilung",
+          "description": "Halten Sie jede Aufgabe ohne ständige Kalenderpflege am richtigen Ort. DOER plant proaktiv, löst Konflikte und verteilt Arbeit neu, wenn sich Prioritäten ändern.",
+          "videoPrompt": "Loom-Demo einbetten: Kalender ansehen, einen Konflikt lösen und automatisch neu planen."
+        },
+        "automations": {
+          "title": "Automatisierungen & Integrationen",
+          "description": "Verbinden Sie DOER mit den Tools, auf die Ihr Team bereits setzt. Lösen Sie Automatisierungen durch Fortschritts-Updates aus und halten Sie Stakeholder ohne manuellen Nachfassen auf Kurs.",
+          "videoPrompt": "Loom-Demo einbetten: Eine Automatisierung konfigurieren und ihre Ausführung in Slack beobachten."
+        },
+        "analytics": {
+          "title": "Fortschrittsanalysen & Gesundheit",
+          "description": "Erkennen Sie den Zustand jedes Plans auf einen Blick. DOER hebt Trends, Risiken und Erfolge hervor, damit Führungskräfte reagieren, bevor Fristen in Gefahr geraten.",
+          "videoPrompt": "Loom-Demo einbetten: Dashboards durchgehen, Risiken erkennen und einen Rückblick teilen."
+        }
+      }
+    },
+    "pricing": {
+      "title": "Preise",
+      "description": "Wählen Sie den Plan, der zu Ihren Bedürfnissen passt.",
+      "billing": {
+        "label": "Abrechnungszeitraum",
+        "monthly": "Monatlich",
+        "annual": "Jährlich (20 % sparen)"
+      },
+      "creditTooltip": "Credits decken die API-Endpunkte von Doer ab – Plangenerierung, automatische Planung, KI-Retrospektiven und Integrationen. Jeder API-Aufruf oder Integrationsvorgang verbraucht ein Credit.",
+      "includedFeatures": "Enthaltene Funktionen",
+      "plans": {
+        "basic": {
+          "name": "Basis",
+          "blurb": "Organisieren Sie Ihre Routinen, erfassen Sie Aufgaben und automatisieren Sie das Wesentliche mit den Kernfunktionen von Doer – kostenlos.",
+          "price": "$0",
+          "suffix": "",
+          "note": "Immer kostenlos",
+          "credits": {
+            "api": {
+              "label": "API-Credits",
+              "value": "25 / Monat"
+            },
+            "integrations": {
+              "label": "Integrationsaktionen",
+              "value": "100 / Monat"
+            }
+          },
+          "highlights": [
+            "Persönlicher Arbeitsbereich und automatische Tagesplanung",
+            "KI-Erinnerungen und Tageszusammenfassungen bis zu 3x täglich",
+            "Wiederkehrende Routinen mit Kalender-, E-Mail- und Discord-Synchronisierung",
+            "Zwei aktive Automatisierungen plus Checklisten-Vorlagen",
+            "Community-Wissensdatenbank, Accountability-Gruppen und Onboarding-Leitfäden"
+          ],
+          "ctaLabel": "Kostenlos starten"
+        },
+        "pro": {
+          "name": "Pro",
+          "blurb": "Koordinieren Sie komplexe Initiativen mit KI-gestützter Planung, Aufgabenautomatisierung und Integrationen, die alle Stakeholder abstimmen.",
+          "price": {
+            "monthly": {
+              "primary": "$20",
+              "suffix": "/Monat"
+            },
+            "annual": {
+              "primary": "$16",
+              "suffix": "/Monat"
+            }
+          },
+          "note": {
+            "monthly": "Monatliche Abrechnung — jederzeit kündbar",
+            "annual": "Jährliche Abrechnung — 192 $ / Jahr (20 % sparen)"
+          },
+          "credits": {
+            "api": {
+              "label": "API-Credits",
+              "value": {
+                "monthly": "100 / Monat",
+                "annual": "120 / Monat"
+              }
+            },
+            "integrations": {
+              "label": "Integrationsaktionen",
+              "value": {
+                "monthly": "3.000 / Monat",
+                "annual": "4.000 / Monat"
+              }
+            }
+          },
+          "highlights": [
+            "Erhöhte Limits für Plan-, Ziel- und Aufgabenautomatisierungen",
+            "KI-Planungsassistent für tägliche und wöchentliche Planung",
+            "Szenarioplanung mit prognostizierten Zeitachsen und Risikoindikatoren",
+            "Native Integrationen mit Slack, HubSpot, Notion, Jira und Google Workspace",
+            "Portfolio-Analysen, KPI-Dashboards und proaktive Fortschrittswarnungen",
+            "Rollenbasierte Berechtigungen, geteilte Vorlagen und Automatisierungsbibliothek",
+            "Executive Briefings per E-Mail, Slack und Mobilgerät"
+          ],
+          "ctaLabel": "Upgrade auf Pro"
+        },
+        "custom": {
+          "name": "Individuell",
+          "blurb": "Maßgeschneiderter Support und individuelle Automatisierungen für ambitionierte Teams.",
+          "ctaLabel": "Vertrieb kontaktieren"
+        }
+      }
+    },
+    "integrations": {
+      "title": "Integrationen",
+      "description": "Verbinden Sie Doer mit Ihren bevorzugten Tools und Diensten."
+    },
+    "changelog": {
+      "title": "Änderungsprotokoll",
+      "description": "Sehen Sie die neuesten Updates, neuen Funktionen und Verbesserungen."
+    },
+    "documentation": {
+      "title": "Dokumentation",
+      "description": "Erfahren Sie, wie Sie Doer verwenden, um Ihre Ziele zu erreichen."
+    },
+    "blog": {
+      "title": "Blog",
+      "description": "Lesen Sie unsere neuesten Artikel und Einblicke."
+    },
+    "solutions": {
+      "title": "Lösungen",
+      "description": "Entdecken Sie, wie Doer Teams, Trainern und Pädagogen helfen kann."
+    },
+    "solutionsTeams": {
+      "title": "Für Teams",
+      "description": "Arbeiten Sie effektiv zusammen und erreichen Sie gemeinsame Ziele mit Doer."
+    },
+    "solutionsCoaches": {
+      "title": "Für Trainer & Personal Trainer",
+      "description": "Entwerfen Sie personalisierte Pläne für Kunden und verfolgen Sie deren Fortschritt."
+    },
+    "solutionsEducators": {
+      "title": "Für Pädagogen",
+      "description": "Entwickeln Sie strukturierte Lernpläne und überwachen Sie die Leistungen der Schüler."
+    }
+  }
+}
+
+
+
+
+

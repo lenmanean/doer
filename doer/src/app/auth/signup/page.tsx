@@ -5,22 +5,75 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
+import { validatePassword } from '@/lib/password-security'
 
 function CustomSignupForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [fullName, setFullName] = useState('')
+  const [username, setUsername] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [usernameError, setUsernameError] = useState('')
   const router = useRouter()
 
   const { addToast } = useToast()
 
+  const validateUsername = (username: string): boolean => {
+    // Reset error
+    setUsernameError('')
+    
+    // Check length
+    if (username.length < 3 || username.length > 20) {
+      setUsernameError('Username must be 3-20 characters')
+      return false
+    }
+    
+    // Check format (alphanumeric, underscore, hyphen only)
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      setUsernameError('Username can only contain letters, numbers, underscores, and hyphens')
+      return false
+    }
+    
+    return true
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
+    // Validate username
+    if (!validateUsername(username)) {
+      setIsLoading(false)
+      return
+    }
+
+    // Check if username is available
+    try {
+      const checkResponse = await fetch('/api/auth/check-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      })
+      
+      const checkData = await checkResponse.json()
+      
+      if (!checkData.available) {
+        setUsernameError('Username is already taken')
+        setIsLoading(false)
+        return
+      }
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Error',
+        description: 'Failed to check username availability',
+        duration: 5000
+      })
+      setIsLoading(false)
+      return
+    }
 
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -35,11 +88,12 @@ function CustomSignupForm() {
     }
 
     // Validate password strength
-    if (password.length < 6) {
+    const passwordValidation = await validatePassword(password)
+    if (!passwordValidation.isValid) {
       addToast({
         type: 'error',
-        title: 'Weak Password',
-        description: 'Password must be at least 6 characters long.',
+        title: 'Invalid Password',
+        description: passwordValidation.error || 'Password does not meet requirements.',
         duration: 5000
       })
       setIsLoading(false)
@@ -47,32 +101,56 @@ function CustomSignupForm() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: fullName,
-          }
+            username: username,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
 
       if (error) {
+        // Check for SMTP/email sending errors
+        const isEmailError = error.message.toLowerCase().includes('email') || 
+                            error.message.toLowerCase().includes('smtp') ||
+                            error.message.toLowerCase().includes('mail')
+        
         addToast({
           type: 'error',
           title: 'Signup Failed',
-          description: error.message,
-          duration: 5000
+          description: isEmailError 
+            ? 'Unable to send confirmation email. Please contact support or try again later.'
+            : error.message,
+          duration: 7000
         })
       } else {
-        addToast({
-          type: 'success',
-          title: 'Account Created!',
-          description: 'Your account has been created successfully. You can now sign in.',
-          duration: 5000
-        })
-        // Redirect to login page after successful signup
-        router.push('/login')
+        // Account created - user may or may not have received email
+        // Store email for confirmation page
+        localStorage.setItem('pendingEmailConfirmation', email)
+        
+        // Check if user was created but email might not have been sent
+        if (data?.user && !data.session) {
+          // User created but not confirmed (email confirmation required)
+          addToast({
+            type: 'success',
+            title: 'Account Created!',
+            description: 'Please check your email for the confirmation code. If you don\'t receive it, use the resend option.',
+            duration: 7000
+          })
+        } else {
+          addToast({
+            type: 'success',
+            title: 'Account Created!',
+            description: 'Please check your email for the confirmation code.',
+            duration: 5000
+          })
+        }
+        
+        // Redirect to email confirmation page
+        router.push('/auth/confirm-email')
       }
     } catch (err) {
       addToast({
@@ -108,24 +186,31 @@ function CustomSignupForm() {
       {/* Email/Password Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="fullName" className="block text-sm font-medium text-[#d7d2cb]">
-            Full Name
+          <label htmlFor="username" className="block text-sm font-medium text-[#d7d2cb]">
+            Username
           </label>
           <div className="mt-1 relative">
             <input
-              id="fullName"
-              name="fullName"
+              id="username"
+              name="username"
               type="text"
               required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
-              placeholder="Enter your full name"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value)
+                setUsernameError('')
+              }}
+              className={`appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border ${usernameError ? 'border-red-500' : 'border-white/20'} bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300`}
+              placeholder="Choose a username (3-20 characters)"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <User className="h-5 w-5 text-[#d7d2cb]/60" />
             </div>
           </div>
+          {usernameError && (
+            <p className="mt-1 text-sm text-red-500">{usernameError}</p>
+          )}
+          <p className="mt-1 text-xs text-[#d7d2cb]/50">Letters, numbers, underscores, and hyphens only</p>
         </div>
 
         <div>
@@ -140,7 +225,7 @@ function CustomSignupForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
               placeholder="Enter your email"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -161,7 +246,7 @@ function CustomSignupForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
               placeholder="Create a password"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -193,7 +278,7 @@ function CustomSignupForm() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
               placeholder="Confirm your password"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -217,7 +302,7 @@ function CustomSignupForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-[#ff7f00] hover:bg-[#e67300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff7f00] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-[#ff7f00]/25"
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-[var(--primary)] hover:bg-[#e67300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-[#ff7f00]/25"
           >
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
@@ -275,7 +360,7 @@ export default function SignupPage() {
             Create Your Account
           </h2>
           <p className="mt-2 text-center text-sm text-[#d7d2cb]/70">
-            Join DOER.AI and start your journey
+            Join DOER and start your journey
           </p>
         </div>
         <div className="mt-8 space-y-6">

@@ -1,0 +1,264 @@
+{
+  "common": {
+    "startPlanning": "Get Started",
+    "logIn": "Log In",
+    "signUp": "Sign Up",
+    "startBuilding": "Start building"
+  },
+  "header": {
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Pricing",
+    "integrations": "Integrations",
+    "changelog": "Changelog",
+    "resources": "Resources",
+    "documentation": "Documentation",
+    "community": "Community",
+    "blog": "Blog",
+    "solutions": "Solutions",
+    "forTeams": "For Teams",
+    "forCoaches": "For Coaches & Personal Trainers",
+    "forEducators": "For Educators"
+  },
+  "hero": {
+    "headline": "Turn Your Goals Into Reality",
+    "subheadline": "Tell DOER your goal, and watch it transform into a structured plan complete with milestones, tasks, and a personalized timeline.",
+    "placeholder": "e.g., Learn to play guitar, Start a blog, Get in shape...",
+    "inputSuggestions": "Not sure where to start? Try one of these:",
+    "suggestion1": "Learn how to cook Tikka Masala",
+    "suggestion2": "Create a study plan for my AP Physics exam this Friday",
+    "suggestion3": "Organize my closet this weekend",
+    "suggestion4": "Start a blog and publish weekly articles"
+  },
+  "tabs": {
+    "step1": "Share your goal",
+    "step2": "Customize your plan",
+    "step3": "Execute and track",
+    "step1Title": "Describe your goal or specific challenge.",
+    "step1Description": "Tell DOER what you want to achieve, and we'll transform it into a structured plan with milestones, tasks, and a personalized timeline.",
+    "step2Title": "Preview and refine your AI-generated plan.",
+    "step2Description": "Review your personalized roadmap, adjust milestones, and customize your plan to match your preferences.",
+    "step3Title": "Launch your customized plan and track your progress.",
+    "step3Description": "Activate your plan, monitor progress in real-time, and work together with others to accomplish your goals."
+  },
+  "features": {
+    "title": "Getting started with DOER",
+    "description": "Transform your goals into actionable plans with AI-powered planning, milestone tracking, and seamless integrations."
+  },
+  "integrations": {
+    "title": "Integrations",
+    "description": "Connect DOER with your favorite tools and services to streamline your planning and goal achievement."
+  },
+  "testimonials": {
+    "title": "What people are saying",
+    "description": "Real feedback from users who are achieving their goals with DOER"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "description": "Everything you need to know about DOER",
+    "q1": "How does DOER generate my plan?",
+    "a1": "DOER uses advanced AI to analyze your goal, break it down into actionable tasks, estimate timelines, and create a personalized roadmap. The AI considers complexity, dependencies, and realistic scheduling to give you an achievable plan.",
+    "q2": "Can I modify the AI-generated plan?",
+    "a2": "Absolutely! While DOER creates an intelligent starting point, you have full control to customize tasks, adjust timelines, reorder milestones, and adapt the plan to your specific needs and preferences.",
+    "q3": "What integrations does DOER support?",
+    "a3": "DOER integrates with popular tools like Google Calendar, Outlook, Slack, Notion, Todoist, Asana, Trello, and more. Pro users get access to advanced integrations with HubSpot, Jira, and Google Workspace.",
+    "q4": "Is there a free plan available?",
+    "a4": "Yes! DOER offers a free plan with all core features including AI plan generation, task management, basic integrations, and daily automation. Perfect for personal use and getting started with goal achievement.",
+    "q5": "How does the smart scheduling work?",
+    "a5": "Our AI-powered scheduler analyzes your available time, task priorities, and dependencies to automatically place tasks in your calendar. It considers your work hours, existing commitments, and optimal productivity patterns.",
+    "q6": "Can teams use DOER together?",
+    "a6": "Yes! Pro and Enterprise plans include team collaboration features like shared plans, role-based permissions, team dashboards, and coordinated scheduling to keep everyone aligned on complex initiatives.",
+    "stillHaveQuestions": "Still have questions?",
+    "visitDocs": "Visit our documentation"
+  },
+  "pricing": {
+    "title": "Flexible pricing for every goal",
+    "subtitle": "Choose the plan that fits your journey and upgrade whenever you're ready.",
+    "startFree": "Free",
+    "getAccessTo": "Everything you need to get started:",
+    "allCoreFeatures": "Complete feature set",
+    "builtInIntegrations": "Native integrations",
+    "authenticationSystem": "Secure authentication",
+    "databaseFunctionality": "Full database access",
+    "paidPlansFrom": "Premium plans starting at",
+    "upgradeDescription": "Unlock additional capacity, advanced features, and priority support when you need it.",
+    "seeAllPlans": "View pricing details"
+  },
+  "cta": {
+    "headline": "So, what are we doing?",
+    "subheadline": "Are you a talker? Or are you a",
+    "doer": "DOER",
+    "question": "?",
+    "button": "Get Started"
+  },
+  "footer": {
+    "description": "DOER is the AI-powered platform that transforms your goals into structured, actionable plans. Using natural language, DOER enables anyone to turn their ambitions into personalized roadmaps with milestones, tasks, and smart scheduling.",
+    "company": "COMPANY",
+    "product": "PRODUCT",
+    "resources": "RESOURCES",
+    "legal": "LEGAL",
+    "aboutUs": "About Us",
+    "affiliateProgram": "Affiliate Program",
+    "careers": "Careers",
+    "roadmap": "Roadmap",
+    "featureRequest": "Feature Request",
+    "docsAndFAQs": "Docs & FAQs",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "security": "Security",
+    "reportMisuse": "Report Misuse",
+    "responsibleUsePolicy": "Responsible Use Policy",
+    "copyright": "2025 DOER. All rights reserved."
+  },
+  "pages": {
+    "features": {
+      "title": "Features",
+      "description": "Discover all the features that help you transform your goals into reality.",
+      "moreComing": "And many more!",
+      "moreComingDescription": "New capabilities ship every week so you can plan, execute, and adapt without friction. Join now to unlock the full DOER toolkit.",
+      "moreComingCta": "Get started today",
+      "sections": {
+        "aiPlan": {
+          "title": "AI Plan Generator",
+          "description": "Turn any goal or initiative into an actionable roadmap in seconds. DOER analyzes intent, breaks work into milestones, and estimates the effort required so teams can hit the ground running.",
+          "videoPrompt": "Embed Loom walkthrough: typing a goal and reviewing the generated milestone plan."
+        },
+        "smartScheduling": {
+          "title": "Smart Scheduling & Reshuffling",
+          "description": "Keep every task in the right place without babysitting the calendar. DOER proactively schedules, resolves conflicts, and reassigns work as priorities shift.",
+          "videoPrompt": "Embed Loom walkthrough: viewing the calendar, resolving a conflict, and auto-rescheduling."
+        },
+        "automations": {
+          "title": "Automations & Integrations",
+          "description": "Connect DOER to the tools your team already relies on. Trigger automations from progress updates, and keep stakeholders aligned without manual follow-up.",
+          "videoPrompt": "Embed Loom walkthrough: configuring an automation and watching it fire in Slack."
+        },
+        "analytics": {
+          "title": "Progress Analytics & Health",
+          "description": "Understand the health of every plan at a glance. DOER surfaces trends, risks, and wins so leaders can respond before deadlines slip.",
+          "videoPrompt": "Embed Loom walkthrough: navigating dashboards, spotting risks, and sharing a recap."
+        }
+      }
+    },
+    "pricing": {
+      "title": "Pricing",
+      "description": "Choose the plan that fits your needs.",
+      "billing": {
+        "label": "Billing cycle",
+        "monthly": "Monthly",
+        "annual": "Annual (save 20%)"
+      },
+      "creditTooltip": "Credits cover Doer’s API endpoints—plan generation, auto-scheduling, AI retrospectives, and integrations. Each API call or integration action consumes one credit.",
+      "includedFeatures": "Included features",
+      "plans": {
+        "basic": {
+          "name": "Basic",
+          "blurb": "Organize your routines, capture tasks, and automate essentials with Doer’s core features at no cost.",
+          "price": "$0",
+          "suffix": "",
+          "note": "Always free",
+          "credits": {
+            "api": {
+              "label": "API credits",
+              "value": "25 / month"
+            },
+            "integrations": {
+              "label": "Integration actions",
+              "value": "100 / month"
+            }
+          },
+          "highlights": [
+            "Personal workspace and daily schedule automation",
+            "AI nudges and recap digest up to 3x each day",
+            "Recurring routines with calendar, email, and Discord sync",
+            "Two active automations plus checklist templates",
+            "Community knowledge base, accountability pods, and onboarding guides"
+          ],
+          "ctaLabel": "Start for free"
+        },
+        "pro": {
+          "name": "Pro",
+          "blurb": "Coordinate complex initiatives with AI scheduling, task automation, and integrations that keep every stakeholder aligned.",
+          "price": {
+            "monthly": {
+              "primary": "$20",
+              "suffix": "/mo"
+            },
+            "annual": {
+              "primary": "$16",
+              "suffix": "/mo"
+            }
+          },
+          "note": {
+            "monthly": "Billed monthly — cancel anytime",
+            "annual": "Billed annually — $192 / yr (save 20%)"
+          },
+          "credits": {
+            "api": {
+              "label": "API credits",
+              "value": {
+                "monthly": "100 / month",
+                "annual": "120 / month"
+              }
+            },
+            "integrations": {
+              "label": "Integration actions",
+              "value": {
+                "monthly": "3,000 / month",
+                "annual": "4,000 / month"
+              }
+            }
+          },
+          "highlights": [
+            "Increased limits on plan, goal, and task schedule automations",
+            "AI scheduling assistant for daily and weekly planning",
+            "Scenario planning with forecasted timelines and risk flags",
+            "Native integrations with Slack, HubSpot, Notion, Jira, and Google Workspace",
+            "Portfolio analytics, KPI dashboards, and proactive progress alerts",
+            "Role-based permissions, shared templates, and automation library",
+            "Executive briefings delivered via email, Slack, and mobile"
+          ],
+          "ctaLabel": "Upgrade to Pro"
+        },
+        "custom": {
+          "name": "Custom",
+          "blurb": "White-glove support and bespoke automations for ambitious teams.",
+          "ctaLabel": "Contact sales"
+        }
+      }
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "Connect Doer with your favorite tools and services."
+    },
+    "changelog": {
+      "title": "Changelog",
+      "description": "See the latest updates, new features, and improvements."
+    },
+    "documentation": {
+      "title": "Documentation",
+      "description": "Learn how to use Doer to achieve your goals."
+    },
+    "blog": {
+      "title": "Blog",
+      "description": "Read our latest articles and insights."
+    },
+    "solutions": {
+      "title": "Solutions",
+      "description": "Discover how Doer can help teams, coaches, and educators."
+    },
+    "solutionsTeams": {
+      "title": "For Teams",
+      "description": "Collaborate effectively and achieve collective goals with Doer."
+    },
+    "solutionsCoaches": {
+      "title": "For Coaches & Personal Trainers",
+      "description": "Design personalized plans for clients and track their progress."
+    },
+    "solutionsEducators": {
+      "title": "For Educators",
+      "description": "Develop structured learning plans and monitor student achievements."
+    }
+  }
+}
+

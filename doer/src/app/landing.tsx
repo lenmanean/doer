@@ -60,30 +60,30 @@ export default function LandingPage() {
 
   const testimonials = [
     {
-      name: "Sarah Chen",
-      role: "Entrepreneur",
-      content: "DOER.AI transformed my vague business idea into a concrete 90-day action plan. I actually achieved my goal for the first time.",
+      name: "Early User",
+      role: "Beta Tester",
+      content: "The time-block scheduling system makes it so easy to see exactly when I need to work on each task. No more guessing about how long things take.",
       rating: 5
     },
     {
-      name: "Marcus Johnson",
-      role: "Student",
-      content: "Finally, a tool that doesn't just track tasks but helps me understand why I'm succeeding or struggling.",
+      name: "Productivity Enthusiast",
+      role: "Beta Tester",
+      content: "Finally, a planning tool that actually understands task duration and complexity. The AI estimates are surprisingly accurate.",
       rating: 5
     },
     {
-      name: "Emily Rodriguez",
-      role: "Professional",
-      content: "The AI-generated milestones were spot-on. It's like having a personal productivity coach available 24/7.",
+      name: "Goal Achiever",
+      role: "Beta Tester",
+      content: "The hour-level precision scheduling helps me stay focused and realistic about what I can accomplish each day.",
       rating: 5
     }
   ]
 
   const stats = [
-    { number: "10,000+", label: "Goals Achieved" },
-    { number: "95%", label: "Success Rate" },
-    { number: "3.2x", label: "Faster Achievement" },
-    { number: "24/7", label: "AI Support" }
+    { number: "Beta", label: "Launch Phase" },
+    { number: "AI-Powered", label: "Duration Estimation" },
+    { number: "Hour-Level", label: "Precision Scheduling" },
+    { number: "Smart", label: "Rescheduling" }
   ]
 
   return (
@@ -149,82 +149,120 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <section className="pt-32 pb-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-orange-500/10 opacity-50 blur-3xl"></div>
+        
+        <div className="max-w-7xl mx-auto relative z-10">
           <FadeInWrapper direction="up" delay={0.1}>
-            <div className="text-center max-w-4xl mx-auto">
-              <h1 className="text-5xl md:text-6xl font-extrabold mb-6">
+            <div className="text-center max-w-5xl mx-auto">
+              <h1 className="text-6xl md:text-7xl lg:text-8xl font-extrabold mb-8 leading-tight">
                 Turn Your{' '}
-                <span className="bg-gradient-to-r from-[#ff7f00] to-orange-600 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#ff7f00] via-orange-500 to-[#ff7f00] bg-clip-text text-transparent">
                   Goals
                 </span>
                 {' '}Into Reality
               </h1>
-              <p className="text-xl md:text-2xl text-[#d7d2cb]/70 mb-8 leading-relaxed">
+              <p className="text-2xl md:text-3xl text-[#d7d2cb]/80 mb-10 leading-relaxed max-w-3xl mx-auto">
                 AI-powered roadmap generation that transforms your written goals into structured, 
                 actionable plans you can actually follow.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
                 <Link href="/login">
-                  <Button variant="primary" size="lg" className="group">
-                    Start Achieving Today
+                  <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto">
+                    Start Now
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
-                <Button variant="outline" size="lg">
-                  Watch Demo
-                </Button>
               </div>
-            </div>
-          </FadeInWrapper>
-
-          {/* Stats */}
-          <FadeInWrapper direction="up" delay={0.3}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 max-w-4xl mx-auto">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-3xl md:text-4xl font-bold text-[#ff7f00] mb-2">
-                    {stat.number}
-                  </div>
-                  <div className="text-[#d7d2cb]/60 text-sm">
-                    {stat.label}
-                  </div>
+              
+              {/* Template Suggestions */}
+              <div className="mt-12 mb-8">
+                <p className="text-[#d7d2cb]/60 text-sm mb-4">Not sure where to start? Try one of these:</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {['Fitness Plan', 'Learning Roadmap', 'Career Goals', 'Project Timeline', 'Habit Tracker'].map((template, idx) => (
+                    <button
+                      key={idx}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-all"
+                    >
+                      {template}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Trust Badge */}
+              <div className="mt-8">
+                <p className="text-[#d7d2cb]/50 text-sm">Trusted by achievers worldwide</p>
+              </div>
             </div>
           </FadeInWrapper>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent to-white/5">
+      {/* Features Section - Base44 Style */}
+      <section id="features" className="py-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <FadeInWrapper direction="up">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                Everything You Need to{' '}
-                <span className="bg-gradient-to-r from-[#ff7f00] to-orange-600 bg-clip-text text-transparent">
-                  Succeed
+            <div className="text-center mb-24">
+              <h2 className="text-5xl md:text-6xl font-bold mb-8">
+                Consider yourself{' '}
+                <span className="bg-gradient-to-r from-[#ff7f00] via-orange-500 to-[#ff7f00] bg-clip-text text-transparent">
+                  limitless.
                 </span>
               </h2>
-              <p className="text-xl text-[#d7d2cb]/70 max-w-3xl mx-auto">
-                Our AI doesn't just create plans—it creates plans that work. 
-                Built for achievers who want results, not complexity.
+              <p className="text-2xl text-[#d7d2cb]/70 max-w-3xl mx-auto">
+                If you can describe it, you can build it.
               </p>
             </div>
           </FadeInWrapper>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <FadeInWrapper key={index} direction="up" delay={index * 0.1}>
-                <div className="p-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 group">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <feature.icon className="w-6 h-6 text-white" />
+          {/* Large Feature Cards - Alternating Layout */}
+          <div className="space-y-32">
+            {features.slice(0, 3).map((feature, index) => (
+              <FadeInWrapper key={index} direction={index % 2 === 0 ? "left" : "right"} delay={index * 0.2}>
+                <div className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12`}>
+                  {/* Icon/Visual */}
+                  <div className="flex-1 flex justify-center">
+                    <div className="w-64 h-64 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-orange-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                      <div className="w-32 h-32 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-xl flex items-center justify-center shadow-2xl shadow-[#ff7f00]/30">
+                        <feature.icon className="w-16 h-16 text-white" />
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-semibold mb-3 text-[#d7d2cb]">
+                  
+                  {/* Content */}
+                  <div className="flex-1">
+                    <h3 className="text-4xl font-bold mb-6 text-[#d7d2cb]">
+                      {feature.title}
+                    </h3>
+                    <p className="text-xl text-[#d7d2cb]/70 leading-relaxed mb-6">
+                      {feature.description}
+                    </p>
+                    <Link href="/login">
+                      <Button variant="outline" size="lg" className="group">
+                        Start building
+                        <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </FadeInWrapper>
+            ))}
+          </div>
+
+          {/* Grid of remaining features */}
+          <div className="grid md:grid-cols-3 gap-8 mt-24">
+            {features.slice(3).map((feature, index) => (
+              <FadeInWrapper key={index + 3} direction="up" delay={(index + 3) * 0.1}>
+                <div className="p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 group">
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <feature.icon className="w-7 h-7 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-4 text-[#d7d2cb]">
                     {feature.title}
                   </h3>
-                  <p className="text-[#d7d2cb]/70 leading-relaxed">
+                  <p className="text-[#d7d2cb]/70 leading-relaxed text-lg">
                     {feature.description}
                   </p>
                 </div>
@@ -290,41 +328,45 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white/5 to-transparent">
+      {/* Testimonials - Base44 Style */}
+      <section id="testimonials" className="py-32 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-white/5 to-transparent">
         <div className="max-w-7xl mx-auto">
           <FadeInWrapper direction="up">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                Trusted by{' '}
-                <span className="bg-gradient-to-r from-[#ff7f00] to-orange-600 bg-clip-text text-transparent">
-                  Achievers
-                </span>
+                "Okay, DOER.AI has blown my mind."
               </h2>
               <p className="text-xl text-[#d7d2cb]/70 max-w-3xl mx-auto">
-                Join thousands of users who have transformed their goals into reality.
+                And other great things our users say about us.
               </p>
             </div>
           </FadeInWrapper>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {testimonials.map((testimonial, index) => (
               <FadeInWrapper key={index} direction="up" delay={index * 0.1}>
-                <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+                <div className="p-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                   <div className="flex items-center mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-[#ff7f00] fill-current" />
+                      <Star key={i} className="w-4 h-4 text-[#ff7f00] fill-current" />
                     ))}
                   </div>
-                  <p className="text-[#d7d2cb]/80 mb-4 leading-relaxed">
+                  <p className="text-[#d7d2cb]/80 mb-6 leading-relaxed text-sm">
                     "{testimonial.content}"
                   </p>
-                  <div>
-                    <div className="font-semibold text-[#d7d2cb]">
-                      {testimonial.name}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-medium">
+                        {testimonial.name.charAt(0)}
+                      </span>
                     </div>
-                    <div className="text-[#d7d2cb]/60 text-sm">
-                      {testimonial.role}
+                    <div>
+                      <div className="font-semibold text-[#d7d2cb] text-sm">
+                        {testimonial.name}
+                      </div>
+                      <div className="text-[#d7d2cb]/60 text-xs">
+                        {testimonial.role}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -334,30 +376,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
+      {/* CTA Section - Base44 Style */}
+      <section className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-orange-500/10 opacity-50 blur-3xl"></div>
+        <div className="max-w-5xl mx-auto text-center relative z-10">
           <FadeInWrapper direction="up">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Ready to{' '}
-              <span className="bg-gradient-to-r from-[#ff7f00] to-orange-600 bg-clip-text text-transparent">
-                Achieve Your Goals?
+            <h2 className="text-5xl md:text-6xl font-bold mb-8">
+              So, what are we{' '}
+              <span className="bg-gradient-to-r from-[#ff7f00] via-orange-500 to-[#ff7f00] bg-clip-text text-transparent">
+                building?
               </span>
             </h2>
-            <p className="text-xl text-[#d7d2cb]/70 mb-8 leading-relaxed">
-              Join thousands of achievers who have transformed their ideas into reality. 
-              Start your journey today—it's free to begin.
+            <p className="text-2xl text-[#d7d2cb]/80 mb-12 leading-relaxed max-w-3xl mx-auto">
+              DOER.AI is the AI-powered platform that lets users build fully functioning goal plans in minutes. 
+              Using nothing but natural language, DOER.AI enables anyone to turn their words into structured roadmaps, 
+              actionable plans, or complete achievement strategies that are ready to use.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Link href="/login">
-                <Button variant="primary" size="lg" className="group">
-                  Get Started Free
+                <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto">
+                  Start building
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Button variant="outline" size="lg">
-                Learn More
-              </Button>
             </div>
           </FadeInWrapper>
         </div>

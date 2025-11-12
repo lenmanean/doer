@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LayoutDashboard, 
-  Map, 
+  Calendar, 
   Upload, 
   Zap, 
   User, 
-  Settings, 
+  Cog, 
   LogOut,
   Menu,
   X,
@@ -31,19 +31,21 @@ interface SidebarProps {
   }
   onSignOut: () => void
   currentPath?: string
+  hasPendingReschedules?: boolean
+  emailConfirmed?: boolean
 }
 
-const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) => {
+const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, emailConfirmed = true }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
 
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Roadmap', href: '/roadmap', icon: Map },
+    { name: 'Schedule', href: '/schedule', icon: Calendar },
     { name: 'Health', href: '/health', icon: Heart },
     { name: 'Community', href: '/community', icon: Users },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Settings', href: '/settings', icon: Cog },
     { name: 'Help', href: '/help', icon: HelpCircle },
   ]
 
@@ -76,7 +78,7 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden glass-panel border border-white/20 text-[#d7d2cb] hover:text-[#ff7f00] hover:bg-white/10"
+        className="fixed top-4 left-4 z-50 md:hidden glass-panel border border-[var(--border)] text-[var(--foreground)] hover:text-[var(--primary)] hover:bg-[var(--accent)]"
         onClick={toggleMobileSidebar}
       >
         {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -132,7 +134,7 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden md:flex text-[#d7d2cb]/70 hover:text-[#ff7f00] hover:bg-white/10 w-10 h-10 p-2"
+                className="hidden md:flex text-white dark:text-white hover:text-[var(--primary)] hover:bg-[var(--accent)] w-10 h-10 p-2"
                 onClick={toggleSidebar}
               >
                 <Menu className="w-5 h-5" />
@@ -144,19 +146,40 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
           <nav className="flex-1 flex flex-col justify-evenly px-1">
             {navigationItems.map((item) => {
               const Icon = item.icon
+              const isScheduleItem = item.href === '/schedule'
+              const isSettingsItem = item.href === '/settings'
+              const showScheduleBadge = isScheduleItem && hasPendingReschedules
+              const showSettingsBadge = isSettingsItem && !emailConfirmed
+              const showBadge = showScheduleBadge || showSettingsBadge
+              
+              // Debug logging for settings badge (development only)
+              if (isSettingsItem && process.env.NODE_ENV === 'development') {
+                console.log('[Sidebar] Settings badge check:', {
+                  emailConfirmed,
+                  showSettingsBadge,
+                  showBadge
+                })
+              }
+              
+              const isActiveItem = isActive(item.href)
+              
               return (
                 <motion.a
                   key={item.name}
                   href={item.href}
+                  data-active={isActiveItem}
                   className={cn(
-                    'flex items-center rounded-lg text-sm font-medium transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7f00] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent micro-animate gpu-accelerated group',
+                    'flex items-center rounded-lg text-sm font-medium transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent micro-animate gpu-accelerated group relative sidebar-nav-item',
                     isCollapsed 
                       ? 'justify-center p-4 -ml-1' 
                       : 'space-x-3 px-4 py-3',
-                    isActive(item.href)
-                      ? 'bg-[#ff7f00]/20 text-[#ff7f00] border border-[#ff7f00]/30'
-                      : 'text-[#d7d2cb]/70 hover:text-[#d7d2cb] hover:bg-white/10'
+                    isActiveItem
+                      ? 'bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/60'
+                      : 'text-white dark:text-white hover:text-[var(--primary)] hover:bg-[var(--accent)]'
                   )}
+                  style={isActiveItem ? { 
+                    color: 'var(--primary)'
+                  } as React.CSSProperties : undefined}
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
@@ -165,10 +188,23 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
                     setIsCollapsed(true)
                   }}
                 >
-                  <Icon className={cn(
-                    'flex-shrink-0',
-                    isCollapsed ? 'w-5 h-5' : 'w-4 h-4'
-                  )} />
+                  <div className="relative">
+                    <Icon 
+                      className={cn(
+                        'flex-shrink-0 sidebar-nav-icon',
+                        isCollapsed ? 'w-5 h-5' : 'w-4 h-4'
+                      )}
+                      style={isActiveItem ? { 
+                        color: 'var(--primary)',
+                        fill: 'none',
+                        stroke: 'var(--primary)',
+                        strokeWidth: 2
+                      } as React.CSSProperties : undefined}
+                    />
+                    {showBadge && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                    )}
+                  </div>
                   {!isCollapsed && (
                     <motion.span
                       initial={{ opacity: 0 }}
@@ -210,10 +246,10 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#d7d2cb] truncate">
+                    <p className="text-sm font-medium text-white dark:text-white truncate">
                       {user.display_name || user.name || 'User'}
                     </p>
-                    <p className="text-xs text-[#d7d2cb]/60 truncate">
+                    <p className="text-xs text-white/80 dark:text-white/80 truncate">
                       {user.email}
                     </p>
                   </div>
@@ -225,17 +261,19 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
             <Button
               variant="ghost"
               className={cn(
-                'w-full text-[#d7d2cb]/70 hover:text-red-400 hover:bg-red-500/20 transition-all duration-300 micro-animate',
+                'w-full text-white dark:text-white hover:text-red-400 hover:bg-red-500/20 transition-all duration-300 micro-animate',
                 isCollapsed 
                   ? 'justify-center p-4 -ml-1' 
                   : 'justify-start space-x-3 px-4 py-3 -ml-1'
               )}
               onClick={handleSignOut}
             >
-              <LogOut className={cn(
-                'flex-shrink-0',
-                isCollapsed ? 'w-5 h-5' : 'w-4 h-4'
-              )} />
+              <LogOut 
+                className={cn(
+                  'flex-shrink-0',
+                  isCollapsed ? 'w-5 h-5' : 'w-4 h-4'
+                )}
+              />
               {!isCollapsed && (
                 <motion.span
                   initial={{ opacity: 0 }}
@@ -256,7 +294,7 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
       <div
         className={cn(
           'transition-all duration-300 ease-out',
-          isCollapsed ? 'md:ml-20' : 'md:ml-72'
+          isCollapsed ? 'md:ml-20' : 'md:ml-70'
         )}
       />
 
@@ -282,15 +320,15 @@ const Sidebar = ({ user, onSignOut, currentPath = '/dashboard' }: SidebarProps) 
                 <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <LogOut className="w-6 h-6 text-red-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-[#d7d2cb] mb-2">
+                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">
                   Sign Out
                 </h3>
-                <p className="text-[#d7d2cb]/70 mb-6">
+                <p className="text-[var(--muted-foreground)] mb-6">
                   Are you sure you want to sign out? You'll need to log in again to access your account.
                 </p>
                 <div className="flex space-x-3">
                   <motion.button
-                    className="flex-1 h-10 px-4 py-2 text-[#d7d2cb] bg-transparent border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:ring-offset-2 focus:ring-offset-transparent flex items-center justify-center"
+                    className="flex-1 h-10 px-4 py-2 text-[var(--foreground)] bg-transparent border border-[var(--border)] rounded-lg hover:bg-[var(--accent)] hover:border-[var(--primary)]/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-transparent flex items-center justify-center"
                     onClick={cancelSignOut}
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.98 }}

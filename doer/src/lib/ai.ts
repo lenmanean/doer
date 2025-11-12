@@ -15,37 +15,90 @@ export const openai = new OpenAI({
 import { AIModelRequest } from './types'
 
 /**
- * Validates if a goal is realistic for a 365-day timeline
+ * Evaluates whether a goal is realistically achievable within the 21-day cap
  */
-export async function validateGoalFeasibility(goal: string): Promise<{
+export async function evaluateGoalFeasibility(goal: string): Promise<{
   isFeasible: boolean
   reasoning: string
 }> {
   const prompt = `
-You are a goal feasibility validator. Determine if this goal can realistically be achieved within 120 days.
+You are a feasibility reviewer. Determine if the following goal can realistically be achieved WITHIN 21 DAYS and provide a short reason.
 
 RULES:
-- Be PERMISSIVE - only reject truly impossible goals
-- Return JSON: { "isFeasible": boolean, "reasoning": "string" }
+- Focus on realistic outcomes for an individual or small team.
+- Consider learning curve, resources, legal/ethical constraints, and scope.
+- If the goal is clearly impossible or wildly unrealistic for 21 days, return isFeasible = false.
+- If the goal is (barely) possible but extremely ambitious, return isFeasible = false and explain why.
+- Respond in JSON ONLY: { "isFeasible": boolean, "reasoning": "string" }
 
-UNFEASIBLE EXAMPLES:
-- "Become a millionaire"
-- "Get a PhD"
-- "Become a professional athlete in a new sport"
-
-FEASIBLE EXAMPLES:
-- "Learn to play guitar"
-- "Run a 5K race"
-- "Learn basic Spanish"
-
-User Goal: "${goal}"
+Goal: "${goal}"
 `
 
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a goal validator. Return only JSON.' },
+        { role: 'system', content: 'You are a feasibility reviewer. Return strict JSON with boolean isFeasible and string reasoning.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.1,
+      response_format: { type: 'json_object' },
+    })
+
+    const parsed = JSON.parse(completion.choices[0].message.content || '{}')
+    return {
+      isFeasible: parsed.isFeasible === true,
+      reasoning: parsed.reasoning || 'Unable to determine feasibility'
+    }
+  } catch (error) {
+    console.error('Feasibility evaluation error:', error)
+    // Fail open so the calling code can decide how to handle
+    return { isFeasible: true, reasoning: 'Feasibility check failed – defaulting to feasible' }
+  }
+}
+
+/**
+ * Analyzes a goal to determine if clarification questions are needed
+ */
+export async function analyzeClarificationNeeds(goal: string): Promise<{
+  needsClarification: boolean
+  questions: string[]
+}> {
+  const prompt = `Analyze this goal to determine if clarification questions are needed before creating a plan.
+
+GOAL: "${goal}"
+
+ANALYSIS CRITERIA:
+- Ambiguity: Is the goal vague or unclear? (e.g., "learn programming" vs "learn Python")
+- Missing context: Does it lack critical information? (experience level, resources, constraints)
+- Scope uncertainty: Could it mean different things? (e.g., "get fit" - cardio, strength, flexibility?)
+- Time-sensitive details: Are there implicit deadlines or schedules?
+- Timeline ambiguity: Can't determine realistic timeline from goal alone? (e.g., "learn programming" - quick intro vs deep mastery?)
+
+DECISION RULES:
+- If goal is SPECIFIC and CLEAR → return empty questions array
+- If goal needs clarification → generate 1-3 focused questions maximum
+- Questions should be essential for creating a quality plan
+- Avoid obvious questions that don't impact planning
+- Try to infer timeline from goal description first
+
+EXAMPLES:
+- "Run a 5K in under 30 minutes" → CLEAR, no questions needed
+- "Learn guitar" → UNCLEAR, needs: "What's your current guitar experience level?"
+- "Start a business" → UNCLEAR, needs: "What type of business?" and "What's your budget range?"
+- "Learn programming" → UNCLEAR timeline, needs: "How much time do you have? Quick intro (1-2 weeks) or deep mastery (3-6 months)?"
+
+Return JSON format:
+{
+  "needsClarification": boolean,
+  "questions": string[]
+}`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a goal analysis expert. Return only valid JSON.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.3,
@@ -54,96 +107,261 @@ User Goal: "${goal}"
 
     const parsed = JSON.parse(completion.choices[0].message.content || '{}')
     return {
-      isFeasible: parsed.isFeasible !== false,
-      reasoning: parsed.reasoning || 'Goal appears feasible'
+      needsClarification: parsed.needsClarification === true,
+      questions: Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : []
     }
   } catch (error) {
-    console.error('Validation error:', error)
-    return { isFeasible: true, reasoning: 'Validation failed - assuming feasible' }
+    console.error('Clarification analysis error:', error)
+    return { needsClarification: false, questions: [] }
   }
 }
 
 /**
- * Generate roadmap structure (timeline, milestones, tasks)
- * AI focuses on CONTENT only - no dates or scheduling
+ * Generate roadmap structure with duration estimates and priority assignments
+ * AI focuses on CONTENT and DURATION ESTIMATION - no dates or scheduling
  */
 export async function generateRoadmapContent(request: AIModelRequest): Promise<{
   timeline_days: number
-  goal_title: string
+  goal_text: string
   plan_summary: string
-  end_date: string
-  milestones: Array<{
-    name: string
-    rationale: string
-  }>
-  milestone_tasks: Array<{
-    milestone_idx: number
+  tasks: Array<{
     name: string
     details: string
-  }>
-  daily_tasks: Array<{
-    name: string
-    details: string
+    estimated_duration_minutes: number
+    priority: 1 | 2 | 3 | 4
   }>
 }> {
-  const prompt = `Create a structured plan for: "${request.goal}"
+  const formatSlot = (slot: { start: string; end: string; source?: string }) => {
+    const start = new Date(slot.start)
+    const end = new Date(slot.end)
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
+    const startISO = start.toISOString()
+    const endISO = end.toISOString()
+    return `${startISO} → ${endISO}${slot.source ? ` (${slot.source})` : ''}`
+  }
 
-${request.clarifications ? `CONTEXT: Q1: ${request.clarificationQuestions?.[0]} → ${request.clarifications.clarification_1} | Q2: ${request.clarificationQuestions?.[1]} → ${request.clarifications.clarification_2}
-Adjust: Prior experience = shorter timeline, beginner = longer timeline` : ''}
+  const availabilityContextLines: string[] = []
+  if (request.availability) {
+    const busyLines = request.availability.busySlots
+      .map(formatSlot)
+      .filter((line): line is string => Boolean(line))
+    if (busyLines.length > 0) {
+      availabilityContextLines.push('BUSY SLOTS (do NOT schedule tasks during these windows):')
+      busyLines.slice(0, 12).forEach(line => availabilityContextLines.push(`- ${line}`))
+      if (busyLines.length > 12) {
+        availabilityContextLines.push(`- ... ${busyLines.length - 12} more slots omitted for brevity`)
+      }
+    }
 
-TIMELINE (Choose SHORTEST realistic):
-• 1-7d: Simple tasks (organize, write resume, basic skill)
-• 7-21d: Small skills (cooking, DIY, fitness start, photo editing)
-• 21-45d: Moderate skills (guitar, coding basics, habits, couch-to-5K)
-• 45-90d: Comprehensive (language basics, major habits, competitions)
-• 90-120d: RARE - only genuinely complex goals
-Default SHORT. Max 120 days. Bias toward faster completion.
+    const timeOffLines = request.availability.timeOff
+      .map(formatSlot)
+      .filter((line): line is string => Boolean(line))
+    if (timeOffLines.length > 0) {
+      availabilityContextLines.push('TIME OFF (treat as hard blocks, like vacation/sick days):')
+      timeOffLines.forEach(line => availabilityContextLines.push(`- ${line}`))
+    }
 
-STRUCTURE (STRICT MINIMUMS):
-1. Milestones: 1-5 based on timeline
-   - 1-7d: 1-2 milestones
-   - 8-21d: 2-3 milestones
-   - 22-45d: 3-4 milestones
-   - 46-90d: 4-5 milestones
-   - 90+d: 5 milestones
+    if (request.availability.deadline) {
+      const deadline = new Date(request.availability.deadline)
+      if (!isNaN(deadline.getTime())) {
+        availabilityContextLines.push(`HARD DEADLINE: All tasks must finish before ${deadline.toISOString()}`)
+      }
+    }
+  }
 
-2. Milestone tasks: 1-4 per milestone
-   - Each milestone needs AT LEAST 1 task
-   - Total milestone_tasks ≥ milestones
-   - Example: 3 milestones = minimum 3 milestone tasks
-   - Use 1 task for simple milestones, 2-4 for complex ones
+  const availabilityContext =
+    availabilityContextLines.length > 0
+      ? `\nAVAILABILITY CONTEXT:\n${availabilityContextLines.join('\n')}\n\n`
+      : ''
 
-3. Daily tasks: EXACTLY (timeline_days - 2)
-   - Example: 21 days = 19 daily tasks (EXACT)
+  const prompt = `Create a structured plan with realistic duration estimates for: "${request.goal}"
 
-4. Title: 3-6 words, catchy
-5. Summary: max 14 words
+${request.clarifications && request.clarificationQuestions ? `
+CLARIFICATIONS PROVIDED:
+${request.clarificationQuestions.map((q: string, i: number) => {
+  const answer = Array.isArray(request.clarifications) 
+    ? request.clarifications[i]
+    : request.clarifications?.[`clarification_${i + 1}`] || request.clarifications?.[`answer_${i + 1}`] || 'Not provided'
+  return `Q${i + 1}: ${q}\nA${i + 1}: ${answer}`
+}).join('\n\n')}
+
+IMPORTANT: Use these clarifications to tailor the plan. Adjust timeline and task complexity based on user's experience level and specific requirements.` : ''}
+
+${availabilityContext}DURATION ESTIMATION:
+• AI determines EXACT duration for each task based on complexity
+• NO hardcoded durations - analyze the specific task context
+• Consider user's goal and realistic completion time
+• Range: 5-360 minutes per task (10-60 min typical, 90-120 min for deep work)
+• If a task would exceed 120 minutes, split it into smaller focused blocks when possible
+• BE REALISTIC about how long tasks actually take:
+  - Research/reading: 15-30 minutes per topic
+  - Writing/creating: 30-60 minutes per deliverable
+  - Practice/rehearsal: 30-45 minutes per session
+  - Simple setup/preparation: 10-20 minutes
+• IMPORTANT: If you're creating a 1-day plan, total duration MUST be under 250 minutes
+• Example breakdown for 1-day plan (presentation):
+  - Research topic: 30 min
+  - Outline presentation: 20 min
+  - Create slides: 60 min
+  - Write speaker notes: 30 min
+  - Practice delivery: 40 min
+  - Final review: 20 min
+  - TOTAL: 200 minutes (fits in 1 day with buffer)
+
+TIMELINE ESTIMATION:
+1. Analyze goal complexity and required skill development time
+2. Consider realistic learning/practice curves
+3. Estimate total days needed (range: 1-21 days MAX). Bias toward the SHORTEST realistic timeline.
+4. Examples:
+   - "Polish resume and cover letter": 1-2 days
+   - "Prepare for a remote job interview": 2 days
+   - "Refresh personal portfolio site": 5-7 days
+   - "Plan and rehearse a workshop": 10-14 days
+
+TIMELINE CALCULATION RULES:
+• Sum all task durations (in minutes)
+• REALISTIC DAILY CAPACITY: ~250 minutes per day (accounts for breaks, interruptions, realistic pacing)
+  - Base workday: 9am-5pm (8 hours = 480 minutes)
+  - Minus lunch: 1 hour (60 minutes)
+  - Realistic capacity: 60% of remaining time = 252 minutes per day
+• CAPACITY FORMULA: For N-day plan, max total task duration = N × 250 minutes
+  - 1 day plan = max 250 minutes of tasks
+  - 2 day plan = max 500 minutes of tasks
+  - 3 day plan = max 750 minutes of tasks
+• CRITICAL FOR SINGLE-DAY PLANS: Keep total task duration under 250 minutes
+• Examples:
+  - If total tasks = 240 minutes → 1 day plan (fits)
+  - If total tasks = 480 minutes → 2 day plan minimum
+  - If total tasks = 720 minutes → 3 day plan minimum
+• Add 10-20% buffer for realistic pacing (already built into 60% capacity)
+• Short-term goals (<250 min total) = 1 day
+• Medium goals (250-500 min) = 2 days
+• Long-term goals = proportional days (max 21)
+• MAX 21 days. Bias toward SHORTEST realistic timeline.
+• CRITICAL: timeline_days MUST NOT exceed 21. If calculated timeline > 21 days, reduce task count or simplify goal scope.
+• Quality over quantity: Better to have 10-12 high-quality tasks over 21 days than 20+ generic tasks.
+• If goal requires more than 21 days, break into phases or simplify scope.
+
+MULTI-DAY PLAN DISTRIBUTION:
+• For 2+ day plans, distribute tasks to avoid front-loading
+• Day 1: Foundational work (Priority 1-2 tasks that enable others)
+• Middle days: Core execution (Priority 2-3 tasks)
+• Final day: Completion tasks, final prep, time-sensitive items
+• Example 2-day interview prep:
+  - Day 1: Resume update, portfolio work, research (foundational)
+  - Day 2: Practice interviews, tech setup, final review (execution + time-sensitive)
+• Balance workload: Aim for 60-80% capacity each day, not 100% on one day
+• Don't schedule all Priority 1 tasks on Day 1 if there's time on Day 2
+• Distribute work evenly to prevent burnout and maintain quality
+
+PRIORITY ASSIGNMENT (1-4):
+• Keep Priority 1 (Critical) tasks to essential prerequisites ONLY (target ≤35% of total tasks)
+• Priority 1 (Critical): ONLY for foundational dependencies - tasks that MUST be done before others can start
+  - Example: "Research company" comes before "Prepare talking points" (need research to prepare)
+  - Example: "Learn basics" before "Practice advanced techniques" (need knowledge to practice)
+  - Example: "Gather materials" before "Build project" (need materials to build)
+  - NOT for time-sensitive tasks that should happen near deadline
+  - NOT for setup tasks that should be done close to event time
+
+• Priority 2 (High): Important preparatory work and core execution tasks
+  - Time-sensitive tasks that should happen 1-2 days before deadline
+  - Practice / rehearsal sessions that must happen before final polish
+  - Example: "Set up interview space" (do closer to interview, not first day)
+  - Example: "Tech check" (do day before event, not days earlier)
+  - Example: "Practice presentation delivery" (rehearse before final review)
+  - Core work that doesn't block other tasks but is still important
+
+• Priority 3 (Medium): Valuable enhancing + wrap-up tasks with flexible timing
+  - Final review / polish / QA tasks that happen after practice or testing
+  - Optional improvements, extra iterations, backlog grooming
+  - Example: "Final review of slides and notes" (only after practice is complete)
+  - Example: "Practice mock interviews" (valuable but can be done anytime)
+  - Example: "Add extra features" (nice-to-have enhancements)
+  - Tasks that improve quality but aren't strictly required
+
+• Priority 4 (Low): Nice-to-have additions and optional polish
+  - Documentation, extra polish, optional features
+  - Things that add value but can be skipped if time is tight
+
+CRITICAL PRIORITY RULES:
+1. If Task B needs output/result from Task A → Task A MUST be Priority 1, Task B is Priority 2+
+2. If Task X should happen near deadline (setup, final prep) → Priority 2-3, NOT Priority 1
+3. Setup/prep tasks for events → Schedule 1 day before event, assign Priority 2-3
+4. Practice / rehearsal tasks MUST have equal or higher priority (lower number) than any final review / polish tasks
+   • Example: Practice presentation (Priority 2) → Final review (Priority 3 or 4)
+5. Final review / polish tasks MUST be scheduled AFTER the related work and practice
+   • Assign Priority 3-4 so they occur last in the timeline
+6. Relaxation / mental prep tasks should be Priority 3-4 and occur after all actionable work
+7. Research/foundational learning → Priority 1 (needed before dependent work)
+
+EXAMPLES OF CORRECT PRIORITY ASSIGNMENT:
+Interview Prep (2 days):
+  - Priority 1: Update resume, Portfolio update, Research company (foundational - needed for later tasks)
+  - Priority 2: Prepare talking points, Practice interviews (important execution)
+  - Priority 2: Set up space, Tech check (time-sensitive - do day 2, not day 1)
+  
+Project Build (7 days):
+  - Priority 1: Research requirements, Design architecture (foundational)
+  - Priority 2: Build core features, Implement functionality (execution)
+  - Priority 3: Add polish, Optimize performance (enhancements)
+  - Priority 4: Write documentation, Add extras (optional)
+
+SCHEDULING STRATEGY:
+• Schedule Priority 1 tasks first (foundation work)
+• Then Priority 2 tasks (core functionality) 
+• Then Priority 3 tasks (enhancements)
+• Finally Priority 4 tasks (polish)
+• Within each priority, schedule longer tasks first to avoid fragmentation
+• CRITICAL: Ensure logical dependencies are respected regardless of priority numbers
+
+STRUCTURE REQUIREMENTS:
+1. Tasks: All tasks in unified list with duration estimates
+   - Each task needs estimated_duration_minutes (5-360 minutes)
+   - Each task needs priority (1, 2, 3, or 4)
+   - Total tasks should support the timeline (aim for 10-15 high-quality tasks)
+   - Generate appropriate mix of priorities based on logical dependencies
+   - Task names: 3-8 words, specific and actionable (NOT "Task 1", "Do thing")
+   - Task details: 1-2 clear sentences explaining what to do
+   - Each task must be meaningful and contribute to goal achievement
+   - Maintain high quality task descriptions - quality over quantity
+
+2. Title: 3-6 words, catchy
+3. Summary: max 14 words
 
 START: ${request.start_date}
 
 JSON FORMAT:
 {
-  "timeline_days": <number>,
-  "goal_title": "3-6 word title",
+  "timeline_days": <calculated based on total duration>,
+  "goal_text": "3-6 word title",
   "plan_summary": "14 word max summary",
-  "end_date": "YYYY-MM-DD",
-  "milestones": [{"name": "Descriptive action phrase", "rationale": "why it matters"}],
-  "milestone_tasks": [{"milestone_idx": 1, "name": "Specific action", "details": "clear steps"}],
-  "daily_tasks": [{"name": "Specific activity", "details": "actionable daily task"}]
+  "tasks": [
+    {
+      "name": "Specific action",
+      "details": "clear steps",
+      "estimated_duration_minutes": <15-360>,
+      "priority": 1|2|3|4
+    }
+  ]
 }
 
+IMPORTANT: Do NOT include "end_date" in the response. The application will calculate it from timeline_days and start_date.
+
 CRITICAL VALIDATION BEFORE RESPONDING:
-✓ milestone_tasks.length ≥ milestones.length (MINIMUM 1 per milestone)
-✓ daily_tasks.length = timeline_days - 2 (EXACT)
-✓ Names = specific actions (NOT "Milestone 1", "Task 1")
+✓ All tasks have realistic duration estimates (5-360 minutes)
+✓ All tasks have priorities (1, 2, 3, or 4)
+✓ Timeline calculated from total duration + buffer
+✓ Names = specific actions (NOT "Task 1")
 ✓ end_date = start_date + timeline_days
-✓ Timeline biased SHORT
-✓ All tasks unique & actionable`
+✓ Timeline biased SHORT but realistic
+✓ All tasks unique & actionable
+✓ Duration estimates based on actual task complexity, not priority
+✓ Priorities assigned based on logical dependencies and importance`
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
-      { role: 'system', content: 'Roadmap generator. Return valid JSON. CRITICAL: 1) milestone_tasks.length ≥ milestones.length (MINIMUM 1 per milestone), 2) daily_tasks.length = timeline_days - 2 (EXACT), 3) Descriptive names (NOT "Milestone 1" or "Task 1"), 4) Bias SHORT timelines for quick plans' },
+      { role: 'system', content: 'Duration-aware roadmap generator. Return valid JSON. CRITICAL: 1) All tasks have REALISTIC duration estimates (5-360 minutes) - think about how long YOU would actually take, 2) All tasks have priorities (1, 2, 3, or 4), 3) Timeline calculated from total duration + buffer, 4) Descriptive names (NOT "Task 1"), 5) Bias SHORT timelines but be realistic, 6) Assign priorities based on logical dependencies and importance, 7) Short tasks = 10-20 minutes, focused work = 30-60 minutes, deep work = 90-120 minutes' },
       { role: 'user', content: prompt },
     ],
     temperature: 0.5,
@@ -158,16 +376,28 @@ CRITICAL VALIDATION BEFORE RESPONDING:
   
   console.log('AI Roadmap Content Generated:', {
     timeline_days: parsed.timeline_days,
-    end_date: parsed.end_date,
-    milestones: parsed.milestones?.length,
-    milestone_tasks: parsed.milestone_tasks?.length,
-    daily_tasks: parsed.daily_tasks?.length,
-    expected_daily: parsed.timeline_days - 2
+    tasks: parsed.tasks?.length,
+    total_duration_minutes: parsed.tasks?.reduce((sum: number, task: any) => sum + (task.estimated_duration_minutes || 0), 0) || 0
   })
 
-  // Validate AI included end_date
-  if (!parsed.end_date) {
-    throw new Error('AI did not generate end_date')
+  // Validate AI included required fields
+  if (!parsed.tasks || parsed.tasks.length === 0) {
+    throw new Error('AI did not generate tasks')
+  }
+  
+  // Validate all tasks have duration estimates and priorities
+  for (const task of parsed.tasks) {
+    if (!task.estimated_duration_minutes || task.estimated_duration_minutes < 5 || task.estimated_duration_minutes > 360) {
+      throw new Error(`Task "${task.name}" has invalid duration: ${task.estimated_duration_minutes} (must be 5-360 minutes)`)
+    }
+    if (!task.priority || ![1, 2, 3, 4].includes(task.priority)) {
+      throw new Error(`Task "${task.name}" has invalid priority: ${task.priority}`)
+    }
+  }
+
+  // Validate timeline does not exceed 21 days
+  if (parsed.timeline_days > 21) {
+    throw new Error(`TIMELINE_EXCEEDED: AI generated timeline of ${parsed.timeline_days} days exceeds 21-day limit. Please simplify your goal or break into smaller phases.`)
   }
 
   return parsed

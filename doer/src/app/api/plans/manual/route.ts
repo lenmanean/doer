@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { formatDateForDB } from '@/lib/date-utils'
+import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Validate dates
-    const startDate = new Date(start_date)
-    const endDate = new Date(end_date)
+    // Validate and convert dates to local midnight to avoid timezone issues
+    const startDate = toLocalMidnight(start_date)
+    const endDate = toLocalMidnight(end_date)
     
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Calculate timeline days
+    // Calculate timeline days using local dates
     const timelineDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
     console.log('Creating manual plan for user:', user.id, {

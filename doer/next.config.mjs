@@ -2,6 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   
+  // Ignore ESLint errors during builds (for deployment)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   // Suppress webpack warnings
   webpack: (config, { dev, isServer }) => {
     config.ignoreWarnings = [

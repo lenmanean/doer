@@ -14,7 +14,7 @@ export async function middleware(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       global: {
-        headers: { Accept: 'application/json' }, // ✅ fixes 406 (Not Acceptable)
+        headers: { Accept: 'application/json' },
       },
       cookies: {
         get(name: string) {
@@ -58,12 +58,23 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  // Check auth state (non-blocking)
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error && !error.message?.includes('session')) {
+      console.warn('[Middleware] Auth check error:', error.message)
+    }
+  } catch (error) {
+    if (error instanceof Error && !error.message?.includes('timeout')) {
+      console.warn('[Middleware] Auth check exception:', error.message)
+    }
+  }
+  
   return res
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth|api).*)',
   ],
 }

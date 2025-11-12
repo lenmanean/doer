@@ -47,10 +47,10 @@ export function PlanCard({
       transition={{ duration: 0.2 }}
       className={`p-4 rounded-lg border transition-all duration-200 backdrop-blur-md relative ${
         isActive
-          ? 'bg-white/10 border-white/30 shadow-lg'
+          ? 'bg-[var(--input)]/50 border-[var(--border)]/50 shadow-lg'
           : isArchived
-          ? 'bg-white/[0.02] border-white/10 opacity-60'
-          : 'bg-white/5 border-white/20 hover:border-white/30 hover:bg-white/[0.08] cursor-pointer'
+          ? 'bg-[var(--input)]/10 border-[var(--border)]/30 opacity-60'
+          : 'bg-[var(--input)]/30 border-[var(--border)]/40 hover:border-[var(--border)]/50 hover:bg-[var(--input)]/40 cursor-pointer'
       }`}
       onClick={() => {
         if (!isActive && !isArchived && onSwitch) {
@@ -64,23 +64,23 @@ export function PlanCard({
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0 pr-3">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-sm font-medium text-[#d7d2cb] truncate">
+            <h3 className="text-sm font-medium text-[var(--foreground)] truncate">
               {goalTitle}
             </h3>
             {isPaused && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-400 border border-gray-500/20">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--muted)]/10 text-[var(--muted-foreground)] border border-[var(--muted)]/20">
                 Inactive
               </span>
             )}
             {isArchived && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-400 border border-gray-500/20">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--muted)]/10 text-[var(--muted-foreground)] border border-[var(--muted)]/20">
                 Archived
               </span>
             )}
           </div>
           
           {plan.summary_data?.goal_summary && (
-            <p className="text-xs text-[#d7d2cb]/50 line-clamp-2">
+            <p className="text-xs text-[var(--muted-foreground)] line-clamp-2">
               {plan.summary_data.goal_summary}
             </p>
           )}
@@ -97,7 +97,7 @@ export function PlanCard({
       </div>
 
       {/* Date Range */}
-      <div className="flex items-center gap-3 text-xs text-[#d7d2cb]/60 mb-3">
+      <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)] mb-3">
         <div className="flex items-center gap-1">
           <Calendar className="w-3 h-3" />
           <span>
@@ -122,7 +122,7 @@ export function PlanCard({
 
       {/* Stats */}
       {(plan.milestone_count !== undefined || plan.task_count !== undefined) && (
-        <div className="flex items-center gap-4 mb-3 text-xs text-[#d7d2cb]/50">
+        <div className="flex items-center gap-4 mb-3 text-xs text-[var(--muted-foreground)]">
           {plan.milestone_count !== undefined && (
             <div className="flex items-center gap-1">
               <Target className="w-3 h-3" />
@@ -140,14 +140,14 @@ export function PlanCard({
 
       {/* Actions - Only for archived plans */}
       {showActions && !isActive && isArchived && (
-        <div className="flex items-center gap-2 pt-3 border-t border-white/10">
+        <div className="flex items-center gap-2 pt-3 border-t border-[var(--border)]">
           {onArchive && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onArchive(plan.id)
               }}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 text-[#d7d2cb]/70 hover:bg-white/10 hover:text-[#d7d2cb] transition-colors border border-white/10"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--input)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--foreground)] transition-colors border border-[var(--border)]"
               title="Archive plan"
             >
               <Archive className="w-3.5 h-3.5" />
@@ -164,7 +164,7 @@ export function PlanCard({
             e.stopPropagation()
             onDelete(plan.id)
           }}
-          className="absolute bottom-3 right-3 p-1.5 rounded-lg bg-white/5 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 border border-white/10 hover:border-red-500/30 opacity-70 hover:opacity-100"
+          className="absolute bottom-3 right-3 p-1.5 rounded-lg bg-[var(--input)] text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 border border-[var(--border)] hover:border-red-500/30 opacity-70 hover:opacity-100"
           title="Delete plan"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -178,17 +178,17 @@ export function PlanCard({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 rounded-lg"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--background)]/70 rounded-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#0a0a0a] border border-white/20 rounded-lg p-4 w-[90%] shadow-2xl"
+              className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-4 w-[90%] shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <p className="text-sm text-[#d7d2cb] mb-4 text-center">
+              <p className="text-sm text-[var(--foreground)] mb-4 text-center">
                 Switch to this plan?
               </p>
               <div className="flex gap-2">
@@ -197,7 +197,7 @@ export function PlanCard({
                     e.stopPropagation()
                     setShowConfirmSwitch(false)
                   }}
-                  className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 text-[#d7d2cb]/70 hover:bg-white/10 hover:text-[#d7d2cb] transition-colors border border-white/10"
+                  className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--input)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--foreground)] transition-colors border border-[var(--border)]"
                 >
                   Cancel
                 </button>
@@ -207,7 +207,7 @@ export function PlanCard({
                     setShowConfirmSwitch(false)
                     if (onSwitch) onSwitch(plan.id)
                   }}
-                  className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ff7f00] text-white hover:bg-[#e67300] transition-colors"
+                  className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 transition-colors"
                 >
                   Switch
                 </button>

@@ -13,24 +13,30 @@ export interface Plan {
   archived_at?: string // timestamp with time zone
 }
 
-export interface Milestone {
-  id: string
-  plan_id: string
-  idx: number
-  name: string
-  rationale: string
-  target_date?: string // date in database
-  created_at: string // timestamp with time zone
+// Milestone interface removed - focusing on difficulty-based task system
+
+export type TaskDifficulty = 'easy' | 'medium' | 'hard'
+
+export function getDifficultyFromComplexity(score: number): TaskDifficulty {
+  if (score <= 3) return 'easy'
+  if (score <= 7) return 'medium'
+  return 'hard'
 }
 
 export interface Task {
   id: string
   plan_id: string
-  milestone_id?: string
   idx: number
   name: string
-  category?: 'milestone_task' | 'daily_task' | string // text in database
+  details?: string
+  estimated_duration_minutes: number
+  complexity_score?: number // 1-10 scale (legacy)
+  priority: 1 | 2 | 3 | 4 // Task priority system
   created_at: string // timestamp with time zone
+  scheduled_date?: string // For validation
+  start_time?: string // For validation
+  end_time?: string // For validation
+  day_index?: number // For calendar display
 }
 
 export interface OnboardingResponse {
@@ -50,9 +56,46 @@ export interface TaskSchedule {
   id: string
   plan_id: string
   task_id: string
+  milestone_id?: string
   day_index: number
   date: string // date in database
+  start_time?: string // time in database (HH:MM format)
+  end_time?: string // time in database (HH:MM format)
+  duration_minutes?: number
+  rescheduled_from?: string // date in database
   created_at: string // timestamp with time zone
+  status?: string
+  pending_reschedule_id?: string
+  reschedule_count?: number
+  reschedule_reason?: any
+}
+
+export interface RescheduleProposal {
+  id: string
+  plan_id: string
+  user_id: string
+  task_schedule_id: string
+  task_id: string
+  proposed_date: string
+  proposed_start_time: string
+  proposed_end_time: string
+  proposed_day_index: number
+  original_date: string
+  original_start_time: string | null
+  original_end_time: string | null
+  original_day_index: number
+  context_score: number | null
+  priority_penalty: number | null
+  density_penalty: number | null
+  reason: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+  reviewed_at: string | null
+  reviewed_by_user_id: string | null
+  // Enriched fields (from joins)
+  task_name?: string
+  task_priority?: number
+  task_duration_minutes?: number
 }
 
 /**
@@ -74,17 +117,10 @@ export interface RoadmapData {
   startDate: Date
   endDate: Date
   days: number
-  milestones: MilestoneData[]
   taskCount: number
 }
 
-export interface MilestoneData {
-  id: string
-  title: string
-  date: Date
-  description: string
-  index?: number
-}
+// MilestoneData interface removed - focusing on difficulty-based task system
 
 export interface CalendarTask {
   date: string
@@ -105,7 +141,6 @@ export interface GeneratePlanRequest {
 export interface GeneratePlanResponse {
   success: boolean
   plan: Plan
-  milestones: Milestone[]
   tasks: Task[]
   token_count: number
   cost_cents: number
@@ -120,6 +155,11 @@ export interface ClarifyResponse {
   questions: string[]
   token_count: number
   cost_cents: number
+}
+
+export interface ClarificationNeedsResponse {
+  needsClarification: boolean
+  questions: string[]
 }
 
 // User profile schema
@@ -157,7 +197,6 @@ export interface AIQuestions {
 // Calendar and scheduling types
 export interface CategorizedDates {
   startDate: Date
-  milestones: Date[]
   completionDate: Date
 }
 
@@ -182,7 +221,6 @@ export interface TaskInput {
   estimated_duration_hours?: number // Optional - kept for backwards compatibility but not used in DB
   dependency_ids?: string[]
   category?: string
-  milestone_id?: string | null
 }
 
 export interface SchedulePlacement {
@@ -196,12 +234,49 @@ export interface SchedulerOptions {
   startDate: Date
   endDate: Date
   weeklyHours: number
-  milestones?: Array<{
-    id?: string
-    name?: string
-    target_date?: string
-    idx?: number
+}
+
+// Time-block scheduler types
+export interface TimeBlockPlacement {
+  task_id: string
+  date: string
+  day_index: number
+  start_time: string // "09:00"
+  end_time: string // "11:30"
+  duration_minutes: number
+}
+
+export interface TimeBlockSchedulerOptions {
+  tasks: Array<{
+    id: string
+    name: string
+    estimated_duration_minutes: number
+    priority: number
+    idx: number // AI's intended order
+    complexity_score: number // Keep for backward compatibility with scheduler
   }>
+  startDate: Date
+  endDate: Date
+  workdayStartHour: number // Default 9
+  workdayStartMinute: number // Default 0
+  workdayEndHour: number // Default 17
+  lunchStartHour: number // Default 12
+  lunchEndHour: number // Default 13
+  allowWeekends?: boolean // Include weekends when scheduling
+  weekendStartHour?: number // Default to workdayStartHour
+  weekendStartMinute?: number // Default to workdayStartMinute
+  weekendEndHour?: number // Default to workdayEndHour
+  weekendLunchStartHour?: number // Default to lunchStartHour
+  weekendLunchEndHour?: number // Default to lunchEndHour
+  weekdayMaxMinutes?: number // Cap per-day minutes on weekdays to respect energy limits
+  weekendMaxMinutes?: number // Cap per-day minutes on weekends
+  currentTime?: Date // Optional current time to avoid scheduling in the past
+  existingSchedules?: Array<{ // Optional existing schedules to avoid conflicts
+    date: string
+    start_time: string
+    end_time: string
+  }>
+  availability?: NormalizedAvailability
 }
 
 // AI-specific types
@@ -215,25 +290,94 @@ export interface AIModelRequest {
   start_date: string // YYYY-MM-DD format
   clarifications?: Record<string, any>
   clarificationQuestions?: string[]
+  availability?: NormalizedAvailability
+}
+
+export interface AITaskOutput {
+  name: string
+  details: string
+  estimated_duration_minutes: number
+  priority: 1 | 2 | 3 | 4
 }
 
 export interface AIModelResponse {
   model_name: string
   prompt_version: string
   request_data: any
-  timeline: TimelineSchema
-  milestones: Array<{
-    name: string
-    description: string
-    rationale?: string
-    target_date?: string
-  }>
-  tasks: Array<{
-    milestone_idx: number
-    name: string
-    details: string
-    category: 'milestone_task' | 'daily_task'
-  }>
+  timeline_days: number
+  goal_text: string
+  plan_summary: string
+  end_date: string
+  tasks: AITaskOutput[] // Combined, no more milestone_tasks/daily_tasks split
   token_count: number
   cost_cents: number
 }
+
+// New interfaces for plan review and validation system
+export interface GeneratedPlan {
+  id: string
+  goal_text: string
+  start_date: string
+  end_date: string
+  timeline_days: number
+  summary_data: any
+}
+
+export interface ValidationError {
+  type: 'date_order' | 'task_before_start' | 'task_after_end'
+  message: string
+  blocking: true
+}
+
+export interface ValidationWarning {
+  type: 'timeline_compressed' | 'task_overlap'
+  message: string
+  blocking: false
+}
+
+export interface TimelineAdjustmentRequest {
+  planId: string
+  newDuration: number
+  tasks: Task[]
+}
+
+export interface ReviewState {
+  plan: GeneratedPlan
+  tasks: Task[]
+  validationErrors: ValidationError[]
+  validationWarnings: ValidationWarning[]
+  isDirty: boolean
+}
+// Availability types
+export type AvailabilitySource =
+  | 'existing_plan'
+  | 'manual_task'
+  | 'calendar_event'
+  | 'time_off'
+
+export interface BusySlot {
+  start: string
+  end: string
+  source?: AvailabilitySource
+  metadata?: Record<string, any>
+}
+
+export interface AvailabilityPayload {
+  busy_slots?: BusySlot[]
+  time_off?: BusySlot[]
+  deadline?: string | null
+}
+
+export interface NormalizedAvailability {
+  busySlots: BusySlot[]
+  timeOff: BusySlot[]
+  deadline?: string | null
+}
+
+export interface AvailabilityValidationResult {
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+  normalized: NormalizedAvailability
+}
+

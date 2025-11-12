@@ -1,627 +1,782 @@
+// src/app/onboarding/review/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle, ArrowRight, Calendar, Target, Clock, Star } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { ReviewCalendar } from '@/components/ui'
-import { useToast } from '@/components/ui/Toast'
+import { Task } from '@/lib/types'
+import { formatDateForDisplay, parseDateFromDB } from '@/lib/date-utils'
+import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
-import { toLocalMidnight, formatDateForDB, addDays, formatDateForDisplay } from '@/lib/date-utils'
-import { User, OnboardingResponse, RoadmapData, MilestoneData, CalendarTask } from '@/lib/types'
 
-export default function OnboardingReviewPage() {
+export default function ReviewPage() {
   const router = useRouter()
-  const { addToast } = useToast()
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<OnboardingResponse | null>(null)
+  const [plan, setPlan] = useState<any>(null)
+  const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
+  const [isEditingPlan, setIsEditingPlan] = useState(false)
+  const [editedPlan, setEditedPlan] = useState<any>(null)
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
 
   useEffect(() => {
-    const checkUser = async () => {
+    // Load plan data from session storage
+    const planData = sessionStorage.getItem('generatedPlan')
+    if (planData) {
       try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
+        const parsed = JSON.parse(planData)
+        setPlan(parsed.plan)
+        setTasks(parsed.tasks || [])
+      } catch (error) {
+        console.error('Error parsing plan data:', error)
+        router.push('/onboarding')
+      }
+    } else {
+      router.push('/onboarding')
+    }
+    setLoading(false)
+  }, [router])
+
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // Calculate total duration in minutes
+  const totalDurationMinutes = useMemo(() => {
+    return tasks.reduce((sum, task) => sum + task.estimated_duration_minutes, 0)
+  }, [tasks])
+
+  // Calculate total days - always call hooks, even if plan is null
+  const startDate = useMemo(() => {
+    if (!plan?.start_date) return null
+    return parseDateFromDB(plan.start_date)
+  }, [plan?.start_date])
+  
+  const endDate = useMemo(() => {
+    if (!plan?.end_date) return null
+    return parseDateFromDB(plan.end_date)
+  }, [plan?.end_date])
+  
+  const totalDays = useMemo(() => {
+    if (!startDate || !endDate) return 0
+    return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  }, [startDate, endDate])
+
+  const handleTaskToggle = (taskId: string) => {
+    if (expandedTaskId === taskId) {
+      setExpandedTaskId(null)
+      setEditingTask(null)
+    } else {
+      setExpandedTaskId(taskId)
+      const task = tasks.find(t => t.id === taskId)
+      if (task) {
+        setEditingTask(task)
+      }
+    }
+  }
+
+  const handleTaskSave = () => {
+    if (editingTask) {
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => 
+          t.id === editingTask.id ? { ...t, ...editingTask } : t
+        )
+        // Update sessionStorage with modified tasks
+        const planData = sessionStorage.getItem('generatedPlan')
+        if (planData) {
+          try {
+            const parsed = JSON.parse(planData)
+            parsed.tasks = updatedTasks
+            sessionStorage.setItem('generatedPlan', JSON.stringify(parsed))
+          } catch (error) {
+            console.error('Error updating session storage:', error)
+          }
+        }
+        return updatedTasks
+      })
+      setEditingTask(null)
+      setExpandedTaskId(null)
+    }
+  }
+
+  const handleTaskCancel = () => {
+    setEditingTask(null)
+    setExpandedTaskId(null)
+  }
+
+  const handleTaskInputChange = (field: keyof Task, value: any) => {
+    if (editingTask) {
+      setEditingTask({ ...editingTask, [field]: value })
+    }
+  }
+
+  const handleDeleteTask = (taskId: string) => {
+    setTaskToDelete(taskId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskToDelete))
+      // Update sessionStorage
+      const planData = sessionStorage.getItem('generatedPlan')
+      if (planData) {
+        try {
+          const parsed = JSON.parse(planData)
+          parsed.tasks = parsed.tasks.filter((t: Task) => t.id !== taskToDelete)
+          sessionStorage.setItem('generatedPlan', JSON.stringify(parsed))
+        } catch (error) {
+          console.error('Error updating session storage:', error)
+        }
+      }
+      setTaskToDelete(null)
+      setShowDeleteConfirm(false)
+      setEditingTask(null)
+      setExpandedTaskId(null)
+    }
+  }
+
+  const handleAddNewTask = () => {
+    const newTask: Task = {
+      id: `temp-${Date.now()}`,
+      plan_id: plan.id,
+      idx: tasks.length,
+      name: '',
+      details: '',
+      estimated_duration_minutes: 60,
+      priority: 1 as const,
+      created_at: new Date().toISOString(),
+      scheduled_date: '',
+      start_time: '',
+      end_time: ''
+    }
+    setTasks(prevTasks => [...prevTasks, newTask])
+      setEditingTask(newTask)
+      setExpandedTaskId(newTask.id)
+  }
+
+  const handleEditPlan = () => {
+    setIsEditingPlan(true)
+    setEditedPlan({
+      goal_text: plan.summary_data?.goal_text || plan.goal_text,
+      plan_summary: plan.summary_data?.plan_summary || '',
+      start_date: plan.start_date,
+      end_date: plan.end_date
+    })
+  }
+
+  const handlePlanSave = () => {
+    if (editedPlan) {
+      setPlan((prevPlan: any) => ({
+        ...prevPlan,
+        start_date: editedPlan.start_date,
+        end_date: editedPlan.end_date,
+        summary_data: {
+          ...prevPlan.summary_data,
+          goal_text: editedPlan.goal_text,
+          plan_summary: editedPlan.plan_summary
+        }
+      }))
+      
+      // Update sessionStorage
+      const planData = sessionStorage.getItem('generatedPlan')
+      if (planData) {
+        try {
+          const parsed = JSON.parse(planData)
+          parsed.plan = {
+            ...parsed.plan,
+            start_date: editedPlan.start_date,
+            end_date: editedPlan.end_date,
+            summary_data: {
+              ...parsed.plan.summary_data,
+              goal_text: editedPlan.goal_text,
+              plan_summary: editedPlan.plan_summary
+            }
+          }
+          sessionStorage.setItem('generatedPlan', JSON.stringify(parsed))
+        } catch (error) {
+          console.error('Error updating session storage:', error)
+        }
+      }
+      
+      setIsEditingPlan(false)
+      setEditedPlan(null)
+    }
+  }
+
+  const handlePlanCancel = () => {
+    setIsEditingPlan(false)
+    setEditedPlan(null)
+  }
+
+  const handlePlanInputChange = (field: string, value: any) => {
+    if (editedPlan) {
+      setEditedPlan({ ...editedPlan, [field]: value })
+    }
+  }
+
+  const handleAcceptPlan = async () => {
+    // Plan is already saved to DB by /api/plans/generate
+    
+    try {
+      // ✅ VALIDATE AUTH SESSION before redirecting
+      console.log('[Review] Validating auth session before dashboard redirect...')
+      
+      const healthCheck = await fetch('/api/health', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (!healthCheck.ok) {
+        console.error('[Review] Auth session not valid, refreshing...')
+        const { data: { user: verifiedUser }, error } = await supabase.auth.getUser()
+        if (error || !verifiedUser) {
+          console.error('[Review] User verification failed:', error)
+          alert('Your session has expired. Please sign in again.')
           router.push('/login')
           return
         }
-
-        setUser(user)
-
-        // Get user's most recent onboarding response (for AI-generated plans)
-        const { data: onboardingData, error: onboardingError } = await supabase
-          .from('onboarding_responses')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (onboardingError && onboardingError.code !== 'PGRST116') {
-          console.error('Error fetching onboarding responses:', onboardingError)
-        }
-        
-        // If no onboarding response found, this is a manual plan - that's okay
-        // The loadExistingRoadmap function will handle loading the plan data
-        if (onboardingData) {
-          setProfile(onboardingData)
-        }
-        
-        setLoading(false)
-      } catch (error) {
-        console.error('Error in user check:', error)
-        router.push('/login')
       }
+      
+      const healthData = await healthCheck.json()
+      console.log('[Review] Health check passed:', healthData)
+      
+      // Clear session storage and redirect
+      sessionStorage.removeItem('generatedPlan')
+      
+      // Add a small delay to ensure session is fully propagated
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      console.log('[Review] Redirecting to dashboard...')
+      router.push('/dashboard')
+      
+    } catch (error) {
+      console.error('[Review] Error validating session:', error)
+      alert('There was an error transitioning to the dashboard. Please try again.')
     }
+  }
 
-    checkUser()
-  }, [router, supabase.auth])
-  const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null)
-  const [plan, setPlan] = useState<any>(null)
-  const [isGenerating, setIsGenerating] = useState(true)
-  const [calendarTasks, setCalendarTasks] = useState<CalendarTask[]>([])
-  const [hoveredMilestone, setHoveredMilestone] = useState<MilestoneData | null>(null)
-  const [hasGenerated, setHasGenerated] = useState(false)
+  const handleRegenerate = () => {
+    // Show confirmation modal first
+    setShowRegenerateConfirm(true)
+  }
 
-  const loadExistingRoadmap = async () => {
-    if (!user) {
-      console.error('No user data available')
-      setIsGenerating(false)
+  const confirmRegenerate = async () => {
+    setShowRegenerateConfirm(false)
+    
+    if (!plan?.id) {
+      // If no plan ID, just redirect
+      sessionStorage.removeItem('generatedPlan')
+      router.push('/onboarding')
       return
     }
-    
-    setIsGenerating(true)
-    
+
     try {
-      // Check if plan exists - get the most recent active or paused plan
-      const { data: existingPlan } = await supabase
-        .from('plans')
-        .select('id')
-        .eq('user_id', user.id)
-        .in('status', ['active', 'paused'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (!existingPlan) {
-        console.log('No plan found, redirecting to loading page...')
-        router.push('/onboarding/loading')
-        return
-      }
-      
-      // Load the generated plan data - get the most recent active or paused plan
-      const { data: plan, error: planError } = await supabase
-        .from('plans')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('status', ['active', 'paused'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (planError) {
-        console.error('Error fetching generated plan:', planError)
-        setIsGenerating(false)
-        return
-      }
-
-      // Store the plan data in state
-      setPlan(plan)
-
-      // Load milestones and tasks from the generated plan
-      const { data: milestones, error: milestonesError } = await supabase
-        .from('milestones')
-        .select('*')
-        .eq('plan_id', plan.id)
-        .order('idx', { ascending: true })
-
-      if (milestonesError) {
-        console.error('Error fetching milestones:', milestonesError)
-        setIsGenerating(false)
-        return
-      }
-
-      // Debug: Check if tasks exist for this plan
-      console.log('Fetching tasks for plan:', plan.id)
-      
-      // Fetch tasks with their scheduled dates from task_schedule
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select(`
-          id, plan_id, milestone_id, idx, name, category, user_id, created_at,
-          task_schedule(
-            id, plan_id, task_id, user_id, date, day_index, created_at
-          )
-        `)
-        .eq('plan_id', plan.id)
-        .order('idx', { ascending: true })
-
-      if (tasksError) {
-        console.error('Error fetching tasks:', {
-          error: tasksError,
-          errorMessage: tasksError.message,
-          errorCode: tasksError.code,
-          errorDetails: tasksError.details,
-          errorHint: tasksError.hint,
-          planId: plan.id
-        })
-        // Continue without tasks - we can still show milestones
-        console.log('Continuing without tasks due to error')
-      } else {
-        console.log('Successfully fetched tasks:', tasks?.length || 0, 'tasks found')
-        if (tasks && tasks.length > 0) {
-          console.log('Sample task data:', tasks[0])
-          console.log('Task schedule data:', tasks[0]?.task_schedule)
-        }
-      }
-
-      // Use actual plan data - use toLocalMidnight to avoid timezone issues
-      const startDate = toLocalMidnight(plan.start_date)
-      const endDate = toLocalMidnight(plan.end_date)
-      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-      
-      console.log('Using generated plan start date:', startDate.toLocaleDateString())
-      console.log('Using generated plan end date:', endDate.toLocaleDateString())
-      
-      // Convert milestones to the expected format - use toLocalMidnight to avoid timezone issues
-      const milestonesData = (milestones || []).map((milestone: any) => ({
-        id: milestone.id,
-        title: milestone.name,
-        date: toLocalMidnight(milestone.target_date),
-        description: milestone.rationale
-      }))
-      
-      // Debug: Log milestone dates to ensure they match
-      console.log('Generated milestone dates:', milestonesData.map(m => m.date.toLocaleDateString()))
-      console.log('Milestone objects:', milestonesData.map(m => ({ title: m.title, date: m.date })))
-      
-      // Convert tasks to calendar format
-      const calendarTasks: any[] = []
-      
-      // Group tasks by date (only if tasks exist)
-      if (tasks && tasks.length > 0) {
-        console.log('Processing tasks for calendar:', tasks.length, 'tasks found')
-        const tasksByDate: { [key: string]: any[] } = {}
-        
-        tasks.forEach((task: any) => {
-          console.log('Processing task:', task.name, 'with schedule:', task.task_schedule)
-          
-          // Get the scheduled dates from task_schedule array
-          if (task.task_schedule && Array.isArray(task.task_schedule)) {
-            task.task_schedule.forEach((schedule: any) => {
-              const taskDate = schedule.date
-              if (taskDate) {
-                if (!tasksByDate[taskDate]) {
-                  tasksByDate[taskDate] = []
-                }
-                // Add task with appropriate prefix based on category for calendar compatibility
-                const taskName = task.category === 'milestone_task' ? `🏆 ${task.name}` : task.name
-                tasksByDate[taskDate].push(taskName)
-                console.log('Added task to date:', taskDate, task.name, 'category:', task.category)
-              }
-            })
-          } else {
-            console.log('Task has no scheduled date:', task.name)
-          }
-        })
-        
-        // Convert to calendar format
-        Object.keys(tasksByDate).forEach(date => {
-          calendarTasks.push({
-            date: date,
-            tasks: tasksByDate[date]
-          })
-        })
-        
-        console.log('Calendar tasks created:', calendarTasks.length, 'date entries')
-      } else {
-        console.log('No tasks found, using milestone-only calendar')
-      }
-      
-      // Add milestone markers (not tasks) to milestone target dates
-      milestonesData.forEach((milestone: any) => {
-        const milestoneDateString = formatDateForDB(milestone.date)
-        const existingTasks = calendarTasks.find(t => t.date === milestoneDateString)
-        if (existingTasks) {
-          // Add milestone as a marker (will be styled differently in UI)
-          existingTasks.tasks.push(`🎯 ${milestone.title}`)
-        } else {
-          calendarTasks.push({
-            date: milestoneDateString,
-            tasks: [`🎯 ${milestone.title}`]
-          })
-        }
+      // Delete the plan and its associated data
+      const deleteResponse = await fetch('/api/plans/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan_id: plan.id,
+        }),
       })
-    
-    setRoadmapData({
-      startDate: startDate,
-      endDate: endDate,
-      days,
-              milestones: milestonesData,
-              taskCount: tasks ? tasks.length : 0
-    })
-    
-      setCalendarTasks(calendarTasks)
-    
-    // [DATE_FIX] Log milestone dates for verification
-      console.log('[DATE_FIX] Overview milestone dates:', milestonesData.map(m => m.date.toLocaleDateString()))
-    console.log('[DATE_FIX] Calendar categorized dates:', {
-      startDate: startDate.toLocaleDateString(),
-      endDate: endDate.toLocaleDateString(),
-        milestones: milestonesData.map(m => m.date.toLocaleDateString())
-    })
-    
+
+      if (!deleteResponse.ok) {
+        console.error('Failed to delete plan:', await deleteResponse.text())
+        // Still redirect even if deletion fails
+      } else {
+        console.log('Plan and associated onboarding responses deleted successfully')
+      }
     } catch (error) {
-      console.error('Error generating roadmap:', error)
-      alert('Failed to generate roadmap. Please try again.')
-    } finally {
-    setIsGenerating(false)
+      console.error('Error deleting plan:', error)
+      // Still redirect even if deletion fails
     }
+
+    // Clear session storage and go back to onboarding
+    sessionStorage.removeItem('generatedPlan')
+    router.push('/onboarding')
   }
 
-  useEffect(() => {
-    if (user && !loading) {
-      loadExistingRoadmap()
-    }
-  }, [user, loading])
-
-  const handleContinueToRoadmap = async () => {
-    try {
-      // Plan already exists, just navigate to dashboard
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('Error navigating to dashboard:', error)
-      alert('Failed to navigate to dashboard. Please try again.')
-    }
-  }
-
-
-  const handleDateClick = (date: string) => {
-    console.log('Date clicked:', date)
-  }
-
-
-
-  if (loading || !user) {
+  // Conditional returns AFTER all hooks
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#d7d2cb]">Loading...</div>
+        <div className="text-[#d7d2cb] text-xl">Loading plan review...</div>
       </div>
     )
   }
 
-  if (isGenerating) {
+  if (!plan || !tasks.length) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto text-center space-y-8">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-            className="w-16 h-16 border-4 border-[#ff7f00] border-t-transparent rounded-full mx-auto"
-          />
-          <div>
-            <h1 className="text-3xl font-bold text-[#d7d2cb] mb-4">
-              Loading your plan...
-            </h1>
-          </div>
-        </div>
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-[#d7d2cb] text-xl">No plan data found</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#0a0a0a] p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-[#d7d2cb]">
-            Your Roadmap is Ready!
-          </h1>
-          <p className="text-lg text-[#d7d2cb]/70 max-w-2xl mx-auto">
-            We've created a personalized roadmap based on your goals. Review the details below and continue to your dashboard.
-          </p>
-        </div>
-
-        {/* Interactive Timeline Visualization */}
-        {roadmapData && roadmapData.milestones && (
-        <div className="mb-8">
-          <Card className="bg-white/5 backdrop-blur-md border border-white/10">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl text-[#d7d2cb] flex items-center gap-3">
-                <Target className="w-5 h-5 text-[#ff7f00]" />
-                Interactive Timeline
-              </CardTitle>
-              <CardDescription className="text-[#d7d2cb]/70">
-                Your personalized roadmap journey with {roadmapData.milestones.length} key milestones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 pb-4">
-              <div className="relative px-8 py-8 pb-4">
-                {/* Timeline Container */}
-                <div className="relative h-52 overflow-visible">
-                  {/* Calculate intelligent zigzag path and node positions */}
-                  {(() => {
-                    const totalNodes = roadmapData.milestones.length + 2 // +2 for start and end
-                    const svgWidth = 1000
-                    const svgHeight = 200 // Increased to give more vertical space
-                    const padding = 50
-                    const usableWidth = svgWidth - (padding * 2)
-                    
-                    // Calculate node positions with more pronounced zigzag
-                    const nodePositions: { x: number; y: number }[] = []
-                    const pathPoints: string[] = []
-                    
-                    // Reduced zigzag amplitude to keep nodes within bounds
-                    const zigzagAmplitude = svgHeight * 0.25 // 25% of total height (reduced from 40%)
-                    
-                    // Start point
-                    const startX = padding
-                    const startY = svgHeight / 2
-                    nodePositions.push({ x: startX, y: startY })
-                    
-                    // Calculate positions for milestone nodes with pronounced zigzag
-                    roadmapData.milestones.forEach((_: any, index: number) => {
-                      const segmentWidth = usableWidth / (totalNodes - 1)
-                      const x = padding + (segmentWidth * (index + 1))
-                      
-                      const y = index % 2 === 0 
-                        ? (svgHeight / 2) - zigzagAmplitude  // Upper zigzag
-                        : (svgHeight / 2) + zigzagAmplitude  // Lower zigzag
-                      
-                      nodePositions.push({ x, y })
-                    })
-                    
-                    // End point - continue the zigzag pattern
-                    const endX = svgWidth - padding
-                    // End node should alternate based on number of milestones
-                    const endY = roadmapData.milestones.length % 2 === 0 
-                      ? (svgHeight / 2) - zigzagAmplitude  // Upper zigzag
-                      : (svgHeight / 2) + zigzagAmplitude  // Lower zigzag
-                    nodePositions.push({ x: endX, y: endY })
-                    
-                    // Create smooth sine-wave path using cubic bezier curves
-                    let pathData = `M ${nodePositions[0].x},${nodePositions[0].y}`
-                    
-                    for (let i = 0; i < nodePositions.length - 1; i++) {
-                      const current = nodePositions[i]
-                      const next = nodePositions[i + 1]
-                      
-                      // Use cubic bezier for smoother sine-wave curves
-                      // Control points positioned 1/3 and 2/3 along the x-axis
-                      const control1X = current.x + (next.x - current.x) / 3
-                      const control1Y = current.y
-                      
-                      const control2X = current.x + ((next.x - current.x) * 2 / 3)
-                      const control2Y = next.y
-                      
-                      pathData += ` C ${control1X},${control1Y} ${control2X},${control2Y} ${next.x},${next.y}`
-                    }
-                    
-                    return (
-                      <>
-                        {/* Zigzag Path with Nodes - Same SVG Coordinate System */}
-                        <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="xMidYMid meet">
-                          {/* Curved Path - Solid Orange */}
-                          <path
-                            d={pathData}
-                            stroke="#ff7f00"
-                            strokeWidth="4"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-
-                          {/* Start Node */}
-                          <circle
-                            cx={nodePositions[0].x}
-                            cy={nodePositions[0].y}
-                            r="12"
-                            fill="#ea580c"
-                          />
-
-                          {/* Milestone Nodes */}
-                          {roadmapData.milestones.map((milestone: any, index: number) => {
-                            const nodeIndex = index + 1
-                            const position = nodePositions[nodeIndex]
-                            
-                            return (
-                              <g key={milestone.id}>
-                                <circle
-                                  cx={position.x}
-                                  cy={position.y}
-                                  r="14"
-                                  fill="#8b5cf6"
-                                  className="cursor-pointer transition-all duration-200"
-                                  onMouseEnter={() => setHoveredMilestone({ ...milestone, index, position })}
-                                  onMouseLeave={() => setHoveredMilestone(null)}
-                                  style={{
-                                    filter: hoveredMilestone?.index === index ? 'drop-shadow(0 0 4px rgba(139,92,246,0.3))' : 'none'
-                                  }}
-                                />
-                              </g>
-                            )
-                          })}
-
-                          {/* End Node - Bigger with Checkmark */}
-                          <g>
-                            <circle
-                              cx={nodePositions[nodePositions.length - 1].x}
-                              cy={nodePositions[nodePositions.length - 1].y}
-                              r="18"
-                              fill="#22c55e"
-                            />
-                            <path
-                              d={`M ${nodePositions[nodePositions.length - 1].x - 6},${nodePositions[nodePositions.length - 1].y} 
-                                  L ${nodePositions[nodePositions.length - 1].x - 2},${nodePositions[nodePositions.length - 1].y + 4} 
-                                  L ${nodePositions[nodePositions.length - 1].x + 6},${nodePositions[nodePositions.length - 1].y - 6}`}
-                              stroke="white"
-                              strokeWidth="2.5"
-                              fill="none"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </g>
-                        </svg>
-                      </>
-                    )
-                  })()}
+        {/* Timeline Section with Goal Header */}
+        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+          {/* Goal Header */}
+          <div className="mb-6">
+            {!isEditingPlan ? (
+              <>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h1 className="text-3xl md:text-4xl font-bold text-[var(--primary)] mb-2">
+                      {plan.summary_data?.goal_text || plan.goal_text}
+                    </h1>
+                    {plan.summary_data?.plan_summary && (
+                      <p className="text-lg text-[#d7d2cb]/70">
+                        {plan.summary_data.plan_summary}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleEditPlan}
+                    className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-1 rounded hover:bg-white/5"
+                    title="Edit plan details"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
                 </div>
-
-                {/* Milestone Hover Popup */}
-                <AnimatePresence>
-                  {hoveredMilestone && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.2 }}
-                      className="mt-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[#8b5cf6] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                          {(hoveredMilestone.index ?? 0) + 1}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-[#d7d2cb] text-sm">{hoveredMilestone.title}</div>
-                          <div className="text-xs text-[#d7d2cb]/60 mt-1">
-                            {formatDateForDisplay(hoveredMilestone.date)}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        )}
-
-        {/* Main Content - Two Column Layout */}
-        {roadmapData && roadmapData.milestones && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Left Column - Roadmap Overview */}
-          <Card className="h-full min-h-[600px] flex flex-col">
-            <CardHeader className="pb-4 flex-shrink-0">
-              <CardTitle className="text-xl text-[#d7d2cb] flex items-center gap-3">
-                <Target className="w-5 h-5 text-[#ff7f00]" />
-                Roadmap Overview
-              </CardTitle>
-              <CardDescription className="text-[#d7d2cb]/70">
-                {plan?.summary_data?.goal_summary || profile?.goal_text || 'Your personalized plan'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col flex-1 space-y-6">
-              {/* Timeline Summary */}
-              <div className="grid grid-cols-3 gap-3 flex-shrink-0">
-                <div className="bg-white/5 rounded-lg p-4 text-center">
-                  <div className="text-xl font-bold text-[#d7d2cb]">{roadmapData.days}</div>
-                  <div className="text-xs text-[#d7d2cb]/70">Days Duration</div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                    Goal Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={editedPlan?.goal_text || ''}
+                    onChange={(e) => handlePlanInputChange('goal_text', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-3xl font-bold"
+                  />
                 </div>
-                <div className="bg-white/5 rounded-lg p-4 text-center">
-                  <div className="text-xl font-bold text-[#d7d2cb]">{roadmapData.milestones.length}</div>
-                  <div className="text-xs text-[#d7d2cb]/70">Key Milestones</div>
+                <div>
+                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                    Plan Summary
+                  </label>
+                  <textarea
+                    value={editedPlan?.plan_summary || ''}
+                    onChange={(e) => handlePlanInputChange('plan_summary', e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+                  />
                 </div>
-                <div className="bg-white/5 rounded-lg p-4 text-center">
-                  <div className="text-xl font-bold text-[#d7d2cb]">{roadmapData.taskCount}</div>
-                  <div className="text-xs text-[#d7d2cb]/70">Total Tasks</div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={handlePlanCancel}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[#d7d2cb] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePlanSave}
+                    className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-lg transition-colors"
+                  >
+                    Save Changes
+                  </button>
                 </div>
               </div>
-
-              {/* Timeline */}
-              <div className="text-center py-6 flex-shrink-0">
-                <div className="flex items-center justify-center gap-4 text-lg font-semibold text-[#d7d2cb]">
-                  <span>{formatDateForDisplay(roadmapData.startDate)}</span>
-                  <ArrowRight className="w-5 h-5 text-[#d7d2cb]/60" />
-                  <span>{formatDateForDisplay(roadmapData.endDate)}</span>
-                </div>
-              </div>
-
-              {/* Milestones Wheel - Unique to this page */}
-              <div className="flex flex-col flex-1 space-y-4">
-                <h3 className="text-base font-semibold text-[#d7d2cb] flex-shrink-0">Key Milestones</h3>
-                <div className="relative flex-1">
-                  <div className="absolute inset-0 overflow-y-scroll">
-                    <div className="space-y-3 p-1">
-                      {roadmapData.milestones.map((milestone: any, index: number) => (
-                        <div
-                          key={milestone.id}
-                          className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/10"
-                        >
-                          <div className="w-8 h-8 bg-[#ff7f00] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-[#d7d2cb] text-base mb-1">{milestone.title}</div>
-                            <div className="text-sm text-[#d7d2cb]/70 mb-2">{milestone.description}</div>
-                            <div className="text-xs text-[#d7d2cb]/50 bg-white/5 px-2 py-1 rounded inline-block">
-                              {formatDateForDisplay(milestone.date)}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            )}
+          </div>
+          
+          {/* Timeline Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {!isEditingPlan ? (
+              <>
+                <div>
+                  <div className="text-sm text-[#d7d2cb]/60 mb-1">Start Date</div>
+                  <div className="text-base font-medium text-[#d7d2cb]">
+                    {startDate ? formatDateForDisplay(startDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                   </div>
                 </div>
+                <div>
+                  <div className="text-sm text-[#d7d2cb]/60 mb-1">End Date</div>
+                  <div className="text-base font-medium text-[#d7d2cb]">
+                    {endDate ? formatDateForDisplay(endDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={editedPlan?.start_date || ''}
+                    onChange={(e) => handlePlanInputChange('start_date', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                    End Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={editedPlan?.end_date || ''}
+                    onChange={(e) => handlePlanInputChange('end_date', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                </div>
+              </>
+            )}
+            <div>
+              <div className="text-sm text-[#d7d2cb]/60 mb-1">Total Duration</div>
+              <div className="text-base font-medium text-[#d7d2cb]">
+                {totalDurationMinutes} minutes
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Right Column - Calendar */}
-          <Card className="h-full min-h-[600px] flex flex-col">
-            <CardHeader className="pb-4 flex-shrink-0">
-              <CardTitle className="text-xl text-[#d7d2cb] flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-[#ff7f00]" />
-                Interactive Calendar
-              </CardTitle>
-              <CardDescription className="text-[#d7d2cb]/70">
-                Click on dates to view tasks and milestones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 flex-1">
-              <ReviewCalendar
-                tasks={calendarTasks}
-                onDateClick={handleDateClick}
-                defaultView="month"
-                hideDayView={true}
-                showYearDecadeView={true}
-                futureRangeYears={5}
-                categorizedDates={{
-                  startDate: roadmapData.startDate,
-                  milestones: roadmapData.milestones.map((m: any) => m.date),
-                  completionDate: roadmapData.endDate
-                }}
-              />
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <div className="text-sm text-[#d7d2cb]/60 mb-1">Total Days</div>
+              <div className="text-base font-medium text-[#d7d2cb]">
+                {totalDays} {totalDays === 1 ? 'day' : 'days'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-[#d7d2cb]/60 mb-1">Total Tasks</div>
+              <div className="text-base font-medium text-[#d7d2cb]">
+                {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+              </div>
+            </div>
+          </div>
         </div>
-        )}
+
+        {/* Tasks Section with Accordion */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-[#d7d2cb]">Tasks</h2>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+            <div className="space-y-2">
+              {tasks.map((task, index) => {
+                const isExpanded = expandedTaskId === task.id
+                return (
+                  <div key={task.id} className="border border-white/10 rounded-lg overflow-hidden">
+                    {/* Collapsed Task Header */}
+                    <button
+                      onClick={() => handleTaskToggle(task.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors"
+                    >
+                      <span className="text-[var(--primary)] font-semibold">
+                        {index + 1}.
+                      </span>
+                      <span className="flex-1 text-[#d7d2cb] font-medium">
+                        {task.name || '(Untitled Task)'}
+                      </span>
+                      <div className="flex items-center gap-4 text-sm text-[#d7d2cb]/60">
+                        {/* Display all schedule placements for split tasks */}
+                        {(task as any).schedules && Array.isArray((task as any).schedules) && (task as any).schedules.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {(task as any).schedules.map((schedule: any, idx: number) => (
+                              <span key={idx} className="whitespace-nowrap">
+                                {formatDateForDisplay(parseDateFromDB(schedule.date), {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: undefined
+                                })}
+                                {schedule.start_time && schedule.end_time && (
+                                  <> {schedule.start_time} - {schedule.end_time}</>
+                                )}
+                                {idx < (task as any).schedules.length - 1 && <span className="mx-1 text-[#d7d2cb]/40">|</span>}
+                              </span>
+                            ))}
+                          </div>
+                        ) : task.scheduled_date ? (
+                          <>
+                            <span>
+                              {formatDateForDisplay(parseDateFromDB(task.scheduled_date), {
+                                weekday: 'long',
+                                month: 'short',
+                                day: 'numeric',
+                                year: undefined
+                              })}
+                            </span>
+                            {task.start_time && task.end_time && (
+                              <span>
+                                {task.start_time} - {task.end_time}
+                              </span>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-[#d7d2cb]/60" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-[#d7d2cb]/60" />
+                      )}
+                    </button>
+
+                    {/* Expanded Task Content */}
+                    <AnimatePresence>
+                      {isExpanded && editingTask && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 py-4 space-y-4 border-t border-white/10">
+                            {/* Task Name */}
+                            <div>
+                              <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                Task Name *
+                              </label>
+                              <input
+                                type="text"
+                                value={editingTask.name || ''}
+                                onChange={(e) => handleTaskInputChange('name', e.target.value)}
+                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                placeholder="Enter task name"
+                              />
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                              <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                Description
+                              </label>
+                              <textarea
+                                value={editingTask.details || ''}
+                                onChange={(e) => handleTaskInputChange('details', e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+                                placeholder="Enter task description"
+                              />
+                            </div>
+
+                            {/* Date and Time Row */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              {/* Scheduled Date */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  Date
+                                </label>
+                                <input
+                                  type="date"
+                                  value={editingTask.scheduled_date || ''}
+                                  onChange={(e) => handleTaskInputChange('scheduled_date', e.target.value)}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                />
+                              </div>
+
+                              {/* Start Time */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  Start Time
+                                </label>
+                                <input
+                                  type="time"
+                                  value={editingTask.start_time || ''}
+                                  onChange={(e) => handleTaskInputChange('start_time', e.target.value)}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                />
+                              </div>
+
+                              {/* End Time */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  End Time
+                                </label>
+                                <input
+                                  type="time"
+                                  value={editingTask.end_time || ''}
+                                  onChange={(e) => handleTaskInputChange('end_time', e.target.value)}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Duration and Priority Row */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Duration */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  Duration (minutes) *
+                                </label>
+                                <input
+                                  type="number"
+                                  value={editingTask.estimated_duration_minutes || 0}
+                                  onChange={(e) => handleTaskInputChange('estimated_duration_minutes', parseInt(e.target.value) || 0)}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                  min="1"
+                                />
+                              </div>
+
+                              {/* Priority */}
+                              <div>
+                                <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
+                                  Priority
+                                </label>
+                                <select
+                                  value={editingTask.priority || 1}
+                                  onChange={(e) => handleTaskInputChange('priority', parseInt(e.target.value) as 1 | 2 | 3 | 4)}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                >
+                                  <option value={1}>1 - Low</option>
+                                  <option value={2}>2 - Medium</option>
+                                  <option value={3}>3 - High</option>
+                                  <option value={4}>4 - Critical</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-between pt-2">
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete Task
+                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleTaskCancel}
+                                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[#d7d2cb] transition-colors"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleTaskSave}
+                                  className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-lg transition-colors"
+                                >
+                                  <Save className="w-4 h-4" />
+                                  Save Changes
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Add New Task Button */}
+            <button
+              onClick={handleAddNewTask}
+              className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-white/20 hover:border-[var(--primary)] rounded-lg text-[#d7d2cb]/60 hover:text-[var(--primary)] transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Add New Task
+            </button>
+          </div>
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex justify-center gap-4 pt-4">
           <Button
-            onClick={handleContinueToRoadmap}
-            className="flex items-center gap-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 text-white"
+            onClick={handleRegenerate}
+            variant="outline"
+            className="flex items-center gap-2 px-8"
           >
-            Continue to Dashboard
-            <ArrowRight className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" />
+            Regenerate Plan
+          </Button>
+          <Button
+            onClick={handleAcceptPlan}
+            className="flex items-center gap-2 px-8 bg-[var(--primary)] hover:bg-[var(--primary)]/90"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Accept Plan
           </Button>
         </div>
-
-        {/* Progress Indicator */}
-        <div className="flex justify-center space-x-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <div className="w-3 h-3 rounded-full bg-[#ff7f00]"></div>
-        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0a] border border-white/20 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4">Delete Task?</h3>
+            <p className="text-base text-[#d7d2cb]/80 mb-6">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setTaskToDelete(null)
+                }} 
+                variant="outline" 
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmDeleteTask} 
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Regenerate Plan Confirmation Modal */}
+      <AnimatePresence>
+        {showRegenerateConfirm && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#0a0a0a] border border-white/20 rounded-xl p-6 max-w-md w-full"
+            >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <RotateCcw className="w-5 h-5 text-orange-500" />
+              </div>
+              <h3 className="text-xl font-semibold text-[#d7d2cb]">Regenerate Plan?</h3>
+            </div>
+            <div className="mb-6">
+              <p className="text-base text-[#d7d2cb]/80 mb-3">
+                This will permanently delete:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-sm text-[#d7d2cb]/70 ml-2">
+                <li>Your generated plan and all its tasks</li>
+                <li>Your onboarding responses</li>
+              </ul>
+              <p className="text-base text-[#d7d2cb]/80 mt-4">
+                You will be redirected to create a new plan. This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => setShowRegenerateConfirm(false)} 
+                variant="outline" 
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmRegenerate} 
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
+              >
+                Yes, Regenerate
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

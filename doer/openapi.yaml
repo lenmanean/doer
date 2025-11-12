@@ -13,6 +13,7 @@ servers:
     description: Development server
 
 security:
+  - ApiTokenAuth: []
   - BearerAuth: []
 
 paths:
@@ -262,7 +263,14 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Supabase JWT token
+      description: Supabase session JWT (used alongside API tokens for user-bound requests)
+    ApiTokenAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: DOER
+      description: |
+        DOER API token in the format `Bearer doer.<token_id>.<token_secret>`.  
+        Tokens are scoped to a user and enforce credit limits per billing plan.
 
   schemas:
     PreflightRequest:

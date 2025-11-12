@@ -108,7 +108,7 @@ export function PlanTypeSelectionModal({
                     whileHover={{ scale: 1.02, y: -4 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="group relative overflow-hidden bg-gradient-to-br from-[#ff7f00]/20 via-purple-500/20 to-pink-500/20 hover:from-[#ff7f00]/30 hover:via-purple-500/30 hover:to-pink-500/30 border border-white/20 rounded-xl p-6 text-left transition-all duration-150"
+                    className="group relative overflow-hidden bg-gradient-to-br from-[#ff7f00]/20 via-purple-500/20 to-pink-500/20 hover:from-[#ff7f00]/30 hover:via-purple-500/30 hover:to-pink-500/30 border border-white/20 rounded-xl p-6 text-left transition-all duration-150 ai-plan-gradient"
                   >
                     {/* Animated gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-[#ff7f00]/0 via-purple-500/0 to-pink-500/0 group-hover:from-[#ff7f00]/10 group-hover:via-purple-500/10 group-hover:to-pink-500/10 transition-all duration-150" />

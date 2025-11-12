@@ -1,0 +1,268 @@
+{
+  "common": {
+    "startPlanning": "开始规划",
+    "logIn": "登录",
+    "signUp": "注册",
+    "startBuilding": "开始"
+  },
+  "header": {
+    "product": "产品",
+    "features": "功能",
+    "pricing": "定价",
+    "integrations": "集成",
+    "changelog": "更新日志",
+    "resources": "资源",
+    "documentation": "文档",
+    "community": "社区",
+    "blog": "博客",
+    "solutions": "解决方案",
+    "forTeams": "团队版",
+    "forCoaches": "教练和个人培训师版",
+    "forEducators": "教育者版"
+  },
+  "hero": {
+    "headline": "将您的目标变为现实",
+    "subheadline": "告诉 DOER 您的目标，看着它转化为结构化计划——包含里程碑、任务和个性化时间表。",
+    "placeholder": "例如，学习弹吉他，开始写博客，保持健康...",
+    "inputSuggestions": "不确定从哪里开始？试试这些：",
+    "suggestion1": "学习如何制作蒂卡玛萨拉",
+    "suggestion2": "为本周五的AP物理考试制定学习计划",
+    "suggestion3": "本周末整理我的衣柜",
+    "suggestion4": "开始写博客并每周发布文章"
+  },
+  "tabs": {
+    "step1": "分享您的目标",
+    "step2": "自定义您的计划",
+    "step3": "执行和跟踪",
+    "step1Title": "描述您的目标或具体挑战。",
+    "step1Description": "告诉 DOER 您想要实现什么，我们将把它转化为包含里程碑、任务和个性化时间表的结构化计划。",
+    "step2Title": "预览并完善您的AI生成的计划。",
+    "step2Description": "查看您的个性化路线图，调整里程碑，并根据您的偏好自定义您的计划。",
+    "step3Title": "启动您的自定义计划并跟踪您的进度。",
+    "step3Description": "激活您的计划，实时监控进度，并与他人合作以实现您的目标。"
+  },
+  "features": {
+    "title": "开始使用 DOER",
+    "description": "通过AI驱动的规划、里程碑跟踪和无缝集成，将您的目标转化为可行的计划。"
+  },
+  "integrations": {
+    "title": "集成",
+    "description": "将 DOER 与您喜欢的工具和服务连接，简化您的规划和目标实现。"
+  },
+  "testimonials": {
+    "title": "用户评价",
+    "description": "使用 DOER 实现目标的用户的真实反馈"
+  },
+  "faq": {
+    "title": "常见问题",
+    "description": "关于 DOER 您需要知道的一切",
+    "q1": "DOER 如何生成我的计划？",
+    "a1": "DOER 使用先进的AI来分析您的目标，将其分解为可操作的任务，估计时间表，并创建个性化的路线图。AI考虑复杂性、依赖关系和现实的时间安排，为您提供可实现的计划。",
+    "q2": "我可以修改AI生成的计划吗？",
+    "a2": "当然可以！虽然 DOER 创建了一个智能起点，但您拥有完全的控制权来自定义任务、调整时间表、重新排序里程碑，并根据您的特定需求和偏好调整计划。",
+    "q3": "DOER 支持哪些集成？",
+    "a3": "DOER 与流行工具集成，如Google日历、Outlook、Slack、Notion、Todoist、Asana、Trello等。Pro用户可以访问与HubSpot、Jira和Google Workspace的高级集成。",
+    "q4": "有免费计划吗？",
+    "a4": "是的！DOER 提供包含所有核心功能的免费计划，包括AI计划生成、任务管理、基本集成和每日自动化。非常适合个人使用和开始实现目标。",
+    "q5": "智能调度如何工作？",
+    "a5": "我们的AI驱动调度程序分析您的可用时间、任务优先级和依赖关系，自动将任务放入您的日历中。它考虑您的工作时间、现有承诺和最佳生产力模式。",
+    "q6": "团队可以一起使用 DOER 吗？",
+    "a6": "可以！Pro和Enterprise计划包括团队协作功能，如共享计划、基于角色的权限、团队仪表板和协调调度，以使每个人在复杂的计划中保持一致。",
+    "stillHaveQuestions": "还有问题吗？",
+    "visitDocs": "访问我们的文档"
+  },
+  "cta": {
+    "headline": "那么，我们在做什么？",
+    "subheadline": "你是空谈者？还是",
+    "doer": "实干家",
+    "question": "？",
+    "button": "开始"
+  },
+  "pricing": {
+    "title": "为每个目标提供灵活的定价",
+    "subtitle": "选择适合您旅程的计划，随时升级。",
+    "startFree": "免费",
+    "getAccessTo": "开始所需的一切：",
+    "allCoreFeatures": "完整功能集",
+    "builtInIntegrations": "原生集成",
+    "authenticationSystem": "安全认证",
+    "databaseFunctionality": "完整数据库访问",
+    "paidPlansFrom": "高级计划起价",
+    "upgradeDescription": "在需要时解锁额外容量、高级功能和优先支持。",
+    "seeAllPlans": "查看定价详情"
+  },
+  "footer": {
+    "description": "Doer 是由人工智能驱动的平台，将您的目标转化为结构化和可执行的计划。使用自然语言，Doer 使任何人都能够将他们的抱负转化为个性化路线图，包含里程碑、任务和智能调度。",
+    "company": "公司",
+    "product": "产品",
+    "resources": "资源",
+    "legal": "法律",
+    "aboutUs": "关于我们",
+    "affiliateProgram": "联盟计划",
+    "careers": "职业",
+    "roadmap": "路线图",
+    "featureRequest": "功能请求",
+    "docsAndFAQs": "文档和常见问题",
+    "privacyPolicy": "隐私政策",
+    "termsOfService": "服务条款",
+    "security": "安全",
+    "reportMisuse": "报告滥用",
+    "responsibleUsePolicy": "负责任使用政策",
+    "copyright": "2025 Doer。保留所有权利。"
+  },
+  "pages": {
+    "features": {
+      "title": "功能",
+      "description": "发现所有帮助您将目标转化为现实的功能。",
+      "moreComing": "远不止于此！",
+      "moreComingDescription": "我们每周都会发布新能力，帮助你无阻地规划、执行和调整。立即加入，解锁 DOER 的全部功能。",
+      "moreComingCta": "立即开始",
+      "sections": {
+        "aiPlan": {
+          "title": "AI 计划生成器",
+          "description": "几秒内将任何目标转化为可执行的路线图。DOER 分析意图、拆分关键里程碑，并估算所需投入，帮助团队迅速启动。",
+          "videoPrompt": "嵌入 Loom 演示：输入目标并查看生成的里程碑计划。"
+        },
+        "smartScheduling": {
+          "title": "智能排程与自动调度",
+          "description": "无需时刻盯着日历，也能让任务各就其位。DOER 主动排程、解决冲突，并在优先级变化时重新分配任务。",
+          "videoPrompt": "嵌入 Loom 演示：查看日历、解决冲突并自动重新排程。"
+        },
+        "automations": {
+          "title": "自动化与集成",
+          "description": "将 DOER 与团队常用工具连接。根据进度更新触发自动化，无需手动跟进也能让所有人步调一致。",
+          "videoPrompt": "嵌入 Loom 演示：配置自动化并在 Slack 中查看执行效果。"
+        },
+        "analytics": {
+          "title": "进度分析与健康度",
+          "description": "一眼洞察每个计划的健康状况。DOER 聚焦趋势、风险与亮点，让管理者在截止日期之前及时响应。",
+          "videoPrompt": "嵌入 Loom 演示：浏览仪表盘、发现风险并共享总结。"
+        }
+      }
+    },
+    "pricing": {
+      "title": "定价",
+      "description": "选择适合您需求的计划。",
+      "billing": {
+        "label": "计费周期",
+        "monthly": "按月",
+        "annual": "按年（节省 20%）"
+      },
+      "creditTooltip": "积分用于 Doer 的 API 接口，包括计划生成、自动排程、AI 回顾和各类集成。每次 API 调用或集成操作都会消耗 1 个积分。",
+      "includedFeatures": "包含功能",
+      "plans": {
+        "basic": {
+          "name": "基础版",
+          "blurb": "使用 Doer 的核心功能免费管理日常事务、记录任务并自动化关键流程。",
+          "price": "$0",
+          "suffix": "",
+          "note": "永久免费",
+          "credits": {
+            "api": {
+              "label": "API 积分",
+              "value": "每月 25 次"
+            },
+            "integrations": {
+              "label": "集成操作",
+              "value": "每月 100 次"
+            }
+          },
+          "highlights": [
+            "个人工作空间与每日日程自动化",
+            "每天最多 3 次的 AI 提醒和总结",
+            "与日历、邮箱和 Discord 的循环同步",
+            "2 个激活的自动化流程及检查清单模板",
+            "社区知识库、互助团体和上手指南"
+          ],
+          "ctaLabel": "免费开始"
+        },
+        "pro": {
+          "name": "专业版",
+          "blurb": "借助 AI 排程、任务自动化和强大集成，让复杂项目的所有成员保持协调一致。",
+          "price": {
+            "monthly": {
+              "primary": "$20",
+              "suffix": "/月"
+            },
+            "annual": {
+              "primary": "$16",
+              "suffix": "/月"
+            }
+          },
+          "note": {
+            "monthly": "按月计费 — 随时取消",
+            "annual": "按年计费 — 每年 $192（节省 20%）"
+          },
+          "credits": {
+            "api": {
+              "label": "API 积分",
+              "value": {
+                "monthly": "每月 100 次",
+                "annual": "每月 120 次"
+              }
+            },
+            "integrations": {
+              "label": "集成操作",
+              "value": {
+                "monthly": "每月 3,000 次",
+                "annual": "每月 4,000 次"
+              }
+            }
+          },
+          "highlights": [
+            "更高的计划、目标与任务自动化额度",
+            "AI 排程助手支持每日与每周规划",
+            "带风险提示的场景规划与预测时间线",
+            "与 Slack、HubSpot、Notion、Jira、Google Workspace 的原生集成",
+            "投资组合分析、KPI 仪表盘和主动进度提醒",
+            "基于角色的权限、共享模板和自动化库",
+            "通过电子邮件、Slack 和移动端发送的管理层简报"
+          ],
+          "ctaLabel": "升级到专业版"
+        },
+        "custom": {
+          "name": "定制版",
+          "blurb": "为雄心勃勃的团队提供全程陪伴式支持和量身定制的自动化方案。",
+          "ctaLabel": "联系销售"
+        }
+      }
+    },
+    "integrations": {
+      "title": "集成",
+      "description": "将 Doer 与您喜欢的工具和服务连接。"
+    },
+    "changelog": {
+      "title": "更新日志",
+      "description": "查看最新的更新、新功能和改进。"
+    },
+    "documentation": {
+      "title": "文档",
+      "description": "了解如何使用 Doer 实现您的目标。"
+    },
+    "blog": {
+      "title": "博客",
+      "description": "阅读我们最新的文章和见解。"
+    },
+    "solutions": {
+      "title": "解决方案",
+      "description": "了解 Doer 如何帮助团队、教练和教育工作者。"
+    },
+    "solutionsTeams": {
+      "title": "团队版",
+      "description": "与 Doer 有效协作并实现集体目标。"
+    },
+    "solutionsCoaches": {
+      "title": "教练和个人培训师版",
+      "description": "为客户设计个性化计划并跟踪他们的进度。"
+    },
+    "solutionsEducators": {
+      "title": "教育者版",
+      "description": "制定结构化学习计划并监控学生成就。"
+    }
+  }
+}
+
+
+
+
+

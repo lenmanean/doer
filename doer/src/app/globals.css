@@ -5,7 +5,7 @@
 
 
 :root {
-  /* DOER.AI Dark Theme Colors */
+  /* DOER.AI Dark Theme Colors (Default) */
   --background: #0a0a0a;
   --foreground: #d7d2cb;
   --muted: #94a3b8;
@@ -22,6 +22,257 @@
   --destructive-foreground: #ffffff;
   --ring: #ff7f00;
   --radius: 0.75rem;
+}
+
+/* Light Theme */
+.light {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --muted-foreground: #334155;
+  --border: #e2e8f0;
+  --input: #f8fafc;
+  --primary: #ff7f00;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --ring: #ff7f00;
+}
+
+/* Light Theme Global Styles */
+.light-theme {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Light theme panel and sidebar backgrounds */
+.light-theme [class*="bg-white/5"],
+.light-theme [class*="bg-white/10"],
+.light-theme [class*="bg-gray-800"],
+.light-theme [class*="bg-gray-900"],
+.light-theme [class*="bg-slate-800"],
+.light-theme [class*="bg-slate-900"] {
+  background-color: #f8fafc !important;
+}
+
+/* Light theme card backgrounds */
+.light-theme [class*="bg-gradient-to-r"],
+.light-theme [class*="bg-gradient-to-br"],
+.light-theme [class*="bg-gradient-to-bl"] {
+  background: linear-gradient(to right, #f1f5f9, #e2e8f0) !important;
+}
+
+/* Override all common text elements */
+.light-theme h1,
+.light-theme h2,
+.light-theme h3,
+.light-theme h4,
+.light-theme h5,
+.light-theme h6,
+.light-theme p,
+.light-theme span,
+.light-theme div,
+.light-theme label,
+.light-theme a,
+.light-theme button,
+.light-theme input,
+.light-theme textarea,
+.light-theme select {
+  color: #0f172a;
+}
+
+/* Specific overrides for common dark theme classes */
+.light-theme [class*="text-[#d7d2cb]"] {
+  color: #0f172a !important;
+}
+
+.light-theme [class*="text-[#d7d2cb]/60"],
+.light-theme [class*="text-[#d7d2cb]/70"],
+.light-theme [class*="text-[#d7d2cb]/80"] {
+  color: #64748b !important;
+}
+
+.light-theme [class*="bg-[#0a0a0a]"] {
+  background-color: #ffffff !important;
+}
+
+.light-theme [class*="bg-white/5"],
+.light-theme [class*="bg-white/10"] {
+  background-color: #f1f5f9 !important;
+}
+
+.light-theme [class*="border-white/20"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* Card backgrounds */
+.light-theme [class*="bg-gradient"] {
+  filter: brightness(1.2);
+}
+
+/* Specific sidebar and panel overrides for light theme */
+.light-theme .sidebar,
+.light-theme [class*="sidebar"],
+.light-theme [class*="bg-\\[\\#0a0a0a\\]"],
+.light-theme [class*="bg-\\[\\#1a1a1a\\]"],
+.light-theme [class*="bg-\\[\\#2a2a2a\\]"] {
+  background-color: #f8fafc !important;
+}
+
+/* Settings panel specific overrides */
+.light-theme [class*="settings"],
+.light-theme [class*="panel"],
+.light-theme [class*="card"] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Fix Settings icon white background */
+.light-theme svg[data-lucide="settings"],
+.light-theme .lucide-settings,
+.light-theme [data-lucide="settings"] {
+  background: transparent !important;
+  fill: currentColor !important;
+}
+
+/* Target Settings icon specifically in sidebar */
+.light-theme .sidebar svg[data-lucide="settings"] {
+  background: transparent !important;
+  fill: currentColor !important;
+}
+
+/* General fix for all Lucide icons with white backgrounds */
+.light-theme svg {
+  background: transparent !important;
+}
+
+/* Specific fix for Settings icon in all contexts */
+.light-theme svg[data-lucide="settings"],
+.light-theme .lucide-settings {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* AI Plan gradient fix for light theme - maintain exact dark mode appearance */
+.light-theme .ai-plan-gradient {
+  background: linear-gradient(to bottom right, rgba(255, 127, 0, 0.2), rgba(147, 51, 234, 0.2), rgba(236, 72, 153, 0.2)) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.light-theme .ai-plan-gradient:hover {
+  background: linear-gradient(to bottom right, rgba(255, 127, 0, 0.3), rgba(147, 51, 234, 0.3), rgba(236, 72, 153, 0.3)) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Ensure AI Plan text remains visible in light theme */
+.light-theme .ai-plan-gradient h3,
+.light-theme .ai-plan-gradient p,
+.light-theme .ai-plan-gradient li {
+  color: #0f172a !important;
+}
+
+/* AI Plan icon background in light theme */
+.light-theme .ai-plan-gradient .w-12.h-12 {
+  background: linear-gradient(to bottom right, #ff7f00, #9333ea) !important;
+}
+
+/* Roadmap timeline nodes fix for light theme */
+.light-theme [class*="bg-[#1a1a1a]"] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+/* Roadmap milestone tooltip fix for light theme */
+.light-theme .bg-black\/90 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Roadmap tooltip text colors in light theme */
+.light-theme .bg-black\/90 .text-[#d7d2cb] {
+  color: #0f172a !important;
+}
+
+.light-theme .bg-black\/90 .text-[#d7d2cb]\/70 {
+  color: #64748b !important;
+}
+
+/* Additional roadmap timeline fixes for light theme */
+.light-theme [class*="bg-\\[\\#1a1a1a\\]"] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+/* Fix roadmap timeline text colors in light theme */
+.light-theme [class*="text-\\[\\#d7d2cb\\]\\/60"] {
+  color: #64748b !important;
+}
+
+/* Fix roadmap milestone popup panel styling */
+.light-theme .bg-black\/90,
+.light-theme [class*="bg-black\\/90"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Fix roadmap timeline connecting lines in light mode */
+.light-theme .bg-white\/20 {
+  background-color: #e2e8f0 !important;
+}
+
+/* Remove shadow fade in light mode */
+.light-theme .bg-gradient-to-r.from-\\[\\#0a0a0a\\].to-transparent,
+.light-theme .bg-gradient-to-l.from-\\[\\#0a0a0a\\].to-transparent,
+.light-theme [class*="bg-gradient-to-r"][class*="from-\\[\\#0a0a0a\\]"],
+.light-theme [class*="bg-gradient-to-l"][class*="from-\\[\\#0a0a0a\\]"] {
+  display: none !important;
+}
+
+/* Alternative approach - target by background gradient */
+.light-theme [style*="background: linear-gradient(to right, rgb(10, 10, 10)"],
+.light-theme [style*="background: linear-gradient(to left, rgb(10, 10, 10)"] {
+  display: none !important;
+}
+
+/* Target fade overlays more specifically */
+.light-theme .absolute.left-0.top-0.bottom-0.w-16,
+.light-theme .absolute.right-0.top-0.bottom-0.w-16 {
+  display: none !important;
+}
+
+/* Force hide any gradient overlays in light theme */
+.light-theme [class*="bg-gradient-to-r"][class*="from-\\[\\#0a0a0a\\]"],
+.light-theme [class*="bg-gradient-to-l"][class*="from-\\[\\#0a0a0a\\]"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Dark Theme (Explicit) */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #d7d2cb;
+  --muted: #94a3b8;
+  --muted-foreground: #64748b;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.05);
+  --primary: #ff7f00;
+  --primary-foreground: #ffffff;
+  --secondary: #353839;
+  --secondary-foreground: #ffffff;
+  --accent: rgba(255, 255, 255, 0.05);
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --ring: #ff7f00;
 }
 
 @theme inline {
@@ -294,6 +545,178 @@ select option:hover {
   color: #ffffff !important;
 }
 
+/* Horizontal scrolling animation for integrations carousel */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-100% / 3));
+  }
+}
+
+.animate-scroll {
+  animation: scroll 40s linear infinite;
+}
+
+@keyframes scroll-reverse {
+  0% {
+    transform: translateX(calc(-100% / 3));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-scroll-reverse {
+  animation: scroll-reverse 40s linear infinite;
+}
+
+/* Checkmark icon styling for pricing cards */
+.checkmark-icon path {
+  stroke: rgb(17, 24, 39);
+}
+
+.dark .checkmark-icon path {
+  stroke: rgb(255, 255, 255);
+}
+
+/* Final CTA lift effect */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .page-lift {
+      animation: lift-page linear;
+      animation-timeline: scroll();
+      animation-range: exit 0% exit 100%;
+    }
+  }
+}
+
+@keyframes lift-page {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100vh);
+  }
+}
+
+/* Animated glow effect for CTA button */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4),
+                0 0 40px rgba(249, 115, 22, 0.3),
+                0 0 60px rgba(249, 115, 22, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.6),
+                0 0 60px rgba(249, 115, 22, 0.5),
+                0 0 90px rgba(249, 115, 22, 0.4);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Button scale pulse animation */
+@keyframes button-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-button-pulse {
+  animation: button-pulse 3s ease-in-out infinite;
+}
+
+/* Orange glow animation for DOER text */
+@keyframes doer-glow {
+  0%, 100% {
+    text-shadow: 0 0 20px rgba(255, 127, 0, 0.6),
+                 0 0 40px rgba(255, 127, 0, 0.4),
+                 0 0 60px rgba(255, 127, 0, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 30px rgba(255, 127, 0, 0.8),
+                 0 0 60px rgba(255, 127, 0, 0.6),
+                 0 0 90px rgba(255, 127, 0, 0.5);
+  }
+}
+
+/* Animated gradient shift for CTA background */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background: linear-gradient(45deg, rgb(251, 146, 60), rgb(236, 72, 153), rgb(147, 51, 234), rgb(251, 146, 60));
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease-in-out infinite;
+}
+
+/* Scroll-based animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scroll-animate-fade-up {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-animate-fade-up.visible {
+  opacity: 1;
+  transform: translateY(0);
+  will-change: auto;
+}
+
+/* Text glow effect for CTA */
+.text-glow {
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5),
+               0 0 40px rgba(255, 255, 255, 0.3),
+               0 0 60px rgba(255, 255, 255, 0.2);
+}
+
+/* Animated text glow for CTA */
+@keyframes text-glow-pulse {
+  0%, 100% {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5),
+                 0 0 40px rgba(255, 255, 255, 0.3),
+                 0 0 60px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                 0 0 60px rgba(255, 255, 255, 0.5),
+                 0 0 90px rgba(255, 255, 255, 0.3);
+  }
+}
+
+.text-glow-animated {
+  animation: text-glow-pulse 3s ease-in-out infinite;
+}
+
 /* Firefox specific */
 select option:-moz-any(:hover, :focus, :active) {
   background-color: #ff7f00 !important;
@@ -398,6 +821,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
+
+/* Force dark color scheme for native date pickers where supported */
+input[type="date"] {
+  color-scheme: dark;
+  background-color: #0a0a0a;
+  color: #d7d2cb;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Light theme date picker styling */
+.light input[type="date"] {
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+.light input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0) opacity(0.7);
+}
+
+/* Firefox calendar dropdown button */
+input[type="date"]::-moz-focus-inner { border: 0; }
+input[type="date"]::-ms-clear { display: none; }
 
 /* Scrollbar styling for custom components */
 .custom-scrollbar::-webkit-scrollbar {

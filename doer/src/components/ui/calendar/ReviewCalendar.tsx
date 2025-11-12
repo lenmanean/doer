@@ -57,7 +57,8 @@ export const ReviewCalendar = (props: ReviewCalendarProps) => {
     
     // Props
     showYearDecadeView,
-    futureRangeYears
+    futureRangeYears,
+    getMilestoneStatus
   } = useBaseCalendar({ 
     ...baseProps, 
     defaultView, 
@@ -162,6 +163,7 @@ export const ReviewCalendar = (props: ReviewCalendarProps) => {
           tasksByDate={tasksByDate}
           categorizedDates={categorizedDates}
           showAllTaskIndicators={true}
+          getMilestoneStatus={getMilestoneStatus}
         />
       </motion.div>
 

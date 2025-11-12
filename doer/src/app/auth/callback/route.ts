@@ -16,17 +16,64 @@ export async function GET(request: NextRequest) {
       let redirectPath = '/dashboard' // default
       
       if (user) {
-        // Check if user has a plan (completed onboarding)
-        const { data: plan } = await supabase
-          .from('plans')
-          .select('*')
+        // Get username from user metadata
+        const username = user.user_metadata?.username
+        
+        // Check if user has completed profile setup
+        const { data: profile } = await supabase
+          .from('user_settings')
+          .select('username, first_name')
           .eq('user_id', user.id)
           .single()
-        
-        if (!plan) {
-          redirectPath = '/onboarding'
+
+        // If no profile exists or username not set, store username and redirect to profile setup
+        if (!profile) {
+          // Create profile with username
+          if (username) {
+            const { error: insertError } = await supabase
+              .from('user_settings')
+              .insert({
+                user_id: user.id,
+                username: username,
+                timezone: 'UTC',
+                locale: 'en-US'
+              })
+            
+            // Check for unique constraint violation
+            if (insertError) {
+              console.error('Username insert error:', insertError)
+              // Username already taken - clear from metadata and let user choose new one
+              if (insertError.code === '23505') { // Unique violation
+                await supabase.auth.updateUser({
+                  data: { username: null }
+                })
+              }
+            }
+          }
+          redirectPath = '/auth/profile-setup'
+        } else if (!profile.username && username) {
+          // Update existing profile with username
+          const { error: updateError } = await supabase
+            .from('user_settings')
+            .update({ username: username })
+            .eq('user_id', user.id)
+          
+          // Check for unique constraint violation
+          if (updateError) {
+            console.error('Username update error:', updateError)
+            // Username already taken - clear from metadata and let user choose new one
+            if (updateError.code === '23505') { // Unique violation
+              await supabase.auth.updateUser({
+                data: { username: null }
+              })
+            }
+          }
+          redirectPath = '/auth/profile-setup'
+        } else if (!profile.first_name) {
+          // Username exists but profile incomplete
+          redirectPath = '/auth/profile-setup'
         } else {
-          redirectPath = '/roadmap'
+          redirectPath = '/dashboard'
         }
       }
       

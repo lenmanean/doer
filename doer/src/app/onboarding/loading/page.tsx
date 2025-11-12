@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle, Loader2, Brain, Target, Calendar, Zap } from 'lucide-react'
+import { CheckCircle, Loader2, Brain, Target, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { supabase } from '@/lib/supabase/client'
 
@@ -24,8 +24,8 @@ export default function OnboardingLoadingPage() {
     { id: 'load', label: 'Loading your preferences', icon: Target, status: 'pending' },
     { id: 'analyze', label: 'Analyzing your goal', icon: Brain, status: 'pending' },
     { id: 'generate', label: 'Generating personalized roadmap', icon: Target, status: 'pending' },
-    { id: 'milestones', label: 'Creating key milestones', icon: CheckCircle, status: 'pending' },
-    { id: 'schedule', label: 'Scheduling daily tasks', icon: Calendar, status: 'pending' },
+    { id: 'milestones', label: 'Estimating task durations', icon: Clock, status: 'pending' },
+    { id: 'schedule', label: 'Creating time-block schedule', icon: Calendar, status: 'pending' },
     { id: 'finalize', label: 'Finalizing your plan', icon: Zap, status: 'pending' },
   ])
   const [currentStep, setCurrentStep] = useState(0)

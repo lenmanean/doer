@@ -20,12 +20,15 @@ export function useUserRoadmap(userId: string | null) {
     fetchLock.current = true
     try {
       const planData = await getUserActivePlan(userId)
+      console.log('🔍 getUserActivePlan result:', planData)
       if (planData) {
         const stats = await getUserProgressStats(userId, planData.plan.id)
+        console.log('🔍 getUserProgressStats result:', stats)
         setRoadmapData({ ...planData, stats })
         setError(null)
       } else {
         // No active plan - this is a valid state, not an error
+        console.log('🔍 No active plan found for user:', userId)
         setRoadmapData(null)
         setError(null)
       }
