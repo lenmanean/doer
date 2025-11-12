@@ -44,6 +44,27 @@ export default function Home() {
     'Learn a new language',
   ]
 
+  // Handle authentication code parameter - redirect to callback handler
+  // The callback route will handle redirecting to the production domain
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const code = urlParams.get('code')
+      
+      if (code) {
+        // Always redirect to callback route - it will handle domain switching server-side
+        // This ensures the code is processed and the user is redirected correctly
+        const callbackUrl = new URL(window.location.href)
+        callbackUrl.pathname = '/auth/callback'
+        // Preserve code and next parameters
+        callbackUrl.search = window.location.search
+        // Use replace to avoid adding to history
+        window.location.replace(callbackUrl.toString())
+        return
+      }
+    }
+  }, [])
+
   // Cycling placeholder animation with fade transitions
   useEffect(() => {
     if (isFocused || goal) return

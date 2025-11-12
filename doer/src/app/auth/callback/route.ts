@@ -1,8 +1,39 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+/**
+ * Helper function to get the production domain URL
+ */
+function getProductionUrl(path: string): string {
+  const productionDomain = process.env.NEXT_PUBLIC_APP_URL 
+    ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname
+    : 'usedoer.com'
+  return `https://${productionDomain}${path}`
+}
+
+/**
+ * Helper function to determine redirect URL based on current request
+ * Always uses production domain in production to ensure consistent redirects
+ */
+function getRedirectUrl(request: NextRequest, path: string): string {
+  const origin = new URL(request.url).origin
+  const host = request.headers.get('host') || ''
+  const forwardedHost = request.headers.get('x-forwarded-host') || ''
+  const isLocalEnv = process.env.NODE_ENV === 'development'
+  
+  // In development, use the origin
+  if (isLocalEnv) {
+    return `${origin}${path}`
+  }
+  
+  // In production, always use production domain
+  // This ensures that even if the callback is hit on a preview domain,
+  // we redirect to the production domain
+  return getProductionUrl(path)
+}
+
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next')
 
@@ -80,19 +111,15 @@ export async function GET(request: NextRequest) {
       // Use custom redirect path or the determined path
       const finalPath = next || redirectPath
       
-      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${finalPath}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${finalPath}`)
-      } else {
-        return NextResponse.redirect(`${origin}${finalPath}`)
-      }
+      // Get the redirect URL (always production domain in production)
+      const redirectUrl = getRedirectUrl(request, finalPath)
+      
+      // Redirect to the production domain (removes code parameter from URL)
+      return NextResponse.redirect(redirectUrl)
     }
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // Return the user to an error page with instructions
+  const errorUrl = getRedirectUrl(request, '/auth/auth-code-error')
+  return NextResponse.redirect(errorUrl)
 }
