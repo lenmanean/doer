@@ -36,6 +36,7 @@ interface UserProfile {
 
 export default function AuthAwareLanding() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const router = useRouter()
   const { user, supabase, loading } = useSupabase()
@@ -112,6 +113,7 @@ export default function AuthAwareLanding() {
   
   const handleSignOut = async () => {
     try {
+      setProfileDropdownOpen(false)
       await signOutClient(supabase)
       setProfile(null)
       router.push('/')
@@ -120,6 +122,23 @@ export default function AuthAwareLanding() {
       console.error('Error signing out:', error)
     }
   }
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!profileDropdownOpen) return
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.profile-dropdown-container')) {
+        setProfileDropdownOpen(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [profileDropdownOpen])
   
   const handleDashboardClick = () => {
     router.push('/dashboard')
@@ -228,8 +247,11 @@ export default function AuthAwareLanding() {
                   </Button>
                   
                   {/* User Profile Dropdown */}
-                  <div className="relative group">
-                    <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                  <div className="relative profile-dropdown-container">
+                    <button 
+                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                      className="flex items-center space-x-2 p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    >
                       {profile?.avatar_url ? (
                         <img 
                           src={profile.avatar_url} 
@@ -246,25 +268,31 @@ export default function AuthAwareLanding() {
                     </button>
                     
                     {/* Dropdown Menu */}
-                    <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      <div className="p-3 border-b border-white/10">
-                        <div className="text-sm font-medium text-[#d7d2cb]">
-                          {profile?.display_name || 'User'}
+                    {profileDropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-lg z-50">
+                        <div className="p-3 border-b border-white/10">
+                          <div className="text-sm font-medium text-[#d7d2cb]">
+                            {profile?.display_name || 'User'}
+                          </div>
+                          <div className="text-xs text-[#d7d2cb]/60">
+                            {user.email}
+                          </div>
                         </div>
-                        <div className="text-xs text-[#d7d2cb]/60">
-                          {user.email}
+                        <div className="p-1">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleSignOut()
+                            }}
+                            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-[#d7d2cb]/70 hover:text-[#d7d2cb] hover:bg-white/5 rounded-md transition-colors"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Sign Out</span>
+                          </button>
                         </div>
                       </div>
-                      <div className="p-1">
-                        <button
-                          onClick={handleSignOut}
-                          className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-[#d7d2cb]/70 hover:text-[#d7d2cb] hover:bg-white/5 rounded-md transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Sign Out</span>
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               ) : (
