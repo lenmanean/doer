@@ -14,6 +14,23 @@ if (stripeSecretKey) {
   stripe = new Stripe(stripeSecretKey)
 }
 
+/**
+ * Converts Stripe's recurring interval to our BillingCycle enum
+ * Stripe uses "month" and "year", but our enum expects "monthly" and "annual"
+ */
+function convertStripeIntervalToBillingCycle(
+  interval: string | undefined | null
+): BillingCycle {
+  if (interval === 'month') {
+    return 'monthly'
+  }
+  if (interval === 'year') {
+    return 'annual'
+  }
+  // Default to monthly if interval is not recognized
+  return 'monthly'
+}
+
 export async function POST(req: NextRequest) {
   if (!stripe) {
     return NextResponse.json(
@@ -79,10 +96,11 @@ export async function POST(req: NextRequest) {
         const metadata = subscription.metadata || {}
         const userId = metadata.userId
         const planSlug = metadata.planSlug
+        // Get billing cycle from Stripe's interval (month/year) or metadata, converting as needed
+        const stripeInterval = subscription.items.data[0]?.price?.recurring?.interval
         const billingCycle =
-          ((subscription.items.data[0]?.price?.recurring?.interval as BillingCycle | undefined) ||
-            (metadata.billingCycle as BillingCycle) ||
-            'monthly')
+          (metadata.billingCycle as BillingCycle) ||
+          (stripeInterval ? convertStripeIntervalToBillingCycle(stripeInterval) : 'monthly')
 
         if (!userId || !planSlug) {
           console.log('[Stripe webhook] Subscription event without metadata, ignoring', {
