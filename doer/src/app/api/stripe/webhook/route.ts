@@ -18,34 +18,42 @@ if (stripeSecretKey) {
  * Converts Stripe's recurring interval to our BillingCycle enum
  * Stripe uses "month" and "year", but our enum expects "monthly" and "annual"
  * Also handles case-insensitive matching and partial matches
+ * 
+ * This function ALWAYS returns a valid BillingCycle enum value
  */
 function convertStripeIntervalToBillingCycle(
   interval: string | undefined | null
 ): BillingCycle {
   if (!interval) {
+    console.log('[Stripe webhook] No interval provided, defaulting to monthly')
     return 'monthly'
   }
   
   const normalized = interval.toLowerCase().trim()
+  console.log(`[Stripe webhook] Converting interval: "${interval}" (normalized: "${normalized}")`)
   
-  // Handle exact matches
+  // Handle exact matches first
   if (normalized === 'month' || normalized === 'monthly') {
+    console.log('[Stripe webhook] Matched month/monthly -> monthly')
     return 'monthly'
   }
   if (normalized === 'year' || normalized === 'yearly' || normalized === 'annual') {
+    console.log('[Stripe webhook] Matched year/yearly/annual -> annual')
     return 'annual'
   }
   
-  // Handle partial matches (e.g., "monthly" contains "month")
+  // Handle partial matches
   if (normalized.includes('month')) {
+    console.log('[Stripe webhook] Partial match "month" -> monthly')
     return 'monthly'
   }
   if (normalized.includes('year') || normalized.includes('annual')) {
+    console.log('[Stripe webhook] Partial match "year"/"annual" -> annual')
     return 'annual'
   }
   
   // Default to monthly if interval is not recognized
-  console.warn(`[Stripe webhook] Unknown billing interval: "${interval}", defaulting to "monthly"`)
+  console.warn(`[Stripe webhook] Unknown billing interval: "${interval}" (normalized: "${normalized}"), defaulting to "monthly"`)
   return 'monthly'
 }
 
@@ -132,12 +140,33 @@ export async function POST(req: NextRequest) {
           billingCycle,
         })
 
-        await assignSubscription(userId, planSlug, billingCycle)
-        console.log('[Stripe webhook] Assigned subscription via checkout.session.completed', {
-          userId,
-          planSlug,
-          billingCycle,
-        })
+        try {
+          // Double-check billing cycle is valid before calling assignSubscription
+          if (!['monthly', 'annual'].includes(billingCycle)) {
+            console.error('[Stripe webhook] Invalid billing cycle before assignSubscription:', {
+              billingCycle,
+              metadataBillingCycle,
+            })
+            billingCycle = 'monthly' // Force to valid default
+          }
+          
+          await assignSubscription(userId, planSlug, billingCycle)
+          console.log('[Stripe webhook] Assigned subscription via checkout.session.completed', {
+            userId,
+            planSlug,
+            billingCycle,
+          })
+        } catch (error) {
+          console.error('[Stripe webhook] Error assigning subscription:', {
+            error: error instanceof Error ? error.message : String(error),
+            userId,
+            planSlug,
+            billingCycle,
+            metadataBillingCycle,
+            stack: error instanceof Error ? error.stack : undefined,
+          })
+          throw error // Re-throw to be caught by outer try-catch
+        }
         break
       }
 
@@ -215,12 +244,35 @@ export async function POST(req: NextRequest) {
           break
         }
 
-        await assignSubscription(userId, planSlug, billingCycle)
-        console.log('[Stripe webhook] Assigned subscription via subscription event', {
-          userId,
-          planSlug,
-          billingCycle,
-        })
+        try {
+          // Double-check billing cycle is valid before calling assignSubscription
+          if (!['monthly', 'annual'].includes(billingCycle)) {
+            console.error('[Stripe webhook] Invalid billing cycle before assignSubscription:', {
+              billingCycle,
+              metadataBillingCycle,
+              stripeInterval,
+            })
+            billingCycle = 'monthly' // Force to valid default
+          }
+          
+          await assignSubscription(userId, planSlug, billingCycle)
+          console.log('[Stripe webhook] Assigned subscription via subscription event', {
+            userId,
+            planSlug,
+            billingCycle,
+          })
+        } catch (error) {
+          console.error('[Stripe webhook] Error assigning subscription:', {
+            error: error instanceof Error ? error.message : String(error),
+            userId,
+            planSlug,
+            billingCycle,
+            metadataBillingCycle,
+            stripeInterval,
+            stack: error instanceof Error ? error.stack : undefined,
+          })
+          throw error // Re-throw to be caught by outer try-catch
+        }
         break
       }
 

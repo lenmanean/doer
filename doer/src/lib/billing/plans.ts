@@ -206,6 +206,32 @@ export async function getPlanCycleBySlugAndCycle(
   planSlug: string,
   cycle: BillingCycle
 ): Promise<BillingPlanCycle> {
+  // Validate and normalize cycle to ensure it's a valid BillingCycle enum value
+  // This prevents enum errors from invalid values like "month" instead of "monthly"
+  // At runtime, cycle might be invalid even though TypeScript says it's BillingCycle
+  let normalizedCycle: BillingCycle = cycle
+  
+  // Runtime type guard - check if cycle is actually a valid BillingCycle
+  if (cycle !== 'monthly' && cycle !== 'annual') {
+    console.error('[getPlanCycleBySlugAndCycle] Invalid billing cycle value detected:', {
+      cycle,
+      planSlug,
+      cycleType: typeof cycle,
+    })
+    // Convert invalid values to valid enum
+    const cycleStr = String(cycle || '').toLowerCase().trim()
+    if (cycleStr === 'month' || cycleStr.includes('month')) {
+      normalizedCycle = 'monthly'
+      console.log('[getPlanCycleBySlugAndCycle] Converted invalid cycle to monthly:', cycle, '->', normalizedCycle)
+    } else if (cycleStr === 'year' || cycleStr.includes('year') || cycleStr.includes('annual')) {
+      normalizedCycle = 'annual'
+      console.log('[getPlanCycleBySlugAndCycle] Converted invalid cycle to annual:', cycle, '->', normalizedCycle)
+    } else {
+      normalizedCycle = 'monthly' // Default fallback
+      console.log('[getPlanCycleBySlugAndCycle] Unknown cycle, defaulting to monthly:', cycle, '->', normalizedCycle)
+    }
+  }
+  
   const supabase = getServiceRoleClient()
   const plan = await fetchPlanBySlug(planSlug)
 
@@ -229,17 +255,17 @@ export async function getPlanCycleBySlugAndCycle(
       `
     )
     .eq('billing_plan_id', plan.id)
-    .eq('cycle', cycle)
+    .eq('cycle', normalizedCycle)
     .limit(1)
     .maybeSingle<PlanCycleRow>()
 
   if (error) {
     throw new Error(
-      `Failed to load billing plan cycle "${planSlug}" (${cycle}): ${error.message}`
+      `Failed to load billing plan cycle "${planSlug}" (${normalizedCycle}): ${error.message}`
     )
   }
   if (!data) {
-    throw new Error(`Billing plan cycle "${planSlug}" (${cycle}) not found`)
+    throw new Error(`Billing plan cycle "${planSlug}" (${normalizedCycle}) not found`)
   }
 
   return mapPlanCycle(data)
