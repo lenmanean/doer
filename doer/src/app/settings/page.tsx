@@ -3,15 +3,14 @@
 import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
+import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
 import { FadeInWrapper, StaggeredFadeIn } from '@/components/ui/FadeInWrapper'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { 
   User, 
-  Bell, 
   Shield, 
   Palette, 
-  Globe, 
-  Zap,
   Save,
   Trash2,
   Key,
@@ -19,65 +18,90 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Loader2,
+  Clock,
+  Upload,
+  X,
+  LogOut,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  CheckSquare,
+  Square,
+  Phone,
+  Calendar,
   CheckCircle,
-  Target,
-  Loader2
+  AlertCircle,
+  CreditCard
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { SwitchPlanModal } from '@/components/ui/SwitchPlanModal'
 import { useUserRoadmap } from '@/hooks/useUserRoadmap'
+import { useTheme } from '@/components/providers/theme-provider'
+import { saveUserPreferences } from '@/lib/date-time-utils'
+import { isEmailConfirmed } from '@/lib/email-confirmation'
+import { useToast } from '@/components/ui/Toast'
+import { AccentColorSelect } from '@/components/ui/AccentColorSelect'
+import { PlanManagementDropdown } from '@/components/ui/PlanManagementDropdown'
 
 interface SettingsData {
   // Account
   email: string
   displayName: string
+  firstName: string
+  lastName: string
+  dateOfBirth: string
+  phoneNumber: string
+  phoneVerified: boolean
+  bio: string
+  timezone: string
+  locale: string
   
-  // Notifications
-  emailNotifications: boolean
-  taskReminders: boolean
-  milestoneAlerts: boolean
-  weeklyDigest: boolean
+  // Workday & Scheduling
+  workdayStartHour: number
+  workdayEndHour: number
+  lunchStartHour: number
+  lunchEndHour: number
   
-  // Privacy
-  profileVisibility: 'public' | 'private'
-  shareAchievements: boolean
-  showProgress: boolean
+  // Smart Scheduling
+  smartSchedulingEnabled: boolean
   
   // Preferences
   theme: 'dark' | 'light' | 'system'
-  language: string
+  accentColor: 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple'
   timeFormat: '12h' | '24h'
   startOfWeek: 'sunday' | 'monday'
-  
-  // Advanced
-  aiSuggestions: boolean
-  autoSchedule: boolean
-  dataExport: boolean
 }
 
 export default function SettingsPage() {
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
   const { roadmapData, refetch } = useUserRoadmap(user?.id || null)
+  const { theme, setTheme, accentColor, setAccentColor } = useTheme()
+  const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
+  const { addToast } = useToast()
   const [activeSection, setActiveSection] = useState('account')
   const [showSwitchPlanModal, setShowSwitchPlanModal] = useState(false)
   const [settingsData, setSettingsData] = useState<SettingsData>({
     email: '',
     displayName: '',
-    emailNotifications: true,
-    taskReminders: true,
-    milestoneAlerts: true,
-    weeklyDigest: false,
-    profileVisibility: 'public',
-    shareAchievements: true,
-    showProgress: true,
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    phoneNumber: '',
+    phoneVerified: false,
+    bio: '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    locale: Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
+    workdayStartHour: 9,
+    workdayEndHour: 17,
+    lunchStartHour: 12,
+    lunchEndHour: 13,
+    smartSchedulingEnabled: true,
     theme: 'dark',
-    language: 'en',
+    accentColor: 'orange',
     timeFormat: '12h',
-    startOfWeek: 'monday',
-    aiSuggestions: true,
-    autoSchedule: false,
-    dataExport: false
+    startOfWeek: 'monday'
   })
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -89,57 +113,342 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false)
+  const [deleteDataConfirmation, setDeleteDataConfirmation] = useState('')
+  const [deletingData, setDeletingData] = useState(false)
+  const [showPreferencesSave, setShowPreferencesSave] = useState(false)
+  const [preferencesChanged, setPreferencesChanged] = useState(false)
+  const [emailConfirmed, setEmailConfirmed] = useState(true)
+  const [resendingConfirmation, setResendingConfirmation] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<File | null>(null)
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [showDeletePlansConfirm, setShowDeletePlansConfirm] = useState(false)
+  const [deletePlansConfirmation, setDeletePlansConfirmation] = useState('')
+  const [deletingPlans, setDeletingPlans] = useState(false)
+  const [showDeleteTasksConfirm, setShowDeleteTasksConfirm] = useState(false)
+  const [deleteTasksConfirmation, setDeleteTasksConfirmation] = useState('')
+  const [deletingTasks, setDeletingTasks] = useState(false)
+  const [exportingData, setExportingData] = useState(false)
+  const [improveModelEnabled, setImproveModelEnabled] = useState(false)
+  const [loggingOutAll, setLoggingOutAll] = useState(false)
+  const [plans, setPlans] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set())
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+  const [loadingPlans, setLoadingPlans] = useState(false)
+  const [loadingTasks, setLoadingTasks] = useState(false)
+  const [showDeletePlansList, setShowDeletePlansList] = useState(false)
+  const [showDeleteTasksList, setShowDeleteTasksList] = useState(false)
+  const [justSaved, setJustSaved] = useState(false) // Track if we just saved to prevent overwrite
+  const [subscription, setSubscription] = useState<any>(null)
+  const [loadingSubscription, setLoadingSubscription] = useState(false)
+  const [cancelingSubscription, setCancelingSubscription] = useState(false)
+  const [openingPortal, setOpeningPortal] = useState(false)
 
   useEffect(() => {
-    if (user && profile) {
+    if (user && profile && !justSaved) {
+      // Prefer flat preferences from user_settings.preferences
+      const prefs = profile.preferences || {}
       const savedSettings = profile.settings || {}
       
       setSettingsData(prev => ({
         ...prev,
         email: user.email || '',
         displayName: profile.display_name || '',
-        shareAchievements: profile.share_achievements ?? true,
-        // Load from settings JSONB
-        emailNotifications: savedSettings.notifications?.email ?? true,
-        taskReminders: savedSettings.notifications?.task_reminders ?? true,
-        milestoneAlerts: savedSettings.notifications?.milestone_alerts ?? true,
-        weeklyDigest: savedSettings.notifications?.weekly_digest ?? false,
-        profileVisibility: savedSettings.privacy?.profile_visibility || 'public',
-        showProgress: savedSettings.privacy?.show_progress ?? true,
-        theme: savedSettings.preferences?.theme || 'dark',
-        language: savedSettings.preferences?.language || 'en',
-        timeFormat: savedSettings.preferences?.time_format || '12h',
-        startOfWeek: savedSettings.preferences?.start_of_week || 'monday',
-        aiSuggestions: savedSettings.advanced?.ai_suggestions ?? true,
-        autoSchedule: savedSettings.advanced?.auto_schedule ?? false,
+        firstName: profile.first_name || '',
+        lastName: profile.last_name || '',
+        dateOfBirth: profile.date_of_birth || '',
+        phoneNumber: profile.phone_number || '',
+        phoneVerified: profile.phone_verified || false,
+        bio: profile.bio || '',
+        timezone: profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        locale: profile.locale || Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
+        workdayStartHour: prefs.workday?.workday_start_hour || savedSettings.workday?.workday_start_hour || 9,
+        workdayEndHour: prefs.workday?.workday_end_hour || savedSettings.workday?.workday_end_hour || 17,
+        lunchStartHour: prefs.workday?.lunch_start_hour || savedSettings.workday?.lunch_start_hour || 12,
+        lunchEndHour: prefs.workday?.lunch_end_hour || savedSettings.workday?.lunch_end_hour || 13,
+        smartSchedulingEnabled: prefs.smart_scheduling?.enabled ?? true,
+        theme: (prefs.theme || savedSettings.preferences?.theme || theme),
+        accentColor: (prefs.accent_color || accentColor || 'orange') as 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple',
+        timeFormat: (prefs.time_format || savedSettings.preferences?.time_format || '12h'),
+        startOfWeek: (
+          (prefs.week_start_day !== undefined
+            ? (prefs.week_start_day === 1 ? 'monday' : 'sunday')
+            : savedSettings.preferences?.start_of_week || 'monday')
+        ),
       }))
+
+      // Set profile picture preview if avatar_url exists
+      if (profile?.avatar_url) {
+        setProfilePicturePreview(profile.avatar_url)
+      }
+
+      // Load improve model setting from preferences
+      // Check both new privacy structure and legacy root level
+      if (prefs.privacy?.improve_model_enabled !== undefined) {
+        setImproveModelEnabled(prefs.privacy.improve_model_enabled)
+      } else if (prefs.improve_model_enabled !== undefined) {
+        setImproveModelEnabled(prefs.improve_model_enabled)
+      }
     }
-  }, [user, profile])
+  }, [user, profile, theme])
+
+  // Load plans and tasks when showing delete lists
+  useEffect(() => {
+    if (showDeletePlansList && user) {
+      loadPlans()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDeletePlansList, user])
+
+  useEffect(() => {
+    if (showDeleteTasksList && user) {
+      loadTasks()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDeleteTasksList, user])
+
+  useEffect(() => {
+    if (!user && !profile) return
+
+    // Check email confirmation status - refresh user data to ensure we have latest status
+    const checkEmailStatus = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        if (currentUser) {
+          setEmailConfirmed(isEmailConfirmed(currentUser))
+        } else {
+          setEmailConfirmed(isEmailConfirmed(user))
+        }
+      } catch (error) {
+        console.error('Error checking email status:', error)
+        // Fallback to checking the user object we have
+        setEmailConfirmed(isEmailConfirmed(user))
+      }
+    }
+    
+    checkEmailStatus()
+  }, [user, profile, theme])
+
+  // Listen for auth state changes to update email confirmation status
+  useEffect(() => {
+    if (!user) return
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event) => {
+        if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+          // Refresh user data to get latest email confirmation status
+          const { data: { user: currentUser } } = await supabase.auth.getUser()
+          if (currentUser) {
+            setEmailConfirmed(isEmailConfirmed(currentUser))
+          }
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [user])
+
+  // Load subscription when subscription section is active
+  useEffect(() => {
+    if (activeSection === 'subscription' && user?.id && !loadingSubscription) {
+      loadSubscription()
+    }
+  }, [activeSection, user?.id])
+
+  const loadSubscription = async () => {
+    if (!user?.id) return
+    setLoadingSubscription(true)
+    try {
+      const response = await fetch('/api/subscription', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to load subscription')
+      }
+
+      const data = await response.json()
+      setSubscription(data.subscription)
+    } catch (error) {
+      console.error('Error loading subscription:', error)
+      addToast({
+        type: 'error',
+        title: 'Load Failed',
+        description: 'Failed to load subscription information.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingSubscription(false)
+    }
+  }
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your subscription? You will continue to have access until the end of your billing period.')) {
+      return
+    }
+
+    setCancelingSubscription(true)
+    try {
+      const response = await fetch('/api/stripe/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to cancel subscription')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Subscription Canceled',
+        description: 'Your subscription will be canceled at the end of the billing period.',
+        duration: 5000,
+      })
+
+      // Reload subscription
+      await loadSubscription()
+    } catch (error: any) {
+      console.error('Error canceling subscription:', error)
+      addToast({
+        type: 'error',
+        title: 'Cancel Failed',
+        description: error.message || 'Failed to cancel subscription. Please try again.',
+        duration: 5000,
+      })
+    } finally {
+      setCancelingSubscription(false)
+    }
+  }
+
+  const handleManagePayment = async () => {
+    setOpeningPortal(true)
+    try {
+      const response = await fetch('/api/stripe/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create portal session')
+      }
+
+      const { url } = await response.json()
+      window.location.href = url
+    } catch (error: any) {
+      console.error('Error opening portal:', error)
+      addToast({
+        type: 'error',
+        title: 'Error',
+        description: error.message || 'Failed to open payment portal. Please try again.',
+        duration: 5000,
+      })
+      setOpeningPortal(false)
+    }
+  }
+
+  // Handle preferences changes
+  const handlePreferencesChange = (key: string, value: any) => {
+    setSettingsData(prev => ({ ...prev, [key]: value }))
+    setPreferencesChanged(true)
+    setShowPreferencesSave(true)
+    
+    // Note: Theme and accent color are NOT applied immediately
+    // They will only be applied after the user clicks "Save Changes"
+    // This prevents premature theme switches that the user might want to cancel
+  }
+
+  // Save preferences only
+  const handleSavePreferences = async () => {
+    setSaving(true)
+    try {
+      const settings = {
+        preferences: {
+          theme: settingsData.theme,
+          accent_color: settingsData.accentColor,
+          time_format: settingsData.timeFormat,
+          start_of_week: settingsData.startOfWeek
+        }
+      }
+
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name: settingsData.displayName,
+          settings: settings
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        // If unauthorized, don't throw - just log and return early
+        // This prevents logout issues when theme changes
+        if (response.status === 401) {
+          console.error('Unauthorized when saving preferences:', errorData)
+          alert('Your session may have expired. Please refresh the page and try again.')
+          setSaving(false)
+          return
+        }
+        throw new Error(errorData.error || 'Failed to save preferences')
+      }
+
+      // Get the updated profile from the response
+      const result = await response.json()
+      const updatedProfile = result.profile
+
+      // Mark that we just saved to prevent useEffect from overwriting
+      setJustSaved(true)
+
+      // Update local state immediately to reflect saved values
+      // Use the values we just saved, not from the response (which might be stale)
+      setSettingsData(prev => ({
+        ...prev,
+        theme: settingsData.theme, // Use the value we just saved
+        accentColor: settingsData.accentColor, // Use the value we just saved
+        timeFormat: settingsData.timeFormat,
+        startOfWeek: settingsData.startOfWeek
+      }))
+
+      setPreferencesChanged(false)
+      setShowPreferencesSave(false)
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+
+      // Apply theme and accent color immediately after successful save
+      // These should already be applied via handlePreferencesChange, but ensure consistency
+      setTheme(settingsData.theme)
+      setAccentColor(settingsData.accentColor)
+      
+      // Clear the justSaved flag after a short delay to allow useEffect to work normally
+      setTimeout(() => {
+        setJustSaved(false)
+      }, 1000)
+    } catch (error) {
+      console.error('Error saving preferences:', error)
+      alert('Failed to save preferences. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
     try {
       // Build settings object
       const settings = {
-        notifications: {
-          email: settingsData.emailNotifications,
-          task_reminders: settingsData.taskReminders,
-          milestone_alerts: settingsData.milestoneAlerts,
-          weekly_digest: settingsData.weeklyDigest
-        },
-        privacy: {
-          profile_visibility: settingsData.profileVisibility,
-          show_progress: settingsData.showProgress
-        },
         preferences: {
           theme: settingsData.theme,
-          language: settingsData.language,
+          accent_color: settingsData.accentColor,
           time_format: settingsData.timeFormat,
           start_of_week: settingsData.startOfWeek
-        },
-        advanced: {
-          ai_suggestions: settingsData.aiSuggestions,
-          auto_schedule: settingsData.autoSchedule
         }
       }
 
@@ -149,7 +458,6 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           display_name: settingsData.displayName,
-          share_achievements: settingsData.shareAchievements,
           settings: settings
         })
       })
@@ -161,6 +469,17 @@ export default function SettingsPage() {
 
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
+
+      // Update theme if changed
+      if (settingsData.theme !== theme) {
+        setTheme(settingsData.theme)
+      }
+
+      // Save local preferences
+      saveUserPreferences({
+        timeFormat: settingsData.timeFormat,
+        startOfWeek: settingsData.startOfWeek
+      })
 
       // Refresh the page data to get updated settings
       window.location.reload()
@@ -237,8 +556,9 @@ export default function SettingsPage() {
         throw new Error(errorData.error || 'Failed to delete account')
       }
 
-      alert('Account deletion initiated. You will be signed out.')
-      await handleSignOut()
+      alert('Account and all data have been permanently deleted.')
+      // Redirect to login (user is already signed out by the API)
+      window.location.href = '/login'
     } catch (error: any) {
       console.error('Error deleting account:', error)
       alert(error.message || 'Failed to delete account. Please try again.')
@@ -248,28 +568,619 @@ export default function SettingsPage() {
     }
   }
 
+  const handleDeleteData = async () => {
+    if (deleteDataConfirmation !== 'DELETE DATA') {
+      alert('Please type DELETE DATA to confirm data deletion')
+      return
+    }
+
+    if (!confirm('Are you absolutely sure? This will permanently delete all your plans, tasks, and progress data. This action cannot be undone.')) {
+      return
+    }
+
+    setDeletingData(true)
+    try {
+      const response = await fetch('/api/settings/delete-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmation: deleteDataConfirmation
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete data')
+      }
+
+      alert('All your data has been permanently deleted. Your account remains active.')
+      // Refresh the page to reflect the changes
+      window.location.reload()
+    } catch (error: any) {
+      console.error('Error deleting data:', error)
+      alert(error.message || 'Failed to delete data. Please try again.')
+    } finally {
+      setDeletingData(false)
+      setShowDeleteDataConfirm(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    if (!user?.email) return
+
+    setResendingConfirmation(true)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: user.email
+      })
+
+      if (error) {
+        // Check for SMTP/email sending errors
+        const isEmailError = error.message.toLowerCase().includes('email') || 
+                            error.message.toLowerCase().includes('smtp') ||
+                            error.message.toLowerCase().includes('mail')
+        
+        addToast({
+          type: 'error',
+          title: 'Resend Failed',
+          description: isEmailError 
+            ? 'Unable to send email. Please contact support or try again later.'
+            : error.message || 'Failed to resend confirmation email. Please try again.',
+          duration: 7000
+        })
+      } else {
+        addToast({
+          type: 'success',
+          title: 'Email Sent',
+          description: 'A new confirmation code has been sent to your email. Please check your inbox.',
+          duration: 5000
+        })
+      }
+    } catch (error: any) {
+      console.error('Error resending confirmation:', error)
+      addToast({
+        type: 'error',
+        title: 'Resend Error',
+        description: 'Failed to resend confirmation email. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setResendingConfirmation(false)
+    }
+  }
+
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        addToast({
+          type: 'error',
+          title: 'Invalid File',
+          description: 'Please select an image file.',
+          duration: 5000
+        })
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        addToast({
+          type: 'error',
+          title: 'File Too Large',
+          description: 'Please select an image smaller than 5MB.',
+          duration: 5000
+        })
+        return
+      }
+
+      setProfilePicture(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setProfilePicturePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeProfilePicture = () => {
+    setProfilePicture(null)
+    setProfilePicturePreview(null)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!user) return
+
+    setSaving(true)
+    setUploadingAvatar(true)
+    try {
+      let avatarUrl: string | undefined = profile?.avatar_url || undefined
+
+      // Upload profile picture if provided
+      if (profilePicture && user) {
+        try {
+          const fileExt = profilePicture.name.split('.').pop()
+          const fileName = `avatar.${fileExt}`
+          const filePath = `${user.id}/${fileName}`
+
+          // Delete existing avatar if any
+          const existingFiles = await supabase.storage
+            .from('avatars')
+            .list(user.id)
+          
+          if (existingFiles.data && existingFiles.data.length > 0) {
+            await supabase.storage
+              .from('avatars')
+              .remove([`${user.id}/${existingFiles.data[0].name}`])
+          }
+
+          // Upload new avatar
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, profilePicture, {
+              cacheControl: '3600',
+              upsert: true
+            })
+
+          if (uploadError) {
+            throw uploadError
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath)
+
+          avatarUrl = urlData.publicUrl
+        } catch (uploadError: any) {
+          console.error('Avatar upload error:', uploadError)
+          addToast({
+            type: 'error',
+            title: 'Upload Failed',
+            description: 'Failed to upload profile picture. You can update it later.',
+            duration: 5000
+          })
+          setUploadingAvatar(false)
+          return
+        }
+      }
+
+      // Save profile updates
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name: settingsData.displayName.trim(),
+          avatar_url: avatarUrl,
+          first_name: settingsData.firstName.trim() || null,
+          last_name: settingsData.lastName.trim() || null,
+          date_of_birth: settingsData.dateOfBirth || null,
+          phone_number: settingsData.phoneNumber.trim() || null,
+          bio: settingsData.bio.trim() || null,
+          timezone: settingsData.timezone || null,
+          locale: settingsData.locale || null
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save profile')
+      }
+
+      setProfilePicture(null)
+      addToast({
+        type: 'success',
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+        duration: 3000
+      })
+
+      // Refresh the page to show updated profile
+      window.location.reload()
+    } catch (error: any) {
+      console.error('Error saving profile:', error)
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        description: error.message || 'Failed to save profile. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setSaving(false)
+      setUploadingAvatar(false)
+    }
+  }
+
+  const handleLogoutAllDevices = async () => {
+    setLoggingOutAll(true)
+    try {
+      const response = await fetch('/api/settings/logout-all-devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to log out')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Logged Out',
+        description: 'You have been signed out of all devices. Please sign in again.',
+        duration: 3000
+      })
+
+      // Redirect to login
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1000)
+    } catch (error: any) {
+      console.error('Error logging out:', error)
+      addToast({
+        type: 'error',
+        title: 'Logout Failed',
+        description: error.message || 'Failed to log out. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setLoggingOutAll(false)
+    }
+  }
+
+
+  const handleExportData = async (format: 'json' | 'csv' = 'json') => {
+    setExportingData(true)
+    try {
+      const response = await fetch(`/api/settings/export-data?format=${format}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to export data')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const extension = format === 'csv' ? 'csv' : 'json'
+      a.download = `doer-data-export-${new Date().toISOString().split('T')[0]}.${extension}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      addToast({
+        type: 'success',
+        title: 'Data Exported',
+        description: `Your data has been exported as ${format.toUpperCase()} successfully.`,
+        duration: 3000
+      })
+    } catch (error: any) {
+      console.error('Error exporting data:', error)
+      addToast({
+        type: 'error',
+        title: 'Export Failed',
+        description: error.message || 'Failed to export data. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setExportingData(false)
+    }
+  }
+
+  const loadPlans = async () => {
+    setLoadingPlans(true)
+    try {
+      const response = await fetch('/api/plans/list')
+      if (!response.ok) throw new Error('Failed to load plans')
+      const data = await response.json()
+      setPlans(data.plans || [])
+    } catch (error) {
+      console.error('Error loading plans:', error)
+      addToast({
+        type: 'error',
+        title: 'Load Failed',
+        description: 'Failed to load plans. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setLoadingPlans(false)
+    }
+  }
+
+  const loadTasks = async () => {
+    setLoadingTasks(true)
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      setTasks(data || [])
+    } catch (error: any) {
+      console.error('Error loading tasks:', error)
+      addToast({
+        type: 'error',
+        title: 'Load Failed',
+        description: 'Failed to load tasks. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
+
+  const handleTogglePlanSelection = (planId: string) => {
+    setSelectedPlans(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(planId)) {
+        newSet.delete(planId)
+      } else {
+        newSet.add(planId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllPlans = () => {
+    const validPlans = plans.filter(p => p?.id)
+    if (selectedPlans.size === validPlans.length) {
+      setSelectedPlans(new Set())
+    } else {
+      setSelectedPlans(new Set(validPlans.map(p => p.id)))
+    }
+  }
+
+  const handleToggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId)
+      } else {
+        newSet.add(taskId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllTasks = () => {
+    const validTasks = tasks.filter(t => t?.id)
+    if (selectedTasks.size === validTasks.length) {
+      setSelectedTasks(new Set())
+    } else {
+      setSelectedTasks(new Set(validTasks.map(t => t.id)))
+    }
+  }
+
+  const handleDeleteSelectedPlans = async () => {
+    if (selectedPlans.size === 0) {
+      addToast({
+        type: 'error',
+        title: 'No Selection',
+        description: 'Please select at least one plan to delete.',
+        duration: 5000
+      })
+      return
+    }
+
+    setDeletingPlans(true)
+    try {
+      const response = await fetch('/api/settings/delete-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_ids: Array.from(selectedPlans) })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete plans')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Plans Deleted',
+        description: `Successfully deleted ${selectedPlans.size} plan(s).`,
+        duration: 3000
+      })
+
+      setSelectedPlans(new Set())
+      setShowDeletePlansList(false)
+      await loadPlans()
+    } catch (error: any) {
+      console.error('Error deleting plans:', error)
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        description: error.message || 'Failed to delete plans. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setDeletingPlans(false)
+    }
+  }
+
+  const handleDeleteSelectedTasks = async () => {
+    if (selectedTasks.size === 0) {
+      addToast({
+        type: 'error',
+        title: 'No Selection',
+        description: 'Please select at least one task to delete.',
+        duration: 5000
+      })
+      return
+    }
+
+    setDeletingTasks(true)
+    try {
+      const response = await fetch('/api/settings/delete-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_ids: Array.from(selectedTasks) })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete tasks')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Tasks Deleted',
+        description: `Successfully deleted ${selectedTasks.size} task(s).`,
+        duration: 3000
+      })
+
+      setSelectedTasks(new Set())
+      setShowDeleteTasksList(false)
+      await loadTasks()
+    } catch (error: any) {
+      console.error('Error deleting tasks:', error)
+      addToast({
+        type: 'error',
+        title: 'Delete Failed',
+        description: error.message || 'Failed to delete tasks. Please try again.',
+        duration: 5000
+      })
+    } finally {
+      setDeletingTasks(false)
+    }
+  }
+
+  const handleImproveModelToggle = async (enabled: boolean) => {
+    setImproveModelEnabled(enabled)
+    try {
+      // Get current preferences
+      const { data: currentSettings } = await supabase
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', user?.id)
+        .single()
+
+      const currentPrefs = currentSettings?.preferences || {}
+      
+      // Update preferences with improve_model_enabled in privacy object
+      const updatedPreferences = {
+        ...currentPrefs,
+        privacy: {
+          ...(currentPrefs.privacy || {}),
+          improve_model_enabled: enabled
+        }
+      }
+      
+      // Remove legacy root-level improve_model_enabled if it exists
+      if (updatedPreferences.improve_model_enabled !== undefined) {
+        delete updatedPreferences.improve_model_enabled
+      }
+
+      // Update in database
+      const { error } = await supabase
+        .from('user_settings')
+        .update({
+          preferences: updatedPreferences,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user?.id)
+
+      if (error) {
+        throw error
+      }
+
+      addToast({
+        type: 'success',
+        title: enabled ? 'Opt-in Enabled' : 'Opt-in Disabled',
+        description: enabled 
+          ? 'Thank you for helping improve the model!'
+          : 'You have opted out of model improvement.',
+        duration: 3000
+      })
+    } catch (error: any) {
+      console.error('Error saving improve model setting:', error)
+      // Revert on error
+      setImproveModelEnabled(!enabled)
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        description: 'Failed to save setting. Please try again.',
+        duration: 5000
+      })
+    }
+  }
+
   const sections = [
     { id: 'account', label: 'Account', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'subscription', label: 'Subscription', icon: Shield },
+    { id: 'workday', label: 'Scheduling', icon: Clock },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
     { id: 'preferences', label: 'Preferences', icon: Palette },
-    { id: 'advanced', label: 'Advanced', icon: Zap },
   ]
 
-  if (loading || !user) {
+  // Show loading state with timeout protection
+  // If loading takes more than 10 seconds, show page anyway (safety timeout in hook will handle it)
+  const [showLoadingFallback, setShowLoadingFallback] = useState(false)
+  
+  // Handle loading timeout - must be before any conditional returns
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => {
+        setShowLoadingFallback(true)
+      }, 10000)
+      return () => clearTimeout(timeout)
+    } else {
+      setShowLoadingFallback(false)
+    }
+  }, [loading])
+
+  // Handle redirect if no user after timeout - must be before any conditional returns
+  useEffect(() => {
+    if (!user && showLoadingFallback) {
+      const checkUser = async () => {
+        try {
+          const { data: { user: verifiedUser } } = await supabase.auth.getUser()
+          if (!verifiedUser) {
+            window.location.href = '/login'
+          }
+        } catch (error) {
+          console.error('Error verifying user:', error)
+          window.location.href = '/login'
+        }
+      }
+      checkUser()
+    }
+  }, [user, showLoadingFallback])
+
+  // All hooks must be called before any conditional returns
+  if ((loading && !showLoadingFallback) || (!user && !showLoadingFallback)) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#d7d2cb]">Loading...</div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
+      </div>
+    )
+  }
+  
+  if (!user && showLoadingFallback) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Redirecting...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[var(--background)]">
       <Sidebar 
         user={profile || { email: user?.email || '' }}
         onSignOut={handleSignOut}
         currentPath="/settings"
+        hasPendingReschedules={hasPendingReschedules}
+        emailConfirmed={emailConfirmed}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -277,10 +1188,10 @@ export default function SettingsPage() {
           {/* Header */}
           <FadeInWrapper delay={0.1} direction="up">
             <div className="mb-8">
-              <h1 className="text-5xl font-bold tracking-tight text-[#d7d2cb] mb-4">
+              <h1 className="text-5xl font-bold tracking-tight text-[var(--foreground)] mb-4">
                 Settings
               </h1>
-              <p className="text-base leading-relaxed text-[#d7d2cb]/70">
+              <p className="text-base leading-relaxed text-[#d7d2cb]">
                 Manage your account settings and preferences
               </p>
             </div>
@@ -301,8 +1212,8 @@ export default function SettingsPage() {
                           onClick={() => setActiveSection(section.id)}
                           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === section.id
-                              ? 'bg-white/10 text-[#d7d2cb] border border-white/20'
-                              : 'text-[#d7d2cb]/60 hover:text-[#d7d2cb] hover:bg-white/5'
+                              ? 'bg-[var(--accent)] text-[var(--foreground)] border border-[var(--border)]'
+                              : 'text-[#d7d2cb] hover:text-[var(--foreground)] hover:bg-[var(--accent)]'
                           }`}
                         >
                           <Icon className="w-4 h-4" />
@@ -325,12 +1236,348 @@ export default function SettingsPage() {
                   >
                     <Card>
                       <CardHeader>
-                        <CardTitle>Account Information</CardTitle>
-                        <CardDescription>Update your account details</CardDescription>
+                        <CardTitle>Profile Details</CardTitle>
+                        <CardDescription>Update your profile picture and display information</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {/* Profile Picture */}
                         <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Profile Picture
+                          </label>
+                          <div className="flex items-center space-x-4">
+                            <div className="relative">
+                              {profilePicturePreview ? (
+                                <div className="relative">
+                                  <img
+                                    src={profilePicturePreview}
+                                    alt="Profile preview"
+                                    className="w-20 h-20 rounded-full object-cover border-2 border-[var(--border)]"
+                                  />
+                                  {profilePicture && (
+                                    <button
+                                      onClick={removeProfilePicture}
+                                      className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                                    >
+                                      <X className="w-3 h-3 text-white" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="w-20 h-20 rounded-full bg-[var(--accent)] border-2 border-[var(--border)] flex items-center justify-center">
+                                  <User className="w-10 h-10 text-[var(--muted-foreground)]" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleProfilePictureChange}
+                                className="hidden"
+                                id="profile-picture-input"
+                              />
+                              <label
+                                htmlFor="profile-picture-input"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors cursor-pointer"
+                              >
+                                <Upload className="w-4 h-4" />
+                                {profilePicturePreview ? 'Change Picture' : 'Upload Picture'}
+                              </label>
+                              <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                                JPG, PNG or GIF. Max size 5MB.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* First Name */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            First Name
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsData.firstName}
+                            onChange={(e) => setSettingsData({ ...settingsData, firstName: e.target.value })}
+                            placeholder="Enter your first name"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                          />
+                        </div>
+
+                        {/* Last Name */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Last Name
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsData.lastName}
+                            onChange={(e) => setSettingsData({ ...settingsData, lastName: e.target.value })}
+                            placeholder="Enter your last name"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                          />
+                        </div>
+
+                        {/* Display Name */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Display Name
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsData.displayName}
+                            onChange={(e) => setSettingsData({ ...settingsData, displayName: e.target.value })}
+                            placeholder="Enter your display name"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                          />
+                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            This is how your name appears to others
+                          </p>
+                        </div>
+
+                        {/* Date of Birth */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Date of Birth
+                          </label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d7d2cb]/40" />
+                            <input
+                              type="date"
+                              value={settingsData.dateOfBirth}
+                              onChange={(e) => setSettingsData({ ...settingsData, dateOfBirth: e.target.value })}
+                              max={new Date().toISOString().split('T')[0]}
+                              className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                          </div>
+                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            Optional - Used for age-appropriate features and personalized experiences
+                          </p>
+                        </div>
+
+                        {/* Phone Number */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Phone Number
+                          </label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d7d2cb]/40" />
+                            <input
+                              type="tel"
+                              value={settingsData.phoneNumber}
+                              onChange={(e) => setSettingsData({ ...settingsData, phoneNumber: e.target.value })}
+                              placeholder="+1 (555) 123-4567"
+                              className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                            {settingsData.phoneNumber && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                {settingsData.phoneVerified ? (
+                                  <div className="flex items-center gap-1 text-green-500">
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span className="text-xs">Verified</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-orange-500">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span className="text-xs">Unverified</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2">
+                            {settingsData.phoneNumber && !settingsData.phoneVerified && (
+                              <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                <p className="text-xs text-orange-400 mb-2">
+                                  Phone verification is currently disabled. Verification will be implemented in a future update.
+                                </p>
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="text-xs px-3 py-1.5 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 opacity-50 cursor-not-allowed"
+                                >
+                                  Verify Phone Number (Coming Soon)
+                                </button>
+                              </div>
+                            )}
+                            <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                              Optional - Used for account recovery and security notifications. E.164 format recommended (e.g., +15551234567)
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bio/About */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Bio / About
+                          </label>
+                          <textarea
+                            value={settingsData.bio}
+                            onChange={(e) => setSettingsData({ ...settingsData, bio: e.target.value })}
+                            placeholder="Tell us about yourself..."
+                            rows={4}
+                            maxLength={500}
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] resize-none"
+                          />
+                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            Optional - A short bio about yourself ({settingsData.bio.length}/500 characters)
+                          </p>
+                        </div>
+
+                        {/* Timezone */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Timezone
+                          </label>
+                          <select
+                            value={settingsData.timezone}
+                            onChange={(e) => setSettingsData({ ...settingsData, timezone: e.target.value })}
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                          >
+                            {/* Common Timezones First */}
+                            <optgroup label="Common Timezones">
+                              <option value="America/New_York">Eastern Time (US & Canada)</option>
+                              <option value="America/Chicago">Central Time (US & Canada)</option>
+                              <option value="America/Denver">Mountain Time (US & Canada)</option>
+                              <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                              <option value="America/Phoenix">Arizona</option>
+                              <option value="America/Anchorage">Alaska</option>
+                              <option value="Pacific/Honolulu">Hawaii</option>
+                              <option value="UTC">UTC (Coordinated Universal Time)</option>
+                              <option value="Europe/London">London</option>
+                              <option value="Europe/Paris">Paris</option>
+                              <option value="Europe/Berlin">Berlin</option>
+                              <option value="Europe/Rome">Rome</option>
+                              <option value="Europe/Madrid">Madrid</option>
+                              <option value="Asia/Tokyo">Tokyo</option>
+                              <option value="Asia/Shanghai">Shanghai</option>
+                              <option value="Asia/Hong_Kong">Hong Kong</option>
+                              <option value="Asia/Singapore">Singapore</option>
+                              <option value="Asia/Dubai">Dubai</option>
+                              <option value="Australia/Sydney">Sydney</option>
+                              <option value="Australia/Melbourne">Melbourne</option>
+                              <option value="America/Toronto">Toronto</option>
+                              <option value="America/Vancouver">Vancouver</option>
+                              <option value="America/Mexico_City">Mexico City</option>
+                              <option value="America/Sao_Paulo">São Paulo</option>
+                              <option value="America/Buenos_Aires">Buenos Aires</option>
+                            </optgroup>
+                            {/* All Other Timezones */}
+                            <optgroup label="Other Timezones">
+                              {(() => {
+                                try {
+                                  const allTimezones = Intl.supportedValuesOf('timeZone')
+                                  const commonTimezones = [
+                                    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+                                    'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu', 'UTC',
+                                    'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Rome', 'Europe/Madrid',
+                                    'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Singapore', 'Asia/Dubai',
+                                    'Australia/Sydney', 'Australia/Melbourne', 'America/Toronto', 'America/Vancouver',
+                                    'America/Mexico_City', 'America/Sao_Paulo', 'America/Buenos_Aires'
+                                  ]
+                                  const otherTimezones = allTimezones.filter(tz => !commonTimezones.includes(tz))
+                                  return otherTimezones.map((tz) => (
+                                    <option key={tz} value={tz}>
+                                      {tz.replace(/_/g, ' ')}
+                                    </option>
+                                  ))
+                                } catch (e) {
+                                  // Fallback if Intl.supportedValuesOf is not available
+                                  return null
+                                }
+                              })()}
+                            </optgroup>
+                          </select>
+                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            Used for scheduling and time display. Defaults to your browser timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
+                          </p>
+                        </div>
+
+                        {/* Locale */}
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Language & Region
+                          </label>
+                          <select
+                            value={settingsData.locale}
+                            onChange={(e) => setSettingsData({ ...settingsData, locale: e.target.value })}
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                          >
+                            <option value="en-US">English (US)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="en-CA">English (Canada)</option>
+                            <option value="en-AU">English (Australia)</option>
+                            <option value="es-ES">Español (España)</option>
+                            <option value="es-MX">Español (México)</option>
+                            <option value="fr-FR">Français</option>
+                            <option value="de-DE">Deutsch</option>
+                            <option value="it-IT">Italiano</option>
+                            <option value="pt-BR">Português (Brasil)</option>
+                            <option value="ja-JP">日本語</option>
+                            <option value="zh-CN">中文 (简体)</option>
+                            <option value="zh-TW">中文 (繁體)</option>
+                            <option value="ko-KR">한국어</option>
+                          </select>
+                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            Used for date/time formatting and language preferences. Defaults to your browser locale.
+                          </p>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="flex justify-end pt-2">
+                          <button
+                            onClick={handleSaveProfile}
+                            disabled={saving || uploadingAvatar}
+                            className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {saving || uploadingAvatar ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                {uploadingAvatar ? 'Uploading...' : 'Saving...'}
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4" />
+                                Save Profile
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Account Information</CardTitle>
+                        <CardDescription>Your account email and verification status</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Email Confirmation Notification */}
+                        {!emailConfirmed && (
+                          <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-orange-400 mb-1">
+                                  Email Not Confirmed
+                                </h4>
+                                <p className="text-xs text-[#d7d2cb]/70 mb-3">
+                                  Please confirm your email address to secure your account and enable all features.
+                                </p>
+                                <button
+                                  onClick={handleResendConfirmation}
+                                  disabled={resendingConfirmation}
+                                  className="text-xs px-3 py-1.5 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 hover:bg-orange-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {resendingConfirmation ? 'Sending...' : 'Resend Confirmation Email'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                             Email Address
                           </label>
                           <div className="relative">
@@ -339,23 +1586,12 @@ export default function SettingsPage() {
                               type="email"
                               value={settingsData.email}
                               disabled
-                              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] cursor-not-allowed opacity-60"
+                              className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] cursor-not-allowed opacity-60"
                             />
                           </div>
-                          <p className="text-xs text-[#d7d2cb]/50 mt-1">Email cannot be changed</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
-                            Display Name
-                          </label>
-                          <input
-                            type="text"
-                            value={settingsData.displayName}
-                            onChange={(e) => setSettingsData({ ...settingsData, displayName: e.target.value })}
-                            placeholder="Enter your display name"
-                            className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
-                          />
+                          <p className="text-xs text-[#d7d2cb] mt-1">
+                            {emailConfirmed ? 'Email cannot be changed' : 'Email cannot be changed - Please confirm your email'}
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
@@ -367,22 +1603,22 @@ export default function SettingsPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                             Current Password
                           </label>
                           <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d7d2cb]/40" />
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d7d2cb]" />
                             <input
                               type={showPassword ? 'text' : 'password'}
                               value={currentPassword}
                               onChange={(e) => setCurrentPassword(e.target.value)}
                               placeholder="Enter current password"
-                              className="w-full pl-10 pr-12 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                              className="w-full pl-10 pr-12 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#d7d2cb]/40 hover:text-[#d7d2cb]"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#d7d2cb] hover:text-[#d7d2cb]"
                             >
                               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
@@ -390,7 +1626,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                             New Password
                           </label>
                           <input
@@ -398,12 +1634,12 @@ export default function SettingsPage() {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="Enter new password (min 6 characters)"
-                            className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                             Confirm New Password
                           </label>
                           <input
@@ -411,14 +1647,14 @@ export default function SettingsPage() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm new password"
-                            className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           />
                         </div>
 
                         <button 
                           onClick={handlePasswordChange}
                           disabled={passwordSaving || !newPassword || !confirmPassword}
-                          className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/30 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="px-4 py-2 bg-[var(--accent)] backdrop-blur-md border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                           {passwordSaving ? (
                             <>
@@ -437,8 +1673,8 @@ export default function SettingsPage() {
 
                     <Card className="border-red-500/20 bg-red-500/5">
                       <CardHeader>
-                        <CardTitle className="text-red-400">Danger Zone</CardTitle>
-                        <CardDescription>Irreversible actions</CardDescription>
+                        <CardTitle className="text-red-400">Delete Account</CardTitle>
+                        <CardDescription>Permanently delete your account and all associated data</CardDescription>
                       </CardHeader>
                       <CardContent>
                         {!showDeleteConfirm ? (
@@ -501,46 +1737,303 @@ export default function SettingsPage() {
                   </motion.div>
                 )}
 
-                {/* Notifications */}
-                {activeSection === 'notifications' && (
+                {/* Subscription Settings */}
+                {activeSection === 'subscription' && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
                   >
                     <Card>
                       <CardHeader>
-                        <CardTitle>Notification Preferences</CardTitle>
-                        <CardDescription>Manage how you receive notifications</CardDescription>
+                        <CardTitle>Subscription</CardTitle>
+                        <CardDescription>Manage your subscription and billing</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {[
-                          { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications via email' },
-                          { key: 'taskReminders', label: 'Task Reminders', desc: 'Get reminded about upcoming tasks' },
-                          { key: 'milestoneAlerts', label: 'Milestone Alerts', desc: 'Notifications when you complete milestones' },
-                          { key: 'weeklyDigest', label: 'Weekly Digest', desc: 'Receive a summary of your weekly progress' },
-                        ].map((item) => (
-                          <div key={item.key} className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
-                            <div>
-                              <p className="text-sm font-medium text-[#d7d2cb]">{item.label}</p>
-                              <p className="text-xs text-[#d7d2cb]/60">{item.desc}</p>
-                            </div>
-                            <button
-                              onClick={() => setSettingsData({ 
-                                ...settingsData, 
-                                [item.key]: !settingsData[item.key as keyof SettingsData] 
-                              })}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-transparent ${
-                                settingsData[item.key as keyof SettingsData] ? 'bg-blue-500' : 'bg-white/20'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                                  settingsData[item.key as keyof SettingsData] ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                              />
-                            </button>
+                        {loadingSubscription ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="w-6 h-6 animate-spin text-[#ff7f00]" />
                           </div>
-                        ))}
+                        ) : subscription ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                Current Plan
+                              </label>
+                              <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-lg font-semibold text-[#d7d2cb]">
+                                      {subscription.planCycle.plan.name} - {subscription.planCycle.cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                                    </p>
+                                    <p className="text-sm text-[#d7d2cb]/60 mt-1">
+                                      Status: <span className={`capitalize ${
+                                        subscription.status === 'active' ? 'text-green-400' :
+                                        subscription.status === 'trialing' ? 'text-blue-400' :
+                                        subscription.status === 'past_due' ? 'text-orange-400' :
+                                        'text-red-400'
+                                      }`}>
+                                        {subscription.status}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <PlanManagementDropdown
+                                    onUpgrade={() => window.location.href = '/pricing'}
+                                    onCancel={handleCancelSubscription}
+                                    onManagePayment={handleManagePayment}
+                                    isCanceling={cancelingSubscription}
+                                    isOpeningPortal={openingPortal}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                  Current Period Start
+                                </label>
+                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
+                                  {new Date(subscription.currentPeriodStart).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                  Current Period End
+                                </label>
+                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
+                                  {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                Plan Limits
+                              </label>
+                              <div className="space-y-2">
+                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex justify-between">
+                                  <span className="text-[#d7d2cb]">API Credits</span>
+                                  <span className="text-[#d7d2cb] font-semibold">
+                                    {subscription.planCycle.apiCreditLimit.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex justify-between">
+                                  <span className="text-[#d7d2cb]">Integration Actions</span>
+                                  <span className="text-[#d7d2cb] font-semibold">
+                                    {subscription.planCycle.integrationActionLimit.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <CreditCard className="w-12 h-12 text-[#d7d2cb]/40 mx-auto mb-4" />
+                            <p className="text-[#d7d2cb] mb-4">No active subscription</p>
+                            <Button
+                              onClick={() => window.location.href = '/pricing'}
+                              variant="primary"
+                            >
+                              View Plans
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {/* Workday & Scheduling */}
+                {activeSection === 'workday' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                  >
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Workday Hours</CardTitle>
+                        <CardDescription>Configure your daily work schedule for optimal task scheduling</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                              Workday Start
+                            </label>
+                            <input
+                              type="time"
+                              value={`${settingsData.workdayStartHour.toString().padStart(2, '0')}:00`}
+                              onChange={(e) => {
+                                const hour = parseInt(e.target.value.split(':')[0])
+                                setSettingsData({ ...settingsData, workdayStartHour: hour })
+                              }}
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                              Workday End
+                            </label>
+                            <input
+                              type="time"
+                              value={`${settingsData.workdayEndHour.toString().padStart(2, '0')}:00`}
+                              onChange={(e) => {
+                                const hour = parseInt(e.target.value.split(':')[0])
+                                setSettingsData({ ...settingsData, workdayEndHour: hour })
+                              }}
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                              Lunch Start
+                            </label>
+                            <input
+                              type="time"
+                              value={`${settingsData.lunchStartHour.toString().padStart(2, '0')}:00`}
+                              onChange={(e) => {
+                                const hour = parseInt(e.target.value.split(':')[0])
+                                setSettingsData({ ...settingsData, lunchStartHour: hour })
+                              }}
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                              Lunch End
+                            </label>
+                            <input
+                              type="time"
+                              value={`${settingsData.lunchEndHour.toString().padStart(2, '0')}:00`}
+                              onChange={(e) => {
+                                const hour = parseInt(e.target.value.split(':')[0])
+                                setSettingsData({ ...settingsData, lunchEndHour: hour })
+                              }}
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-4">
+                          <button
+                            onClick={async () => {
+                              setSaving(true)
+                              try {
+                                const response = await fetch('/api/settings/workday', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    workdayStartHour: settingsData.workdayStartHour,
+                                    workdayEndHour: settingsData.workdayEndHour,
+                                    lunchStartHour: settingsData.lunchStartHour,
+                                    lunchEndHour: settingsData.lunchEndHour
+                                  })
+                                })
+
+                                if (!response.ok) {
+                                  const errorData = await response.json()
+                                  throw new Error(errorData.error || 'Failed to save workday settings')
+                                }
+
+                                addToast({
+                                  type: 'success',
+                                  title: 'Settings Saved',
+                                  description: 'Your workday hours have been updated successfully.',
+                                  duration: 3000
+                                })
+                              } catch (error: any) {
+                                console.error('Error saving workday settings:', error)
+                                addToast({
+                                  type: 'error',
+                                  title: 'Save Failed',
+                                  description: error.message || 'Failed to save workday settings. Please try again.',
+                                  duration: 5000
+                                })
+                              } finally {
+                                setSaving(false)
+                              }
+                            }}
+                            disabled={saving}
+                            className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {saving ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4" />
+                                Save Workday Settings
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {/* Smart Scheduling */}
+                {activeSection === 'workday' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6 mt-6"
+                  >
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Smart Scheduling</CardTitle>
+                        <CardDescription>Configure automatic scheduling and rescheduling features</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
+                          <div>
+                            <p className="text-sm font-medium text-[var(--foreground)]">Enable Smart Scheduling</p>
+                            <p className="text-xs text-[var(--muted-foreground)]">Allow AI to automatically reschedule tasks when needed</p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const newValue = !settingsData.smartSchedulingEnabled
+                              setSettingsData({ ...settingsData, smartSchedulingEnabled: newValue })
+                              
+                              // Save to API
+                              try {
+                                const response = await fetch('/api/settings/smart-scheduling', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ enabled: newValue })
+                                })
+                                
+                                if (!response.ok) {
+                                  throw new Error('Failed to save setting')
+                                }
+                              } catch (error) {
+                                console.error('Error saving smart scheduling setting:', error)
+                                // Revert on error
+                                setSettingsData({ ...settingsData, smartSchedulingEnabled: !newValue })
+                                addToast({
+                                  type: 'error',
+                                  title: 'Save Failed',
+                                  description: 'Failed to save smart scheduling setting. Please try again.',
+                                  duration: 5000
+                                })
+                              }
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-transparent ${
+                              settingsData.smartSchedulingEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--accent)]'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                                settingsData.smartSchedulingEnabled ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -555,65 +2048,391 @@ export default function SettingsPage() {
                   >
                     <Card>
                       <CardHeader>
-                        <CardTitle>Privacy Settings</CardTitle>
-                        <CardDescription>Control who can see your information</CardDescription>
+                        <CardTitle>Session Management</CardTitle>
+                        <CardDescription>Manage your active sessions and devices</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
-                            Profile Visibility
-                          </label>
-                          <select
-                            value={settingsData.profileVisibility}
-                            onChange={(e) => setSettingsData({ ...settingsData, profileVisibility: e.target.value as 'public' | 'private' })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
-                          >
-                            <option value="public">Public</option>
-                            <option value="private">Private</option>
-                          </select>
-                        </div>
-
-                        {[
-                          { key: 'shareAchievements', label: 'Share Achievements', desc: 'Display achievements in community' },
-                          { key: 'showProgress', label: 'Show Progress', desc: 'Allow others to see your progress' },
-                        ].map((item) => (
-                          <div key={item.key} className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
-                            <div>
-                              <p className="text-sm font-medium text-[#d7d2cb]">{item.label}</p>
-                              <p className="text-xs text-[#d7d2cb]/60">{item.desc}</p>
-                            </div>
-                            <button
-                              onClick={() => setSettingsData({ 
-                                ...settingsData, 
-                                [item.key]: !settingsData[item.key as keyof SettingsData] 
-                              })}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                                settingsData[item.key as keyof SettingsData] ? 'bg-blue-500' : 'bg-white/20'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                                  settingsData[item.key as keyof SettingsData] ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        ))}
+                      <CardContent>
+                        <button
+                          onClick={handleLogoutAllDevices}
+                          disabled={loggingOutAll}
+                          className="w-full px-4 py-2 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {loggingOutAll ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Logging Out...
+                            </>
+                          ) : (
+                            <>
+                              <LogOut className="w-4 h-4" />
+                              Log Out of All Devices
+                            </>
+                          )}
+                        </button>
+                        <p className="text-xs text-[var(--muted-foreground)] mt-2">
+                          This will sign you out of all devices and sessions. You'll need to sign in again.
+                        </p>
                       </CardContent>
                     </Card>
 
                     <Card>
                       <CardHeader>
-                        <CardTitle>Data & Privacy</CardTitle>
-                        <CardDescription>Manage your data</CardDescription>
+                        <CardTitle>Model Improvement</CardTitle>
+                        <CardDescription>Help improve the AI model for everyone</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        <button className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/10 transition-colors text-left">
-                          Download My Data
-                        </button>
-                        <button className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/10 transition-colors text-left">
-                          View Privacy Policy
-                        </button>
+                      <CardContent>
+                        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-[var(--foreground)] mb-1">Improve the Model for Everyone</p>
+                            <p className="text-xs text-[var(--muted-foreground)]">
+                              Allow your anonymized usage data to help improve the AI model (optional)
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleImproveModelToggle(!improveModelEnabled)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-transparent ${
+                              improveModelEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--accent)]'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                                improveModelEnabled ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Data Management</CardTitle>
+                        <CardDescription>Manage and export your data</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* Data Export */}
+                        <div>
+                          <h4 className="text-sm font-medium text-[var(--foreground)] mb-3">Data Export</h4>
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => handleExportData('json')}
+                              disabled={exportingData}
+                              className="w-full px-4 py-2 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              {exportingData ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Exporting...
+                                </>
+                              ) : (
+                                <>
+                                  <FileText className="w-4 h-4" />
+                                  Export as JSON
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleExportData('csv')}
+                              disabled={exportingData}
+                              className="w-full px-4 py-2 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              {exportingData ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Exporting...
+                                </>
+                              ) : (
+                                <>
+                                  <FileSpreadsheet className="w-4 h-4" />
+                                  Export as CSV
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-xs text-[var(--muted-foreground)] mt-2">
+                            Download all your data including plans, tasks, and settings.
+                          </p>
+                        </div>
+
+                        {/* Delete Plans */}
+                        <div className="border-t border-white/10 pt-6">
+                          <h4 className="text-sm font-medium text-[var(--foreground)] mb-3">Delete Plans</h4>
+                          {!showDeletePlansList ? (
+                            <button 
+                              onClick={() => {
+                                setShowDeletePlansList(true)
+                                loadPlans()
+                              }}
+                              className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Select Plans to Delete
+                            </button>
+                          ) : (
+                            <div className="space-y-4">
+                              {loadingPlans ? (
+                                <div className="text-center py-8 text-[var(--muted-foreground)]">
+                                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                  <p>Loading plans...</p>
+                                </div>
+                              ) : plans.length === 0 ? (
+                                <div className="text-center py-8 text-[var(--muted-foreground)]">
+                                  <p>No plans found.</p>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <button
+                                      onClick={handleSelectAllPlans}
+                                      className="flex items-center gap-2 text-sm text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+                                    >
+                                      {(() => {
+                                        const validPlans = plans.filter(p => p?.id)
+                                        return selectedPlans.size === validPlans.length && validPlans.length > 0 ? (
+                                          <CheckSquare className="w-4 h-4" />
+                                        ) : (
+                                          <Square className="w-4 h-4" />
+                                        )
+                                      })()}
+                                      <span>Select All</span>
+                                    </button>
+                                    <span className="text-xs text-[var(--muted-foreground)]">
+                                      {selectedPlans.size} of {plans.filter(p => p?.id).length} selected
+                                    </span>
+                                  </div>
+                                  <div className="max-h-64 overflow-y-auto space-y-2 border border-white/10 rounded-lg p-3">
+                                    {plans.filter(plan => plan?.id).map((plan) => {
+                                      const isSelected = selectedPlans.has(plan.id)
+                                      const planTitle = plan.goal_text || plan.summary_data?.goal_title || 'Untitled Plan'
+                                      return (
+                                        <div
+                                          key={plan.id}
+                                          onClick={() => handleTogglePlanSelection(plan.id)}
+                                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                            isSelected
+                                              ? 'bg-orange-500/20 border-orange-500/30'
+                                              : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                          }`}
+                                        >
+                                          {isSelected ? (
+                                            <CheckSquare className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                                          ) : (
+                                            <Square className="w-5 h-5 text-[var(--muted-foreground)] flex-shrink-0" />
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-[var(--foreground)] truncate">{planTitle}</p>
+                                            <p className="text-xs text-[var(--muted-foreground)]">
+                                              {plan.status || 'unknown'} • Created {plan.created_at ? new Date(plan.created_at).toLocaleDateString() : 'Unknown date'}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="flex gap-3">
+                                    <button
+                                      onClick={() => {
+                                        setShowDeletePlansList(false)
+                                        setSelectedPlans(new Set())
+                                      }}
+                                      className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={handleDeleteSelectedPlans}
+                                      disabled={selectedPlans.size === 0 || deletingPlans}
+                                      className="flex-1 px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                      {deletingPlans ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Trash2 className="w-4 h-4" />
+                                          Delete Selected ({selectedPlans.size})
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Delete Tasks */}
+                        <div className="border-t border-white/10 pt-6">
+                          <h4 className="text-sm font-medium text-[var(--foreground)] mb-3">Delete Tasks</h4>
+                          {!showDeleteTasksList ? (
+                            <button 
+                              onClick={() => {
+                                setShowDeleteTasksList(true)
+                                loadTasks()
+                              }}
+                              className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Select Tasks to Delete
+                            </button>
+                          ) : (
+                            <div className="space-y-4">
+                              {loadingTasks ? (
+                                <div className="text-center py-8 text-[var(--muted-foreground)]">
+                                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                  <p>Loading tasks...</p>
+                                </div>
+                              ) : tasks.length === 0 ? (
+                                <div className="text-center py-8 text-[var(--muted-foreground)]">
+                                  <p>No tasks found.</p>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <button
+                                      onClick={handleSelectAllTasks}
+                                      className="flex items-center gap-2 text-sm text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+                                    >
+                                      {(() => {
+                                        const validTasks = tasks.filter(t => t?.id)
+                                        return selectedTasks.size === validTasks.length && validTasks.length > 0 ? (
+                                          <CheckSquare className="w-4 h-4" />
+                                        ) : (
+                                          <Square className="w-4 h-4" />
+                                        )
+                                      })()}
+                                      <span>Select All</span>
+                                    </button>
+                                    <span className="text-xs text-[var(--muted-foreground)]">
+                                      {selectedTasks.size} of {tasks.filter(t => t?.id).length} selected
+                                    </span>
+                                  </div>
+                                  <div className="max-h-64 overflow-y-auto space-y-2 border border-white/10 rounded-lg p-3">
+                                    {tasks.filter(task => task?.id).map((task) => {
+                                      const isSelected = selectedTasks.has(task.id)
+                                      return (
+                                        <div
+                                          key={task.id}
+                                          onClick={() => handleToggleTaskSelection(task.id)}
+                                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                            isSelected
+                                              ? 'bg-orange-500/20 border-orange-500/30'
+                                              : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                          }`}
+                                        >
+                                          {isSelected ? (
+                                            <CheckSquare className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                                          ) : (
+                                            <Square className="w-5 h-5 text-[var(--muted-foreground)] flex-shrink-0" />
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-[var(--foreground)] truncate">{task.name || 'Unnamed Task'}</p>
+                                            <p className="text-xs text-[var(--muted-foreground)]">
+                                              Created {task.created_at ? new Date(task.created_at).toLocaleDateString() : 'Unknown date'}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="flex gap-3">
+                                    <button
+                                      onClick={() => {
+                                        setShowDeleteTasksList(false)
+                                        setSelectedTasks(new Set())
+                                      }}
+                                      className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={handleDeleteSelectedTasks}
+                                      disabled={selectedTasks.size === 0 || deletingTasks}
+                                      className="flex-1 px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 hover:bg-orange-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                      {deletingTasks ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Trash2 className="w-4 h-4" />
+                                          Delete Selected ({selectedTasks.size})
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Delete All Data */}
+                        <div className="border-t border-white/10 pt-6">
+                          <h4 className="text-sm font-medium text-red-400 mb-3">Delete All Data</h4>
+                          <p className="text-xs text-[var(--muted-foreground)] mb-3">
+                            Permanently delete all your data but keep your account
+                          </p>
+                          {!showDeleteDataConfirm ? (
+                            <button 
+                              onClick={() => setShowDeleteDataConfirm(true)}
+                              className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete All My Data
+                            </button>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                                <p className="text-sm text-red-400 mb-2">
+                                  ⚠️ This will permanently delete all your plans, tasks, progress data, and settings. Your account will remain active.
+                                </p>
+                                <p className="text-xs text-[#d7d2cb]/60">
+                                  Type <span className="font-bold text-red-400">DELETE DATA</span> to confirm
+                                </p>
+                              </div>
+                              <input
+                                type="text"
+                                value={deleteDataConfirmation}
+                                onChange={(e) => setDeleteDataConfirmation(e.target.value)}
+                                placeholder="Type DELETE DATA to confirm"
+                                className="w-full px-4 py-2 bg-white/5 border border-red-500/30 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                              />
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={() => {
+                                    setShowDeleteDataConfirm(false)
+                                    setDeleteDataConfirmation('')
+                                  }}
+                                  className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleDeleteData}
+                                  disabled={deletingData || deleteDataConfirmation !== 'DELETE DATA'}
+                                  className="flex-1 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                  {deletingData ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Deleting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Trash2 className="w-4 h-4" />
+                                      Delete My Data
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -632,13 +2451,38 @@ export default function SettingsPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Appearance
+                          </label>
+                          <select
+                            value={settingsData.theme}
+                            onChange={(e) => handlePreferencesChange('theme', e.target.value as 'dark' | 'light' | 'system')}
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                          >
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                            <option value="system">System</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                            Accent color
+                          </label>
+                          <AccentColorSelect
+                            value={settingsData.accentColor}
+                            onChange={(color) => handlePreferencesChange('accentColor', color)}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                             Time Format
                           </label>
                           <select
                             value={settingsData.timeFormat}
-                            onChange={(e) => setSettingsData({ ...settingsData, timeFormat: e.target.value as '12h' | '24h' })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                            onChange={(e) => handlePreferencesChange('timeFormat', e.target.value as '12h' | '24h')}
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           >
                             <option value="12h">12-hour</option>
                             <option value="24h">24-hour</option>
@@ -646,87 +2490,53 @@ export default function SettingsPage() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                             Start of Week
                           </label>
                           <select
                             value={settingsData.startOfWeek}
-                            onChange={(e) => setSettingsData({ ...settingsData, startOfWeek: e.target.value as 'sunday' | 'monday' })}
-                            className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                            onChange={(e) => handlePreferencesChange('startOfWeek', e.target.value as 'sunday' | 'monday')}
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           >
                             <option value="sunday">Sunday</option>
                             <option value="monday">Monday</option>
                           </select>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )}
 
-                {/* Advanced */}
-                {activeSection === 'advanced' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Advanced Features</CardTitle>
-                        <CardDescription>Manage your plans and goals</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="p-4 bg-white/5 border border-white/20 rounded-lg">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Target className="w-5 h-5 text-[#ff7f00]" />
-                            <p className="text-sm font-medium text-[#d7d2cb]">Manage Plans</p>
-                          </div>
-                          <p className="text-xs text-[#d7d2cb]/60 mb-3">
-                            Switch between plans, create new ones, or delete existing plans
-                          </p>
-                          <button
-                            onClick={() => setShowSwitchPlanModal(true)}
-                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors"
+                        {/* Animated Save Button */}
+                        {showPreferencesSave && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="flex justify-end pt-4"
                           >
-                            Open Plan Manager
-                          </button>
-                        </div>
+                            <button
+                              onClick={handleSavePreferences}
+                              disabled={saving}
+                              className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {saving ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4" />
+                                  Save Changes
+                                </>
+                              )}
+                            </button>
+                          </motion.div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
                 )}
 
-                {/* Save Button (Fixed at bottom) */}
-                <div className="sticky bottom-6 flex items-center justify-between p-4 bg-white/5 backdrop-blur-md border border-white/20 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {saveSuccess && (
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 text-green-400"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm">Settings saved successfully!</span>
-                      </motion.div>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="px-6 py-2 bg-white/10 backdrop-blur-md border border-white/30 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-[#d7d2cb] border-t-transparent rounded-full animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </button>
-                </div>
+
               </div>
             </div>
           </FadeInWrapper>
@@ -747,4 +2557,9 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+
+
+
+
 
