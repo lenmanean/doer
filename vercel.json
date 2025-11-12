@@ -1,8 +1,8 @@
 {
-  "buildCommand": "cd doer && npm install && npm run build",
-  "devCommand": "cd doer && npm run dev",
-  "installCommand": "cd doer && npm install",
-  "framework": "nextjs",
+  "buildCommand": null,
+  "devCommand": null,
+  "installCommand": null,
+  "framework": null,
   "rootDirectory": "doer"
 }
 
