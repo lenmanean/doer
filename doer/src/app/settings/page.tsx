@@ -48,13 +48,11 @@ import { PlanManagementDropdown } from '@/components/ui/PlanManagementDropdown'
 interface SettingsData {
   // Account
   email: string
-  displayName: string
   firstName: string
   lastName: string
   dateOfBirth: string
   phoneNumber: string
   phoneVerified: boolean
-  bio: string
   timezone: string
   locale: string
   
@@ -84,13 +82,11 @@ export default function SettingsPage() {
   const [showSwitchPlanModal, setShowSwitchPlanModal] = useState(false)
   const [settingsData, setSettingsData] = useState<SettingsData>({
     email: '',
-    displayName: '',
     firstName: '',
     lastName: '',
     dateOfBirth: '',
     phoneNumber: '',
     phoneVerified: false,
-    bio: '',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     locale: Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
     workdayStartHour: 9,
@@ -155,13 +151,11 @@ export default function SettingsPage() {
       setSettingsData(prev => ({
         ...prev,
         email: user.email || '',
-        displayName: profile.display_name || '',
         firstName: profile.first_name || '',
         lastName: profile.last_name || '',
         dateOfBirth: profile.date_of_birth || '',
         phoneNumber: profile.phone_number || '',
         phoneVerified: profile.phone_verified || false,
-        bio: profile.bio || '',
         timezone: profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         locale: profile.locale || Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
         workdayStartHour: prefs.workday?.workday_start_hour || savedSettings.workday?.workday_start_hour || 9,
@@ -382,7 +376,8 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          display_name: settingsData.displayName,
+          first_name: settingsData.firstName,
+          last_name: settingsData.lastName,
           settings: settings
         })
       })
@@ -457,15 +452,28 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          display_name: settingsData.displayName,
+          first_name: settingsData.firstName,
+          last_name: settingsData.lastName,
           settings: settings
         })
       })
 
       if (!response.ok) {
         const errorData = await response.json()
+        // If unauthorized, don't throw - just log and return early
+        // This prevents logout issues when saving settings
+        if (response.status === 401) {
+          console.error('Unauthorized when saving settings:', errorData)
+          alert('Your session may have expired. Please refresh the page and try again.')
+          setSaving(false)
+          return
+        }
         throw new Error(errorData.error || 'Failed to save settings')
       }
+
+      // Get the updated profile from the response
+      const result = await response.json()
+      const updatedProfile = result.profile
 
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -480,6 +488,10 @@ export default function SettingsPage() {
         timeFormat: settingsData.timeFormat,
         startOfWeek: settingsData.startOfWeek
       })
+
+      // Wait a brief moment to ensure the database update is committed
+      // This helps prevent race conditions when the page reloads
+      await new Promise(resolve => setTimeout(resolve, 500))
 
       // Refresh the page data to get updated settings
       window.location.reload()
@@ -753,13 +765,11 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          display_name: settingsData.displayName.trim(),
           avatar_url: avatarUrl,
           first_name: settingsData.firstName.trim() || null,
           last_name: settingsData.lastName.trim() || null,
           date_of_birth: settingsData.dateOfBirth || null,
           phone_number: settingsData.phoneNumber.trim() || null,
-          bio: settingsData.bio.trim() || null,
           timezone: settingsData.timezone || null,
           locale: settingsData.locale || null
         })
@@ -1317,23 +1327,6 @@ export default function SettingsPage() {
                             placeholder="Enter your last name"
                             className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           />
-                        </div>
-
-                        {/* Display Name */}
-                        <div>
-                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                            Display Name
-                          </label>
-                          <input
-                            type="text"
-                            value={settingsData.displayName}
-                            onChange={(e) => setSettingsData({ ...settingsData, displayName: e.target.value })}
-                            placeholder="Enter your display name"
-                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
-                          />
-                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                            This is how your name appears to others
-                          </p>
                         </div>
 
                         {/* Date of Birth */}

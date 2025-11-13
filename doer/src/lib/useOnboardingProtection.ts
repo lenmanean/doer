@@ -154,7 +154,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
         if (result.timedOut) {
           console.error('[useOnboardingProtection] Profile fetch timed out, using fallback')
           setProfile({
-            display_name: providerUser.email?.split('@')[0] || 'User',
+            first_name: providerUser.email?.split('@')[0] || 'User',
             email: providerUser.email
           })
           setLoading(false)
@@ -171,7 +171,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
               .from('user_settings')
               .insert({
                 user_id: providerUser.id,
-                display_name: providerUser.email?.split('@')[0] || 'User'
+                first_name: providerUser.email?.split('@')[0] || 'User'
               })
               .select()
               .single()
@@ -181,7 +181,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
             if (createError) {
               console.error('[useOnboardingProtection] Error creating profile:', createError)
               setProfile({
-                display_name: providerUser.email?.split('@')[0] || 'User',
+                first_name: providerUser.email?.split('@')[0] || 'User',
                 email: providerUser.email
               })
             } else if (newProfile) {
@@ -190,14 +190,14 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
           } catch (createErr) {
             console.error('[useOnboardingProtection] Error in profile creation:', createErr)
             setProfile({
-              display_name: providerUser.email?.split('@')[0] || 'User',
+              first_name: providerUser.email?.split('@')[0] || 'User',
               email: providerUser.email
             })
           }
         } else if (profileError) {
           console.error('[useOnboardingProtection] Error fetching profile:', profileError)
           setProfile({
-            display_name: providerUser.email?.split('@')[0] || 'User',
+            first_name: providerUser.email?.split('@')[0] || 'User',
             email: providerUser.email
           })
         } else if (userProfile) {
@@ -205,7 +205,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
           setProfile(userProfile)
         } else {
           setProfile({
-            display_name: providerUser.email?.split('@')[0] || 'User',
+            first_name: providerUser.email?.split('@')[0] || 'User',
             email: providerUser.email
           })
         }
@@ -213,7 +213,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
         console.error('[useOnboardingProtection] Unexpected error fetching profile:', error)
         if (isMountedRef.current) {
           setProfile({
-            display_name: providerUser.email?.split('@')[0] || 'User',
+            first_name: providerUser.email?.split('@')[0] || 'User',
             email: providerUser.email
           })
         }

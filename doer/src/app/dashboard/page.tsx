@@ -991,7 +991,9 @@ function DashboardContent() {
           <FadeInWrapper delay={0.1} direction="up">
             <div className="mb-8">
               <h1 className="text-5xl font-bold tracking-tight text-[#d7d2cb] mb-4">
-                Welcome back, {profile?.first_name || profile?.display_name || 'Achiever'}!
+                Welcome back, {profile?.first_name 
+                  ? `${profile.first_name}${profile?.last_name ? ` ${profile.last_name}` : ''}`.trim()
+                  : user?.email?.split('@')[0] || 'Achiever'}!
               </h1>
               <p className="text-base leading-relaxed text-[#d7d2cb]/70 max-w-prose">
                 {activePlan 

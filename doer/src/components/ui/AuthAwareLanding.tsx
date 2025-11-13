@@ -78,7 +78,7 @@ export default function AuthAwareLanding() {
             .insert({
               user_id: user.id,
               username: username,
-              display_name: user.email?.split('@')[0] || 'User',
+              first_name: user.email?.split('@')[0] || 'User',
               timezone: defaultTimezone,
               locale: defaultLocale
             })
@@ -91,7 +91,7 @@ export default function AuthAwareLanding() {
           // Set fallback profile
           setProfile({ 
             id: user.id,
-            display_name: user.email?.split('@')[0] || 'User',
+            first_name: user.email?.split('@')[0] || 'User',
             email: user.email
           })
         } else {
