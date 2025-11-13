@@ -91,6 +91,18 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     isMountedRef.current = true
     let subscription: { unsubscribe: () => void } | null = null
 
+    // Clean up corrupted session data on mount
+    if (typeof window !== 'undefined') {
+      try {
+        // Call validateAndCleanSession which includes cleanup
+        validateAndCleanSession().catch(() => {
+          // Ignore errors during initial cleanup
+        })
+      } catch {
+        // Ignore errors
+      }
+    }
+
     const resolveUser = async () => {
       // Add timeout protection - loading should never exceed 10 seconds
       if (loadingTimeoutRef.current) {
@@ -118,12 +130,20 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
           console.error('[SupabaseProvider] User resolved:', data.user?.id || 'null')
           setUser(data.user ?? null)
         }
-      } catch (error) {
+      } catch (error: any) {
         if (!isMountedRef.current) return
-        if (!isSessionMissingError(error)) {
+        
+        // Handle corrupted session data error
+        if (error?.message?.includes('Cannot create property') || error?.message?.includes('on string')) {
+          console.error('[SupabaseProvider] Corrupted session data detected, clearing storage')
+          clearStorageOnSignOut()
+          setUser(null)
+        } else if (!isSessionMissingError(error)) {
           console.error('[SupabaseProvider] Unexpected auth error:', error)
+          setUser(null)
+        } else {
+          setUser(null)
         }
-        setUser(null)
       } finally {
         if (isMountedRef.current) {
           if (loadingTimeoutRef.current) {
@@ -199,12 +219,20 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         } else {
           setUser(data.user ?? null)
         }
-      } catch (error) {
+      } catch (error: any) {
         if (!isMountedRef.current) return
-        if (!isSessionMissingError(error)) {
+        
+        // Handle corrupted session data error
+        if (error?.message?.includes('Cannot create property') || error?.message?.includes('on string')) {
+          console.error('[SupabaseProvider] Corrupted session data detected during auth change, clearing storage')
+          clearStorageOnSignOut()
+          setUser(null)
+        } else if (!isSessionMissingError(error)) {
           console.error('[SupabaseProvider] Unexpected auth change error:', error)
+          setUser(null)
+        } else {
+          setUser(null)
         }
-        setUser(null)
       } finally {
         if (isMountedRef.current) {
           setLoading(false)

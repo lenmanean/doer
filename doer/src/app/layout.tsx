@@ -38,15 +38,16 @@ export default async function RootLayout({
   // Use validateSession to get user - this automatically handles invalid sessions
   let initialUser = null
   try {
-    console.error('[layout] Validating session for initial user...')
     initialUser = await validateSession()
+    // Only log if user is found (to reduce noise in logs for public pages)
     if (initialUser) {
-      console.error('[layout] Initial user validated:', initialUser.id)
-    } else {
-      console.error('[layout] No valid session found')
+      console.log('[layout] Initial user validated:', initialUser.id)
     }
   } catch (error: any) {
-    console.error('[layout] Error validating session:', error)
+    // Only log actual errors, not missing sessions
+    if (!error?.message?.includes('session') && !error?.message?.includes('Auth session missing')) {
+      console.error('[layout] Error validating session:', error)
+    }
     // Don't set initialUser if validation fails
     initialUser = null
   }

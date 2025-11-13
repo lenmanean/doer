@@ -44,14 +44,25 @@ export async function validateSession() {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) {
-      console.error('[supabase/server] Invalid session detected:', error.message)
-      // Try to clear invalid session
-      try {
-        await supabase.auth.signOut()
-      } catch (signOutError) {
-        console.error('[supabase/server] Error clearing invalid session:', signOutError)
+      // Only log as error if it's not a missing session (which is normal for public pages)
+      const isSessionMissing = error.message?.includes('session') || 
+                               error.message?.includes('Auth session missing') ||
+                               error.name === 'AuthSessionMissingError'
+      
+      if (isSessionMissing) {
+        // Missing session is normal for public pages - don't log as error
+        return null
+      } else {
+        // Actual error (invalid token, expired, etc.) - log it
+        console.error('[supabase/server] Invalid session detected:', error.message)
+        // Try to clear invalid session
+        try {
+          await supabase.auth.signOut()
+        } catch (signOutError) {
+          console.error('[supabase/server] Error clearing invalid session:', signOutError)
+        }
+        return null
       }
-      return null
     }
     
     return user
