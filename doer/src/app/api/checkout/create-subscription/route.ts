@@ -15,6 +15,9 @@ if (stripeSecretKey) {
 }
 
 export async function POST(request: NextRequest) {
+  // Declare subscription outside try block so it's accessible in catch for cleanup
+  let subscription: Stripe.Subscription | null = null
+  
   try {
     if (!stripe) {
       return NextResponse.json(
@@ -95,8 +98,6 @@ export async function POST(request: NextRequest) {
     })
 
     // Create subscription with payment behavior that requires payment intent
-    // Declare subscription outside try block so it's accessible in catch for cleanup
-    let subscription: Stripe.Subscription | null = null
     subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
       items: [
@@ -379,7 +380,7 @@ export async function POST(request: NextRequest) {
 
     // If we created a subscription but then hit an error, try to clean it up
     // This prevents accumulation of incomplete subscriptions/payment intents
-    if (subscription?.id) {
+    if (subscription?.id && stripe) {
       try {
         console.log('[Create Subscription] Error occurred, attempting to cancel subscription for cleanup...')
         await stripe.subscriptions.cancel(subscription.id)
