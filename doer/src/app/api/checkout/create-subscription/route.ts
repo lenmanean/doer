@@ -451,10 +451,10 @@ export async function POST(request: NextRequest) {
         })
       } catch (retrieveError) {
         console.error('[Create Subscription] Error retrieving payment intent:', retrieveError)
-        return NextResponse.json(
+      return NextResponse.json(
           { error: 'Failed to retrieve payment intent. Please retry.' },
-          { status: 500 }
-        )
+        { status: 500 }
+      )
       }
     }
 

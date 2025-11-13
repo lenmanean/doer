@@ -20,3 +20,31 @@ export const supabase = createBrowserClient(
   }
 )
 
+/**
+ * Validate and clean up invalid sessions
+ * This should be called periodically to ensure session integrity
+ */
+export async function validateAndCleanSession() {
+  if (typeof window === 'undefined') return { valid: false, user: null }
+  
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error) {
+      // Session is invalid - clear it
+      console.error('[supabase/client] Invalid session detected, clearing:', error.message)
+      try {
+        await supabase.auth.signOut({ scope: 'local' })
+      } catch (signOutError) {
+        console.error('[supabase/client] Error clearing invalid session:', signOutError)
+      }
+      return { valid: false, user: null }
+    }
+    
+    return { valid: true, user }
+  } catch (error) {
+    console.error('[supabase/client] Error validating session:', error)
+    return { valid: false, user: null }
+  }
+}
+

@@ -4,7 +4,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { validateCoreFeatures } from "@/lib/feature-flags";
 import { PageFadeIn } from "@/components/ui/FadeInWrapper";
-import { createClient } from '@/lib/supabase/server'
+import { createClient, validateSession } from '@/lib/supabase/server'
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { getLocale } from '@/i18n/request'
@@ -32,19 +32,20 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient()
-
+  // Use validateSession to get user - this automatically handles invalid sessions
   let initialUser = null
   try {
-    const { data: { user }, error: initialUserError } = await supabase.auth.getUser()
-    if (initialUserError && initialUserError.name !== 'AuthSessionMissingError') {
-      console.error('Error retrieving initial user:', initialUserError)
+    console.error('[layout] Validating session for initial user...')
+    initialUser = await validateSession()
+    if (initialUser) {
+      console.error('[layout] Initial user validated:', initialUser.id)
+    } else {
+      console.error('[layout] No valid session found')
     }
-    initialUser = user ?? null
   } catch (error: any) {
-    if (error?.name !== 'AuthSessionMissingError') {
-      console.error('Error retrieving initial user:', error)
-    }
+    console.error('[layout] Error validating session:', error)
+    // Don't set initialUser if validation fails
+    initialUser = null
   }
 
   // Get locale with error handling

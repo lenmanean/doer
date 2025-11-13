@@ -34,3 +34,30 @@ export async function createClient() {
   )
 }
 
+/**
+ * Validate session and return user if valid, null if invalid
+ * Automatically cleans up invalid sessions
+ */
+export async function validateSession() {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error) {
+      console.error('[supabase/server] Invalid session detected:', error.message)
+      // Try to clear invalid session
+      try {
+        await supabase.auth.signOut()
+      } catch (signOutError) {
+        console.error('[supabase/server] Error clearing invalid session:', signOutError)
+      }
+      return null
+    }
+    
+    return user
+  } catch (error) {
+    console.error('[supabase/server] Error validating session:', error)
+    return null
+  }
+}
+

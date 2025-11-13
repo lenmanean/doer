@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase/client'
+import { supabase, validateAndCleanSession } from '@/lib/supabase/client'
 
 interface SupabaseContextType {
   supabase: typeof supabase
@@ -23,17 +23,91 @@ const isSessionMissingError = (error: unknown) =>
   'name' in error &&
   (error as { name?: string }).name === 'AuthSessionMissingError'
 
+/**
+ * Clear browser storage related to Supabase
+ */
+function clearStorageOnSignOut() {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    let projectRef: string | null = null
+    
+    if (supabaseUrl) {
+      try {
+        const url = new URL(supabaseUrl)
+        const hostname = url.hostname
+        const match = hostname.match(/^([^.]+)\.supabase\.co$/)
+        projectRef = match ? match[1] : null
+      } catch {
+        // Ignore
+      }
+    }
+    
+    // Clear localStorage
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth') || (projectRef && key.includes(projectRef)))) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key)
+      } catch {
+        // Ignore
+      }
+    })
+    
+    // Clear sessionStorage
+    const sessionKeysToRemove: string[] = []
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth') || (projectRef && key.includes(projectRef)))) {
+        sessionKeysToRemove.push(key)
+      }
+    }
+    sessionKeysToRemove.forEach(key => {
+      try {
+        sessionStorage.removeItem(key)
+      } catch {
+        // Ignore
+      }
+    })
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function SupabaseProvider({ children, initialUser }: SupabaseProviderProps) {
   const [user, setUser] = useState<User | null>(initialUser ?? null)
   const [loading, setLoading] = useState(initialUser === undefined)
+  const isMountedRef = useRef(true)
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const sessionValidationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    let isMounted = true
+    isMountedRef.current = true
+    let subscription: { unsubscribe: () => void } | null = null
 
     const resolveUser = async () => {
+      // Add timeout protection - loading should never exceed 10 seconds
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+      }
+      loadingTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current && loading) {
+          console.error('[SupabaseProvider] Loading timeout - forcing loading to false')
+          setLoading(false)
+        }
+      }, 10000)
+
       try {
+        console.error('[SupabaseProvider] Resolving user...')
         const { data, error } = await supabase.auth.getUser()
-        if (!isMounted) return
+        
+        if (!isMountedRef.current) return
 
         if (error) {
           if (!isSessionMissingError(error)) {
@@ -41,16 +115,21 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
           }
           setUser(null)
         } else {
+          console.error('[SupabaseProvider] User resolved:', data.user?.id || 'null')
           setUser(data.user ?? null)
         }
       } catch (error) {
-        if (!isMounted) return
+        if (!isMountedRef.current) return
         if (!isSessionMissingError(error)) {
           console.error('[SupabaseProvider] Unexpected auth error:', error)
         }
         setUser(null)
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current) {
+          if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current)
+            loadingTimeoutRef.current = null
+          }
           setLoading(false)
         }
       }
@@ -59,21 +138,58 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     if (initialUser === undefined) {
       resolveUser()
     } else {
-      setLoading(false)
+      // Validate initial user if provided
+      if (initialUser) {
+        validateAndCleanSession().then(({ valid, user: validatedUser }) => {
+          if (!isMountedRef.current) return
+          if (!valid || !validatedUser) {
+            console.error('[SupabaseProvider] Initial user invalid, clearing')
+            setUser(null)
+          } else if (validatedUser.id !== initialUser.id) {
+            console.error('[SupabaseProvider] Initial user mismatch, updating')
+            setUser(validatedUser)
+          }
+          setLoading(false)
+        }).catch(() => {
+          if (isMountedRef.current) {
+            setLoading(false)
+          }
+        })
+      } else {
+        setLoading(false)
+      }
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-      if (!isMounted) return
+    // Set up auth state change listener
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (!isMountedRef.current) return
+
+      console.error('[SupabaseProvider] Auth state change:', event)
 
       if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
+        console.error('[SupabaseProvider] User signed out, clearing state and storage')
         setUser(null)
         setLoading(false)
+        clearStorageOnSignOut()
         return
       }
 
+      if (event === 'TOKEN_REFRESHED') {
+        // Validate session after token refresh
+        const { valid, user: validatedUser } = await validateAndCleanSession()
+        if (!isMountedRef.current) return
+        if (valid && validatedUser) {
+          setUser(validatedUser)
+        } else {
+          setUser(null)
+        }
+        return
+      }
+
+      // For other events (SIGNED_IN, USER_UPDATED), verify user
       try {
         const { data, error } = await supabase.auth.getUser()
-        if (!isMounted) return
+        if (!isMountedRef.current) return
 
         if (error) {
           if (!isSessionMissingError(error)) {
@@ -84,23 +200,51 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
           setUser(data.user ?? null)
         }
       } catch (error) {
-        if (!isMounted) return
+        if (!isMountedRef.current) return
         if (!isSessionMissingError(error)) {
           console.error('[SupabaseProvider] Unexpected auth change error:', error)
         }
         setUser(null)
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current) {
           setLoading(false)
         }
       }
     })
 
+    subscription = authSubscription
+
+    // Periodic session validation (every 5 minutes)
+    sessionValidationIntervalRef.current = setInterval(async () => {
+      if (!isMountedRef.current) return
+      if (!user) return // Only validate if we have a user
+      
+      const { valid, user: validatedUser } = await validateAndCleanSession()
+      if (!isMountedRef.current) return
+      
+      if (!valid) {
+        console.error('[SupabaseProvider] Periodic validation failed, clearing user')
+        setUser(null)
+        clearStorageOnSignOut()
+      } else if (validatedUser && validatedUser.id !== user.id) {
+        console.error('[SupabaseProvider] User changed during validation, updating')
+        setUser(validatedUser)
+      }
+    }, 5 * 60 * 1000) // 5 minutes
+
     return () => {
-      isMounted = false
-      subscription.unsubscribe()
+      isMountedRef.current = false
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+      }
+      if (sessionValidationIntervalRef.current) {
+        clearInterval(sessionValidationIntervalRef.current)
+      }
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
-  }, [initialUser])
+  }, [initialUser]) // Only depend on initialUser to avoid infinite loops
 
   const contextValue: SupabaseContextType = {
     supabase,
