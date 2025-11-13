@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
-import { assignSubscription, type BillingCycle } from '@/lib/billing/plans'
+import { assignSubscription, type BillingCycle, type SubscriptionStatus } from '@/lib/billing/plans'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -57,6 +57,53 @@ function convertStripeIntervalToBillingCycle(
   return 'monthly'
 }
 
+/**
+ * Maps Stripe subscription status to our SubscriptionStatus enum
+ */
+function mapStripeSubscriptionStatus(stripeStatus: string): SubscriptionStatus {
+  const normalized = stripeStatus.toLowerCase().trim()
+  
+  switch (normalized) {
+    case 'trialing':
+      return 'trialing'
+    case 'active':
+      return 'active'
+    case 'past_due':
+      return 'past_due'
+    case 'canceled':
+    case 'unpaid':
+    case 'incomplete':
+    case 'incomplete_expired':
+      return 'canceled'
+    default:
+      console.warn(`[Stripe webhook] Unknown subscription status: "${stripeStatus}", defaulting to "active"`)
+      return 'active'
+  }
+}
+
+/**
+ * Extracts customer ID from Stripe subscription object
+ * Customer can be a string ID or a Customer object
+ */
+function extractCustomerId(subscription: Stripe.Subscription | Stripe.Checkout.Session): string | null {
+  if (typeof subscription.customer === 'string') {
+    return subscription.customer
+  }
+  if (subscription.customer && typeof subscription.customer === 'object' && 'id' in subscription.customer) {
+    return subscription.customer.id
+  }
+  return null
+}
+
+/**
+ * Formats Stripe timestamp to date string (YYYY-MM-DD)
+ */
+function formatStripeDate(timestamp: number | null | undefined): string | undefined {
+  if (!timestamp) return undefined
+  const date = new Date(timestamp * 1000) // Stripe timestamps are in seconds
+  return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
+}
+
 export async function POST(req: NextRequest) {
   if (!stripe) {
     return NextResponse.json(
@@ -99,9 +146,17 @@ export async function POST(req: NextRequest) {
         const planSlug = metadata.planSlug
         const metadataBillingCycle = metadata.billingCycle as string | undefined
         
+        // Extract Stripe IDs from session
+        const stripeCustomerId = extractCustomerId(session)
+        const stripeSubscriptionId = session.subscription 
+          ? (typeof session.subscription === 'string' ? session.subscription : session.subscription.id)
+          : null
+        
         // Log raw values for debugging
         console.log('[Stripe webhook] Checkout session completed - raw values:', {
           sessionId: session.id,
+          stripeCustomerId,
+          stripeSubscriptionId,
           metadataBillingCycle,
           metadata: JSON.stringify(metadata),
         })
@@ -133,11 +188,27 @@ export async function POST(req: NextRequest) {
           })
           break
         }
+
+        // Update user_settings.stripe_customer_id if customer ID is available
+        if (stripeCustomerId) {
+          const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
+          const supabase = getServiceRoleClient()
+          await supabase
+            .from('user_settings')
+            .update({ stripe_customer_id: stripeCustomerId })
+            .eq('user_id', userId)
+          console.log('[Stripe webhook] Updated user_settings.stripe_customer_id:', {
+            userId,
+            stripeCustomerId,
+          })
+        }
         
         console.log('[Stripe webhook] Proceeding with subscription assignment:', {
           userId,
           planSlug,
           billingCycle,
+          stripeCustomerId,
+          stripeSubscriptionId,
         })
 
         try {
@@ -149,12 +220,43 @@ export async function POST(req: NextRequest) {
             })
             billingCycle = 'monthly' // Force to valid default
           }
+
+          // If we have a subscription ID, fetch the subscription to get period dates
+          let periodStart: string | undefined
+          let periodEnd: string | undefined
+          let status: SubscriptionStatus | undefined
+
+          if (stripeSubscriptionId && stripe) {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId)
+              status = mapStripeSubscriptionStatus(subscription.status)
+              periodStart = formatStripeDate(subscription.current_period_start)
+              periodEnd = formatStripeDate(subscription.current_period_end)
+              console.log('[Stripe webhook] Retrieved subscription details:', {
+                subscriptionId: stripeSubscriptionId,
+                status,
+                periodStart,
+                periodEnd,
+              })
+            } catch (error) {
+              console.error('[Stripe webhook] Error retrieving subscription:', error)
+              // Continue without period dates - assignSubscription will calculate them
+            }
+          }
           
-          await assignSubscription(userId, planSlug, billingCycle)
+          await assignSubscription(userId, planSlug, billingCycle, {
+            stripeCustomerId: stripeCustomerId || undefined,
+            stripeSubscriptionId: stripeSubscriptionId || undefined,
+            status,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd,
+          })
           console.log('[Stripe webhook] Assigned subscription via checkout.session.completed', {
             userId,
             planSlug,
             billingCycle,
+            stripeCustomerId,
+            stripeSubscriptionId,
           })
         } catch (error) {
           console.error('[Stripe webhook] Error assigning subscription:', {
@@ -176,13 +278,30 @@ export async function POST(req: NextRequest) {
         const metadata = subscription.metadata || {}
         const userId = metadata.userId
         const planSlug = metadata.planSlug
+        
+        // Extract Stripe IDs from subscription
+        const stripeCustomerId = extractCustomerId(subscription)
+        const stripeSubscriptionId = subscription.id
+        
         // Get billing cycle from Stripe's interval (month/year) or metadata, converting as needed
         const stripeInterval = subscription.items.data[0]?.price?.recurring?.interval
         const metadataBillingCycle = metadata.billingCycle as string | undefined
         
+        // Map Stripe subscription status to our enum
+        const status = mapStripeSubscriptionStatus(subscription.status)
+        
+        // Extract period dates from subscription
+        const periodStart = formatStripeDate(subscription.current_period_start)
+        const periodEnd = formatStripeDate(subscription.current_period_end)
+        
         // Log raw values for debugging
         console.log('[Stripe webhook] Subscription event - raw values:', {
-          subscriptionId: subscription.id,
+          subscriptionId: stripeSubscriptionId,
+          stripeCustomerId,
+          status: subscription.status,
+          mappedStatus: status,
+          periodStart,
+          periodEnd,
           metadataBillingCycle,
           stripeInterval,
           metadata: JSON.stringify(metadata),
@@ -213,36 +332,66 @@ export async function POST(req: NextRequest) {
         }
 
         if (!userId || !planSlug) {
-          console.log('[Stripe webhook] Subscription event without userId/planSlug, ignoring', {
-            subscriptionId: subscription.id,
+          console.log('[Stripe webhook] Subscription event without userId/planSlug, checking by subscription ID', {
+            subscriptionId: stripeSubscriptionId,
           })
+          
+          // Try to find subscription by Stripe ID
+          if (stripeSubscriptionId) {
+            const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
+            const supabase = getServiceRoleClient()
+            const { data: existingSub } = await supabase
+              .from('user_plan_subscriptions')
+              .select('user_id, billing_plan_cycles!inner(billing_plan:billing_plans!inner(slug))')
+              .eq('external_subscription_id', stripeSubscriptionId)
+              .maybeSingle()
+            
+            if (existingSub) {
+              // Update existing subscription with new status and period dates
+              await supabase
+                .from('user_plan_subscriptions')
+                .update({
+                  status: status,
+                  current_period_start: periodStart || undefined,
+                  current_period_end: periodEnd || undefined,
+                  external_customer_id: stripeCustomerId || undefined,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('external_subscription_id', stripeSubscriptionId)
+              
+              console.log('[Stripe webhook] Updated existing subscription by Stripe ID:', {
+                subscriptionId: stripeSubscriptionId,
+                status,
+              })
+            }
+          }
           break
+        }
+
+        // Update user_settings.stripe_customer_id if customer ID is available
+        if (stripeCustomerId) {
+          const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
+          const supabase = getServiceRoleClient()
+          await supabase
+            .from('user_settings')
+            .update({ stripe_customer_id: stripeCustomerId })
+            .eq('user_id', userId)
+          console.log('[Stripe webhook] Updated user_settings.stripe_customer_id:', {
+            userId,
+            stripeCustomerId,
+          })
         }
         
         console.log('[Stripe webhook] Proceeding with subscription assignment:', {
           userId,
           planSlug,
           billingCycle,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          status,
+          periodStart,
+          periodEnd,
         })
-
-        // Check if subscription already assigned (idempotency)
-        const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
-        const supabase = getServiceRoleClient()
-        const { data: existing } = await supabase
-          .from('user_plan_subscriptions')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .limit(1)
-          .maybeSingle()
-
-        if (existing && subscription.status === 'active') {
-          console.log('[Stripe webhook] Subscription already assigned, skipping', {
-            userId,
-            subscriptionId: subscription.id,
-          })
-          break
-        }
 
         try {
           // Double-check billing cycle is valid before calling assignSubscription
@@ -255,11 +404,21 @@ export async function POST(req: NextRequest) {
             billingCycle = 'monthly' // Force to valid default
           }
           
-          await assignSubscription(userId, planSlug, billingCycle)
+          // assignSubscription will handle idempotency by checking Stripe subscription ID
+          await assignSubscription(userId, planSlug, billingCycle, {
+            stripeCustomerId: stripeCustomerId || undefined,
+            stripeSubscriptionId: stripeSubscriptionId || undefined,
+            status,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd,
+          })
           console.log('[Stripe webhook] Assigned subscription via subscription event', {
             userId,
             planSlug,
             billingCycle,
+            stripeCustomerId,
+            stripeSubscriptionId,
+            status,
           })
         } catch (error) {
           console.error('[Stripe webhook] Error assigning subscription:', {
@@ -280,19 +439,50 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         const metadata = subscription.metadata || {}
         const userId = metadata.userId
+        const stripeSubscriptionId = subscription.id
 
+        const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
+        const supabase = getServiceRoleClient()
+
+        // Try to update by Stripe subscription ID first (more reliable)
+        if (stripeSubscriptionId) {
+          const { error: updateError } = await supabase
+            .from('user_plan_subscriptions')
+            .update({ 
+              status: 'canceled',
+              cancel_at: formatStripeDate(subscription.canceled_at) || undefined,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('external_subscription_id', stripeSubscriptionId)
+
+          if (!updateError) {
+            console.log('[Stripe webhook] Marked subscription as canceled by Stripe ID', {
+              subscriptionId: stripeSubscriptionId,
+            })
+            break
+          }
+        }
+
+        // Fallback to updating by user ID if Stripe ID lookup failed
         if (userId) {
-          const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
-          const supabase = getServiceRoleClient()
           await supabase
             .from('user_plan_subscriptions')
-            .update({ status: 'canceled' })
+            .update({ 
+              status: 'canceled',
+              cancel_at: formatStripeDate(subscription.canceled_at) || undefined,
+              updated_at: new Date().toISOString(),
+            })
             .eq('user_id', userId)
-            .eq('status', 'active')
+            .in('status', ['active', 'trialing'])
 
-          console.log('[Stripe webhook] Marked subscription as canceled', {
+          console.log('[Stripe webhook] Marked subscription as canceled by user ID', {
             userId,
-            subscriptionId: subscription.id,
+            subscriptionId: stripeSubscriptionId,
+          })
+        } else {
+          console.warn('[Stripe webhook] Subscription deleted but no userId or subscriptionId found', {
+            subscriptionId: stripeSubscriptionId,
+            metadata,
           })
         }
         break
@@ -300,29 +490,63 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = typeof (invoice as any).subscription === 'string' 
-          ? (invoice as any).subscription 
-          : (invoice as any).subscription?.id
+        const subscriptionId = typeof invoice.subscription === 'string' 
+          ? invoice.subscription 
+          : invoice.subscription?.id
 
-        if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-          const metadata = subscription.metadata || {}
-          const userId = metadata.userId
+        if (subscriptionId && stripe) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+            const metadata = subscription.metadata || {}
+            const userId = metadata.userId
 
-          if (userId) {
             const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
             const supabase = getServiceRoleClient()
-            await supabase
-              .from('user_plan_subscriptions')
-              .update({ status: 'past_due' })
-              .eq('user_id', userId)
-              .eq('status', 'active')
 
-            console.log('[Stripe webhook] Marked subscription as past_due', {
-              userId,
-              subscriptionId,
-            })
+            // Try to update by Stripe subscription ID first (more reliable)
+            const { error: updateError } = await supabase
+              .from('user_plan_subscriptions')
+              .update({ 
+                status: 'past_due',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('external_subscription_id', subscriptionId)
+
+            if (!updateError) {
+              console.log('[Stripe webhook] Marked subscription as past_due by Stripe ID', {
+                subscriptionId,
+              })
+              break
+            }
+
+            // Fallback to updating by user ID if Stripe ID lookup failed
+            if (userId) {
+              await supabase
+                .from('user_plan_subscriptions')
+                .update({ 
+                  status: 'past_due',
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', userId)
+                .in('status', ['active', 'trialing'])
+
+              console.log('[Stripe webhook] Marked subscription as past_due by user ID', {
+                userId,
+                subscriptionId,
+              })
+            } else {
+              console.warn('[Stripe webhook] Payment failed but no userId found', {
+                subscriptionId,
+                metadata,
+              })
+            }
+          } catch (error) {
+            console.error('[Stripe webhook] Error handling payment_failed event:', error)
           }
+        } else {
+          console.warn('[Stripe webhook] Payment failed but no subscription ID found', {
+            invoiceId: invoice.id,
+          })
         }
         break
       }

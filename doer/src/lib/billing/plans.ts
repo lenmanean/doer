@@ -67,6 +67,8 @@ type SubscriptionRow = {
   billing_plan_cycle_id: string
   current_period_start: string
   current_period_end: string
+  external_customer_id?: string | null
+  external_subscription_id?: string | null
   billing_plan_cycles: PlanCycleRow
 }
 
@@ -77,6 +79,8 @@ const SUBSCRIPTION_SELECT = `
         billing_plan_cycle_id,
         current_period_start,
         current_period_end,
+        external_customer_id,
+        external_subscription_id,
         billing_plan_cycles!inner (
           id,
           cycle,
@@ -399,17 +403,110 @@ export function getUsageLimits(planCycle: BillingPlanCycle): Record<UsageMetric,
 export async function assignSubscription(
   userId: string,
   planSlug: string,
-  cycle: BillingCycle
+  cycle: BillingCycle,
+  options?: {
+    stripeCustomerId?: string
+    stripeSubscriptionId?: string
+    status?: SubscriptionStatus
+    currentPeriodStart?: string
+    currentPeriodEnd?: string
+  }
 ): Promise<UserPlanSubscription> {
   const planCycle = await getPlanCycleBySlugAndCycle(planSlug, cycle)
   const { start, end } = calculateCycleBounds(planCycle.cycle)
   const supabase = getServiceRoleClient()
 
+  // Use provided dates or calculate from cycle
+  const periodStart = options?.currentPeriodStart || start
+  const periodEnd = options?.currentPeriodEnd || end
+  const status = options?.status || 'active'
+
+  // Check if subscription with this Stripe ID already exists (idempotency)
+  if (options?.stripeSubscriptionId) {
+    const { data: existingByStripeId } = await supabase
+      .from('user_plan_subscriptions')
+      .select(SUBSCRIPTION_SELECT)
+      .eq('external_subscription_id', options.stripeSubscriptionId)
+      .maybeSingle<SubscriptionRow>()
+
+    if (existingByStripeId) {
+      console.log('[assignSubscription] Subscription with Stripe ID already exists, updating:', {
+        stripeSubscriptionId: options.stripeSubscriptionId,
+        userId,
+      })
+      
+      // Update existing subscription
+      const { data: updated, error: updateError } = await supabase
+        .from('user_plan_subscriptions')
+        .update({
+          user_id: userId,
+          billing_plan_cycle_id: planCycle.id,
+          status: status,
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+          external_customer_id: options.stripeCustomerId || existingByStripeId.external_customer_id,
+          external_subscription_id: options.stripeSubscriptionId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('external_subscription_id', options.stripeSubscriptionId)
+        .select(SUBSCRIPTION_SELECT)
+        .maybeSingle<SubscriptionRow>()
+
+      if (updateError) {
+        throw new Error(`Failed to update existing subscription: ${updateError.message}`)
+      }
+
+      if (updated) {
+        // Cancel other active subscriptions for this user
+        await supabase
+          .from('user_plan_subscriptions')
+          .update({
+            status: 'canceled',
+            cancel_at: periodEnd,
+            cancel_at_period_end: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+          .in('status', ['active', 'trialing'])
+          .neq('external_subscription_id', options.stripeSubscriptionId)
+
+        // Update usage balances
+        const metrics: Array<{ metric: UsageMetric; allocation: number }> = [
+          { metric: 'api_credits', allocation: planCycle.apiCreditLimit },
+          { metric: 'integration_actions', allocation: planCycle.integrationActionLimit },
+        ]
+
+        for (const { metric, allocation } of metrics) {
+          const { error } = await supabase.rpc('reset_usage_cycle', {
+            p_user_id: userId,
+            p_metric: metric,
+            p_cycle_start: periodStart,
+            p_cycle_end: periodEnd,
+            p_allocation: allocation,
+            p_reference: {
+              reason: 'assignment',
+              billing_plan_cycle_id: planCycle.id,
+              stripe_subscription_id: options.stripeSubscriptionId,
+            },
+          })
+
+          if (error) {
+            console.error(`Failed to reset ${metric} usage:`, error)
+            // Don't throw - usage reset is not critical for subscription assignment
+          }
+        }
+
+        return mapSubscription(updated)
+      }
+    }
+  }
+
+  // Cancel existing active subscriptions for this user
   const cancelResult = await supabase
     .from('user_plan_subscriptions')
     .update({
       status: 'canceled',
-      cancel_at: end,
+      cancel_at: periodEnd,
       cancel_at_period_end: false,
       updated_at: new Date().toISOString(),
     })
@@ -420,14 +517,17 @@ export async function assignSubscription(
     throw new Error(`Failed to cancel existing subscriptions: ${cancelResult.error.message}`)
   }
 
+  // Insert new subscription
   const inserted = await supabase
     .from('user_plan_subscriptions')
     .insert({
       user_id: userId,
       billing_plan_cycle_id: planCycle.id,
-      status: 'active',
-      current_period_start: start,
-      current_period_end: end,
+      status: status,
+      current_period_start: periodStart,
+      current_period_end: periodEnd,
+      external_customer_id: options?.stripeCustomerId || null,
+      external_subscription_id: options?.stripeSubscriptionId || null,
     })
     .select(SUBSCRIPTION_SELECT)
     .maybeSingle<SubscriptionRow>()
@@ -459,6 +559,33 @@ export async function assignSubscription(
     throw new Error('Unable to determine assigned subscription record')
   }
 
+  // If Stripe IDs were provided but not stored, update the record
+  if ((options?.stripeCustomerId || options?.stripeSubscriptionId) && subscriptionRow) {
+    const updateData: any = {}
+    if (options.stripeCustomerId && !subscriptionRow.external_customer_id) {
+      updateData.external_customer_id = options.stripeCustomerId
+    }
+    if (options.stripeSubscriptionId && !subscriptionRow.external_subscription_id) {
+      updateData.external_subscription_id = options.stripeSubscriptionId
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      const { data: updated, error: updateError } = await supabase
+        .from('user_plan_subscriptions')
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', subscriptionRow.id)
+        .select(SUBSCRIPTION_SELECT)
+        .maybeSingle<SubscriptionRow>()
+
+      if (!updateError && updated) {
+        subscriptionRow = updated
+      }
+    }
+  }
+
   const metrics: Array<{ metric: UsageMetric; allocation: number }> = [
     { metric: 'api_credits', allocation: planCycle.apiCreditLimit },
     { metric: 'integration_actions', allocation: planCycle.integrationActionLimit },
@@ -468,17 +595,19 @@ export async function assignSubscription(
     const { error } = await supabase.rpc('reset_usage_cycle', {
       p_user_id: userId,
       p_metric: metric,
-      p_cycle_start: start,
-      p_cycle_end: end,
+      p_cycle_start: periodStart,
+      p_cycle_end: periodEnd,
       p_allocation: allocation,
       p_reference: {
         reason: 'assignment',
         billing_plan_cycle_id: planCycle.id,
+        stripe_subscription_id: options?.stripeSubscriptionId || null,
       },
     })
 
     if (error) {
-      throw new Error(`Failed to reset ${metric} usage: ${error.message}`)
+      console.error(`Failed to reset ${metric} usage:`, error)
+      // Don't throw - usage reset is not critical for subscription assignment
     }
   }
 

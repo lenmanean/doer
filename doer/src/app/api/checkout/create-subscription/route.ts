@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { fetchActiveSubscription } from '@/lib/billing/plans'
+import { fetchActiveSubscription, assignSubscription, type SubscriptionStatus } from '@/lib/billing/plans'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
@@ -196,6 +196,60 @@ export async function POST(request: NextRequest) {
     // If invoice amount is $0, there's no payment needed
     if (invoiceObj.amount_due === 0) {
       console.log('[Create Subscription] Invoice amount is $0, no payment intent needed')
+      
+      // Immediately update database with subscription information
+      try {
+        // Map Stripe subscription status to our enum
+        const mapStatus = (stripeStatus: string): SubscriptionStatus => {
+          const normalized = stripeStatus.toLowerCase().trim()
+          switch (normalized) {
+            case 'trialing':
+              return 'trialing'
+            case 'active':
+              return 'active'
+            case 'past_due':
+              return 'past_due'
+            case 'canceled':
+            case 'unpaid':
+            case 'incomplete':
+            case 'incomplete_expired':
+              return 'canceled'
+            default:
+              return 'active'
+          }
+        }
+        
+        // Format Stripe timestamp to date string (YYYY-MM-DD)
+        const formatDate = (timestamp: number | null | undefined): string | undefined => {
+          if (!timestamp) return undefined
+          const date = new Date(timestamp * 1000) // Stripe timestamps are in seconds
+          return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
+        }
+        
+        const status = mapStatus(subscription.status)
+        const periodStart = formatDate(subscription.current_period_start)
+        const periodEnd = formatDate(subscription.current_period_end)
+        
+        await assignSubscription(user.id, planSlug, billingCycle, {
+          stripeCustomerId,
+          stripeSubscriptionId: subscription.id,
+          status,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
+        })
+        
+        console.log('[Create Subscription] Successfully assigned subscription to database', {
+          userId: user.id,
+          planSlug,
+          billingCycle,
+          stripeCustomerId,
+          stripeSubscriptionId: subscription.id,
+        })
+      } catch (assignError) {
+        console.error('[Create Subscription] Error assigning subscription to database:', assignError)
+        // Don't fail the request - webhook will handle it
+      }
+      
       return NextResponse.json(
         {
           subscriptionId: subscription.id,
@@ -483,6 +537,60 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Create Subscription] Successfully created subscription with client secret')
+
+    // Immediately update database with subscription information (dual-write pattern)
+    // Webhook will serve as reconciliation backup
+    try {
+      // Map Stripe subscription status to our enum
+      const mapStatus = (stripeStatus: string): SubscriptionStatus => {
+        const normalized = stripeStatus.toLowerCase().trim()
+        switch (normalized) {
+          case 'trialing':
+            return 'trialing'
+          case 'active':
+            return 'active'
+          case 'past_due':
+            return 'past_due'
+          case 'canceled':
+          case 'unpaid':
+          case 'incomplete':
+          case 'incomplete_expired':
+            return 'canceled'
+          default:
+            return 'active'
+        }
+      }
+      
+      // Format Stripe timestamp to date string (YYYY-MM-DD)
+      const formatDate = (timestamp: number | null | undefined): string | undefined => {
+        if (!timestamp) return undefined
+        const date = new Date(timestamp * 1000) // Stripe timestamps are in seconds
+        return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
+      }
+      
+      const status = mapStatus(subscription.status)
+      const periodStart = formatDate(subscription.current_period_start)
+      const periodEnd = formatDate(subscription.current_period_end)
+      
+      await assignSubscription(user.id, planSlug, billingCycle, {
+        stripeCustomerId,
+        stripeSubscriptionId: subscription.id,
+        status,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+      })
+      
+      console.log('[Create Subscription] Successfully assigned subscription to database', {
+        userId: user.id,
+        planSlug,
+        billingCycle,
+        stripeCustomerId,
+        stripeSubscriptionId: subscription.id,
+      })
+    } catch (assignError) {
+      console.error('[Create Subscription] Error assigning subscription to database:', assignError)
+      // Don't fail the request - webhook will handle it as backup
+    }
 
     return NextResponse.json(
       {
