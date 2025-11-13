@@ -492,9 +492,11 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = typeof invoice.subscription === 'string' 
-          ? invoice.subscription 
-          : invoice.subscription?.id
+        // Access subscription property safely - it exists on Invoice but TypeScript may not recognize it
+        const invoiceSubscription = (invoice as any).subscription
+        const subscriptionId = typeof invoiceSubscription === 'string' 
+          ? invoiceSubscription 
+          : invoiceSubscription?.id
 
         if (subscriptionId && stripe) {
           try {
