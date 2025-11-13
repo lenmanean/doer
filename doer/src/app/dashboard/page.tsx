@@ -27,7 +27,7 @@ import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules
 import { Bell } from 'lucide-react'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { PlanSelectionOverlay, shouldShowPlanOverlay } from '@/components/ui/PlanSelectionOverlay'
-import { fetchActiveSubscription } from '@/lib/billing/plans'
+// Removed direct import - using API route instead
 import { useToast } from '@/components/ui/Toast'
 
 export default function DashboardPage() {
@@ -168,8 +168,19 @@ export default function DashboardPage() {
 
     const checkSubscription = async () => {
       try {
-        const subscription = await fetchActiveSubscription(user.id)
-        const hasSubscription = subscription !== null
+        // Use API route instead of direct client-side call (server-side only function)
+        const response = await fetch('/api/subscription', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to check subscription')
+        }
+
+        const data = await response.json()
+        const hasSubscription = data.subscription !== null
         setHasActiveSubscription(hasSubscription)
 
         // Show overlay if: no subscription AND hasn't been dismissed AND should show
@@ -659,30 +670,43 @@ export default function DashboardPage() {
       }
       
       // 2. Load recent pending reschedule proposals
-      const { data: pendingReschedules } = await supabase
-        .from('pending_reschedules')
-        .select(`
-          id,
-          task_name,
-          plan_id,
-          created_at,
-          status
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(10)
-      
-      if (pendingReschedules) {
-        pendingReschedules.forEach((proposal: any) => {
-          allNotifications.push({
-            id: proposal.id,
-            type: 'reschedule_proposal',
-            message: `Reschedule proposal: ${proposal.task_name}`,
-            timestamp: proposal.created_at,
-            planId: proposal.plan_id
+      try {
+        const { data: pendingReschedules, error: rescheduleError } = await supabase
+          .from('pending_reschedules')
+          .select(`
+            id,
+            plan_id,
+            created_at,
+            status,
+            task_id,
+            tasks (
+              name
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        
+        if (rescheduleError) {
+          console.warn('Error loading pending reschedules for notifications:', rescheduleError)
+        } else if (pendingReschedules) {
+          pendingReschedules.forEach((proposal: any) => {
+            // Handle both array and object cases for the join
+            const task = Array.isArray(proposal.tasks) ? proposal.tasks[0] : proposal.tasks
+            const taskName = task?.name || 'Unknown task'
+            allNotifications.push({
+              id: proposal.id,
+              type: 'reschedule_proposal',
+              message: `Reschedule proposal: ${taskName}`,
+              timestamp: proposal.created_at,
+              planId: proposal.plan_id
+            })
           })
-        })
+        }
+      } catch (error) {
+        console.warn('Error loading pending reschedules for notifications:', error)
+        // Continue loading other notifications even if this fails
       }
       
       // 3. Load recent scheduling history (plan adjustments)

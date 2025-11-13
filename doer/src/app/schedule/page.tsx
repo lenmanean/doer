@@ -46,11 +46,16 @@ export default function SchedulePage() {
   
   const handleSignOut = async () => {
     try {
+      console.log('[SchedulePage] Starting sign out...')
       await signOutClient(supabase)
-      router.push('/')
-      router.refresh()
+      console.log('[SchedulePage] Sign out successful, redirecting...')
+      // Force a hard reload to clear any cached auth state
+      // Using window.location.href ensures a full page reload and clears all state
+      window.location.href = '/'
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('[SchedulePage] Error signing out:', error)
+      // Even if sign out fails, force a hard reload to ensure clean state
+      window.location.href = '/'
     }
   }
   

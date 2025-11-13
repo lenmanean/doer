@@ -457,13 +457,32 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   
   const handleSignOut = useCallback(async () => {
     try {
-      await signOutClient(supabase)
-      router.push('/')
-      router.refresh()
+      // Use supabase client from provider context (most reliable)
+      const supabaseClient = supabaseContext?.supabase || supabase
+      
+      console.log('[useOnboardingProtection] Starting sign out...')
+      
+      // Clear local state first to provide immediate feedback
+      safeSetUser(null)
+      safeSetProfile(null)
+      
+      // Sign out using the client
+      await signOutClient(supabaseClient)
+      
+      console.log('[useOnboardingProtection] Sign out successful, redirecting...')
+      
+      // Force a hard reload to clear any cached auth state
+      // Using window.location.href ensures a full page reload and clears all state
+      window.location.href = '/'
     } catch (error) {
       console.error('[useOnboardingProtection] Error signing out:', error)
+      // Even if sign out fails, try to clear local state and redirect
+      safeSetUser(null)
+      safeSetProfile(null)
+      // Force a hard reload even on error to ensure clean state
+      window.location.href = '/'
     }
-  }, [router])
+  }, [router, supabaseContext, supabase, safeSetUser, safeSetProfile])
 
   return {
     user,

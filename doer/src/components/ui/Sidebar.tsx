@@ -59,16 +59,35 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
     setIsMobileOpen(!isMobileOpen)
   }
 
-  const handleSignOut = () => {
+  const handleSignOut = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    console.log('[Sidebar] Sign out button clicked, showing confirmation modal')
     setShowSignOutConfirm(true)
   }
 
-  const confirmSignOut = () => {
+  const confirmSignOut = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    console.log('[Sidebar] Confirming sign out...')
     setShowSignOutConfirm(false)
-    onSignOut()
+    try {
+      await onSignOut()
+    } catch (error) {
+      console.error('[Sidebar] Error in onSignOut callback:', error)
+    }
   }
 
-  const cancelSignOut = () => {
+  const cancelSignOut = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    console.log('[Sidebar] Sign out cancelled')
     setShowSignOutConfirm(false)
   }
 
@@ -259,6 +278,7 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
 
             {/* Sign Out Button */}
             <Button
+              type="button"
               variant="ghost"
               className={cn(
                 'w-full text-white dark:text-white hover:text-red-400 hover:bg-red-500/20 transition-all duration-300 micro-animate',
@@ -266,7 +286,11 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
                   ? 'justify-center p-4 -ml-1' 
                   : 'justify-start space-x-3 px-4 py-3 -ml-1'
               )}
-              onClick={handleSignOut}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleSignOut(e)
+              }}
             >
               <LogOut 
                 className={cn(
@@ -328,8 +352,13 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
                 </p>
                 <div className="flex space-x-3">
                   <motion.button
+                    type="button"
                     className="flex-1 h-10 px-4 py-2 text-[var(--foreground)] bg-transparent border border-[var(--border)] rounded-lg hover:bg-[var(--accent)] hover:border-[var(--primary)]/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-transparent flex items-center justify-center"
-                    onClick={cancelSignOut}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      cancelSignOut(e)
+                    }}
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
@@ -337,8 +366,13 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
                     Cancel
                   </motion.button>
                   <motion.button
+                    type="button"
                     className="flex-1 h-10 px-4 py-2 text-white bg-red-500 border border-red-500 rounded-lg hover:bg-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-transparent flex items-center justify-center"
-                    onClick={confirmSignOut}
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      await confirmSignOut(e)
+                    }}
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}

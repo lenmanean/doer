@@ -123,12 +123,17 @@ export function PublicHeader() {
 
   const handleSignOut = async () => {
     try {
-      await signOutClient(supabase)
+      console.log('[PublicHeader] Starting sign out...')
       setProfileOpen(false)
-      router.push('/')
-      router.refresh()
+      await signOutClient(supabase)
+      console.log('[PublicHeader] Sign out successful, redirecting...')
+      // Force a hard reload to clear any cached auth state
+      // Using window.location.href ensures a full page reload and clears all state
+      window.location.href = '/'
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('[PublicHeader] Error signing out:', error)
+      // Even if sign out fails, force a hard reload to ensure clean state
+      window.location.href = '/'
     }
   }
 

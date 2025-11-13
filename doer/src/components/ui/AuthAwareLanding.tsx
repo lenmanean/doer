@@ -113,13 +113,26 @@ export default function AuthAwareLanding() {
   
   const handleSignOut = async () => {
     try {
+      console.log('[AuthAwareLanding] Starting sign out...')
       setProfileDropdownOpen(false)
-      await signOutClient(supabase)
+      
+      // Clear profile state immediately for better UX
       setProfile(null)
-      router.push('/')
-      router.refresh()
+      
+      // Sign out using the supabase client from provider
+      await signOutClient(supabase)
+      
+      console.log('[AuthAwareLanding] Sign out successful, redirecting...')
+      
+      // Force a hard reload to clear any cached auth state
+      // Using window.location.href ensures a full page reload and clears all state
+      window.location.href = '/'
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('[AuthAwareLanding] Error signing out:', error)
+      // Even if sign out fails, try to clear local state and redirect
+      setProfile(null)
+      // Force a hard reload even on error to ensure clean state
+      window.location.href = '/'
     }
   }
   
