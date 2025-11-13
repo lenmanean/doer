@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Type assert as BillingCycle after validation
+    // This ensures TypeScript recognizes billingCycle as the correct type
     const billingCycle = billingCycleRaw as BillingCycle
 
     if (!paymentMethodId) {
