@@ -135,28 +135,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // If invoice is a string ID, retrieve it
+    // If invoice is a string ID, retrieve it with expansion
+    // If invoice is already an object, check if payment_intent is expanded
     let invoiceObj: Stripe.Invoice
     if (typeof invoice === 'string') {
       invoiceObj = await stripe.invoices.retrieve(invoice, {
         expand: ['payment_intent'],
       })
     } else {
-      invoiceObj = invoice
+      // Invoice is already an object - check if payment_intent needs to be expanded
+      const paymentIntentOnInvoice = (invoice as any).payment_intent
+      if (paymentIntentOnInvoice && typeof paymentIntentOnInvoice === 'string') {
+        // payment_intent is just an ID, retrieve invoice with expansion
+        invoiceObj = await stripe.invoices.retrieve(invoice.id, {
+          expand: ['payment_intent'],
+        })
+      } else {
+        // payment_intent is already expanded or doesn't exist
+        invoiceObj = invoice
+      }
     }
+
+    // payment_intent is an expandable property on Invoice
+    // Access it using type assertion since TypeScript may not recognize it in the type definition
+    const paymentIntentRaw = (invoiceObj as any).payment_intent as
+      | Stripe.PaymentIntent
+      | string
+      | null
+      | undefined
 
     console.log('[Create Subscription] Invoice details:', {
       invoiceId: invoiceObj.id,
       status: invoiceObj.status,
-      paymentIntent: invoiceObj.payment_intent
-        ? typeof invoiceObj.payment_intent === 'string'
-          ? invoiceObj.payment_intent
-          : invoiceObj.payment_intent.id
+      paymentIntent: paymentIntentRaw
+        ? typeof paymentIntentRaw === 'string'
+          ? paymentIntentRaw
+          : paymentIntentRaw.id
         : null,
     })
 
     // payment_intent can be a string ID or an expanded PaymentIntent object
-    const paymentIntent = invoiceObj.payment_intent as Stripe.PaymentIntent | string | null
+    const paymentIntent = paymentIntentRaw || null
 
     if (!paymentIntent) {
       console.error('[Create Subscription] No payment intent found on invoice')
