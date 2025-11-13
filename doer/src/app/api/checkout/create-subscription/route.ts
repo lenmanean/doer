@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
           currency: invoiceObj.currency,
           customer: stripeCustomerId,
           payment_method: paymentMethodId,
-          confirmation_method: 'manual',
+          confirmation_method: 'automatic', // Use 'automatic' so client can confirm with publishable key
           confirm: false, // Don't confirm immediately - let client confirm for 3D Secure
           description: `Payment for subscription ${subscription.id}`,
           metadata: {

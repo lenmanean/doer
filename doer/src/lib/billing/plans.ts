@@ -153,9 +153,17 @@ function calculateCycleBounds(cycle: BillingCycle, referenceDate = new Date()) {
 }
 
 async function fetchPlanBySlug(slug: string) {
+  console.error('[fetchPlanBySlug] Starting fetch for slug:', slug)
+  
   const supabase = getServiceRoleClient()
+  console.error('[fetchPlanBySlug] Service role client obtained:', {
+    hasClient: !!supabase,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'present' : 'missing',
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'present' : 'missing',
+  })
   
   // First, try to fetch the plan
+  console.error('[fetchPlanBySlug] Querying billing_plans table...')
   const { data, error } = await supabase
     .from('billing_plans')
     .select('id, slug, name, description, metadata')
@@ -163,21 +171,38 @@ async function fetchPlanBySlug(slug: string) {
     .limit(1)
     .maybeSingle()
 
+  console.error('[fetchPlanBySlug] Query result:', {
+    hasData: !!data,
+    hasError: !!error,
+    errorCode: error?.code,
+    errorMessage: error?.message,
+  })
+
   if (error) {
     console.error('[fetchPlanBySlug] Database error:', {
       slug,
       error: error.message,
       code: error.code,
+      details: error,
     })
     throw new Error(`Failed to fetch billing plan for slug "${slug}": ${error.message}`)
   }
   
   if (!data) {
     // Plan not found - list available plans for debugging
+    console.error('[fetchPlanBySlug] Plan not found, listing all plans...')
     const { data: allPlans, error: listError } = await supabase
       .from('billing_plans')
       .select('slug, name')
       .limit(10)
+    
+    console.error('[fetchPlanBySlug] All plans query result:', {
+      hasData: !!allPlans,
+      hasError: !!listError,
+      planCount: allPlans?.length || 0,
+      listErrorCode: listError?.code,
+      listErrorMessage: listError?.message,
+    })
     
     const availablePlans = listError ? 'Unable to list plans' : (allPlans?.map(p => p.slug).join(', ') || 'none')
     
@@ -185,6 +210,11 @@ async function fetchPlanBySlug(slug: string) {
       requestedSlug: slug,
       availablePlans,
       totalPlans: allPlans?.length || 0,
+      listError: listError ? {
+        code: listError.code,
+        message: listError.message,
+        details: listError,
+      } : null,
     })
     
     throw new Error(
@@ -192,7 +222,7 @@ async function fetchPlanBySlug(slug: string) {
     )
   }
   
-  console.log('[fetchPlanBySlug] Plan found:', {
+  console.error('[fetchPlanBySlug] Plan found:', {
     slug: data.slug,
     name: data.name,
     id: data.id,
