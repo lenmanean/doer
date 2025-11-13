@@ -176,7 +176,32 @@ function CheckoutForm() {
         throw new Error(errorData.error || 'Failed to create subscription')
       }
 
-      const { clientSecret: paymentIntentClientSecret } = await subscriptionResponse.json()
+      const subscriptionData = await subscriptionResponse.json()
+      const { clientSecret: paymentIntentClientSecret, status: subscriptionStatus, message } = subscriptionData
+
+      // If subscription was created successfully but no payment is needed (e.g., $0 invoice)
+      if (!paymentIntentClientSecret && subscriptionStatus === 'active') {
+        // Redirect to success page immediately
+        router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}`)
+        return
+      }
+
+      // If there's a message indicating no payment needed, handle it
+      if (!paymentIntentClientSecret && message) {
+        addToast({
+          type: 'success',
+          title: 'Subscription Created',
+          description: message,
+          duration: 5000,
+        })
+        router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}`)
+        return
+      }
+
+      // If no client secret and no success message, this is an error
+      if (!paymentIntentClientSecret) {
+        throw new Error('No payment intent found. Please try again or contact support.')
+      }
 
       // Confirm payment
       const paymentMethodId = typeof setupIntent.payment_method === 'string' 

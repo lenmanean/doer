@@ -95,7 +95,9 @@ export async function POST(request: NextRequest) {
     })
 
     // Create subscription with payment behavior that requires payment intent
-    const subscription = await stripe.subscriptions.create({
+    // Declare subscription outside try block so it's accessible in catch for cleanup
+    let subscription: Stripe.Subscription | null = null
+    subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
       items: [
         {
@@ -291,8 +293,22 @@ export async function POST(request: NextRequest) {
         subscriptionId: subscription.id,
         subscriptionStatus: subscription.status,
       })
+      
+      // Cancel the incomplete subscription to prevent accumulation of incomplete payment intents
+      try {
+        console.log('[Create Subscription] Canceling incomplete subscription to clean up...')
+        await stripe.subscriptions.cancel(subscription.id)
+        console.log('[Create Subscription] Successfully canceled incomplete subscription')
+      } catch (cancelError) {
+        console.error('[Create Subscription] Error canceling subscription:', cancelError)
+        // Continue with error response even if cancel fails
+      }
+      
       return NextResponse.json(
-        { error: 'No payment intent found for invoice' },
+        { 
+          error: 'No payment intent found for invoice. The subscription may require additional payment setup.',
+          details: 'Please try again or contact support if the issue persists.',
+        },
         { status: 500 }
       )
     }
@@ -331,6 +347,17 @@ export async function POST(request: NextRequest) {
         invoiceId: invoiceObj.id,
         subscriptionId: subscription.id,
       })
+      
+      // Cancel the incomplete subscription to prevent accumulation of incomplete payment intents
+      try {
+        console.log('[Create Subscription] Canceling incomplete subscription (no client secret)...')
+        await stripe.subscriptions.cancel(subscription.id)
+        console.log('[Create Subscription] Successfully canceled incomplete subscription')
+      } catch (cancelError) {
+        console.error('[Create Subscription] Error canceling subscription:', cancelError)
+        // Continue with error response even if cancel fails
+      }
+      
       return NextResponse.json(
         { error: 'Failed to get payment intent client secret' },
         { status: 500 }
@@ -349,6 +376,19 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('Error creating subscription', error)
+
+    // If we created a subscription but then hit an error, try to clean it up
+    // This prevents accumulation of incomplete subscriptions/payment intents
+    if (subscription?.id) {
+      try {
+        console.log('[Create Subscription] Error occurred, attempting to cancel subscription for cleanup...')
+        await stripe.subscriptions.cancel(subscription.id)
+        console.log('[Create Subscription] Successfully canceled subscription after error')
+      } catch (cancelError) {
+        console.error('[Create Subscription] Error canceling subscription after error:', cancelError)
+        // Continue with error response even if cancel fails
+      }
+    }
 
     const message =
       error instanceof Stripe.errors.StripeError
