@@ -145,20 +145,34 @@ export async function POST(request: NextRequest) {
     let invoiceObj: Stripe.Invoice
     if (typeof invoice === 'object' && invoice.id) {
       // Invoice is already expanded - use it directly
-      console.log('[Create Subscription] Invoice already expanded from subscription creation')
+      console.log('[Create Subscription] Invoice already expanded from subscription creation', {
+        invoiceId: invoice.id,
+        invoiceStatus: invoice.status,
+        hasPaymentIntent: !!(invoice as any).payment_intent,
+        paymentIntentType: typeof (invoice as any).payment_intent,
+      })
       invoiceObj = invoice
     } else {
       // Invoice is just an ID - retrieve it with expansion
       const invoiceId = typeof invoice === 'string' ? invoice : invoice.id
-      console.log('[Create Subscription] Retrieving invoice with expansion...')
+      console.log('[Create Subscription] Retrieving invoice with expansion...', { invoiceId })
       invoiceObj = await stripe.invoices.retrieve(invoiceId, {
         expand: ['payment_intent'],
+      })
+      console.log('[Create Subscription] Retrieved invoice:', {
+        invoiceId: invoiceObj.id,
+        invoiceStatus: invoiceObj.status,
+        hasPaymentIntent: !!(invoiceObj as any).payment_intent,
+        paymentIntentType: typeof (invoiceObj as any).payment_intent,
       })
     }
     
     // If invoice is draft, finalize it first (required for payment intent creation)
     if (invoiceObj.status === 'draft') {
-      console.log('[Create Subscription] Invoice is draft, finalizing...')
+      console.log('[Create Subscription] Invoice is draft, finalizing...', {
+        invoiceId: invoiceObj.id,
+        amountDue: invoiceObj.amount_due,
+      })
       try {
         invoiceObj = await stripe.invoices.finalizeInvoice(invoiceObj.id, {
           expand: ['payment_intent'],
@@ -167,6 +181,8 @@ export async function POST(request: NextRequest) {
           invoiceId: invoiceObj.id,
           status: invoiceObj.status,
           amountDue: invoiceObj.amount_due,
+          hasPaymentIntent: !!(invoiceObj as any).payment_intent,
+          paymentIntentType: typeof (invoiceObj as any).payment_intent,
         })
       } catch (finalizeError) {
         console.error('[Create Subscription] Error finalizing invoice:', finalizeError)
@@ -197,6 +213,8 @@ export async function POST(request: NextRequest) {
       amountDue: invoiceObj.amount_due,
       currency: invoiceObj.currency,
       hasPaymentIntent: !!(invoiceObj as any).payment_intent,
+      invoiceObjectKeys: Object.keys(invoiceObj),
+      invoicePaymentIntentField: (invoiceObj as any).payment_intent,
     })
 
     // payment_intent is an expandable property on Invoice
@@ -218,6 +236,16 @@ export async function POST(request: NextRequest) {
           ? paymentIntentRaw
           : (paymentIntentRaw as Stripe.PaymentIntent).id
         : null,
+      rawValue: paymentIntentRaw,
+    })
+    
+    // Also check if invoice has payment_intent_id field (sometimes it's a separate field)
+    const paymentIntentId = (invoiceObj as any).payment_intent_id || (invoiceObj as any).payment_intent
+    console.log('[Create Subscription] Payment intent ID check:', {
+      paymentIntentId,
+      type: typeof paymentIntentId,
+      fromPaymentIntentField: (invoiceObj as any).payment_intent,
+      fromPaymentIntentIdField: (invoiceObj as any).payment_intent_id,
     })
 
     // payment_intent can be a string ID or an expanded PaymentIntent object
@@ -228,24 +256,38 @@ export async function POST(request: NextRequest) {
       console.warn('[Create Subscription] No payment intent found on invoice, attempting recovery strategies...')
       
       // Strategy 0: Check if invoice has payment_intent_id field (sometimes it's there but not expanded)
-      if ((invoiceObj as any).payment_intent) {
-        const paymentIntentId = typeof (invoiceObj as any).payment_intent === 'string' 
-          ? (invoiceObj as any).payment_intent 
-          : (invoiceObj as any).payment_intent?.id
-        if (paymentIntentId) {
-          console.log('[Create Subscription] Found payment_intent ID on invoice, retrieving...')
-          try {
-            const retrievedPI = await stripe.paymentIntents.retrieve(paymentIntentId)
-            paymentIntent = retrievedPI
-            console.log('[Create Subscription] Successfully retrieved payment intent by ID:', {
-              paymentIntentId: retrievedPI.id,
-              status: retrievedPI.status,
-              hasClientSecret: !!retrievedPI.client_secret,
-            })
-          } catch (piError) {
-            console.error('[Create Subscription] Error retrieving payment intent by ID:', piError)
-          }
+      const invoicePaymentIntentId = (invoiceObj as any).payment_intent_id || 
+        (typeof (invoiceObj as any).payment_intent === 'string' ? (invoiceObj as any).payment_intent : null) ||
+        ((invoiceObj as any).payment_intent?.id ? (invoiceObj as any).payment_intent.id : null)
+      
+      if (invoicePaymentIntentId) {
+        console.log('[Create Subscription] Found payment_intent ID on invoice, retrieving...', {
+          paymentIntentId: invoicePaymentIntentId,
+          source: (invoiceObj as any).payment_intent_id ? 'payment_intent_id' : 
+                 (typeof (invoiceObj as any).payment_intent === 'string' ? 'payment_intent (string)' : 'payment_intent.id'),
+        })
+        try {
+          const retrievedPI = await stripe.paymentIntents.retrieve(invoicePaymentIntentId)
+          paymentIntent = retrievedPI
+          console.log('[Create Subscription] Successfully retrieved payment intent by ID:', {
+            paymentIntentId: retrievedPI.id,
+            status: retrievedPI.status,
+            hasClientSecret: !!retrievedPI.client_secret,
+          })
+        } catch (piError) {
+          console.error('[Create Subscription] Error retrieving payment intent by ID:', {
+            error: piError instanceof Error ? piError.message : String(piError),
+            paymentIntentId: invoicePaymentIntentId,
+          })
         }
+      } else {
+        console.log('[Create Subscription] No payment intent ID found on invoice', {
+          invoiceId: invoiceObj.id,
+          invoiceStatus: invoiceObj.status,
+          invoiceKeys: Object.keys(invoiceObj),
+          paymentIntentField: (invoiceObj as any).payment_intent,
+          paymentIntentIdField: (invoiceObj as any).payment_intent_id,
+        })
       }
       
       // Strategy 1: Wait a bit and retrieve the invoice again (payment intent might be created asynchronously)
