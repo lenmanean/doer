@@ -44,14 +44,22 @@ export default function AuthCodeErrorPage() {
           </ul>
           <div className="flex gap-3 pt-4">
             <Button
-              onClick={() => router.push('/login')}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                window.location.href = '/login'
+              }}
               className="flex-1"
             >
               Go to Login
             </Button>
             <Button
               variant="outline"
-              onClick={() => router.push('/')}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                window.location.href = '/'
+              }}
             >
               Go Home
             </Button>

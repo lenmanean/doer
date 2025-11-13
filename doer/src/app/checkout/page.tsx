@@ -308,6 +308,7 @@ function CheckoutForm() {
                               color: '#ef4444',
                             },
                           },
+                          hidePostalCode: false,
                         }}
                       />
                     </div>
