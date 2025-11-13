@@ -227,8 +227,9 @@ export async function POST(request: NextRequest) {
         }
         
         const status = mapStatus(subscription.status)
-        const periodStart = formatDate(subscription.current_period_start)
-        const periodEnd = formatDate(subscription.current_period_end)
+        // Access period dates safely - they are numbers (Unix timestamps) on Stripe.Subscription
+        const periodStart = formatDate((subscription as any).current_period_start)
+        const periodEnd = formatDate((subscription as any).current_period_end)
         
         await assignSubscription(user.id, planSlug, billingCycle, {
           stripeCustomerId,
@@ -569,8 +570,9 @@ export async function POST(request: NextRequest) {
       }
       
       const status = mapStatus(subscription.status)
-      const periodStart = formatDate(subscription.current_period_start)
-      const periodEnd = formatDate(subscription.current_period_end)
+      // Access period dates safely - they are numbers (Unix timestamps) on Stripe.Subscription
+      const periodStart = formatDate((subscription as any).current_period_start)
+      const periodEnd = formatDate((subscription as any).current_period_end)
       
       await assignSubscription(user.id, planSlug, billingCycle, {
         stripeCustomerId,
