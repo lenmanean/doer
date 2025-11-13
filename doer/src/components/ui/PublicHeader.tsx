@@ -31,6 +31,7 @@ export function PublicHeader() {
   const [currentLocale, setCurrentLocale] = useState<Locale>('en')
   const [isDark, setIsDark] = useState(true)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   const productRef = useRef<HTMLDivElement>(null)
   const resourcesRef = useRef<HTMLDivElement>(null)
@@ -353,10 +354,11 @@ export function PublicHeader() {
                     </Link>
                     <button
                       onClick={handleSignOut}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      disabled={isSigningOut}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <LogOut className="h-4 w-4" />
-                      Sign Out
+                      {isSigningOut ? 'Signing out...' : 'Sign Out'}
                     </button>
                   </div>
                 )}
@@ -422,9 +424,10 @@ export function PublicHeader() {
                 )}
                 <button
                   onClick={handleSignOut}
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  disabled={isSigningOut}
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Sign Out
+                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
                 </button>
               </div>
             )}

@@ -16,7 +16,14 @@ export async function signOutClient(
   try {
     // Step 1: Sign out from Supabase client-side
     console.log('[signOutClient] Calling supabase.auth.signOut()...')
-    const { error: signOutError } = await supabase.auth.signOut()
+    
+    // Add timeout to prevent hanging
+    const signOutPromise = supabase.auth.signOut()
+    const timeoutPromise = new Promise<{ error: any }>((resolve) => 
+      setTimeout(() => resolve({ error: { message: 'Sign out timeout after 5 seconds' } }), 5000)
+    )
+    
+    const { error: signOutError } = await Promise.race([signOutPromise, timeoutPromise])
 
     if (signOutError) {
       console.error('[signOutClient] Supabase sign out error:', signOutError)
