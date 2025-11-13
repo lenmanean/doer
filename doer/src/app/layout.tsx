@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   description: "Transform your goals into reality with AI-powered roadmaps, milestone tracking, and intelligent planning designed for achievers.",
 };
 
+// Force dynamic rendering since we use cookies for auth and locale
+export const dynamic = 'force-dynamic'
+
 // Validate core features at startup
 validateCoreFeatures();
 

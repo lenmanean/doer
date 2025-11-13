@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { Button } from '@/components/ui/Button'
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { motion, AnimatePresence } from 'framer-motion'
 import { HelpCircle, Target, Calendar, ArrowRight, ArrowLeft } from 'lucide-react'
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useSupabase()
@@ -439,5 +439,17 @@ export default function OnboardingPage() {
         </AnimatePresence>
       </div>
     </div>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { StripeProvider } from '@/components/providers/stripe-provider'
@@ -436,7 +436,13 @@ function CheckoutForm() {
 export default function CheckoutPage() {
   return (
     <StripeProvider>
-      <CheckoutForm />
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-[#ff7f00] animate-spin" />
+        </div>
+      }>
+        <CheckoutForm />
+      </Suspense>
     </StripeProvider>
   )
 }

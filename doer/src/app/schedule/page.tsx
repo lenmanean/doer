@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Clock, Calendar, Plus, Settings, Move, RotateCcw, ArrowUpDown, ArrowLeftRight, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft as LeftArrow, ArrowRight as RightArrow, Expand, X, GripVertical } from 'lucide-react'
@@ -37,7 +37,7 @@ interface WeekDay {
 
 type IntervalType = '1hr' | '30min' | '15min'
 
-export default function SchedulePage() {
+function ScheduleContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const planIdFromUrl = searchParams.get('plan')
@@ -2269,5 +2269,17 @@ export default function SchedulePage() {
               }}
             />
     </div>
+  )
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <ScheduleContent />
+    </Suspense>
   )
 }

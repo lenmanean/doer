@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 
-export default function ContactPage() {
+function ContactContent() {
   const searchParams = useSearchParams()
   const topic = searchParams.get('topic') || 'general'
   const { addToast } = useToast()
@@ -99,3 +99,14 @@ export default function ContactPage() {
   )
 }
 
+export default function ContactPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <ContactContent />
+    </Suspense>
+  )
+}

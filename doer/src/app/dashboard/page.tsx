@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LogOut, Calendar, Upload, Activity, Target, Clock, TrendingUp, Award, CheckCircle, Star, Zap, Users, BarChart3, Plus, TrendingDown, ExternalLink, RefreshCw } from 'lucide-react'
 // import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -30,7 +30,7 @@ import { PlanSelectionOverlay, shouldShowPlanOverlay } from '@/components/ui/Pla
 // Removed direct import - using API route instead
 import { useToast } from '@/components/ui/Toast'
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { addToast } = useToast()
@@ -1579,5 +1579,17 @@ export default function DashboardPage() {
         userEmail={user?.email}
       />
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }
