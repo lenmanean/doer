@@ -230,8 +230,9 @@ export async function POST(req: NextRequest) {
             try {
               const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId)
               status = mapStripeSubscriptionStatus(subscription.status)
-              periodStart = formatStripeDate(subscription.current_period_start)
-              periodEnd = formatStripeDate(subscription.current_period_end)
+              // Access period dates safely - they are numbers (Unix timestamps) on Stripe.Subscription
+              periodStart = formatStripeDate((subscription as any).current_period_start)
+              periodEnd = formatStripeDate((subscription as any).current_period_end)
               console.log('[Stripe webhook] Retrieved subscription details:', {
                 subscriptionId: stripeSubscriptionId,
                 status,
@@ -291,8 +292,9 @@ export async function POST(req: NextRequest) {
         const status = mapStripeSubscriptionStatus(subscription.status)
         
         // Extract period dates from subscription
-        const periodStart = formatStripeDate(subscription.current_period_start)
-        const periodEnd = formatStripeDate(subscription.current_period_end)
+        // Access period dates safely - they are numbers (Unix timestamps) on Stripe.Subscription
+        const periodStart = formatStripeDate((subscription as any).current_period_start)
+        const periodEnd = formatStripeDate((subscription as any).current_period_end)
         
         // Log raw values for debugging
         console.log('[Stripe webhook] Subscription event - raw values:', {
