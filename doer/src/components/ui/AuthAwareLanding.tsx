@@ -29,7 +29,8 @@ import { signOutClient } from '@/lib/auth/sign-out-client'
 
 interface UserProfile {
   id: string
-  display_name?: string
+  first_name?: string
+  last_name?: string
   email?: string
   avatar_url?: string
 }
@@ -268,13 +269,13 @@ export default function AuthAwareLanding() {
                       {profile?.avatar_url ? (
                         <img 
                           src={profile.avatar_url} 
-                          alt={profile.display_name || 'User'} 
+                          alt={profile.first_name || profile.last_name || 'User'} 
                           className="w-8 h-8 rounded-full object-cover"
                         />
                       ) : (
                         <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-sm font-medium">
-                            {(profile?.display_name || user.email || 'U').charAt(0).toUpperCase()}
+                            {(profile?.first_name || user.email || 'U').charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
@@ -285,7 +286,9 @@ export default function AuthAwareLanding() {
                       <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-lg z-50">
                         <div className="p-3 border-b border-white/10">
                           <div className="text-sm font-medium text-[#d7d2cb]">
-                            {profile?.display_name || 'User'}
+                            {profile?.first_name 
+                              ? `${profile.first_name}${profile?.last_name ? ` ${profile.last_name}` : ''}`.trim()
+                              : user.email?.split('@')[0] || 'User'}
                           </div>
                           <div className="text-xs text-[#d7d2cb]/60">
                             {user.email}

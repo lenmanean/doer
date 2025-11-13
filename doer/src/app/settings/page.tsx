@@ -1400,24 +1400,6 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        {/* Bio/About */}
-                        <div>
-                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                            Bio / About
-                          </label>
-                          <textarea
-                            value={settingsData.bio}
-                            onChange={(e) => setSettingsData({ ...settingsData, bio: e.target.value })}
-                            placeholder="Tell us about yourself..."
-                            rows={4}
-                            maxLength={500}
-                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] resize-none"
-                          />
-                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                            Optional - A short bio about yourself ({settingsData.bio.length}/500 characters)
-                          </p>
-                        </div>
-
                         {/* Timezone */}
                         <div>
                           <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
