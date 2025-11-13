@@ -141,12 +141,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get invoice ID and always retrieve it fresh with expansion
-    const invoiceId = typeof invoice === 'string' ? invoice : invoice.id
-    console.log('[Create Subscription] Retrieving invoice with expansion...')
-    let invoiceObj = await stripe.invoices.retrieve(invoiceId, {
-      expand: ['payment_intent'],
-    })
+    // Check if invoice is already expanded from subscription creation
+    let invoiceObj: Stripe.Invoice
+    if (typeof invoice === 'object' && invoice.id) {
+      // Invoice is already expanded - use it directly
+      console.log('[Create Subscription] Invoice already expanded from subscription creation')
+      invoiceObj = invoice
+    } else {
+      // Invoice is just an ID - retrieve it with expansion
+      const invoiceId = typeof invoice === 'string' ? invoice : invoice.id
+      console.log('[Create Subscription] Retrieving invoice with expansion...')
+      invoiceObj = await stripe.invoices.retrieve(invoiceId, {
+        expand: ['payment_intent'],
+      })
+    }
     
     // If invoice is draft, finalize it first (required for payment intent creation)
     if (invoiceObj.status === 'draft') {
@@ -219,23 +227,46 @@ export async function POST(request: NextRequest) {
     if (!paymentIntent) {
       console.warn('[Create Subscription] No payment intent found on invoice, attempting recovery strategies...')
       
-      // Strategy 1: Wait a bit and retrieve the invoice again (payment intent might be created asynchronously)
-      console.log('[Create Subscription] Waiting 1s and retrieving invoice again...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      try {
-        const refreshedInvoice = await stripe.invoices.retrieve(invoiceObj.id, {
-          expand: ['payment_intent'],
-        })
-        paymentIntent = (refreshedInvoice as any).payment_intent as Stripe.PaymentIntent | string | null
-        console.log('[Create Subscription] Retrieved invoice again, payment intent:', {
-          hasPaymentIntent: !!paymentIntent,
-          type: typeof paymentIntent,
-        })
-        if (paymentIntent) {
-          invoiceObj = refreshedInvoice
+      // Strategy 0: Check if invoice has payment_intent_id field (sometimes it's there but not expanded)
+      if ((invoiceObj as any).payment_intent) {
+        const paymentIntentId = typeof (invoiceObj as any).payment_intent === 'string' 
+          ? (invoiceObj as any).payment_intent 
+          : (invoiceObj as any).payment_intent?.id
+        if (paymentIntentId) {
+          console.log('[Create Subscription] Found payment_intent ID on invoice, retrieving...')
+          try {
+            const retrievedPI = await stripe.paymentIntents.retrieve(paymentIntentId)
+            paymentIntent = retrievedPI
+            console.log('[Create Subscription] Successfully retrieved payment intent by ID:', {
+              paymentIntentId: retrievedPI.id,
+              status: retrievedPI.status,
+              hasClientSecret: !!retrievedPI.client_secret,
+            })
+          } catch (piError) {
+            console.error('[Create Subscription] Error retrieving payment intent by ID:', piError)
+          }
         }
-      } catch (retrieveError) {
-        console.error('[Create Subscription] Error retrieving invoice again:', retrieveError)
+      }
+      
+      // Strategy 1: Wait a bit and retrieve the invoice again (payment intent might be created asynchronously)
+      if (!paymentIntent) {
+        console.log('[Create Subscription] Waiting 1s and retrieving invoice again...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        try {
+          const refreshedInvoice = await stripe.invoices.retrieve(invoiceObj.id, {
+            expand: ['payment_intent'],
+          })
+          paymentIntent = (refreshedInvoice as any).payment_intent as Stripe.PaymentIntent | string | null
+          console.log('[Create Subscription] Retrieved invoice again, payment intent:', {
+            hasPaymentIntent: !!paymentIntent,
+            type: typeof paymentIntent,
+          })
+          if (paymentIntent) {
+            invoiceObj = refreshedInvoice
+          }
+        } catch (retrieveError) {
+          console.error('[Create Subscription] Error retrieving invoice again:', retrieveError)
+        }
       }
 
       // Strategy 2: Check if subscription has payment intent directly
