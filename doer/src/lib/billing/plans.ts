@@ -154,6 +154,8 @@ function calculateCycleBounds(cycle: BillingCycle, referenceDate = new Date()) {
 
 async function fetchPlanBySlug(slug: string) {
   const supabase = getServiceRoleClient()
+  
+  // First, try to fetch the plan
   const { data, error } = await supabase
     .from('billing_plans')
     .select('id, slug, name, description, metadata')
@@ -162,11 +164,40 @@ async function fetchPlanBySlug(slug: string) {
     .maybeSingle()
 
   if (error) {
+    console.error('[fetchPlanBySlug] Database error:', {
+      slug,
+      error: error.message,
+      code: error.code,
+    })
     throw new Error(`Failed to fetch billing plan for slug "${slug}": ${error.message}`)
   }
+  
   if (!data) {
-    throw new Error(`Billing plan with slug "${slug}" not found`)
+    // Plan not found - list available plans for debugging
+    const { data: allPlans, error: listError } = await supabase
+      .from('billing_plans')
+      .select('slug, name')
+      .limit(10)
+    
+    const availablePlans = listError ? 'Unable to list plans' : (allPlans?.map(p => p.slug).join(', ') || 'none')
+    
+    console.error('[fetchPlanBySlug] Plan not found:', {
+      requestedSlug: slug,
+      availablePlans,
+      totalPlans: allPlans?.length || 0,
+    })
+    
+    throw new Error(
+      `Billing plan with slug "${slug}" not found. Available plans: ${availablePlans}`
+    )
   }
+  
+  console.log('[fetchPlanBySlug] Plan found:', {
+    slug: data.slug,
+    name: data.name,
+    id: data.id,
+  })
+  
   return data
 }
 

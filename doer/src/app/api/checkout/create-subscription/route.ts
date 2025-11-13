@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       expand: ['latest_invoice', 'latest_invoice.payment_intent'],
     })
 
-    console.log('[Create Subscription] Subscription created:', {
+    console.error('[Create Subscription] Subscription created:', {
       subscriptionId: subscription.id,
       status: subscription.status,
       latestInvoice: subscription.latest_invoice
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     let invoiceObj: Stripe.Invoice
     if (typeof invoice === 'object' && invoice.id) {
       // Invoice is already expanded - use it directly
-      console.log('[Create Subscription] Invoice already expanded from subscription creation', {
+      console.error('[Create Subscription] Invoice already expanded from subscription creation', {
         invoiceId: invoice.id,
         invoiceStatus: invoice.status,
         hasPaymentIntent: !!(invoice as any).payment_intent,
@@ -155,11 +155,11 @@ export async function POST(request: NextRequest) {
     } else {
       // Invoice is just an ID - retrieve it with expansion
       const invoiceId = typeof invoice === 'string' ? invoice : invoice.id
-      console.log('[Create Subscription] Retrieving invoice with expansion...', { invoiceId })
+      console.error('[Create Subscription] Retrieving invoice with expansion...', { invoiceId })
       invoiceObj = await stripe.invoices.retrieve(invoiceId, {
         expand: ['payment_intent'],
       })
-      console.log('[Create Subscription] Retrieved invoice:', {
+      console.error('[Create Subscription] Retrieved invoice:', {
         invoiceId: invoiceObj.id,
         invoiceStatus: invoiceObj.status,
         hasPaymentIntent: !!(invoiceObj as any).payment_intent,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       // Strategy 0: Create payment intent manually for the invoice
       // When using default_incomplete, Stripe doesn't always create a payment intent automatically
       // We need to create one manually for the invoice amount
-      console.log('[Create Subscription] Creating payment intent manually for invoice...', {
+      console.error('[Create Subscription] Creating payment intent manually for invoice...', {
         invoiceId: invoiceObj.id,
         amountDue: invoiceObj.amount_due,
         currency: invoiceObj.currency,
@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
         })
         
         paymentIntent = manualPaymentIntent
-        console.log('[Create Subscription] Successfully created payment intent manually:', {
+        console.error('[Create Subscription] Successfully created payment intent manually:', {
           paymentIntentId: manualPaymentIntent.id,
           status: manualPaymentIntent.status,
           hasClientSecret: !!manualPaymentIntent.client_secret,
