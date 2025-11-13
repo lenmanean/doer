@@ -116,28 +116,90 @@ export async function POST(request: NextRequest) {
       expand: ['latest_invoice.payment_intent'],
     })
 
-    const invoice = subscription.latest_invoice as Stripe.Invoice
+    console.log('[Create Subscription] Subscription created:', {
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      latestInvoice: subscription.latest_invoice
+        ? typeof subscription.latest_invoice === 'string'
+          ? subscription.latest_invoice
+          : subscription.latest_invoice.id
+        : null,
+    })
+
+    const invoice = subscription.latest_invoice as Stripe.Invoice | string | null
+    if (!invoice) {
+      console.error('[Create Subscription] No invoice found on subscription')
+      return NextResponse.json(
+        { error: 'No invoice found for subscription' },
+        { status: 500 }
+      )
+    }
+
+    // If invoice is a string ID, retrieve it
+    let invoiceObj: Stripe.Invoice
+    if (typeof invoice === 'string') {
+      invoiceObj = await stripe.invoices.retrieve(invoice, {
+        expand: ['payment_intent'],
+      })
+    } else {
+      invoiceObj = invoice
+    }
+
+    console.log('[Create Subscription] Invoice details:', {
+      invoiceId: invoiceObj.id,
+      status: invoiceObj.status,
+      paymentIntent: invoiceObj.payment_intent
+        ? typeof invoiceObj.payment_intent === 'string'
+          ? invoiceObj.payment_intent
+          : invoiceObj.payment_intent.id
+        : null,
+    })
+
     // payment_intent can be a string ID or an expanded PaymentIntent object
-    const paymentIntent = (invoice as any)?.payment_intent as Stripe.PaymentIntent | string | null
+    const paymentIntent = invoiceObj.payment_intent as Stripe.PaymentIntent | string | null
+
+    if (!paymentIntent) {
+      console.error('[Create Subscription] No payment intent found on invoice')
+      return NextResponse.json(
+        { error: 'No payment intent found for invoice' },
+        { status: 500 }
+      )
+    }
 
     let clientSecret: string | null = null
     if (typeof paymentIntent === 'object' && paymentIntent?.client_secret) {
       clientSecret = paymentIntent.client_secret
     } else if (typeof paymentIntent === 'string') {
-      // If it's just an ID, we need to retrieve it or handle differently
-      // For now, return error as we need the client secret
-      return NextResponse.json(
-        { error: 'Payment intent not expanded. Please retry.' },
-        { status: 500 }
-      )
+      // If it's just an ID, retrieve the payment intent explicitly
+      try {
+        const retrievedPaymentIntent = await stripe.paymentIntents.retrieve(paymentIntent)
+        clientSecret = retrievedPaymentIntent.client_secret
+        console.log('[Create Subscription] Retrieved payment intent:', {
+          paymentIntentId: retrievedPaymentIntent.id,
+          status: retrievedPaymentIntent.status,
+          hasClientSecret: !!clientSecret,
+        })
+      } catch (retrieveError) {
+        console.error('[Create Subscription] Error retrieving payment intent:', retrieveError)
+        return NextResponse.json(
+          { error: 'Failed to retrieve payment intent. Please retry.' },
+          { status: 500 }
+        )
+      }
     }
 
     if (!clientSecret) {
+      console.error('[Create Subscription] No client secret found', {
+        paymentIntentType: typeof paymentIntent,
+        paymentIntent: paymentIntent,
+      })
       return NextResponse.json(
         { error: 'Failed to get payment intent client secret' },
         { status: 500 }
       )
     }
+
+    console.log('[Create Subscription] Successfully created subscription with client secret')
 
     return NextResponse.json(
       {
