@@ -34,8 +34,10 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   // Refs for tracking state
   const isMountedRef = useRef(true)
   const hasFetchedProfileRef = useRef(false)
+  const fetchedUserIdRef = useRef<string | null>(null) // Track which user ID we've fetched for
   const profileFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isFetchingRef = useRef(false) // Prevent concurrent fetches
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -100,16 +102,26 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
       return
     }
 
-    // We have a user - fetch profile if not already fetched
-    if (hasFetchedProfileRef.current && profile) {
-      setLoading(false)
+    // Prevent concurrent fetches or re-fetching for the same user
+    if (isFetchingRef.current) {
+      return
+    }
+
+    // If we've already fetched for this user, don't fetch again
+    if (fetchedUserIdRef.current === providerUser.id) {
+      // Profile might still be loading, but we've already initiated the fetch
+      if (profile) {
+        setLoading(false)
+      }
       return
     }
 
     // Fetch profile with timeout protection
     const fetchProfile = async () => {
-      if (!supabase || !providerUser) return
+      if (!supabase || !providerUser || isFetchingRef.current) return
       
+      isFetchingRef.current = true
+      fetchedUserIdRef.current = providerUser.id
       hasFetchedProfileRef.current = true
       
       // Set timeout for profile fetch (10 seconds max)
@@ -206,6 +218,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
           })
         }
       } finally {
+        isFetchingRef.current = false
         if (isMountedRef.current) {
           if (profileFetchTimeoutRef.current) {
             clearTimeout(profileFetchTimeoutRef.current)
@@ -217,19 +230,23 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     fetchProfile()
-  }, [providerUser, providerLoading, router, supabase, profile])
+  }, [providerUser, providerLoading, router, supabase]) // Removed profile from deps to prevent infinite loop
 
   // Reset profile when user changes
   useEffect(() => {
     if (!providerUser) {
       setProfile(null)
       hasFetchedProfileRef.current = false
-    } else if (profile && profile.user_id !== providerUser.id) {
-      // User changed - reset profile
+      fetchedUserIdRef.current = null
+      isFetchingRef.current = false
+    } else if (fetchedUserIdRef.current && fetchedUserIdRef.current !== providerUser.id) {
+      // User changed - reset profile and fetch state
       setProfile(null)
       hasFetchedProfileRef.current = false
+      fetchedUserIdRef.current = null
+      isFetchingRef.current = false
     }
-  }, [providerUser, profile])
+  }, [providerUser]) // Removed profile from deps to prevent infinite loop
 
   // Cleanup on unmount
   useEffect(() => {
