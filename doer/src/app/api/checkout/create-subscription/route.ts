@@ -243,14 +243,17 @@ export async function POST(request: NextRequest) {
             expand: ['latest_invoice.payment_intent'],
           })
           const refreshedInvoice = refreshedSubscription.latest_invoice
-          if (refreshedInvoice && typeof refreshedInvoice === 'object') {
+          if (refreshedInvoice && typeof refreshedInvoice === 'object' && 'id' in refreshedInvoice) {
             paymentIntent = (refreshedInvoice as any).payment_intent as Stripe.PaymentIntent | string | null
             console.log('[Create Subscription] Found payment intent on refreshed subscription:', {
               hasPaymentIntent: !!paymentIntent,
               type: typeof paymentIntent,
             })
             if (paymentIntent) {
-              invoiceObj = refreshedInvoice as Stripe.Invoice
+              // Re-retrieve the invoice to ensure we have the correct type
+              invoiceObj = await stripe.invoices.retrieve(refreshedInvoice.id, {
+                expand: ['payment_intent'],
+              })
             }
           }
         } catch (subscriptionError) {
