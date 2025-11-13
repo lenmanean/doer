@@ -122,19 +122,43 @@ export function PublicHeader() {
   const displayName = fullName || user?.email?.split('@')[0] || 'User'
   const userInitial = displayName.charAt(0).toUpperCase() || 'U'
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (e?: React.MouseEvent) => {
+    // Prevent multiple simultaneous sign out calls
+    if (isSigningOut) {
+      console.log('[PublicHeader] Sign out already in progress, ignoring...')
+      return
+    }
+
+    // Prevent event propagation
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     try {
+      setIsSigningOut(true)
       console.log('[PublicHeader] Starting sign out...')
       setProfileOpen(false)
-      await signOutClient(supabase)
+      
+      // Add timeout to prevent hanging
+      const signOutPromise = signOutClient(supabase)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign out timeout')), 10000)
+      )
+      
+      await Promise.race([signOutPromise, timeoutPromise])
+      
       console.log('[PublicHeader] Sign out successful, redirecting...')
       // Force a hard reload to clear any cached auth state
       // Using window.location.href ensures a full page reload and clears all state
       window.location.href = '/'
     } catch (error) {
       console.error('[PublicHeader] Error signing out:', error)
-      // Even if sign out fails, force a hard reload to ensure clean state
-      window.location.href = '/'
+      setIsSigningOut(false)
+      // Even if sign out fails, try to clear local state and redirect after a delay
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1000)
     }
   }
 
