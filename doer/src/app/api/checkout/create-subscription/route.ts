@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { fetchActiveSubscription, assignSubscription, type SubscriptionStatus } from '@/lib/billing/plans'
+import { fetchActiveSubscription, assignSubscription, type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const planSlug = (body.planSlug as string | undefined)?.toLowerCase()
-    const billingCycle = ((body.billingCycle as string | undefined) || 'monthly').toLowerCase()
+    const billingCycleRaw = ((body.billingCycle as string | undefined) || 'monthly').toLowerCase()
     const paymentMethodId = body.paymentMethodId as string | undefined
 
     // Validate inputs
@@ -49,12 +49,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['monthly', 'annual'].includes(billingCycle)) {
+    if (!['monthly', 'annual'].includes(billingCycleRaw)) {
       return NextResponse.json(
         { error: 'Invalid billingCycle. Must be "monthly" or "annual"' },
         { status: 400 }
       )
     }
+
+    // Type assert as BillingCycle after validation
+    const billingCycle = billingCycleRaw as BillingCycle
 
     if (!paymentMethodId) {
       return NextResponse.json(
