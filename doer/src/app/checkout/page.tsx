@@ -38,9 +38,22 @@ function CheckoutForm() {
   const planSlug = searchParams.get('plan')?.toLowerCase()
   const billingCycle = (searchParams.get('cycle')?.toLowerCase() || 'monthly') as BillingCycle
 
+  // Log component mount and Stripe status
   useEffect(() => {
+    console.log('[Checkout] Component mounted', { 
+      hasStripe: !!stripe, 
+      hasElements: !!elements,
+      planSlug, 
+      billingCycle 
+    })
+  }, [stripe, elements, planSlug, billingCycle])
+
+  useEffect(() => {
+    console.log('[Checkout] useEffect triggered', { planSlug, billingCycle, searchParams: searchParams.toString() })
+    
     // Validate query params
     if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
+      console.log('[Checkout] Invalid planSlug, redirecting to pricing')
       setInitialLoading(false)
       addToast({
         type: 'error',
@@ -53,6 +66,7 @@ function CheckoutForm() {
     }
 
     if (!['monthly', 'annual'].includes(billingCycle)) {
+      console.log('[Checkout] Invalid billingCycle, redirecting to pricing')
       setInitialLoading(false)
       addToast({
         type: 'error',
@@ -66,6 +80,7 @@ function CheckoutForm() {
 
     // Fetch user and profile
     const fetchUserData = async () => {
+      console.log('[Checkout] Starting fetchUserData')
       try {
         setInitialLoading(true)
         setError(null)
@@ -90,35 +105,60 @@ function CheckoutForm() {
 
         // Fetch plan details
         console.log('[Checkout] Fetching plan details...', { planSlug, billingCycle })
-        const response = await fetch(`/api/billing/plan-details?planSlug=${planSlug}&cycle=${billingCycle}`)
-        console.log('[Checkout] Plan details response:', { ok: response.ok, status: response.status })
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error('[Checkout] Plan details error:', errorData)
-          throw new Error(errorData.error || 'Failed to fetch plan details')
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+        try {
+          const response = await fetch(`/api/billing/plan-details?planSlug=${planSlug}&cycle=${billingCycle}`, {
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+          console.log('[Checkout] Plan details response:', { ok: response.ok, status: response.status })
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('[Checkout] Plan details error:', errorData)
+            throw new Error(errorData.error || 'Failed to fetch plan details')
+          }
+          const planData = await response.json()
+          console.log('[Checkout] Plan details received:', planData)
+          setPlanDetails(planData)
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId)
+          if (fetchError.name === 'AbortError') {
+            throw new Error('Request timeout: Plan details fetch took too long')
+          }
+          throw fetchError
         }
-        const planData = await response.json()
-        console.log('[Checkout] Plan details received:', planData)
-        setPlanDetails(planData)
 
         // Create setup intent
         console.log('[Checkout] Creating setup intent...', { planSlug, billingCycle })
-        const setupResponse = await fetch('/api/checkout/create-setup-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planSlug, billingCycle }),
-        })
-        console.log('[Checkout] Setup intent response:', { ok: setupResponse.ok, status: setupResponse.status })
+        const setupController = new AbortController()
+        const setupTimeoutId = setTimeout(() => setupController.abort(), 15000) // 15 second timeout
+        try {
+          const setupResponse = await fetch('/api/checkout/create-setup-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planSlug, billingCycle }),
+            signal: setupController.signal,
+          })
+          clearTimeout(setupTimeoutId)
+          console.log('[Checkout] Setup intent response:', { ok: setupResponse.ok, status: setupResponse.status })
 
-        if (!setupResponse.ok) {
-          const errorData = await setupResponse.json().catch(() => ({}))
-          console.error('[Checkout] Setup intent error:', errorData)
-          throw new Error(errorData.error || 'Failed to initialize payment')
+          if (!setupResponse.ok) {
+            const errorData = await setupResponse.json().catch(() => ({}))
+            console.error('[Checkout] Setup intent error:', errorData)
+            throw new Error(errorData.error || 'Failed to initialize payment')
+          }
+
+          const { clientSecret } = await setupResponse.json()
+          console.log('[Checkout] Setup intent created successfully')
+          setSetupIntentClientSecret(clientSecret)
+        } catch (setupError: any) {
+          clearTimeout(setupTimeoutId)
+          if (setupError.name === 'AbortError') {
+            throw new Error('Request timeout: Setup intent creation took too long')
+          }
+          throw setupError
         }
-
-        const { clientSecret } = await setupResponse.json()
-        console.log('[Checkout] Setup intent created successfully')
-        setSetupIntentClientSecret(clientSecret)
       } catch (err) {
         console.error('Error fetching checkout data:', err)
         const errorMessage = err instanceof Error ? err.message : 'Failed to load checkout page'
