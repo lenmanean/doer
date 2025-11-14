@@ -17,6 +17,10 @@ if (stripeSecretKey) {
 export async function POST(request: NextRequest) {
   // Declare subscription outside try block so it's accessible in catch for cleanup
   let subscription: Stripe.Subscription | null = null
+  // Declare variables outside try block so they're accessible in catch for error logging
+  let planSlug: string | undefined
+  let billingCycle: BillingCycle | undefined
+  let priceId: string | undefined
   
   try {
     if (!stripe) {
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const planSlug = (body.planSlug as string | undefined)?.toLowerCase()
+    planSlug = (body.planSlug as string | undefined)?.toLowerCase()
     const billingCycleRaw = ((body.billingCycle as string | undefined) || 'monthly').toLowerCase()
     const paymentMethodId = body.paymentMethodId as string | undefined
 
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Type assert as BillingCycle after validation
     // This ensures TypeScript recognizes billingCycle as the correct type
-    const billingCycle = billingCycleRaw as BillingCycle
+    billingCycle = billingCycleRaw as BillingCycle
 
     if (!paymentMethodId) {
       return NextResponse.json(
@@ -68,7 +72,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Get price ID
-    let priceId: string
     try {
       priceId = requirePriceId(planSlug, billingCycle)
     } catch (priceError) {
@@ -671,9 +674,9 @@ export async function POST(request: NextRequest) {
           userFriendlyMessage = `Configuration error: The selected plan is not properly configured. Please contact support.`
           console.error('[Create Subscription] Invalid price ID error:', {
             message: error.message,
-            planSlug,
-            billingCycle,
-            priceId,
+            planSlug: planSlug || 'unknown',
+            billingCycle: billingCycle || 'unknown',
+            priceId: priceId || 'unknown',
           })
         } else if (error.message.includes('No such customer')) {
           userFriendlyMessage = `Payment configuration error. Please try again or contact support.`
