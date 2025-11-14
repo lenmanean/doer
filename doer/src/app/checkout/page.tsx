@@ -85,23 +85,45 @@ function CheckoutForm() {
         setInitialLoading(true)
         setError(null)
 
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        console.log('[Checkout] Fetching user from Supabase auth...')
+        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+        console.log('[Checkout] User fetch result:', { 
+          hasUser: !!currentUser, 
+          userId: currentUser?.id,
+          error: userError?.message 
+        })
+        
         if (!currentUser) {
+          console.log('[Checkout] No user found, redirecting to login')
           setInitialLoading(false)
           router.push('/login')
           return
         }
 
         setUser(currentUser)
+        console.log('[Checkout] User set in state')
 
         // Fetch profile
-        const { data: userProfile } = await supabase
+        console.log('[Checkout] Fetching user profile from user_settings...')
+        const { data: userProfile, error: profileError } = await supabase
           .from('user_settings')
           .select('*')
           .eq('user_id', currentUser.id)
-          .single()
+          .maybeSingle() // Use maybeSingle() to handle missing records gracefully
+        
+        console.log('[Checkout] Profile fetch result:', { 
+          hasProfile: !!userProfile, 
+          error: profileError?.message,
+          errorCode: profileError?.code
+        })
 
-        setProfile(userProfile)
+        if (profileError && profileError.code !== 'PGRST116') {
+          // PGRST116 is "not found" which is fine, but other errors should be logged
+          console.error('[Checkout] Profile fetch error:', profileError)
+        }
+
+        setProfile(userProfile || null)
+        console.log('[Checkout] Profile set in state')
 
         // Fetch plan details
         console.log('[Checkout] Fetching plan details...', { planSlug, billingCycle })
