@@ -151,6 +151,13 @@ function cleanupCorruptedSessionData() {
  * Validate and clean up invalid sessions
  * This should be called periodically to ensure session integrity
  */
+const isSessionMissingError = (error: any) => {
+  if (!error) return false
+  const name = typeof error === 'object' ? (error as any).name : undefined
+  const message = typeof error === 'object' ? (error as any).message : undefined
+  return name === 'AuthSessionMissingError' || (typeof message === 'string' && message.includes('Auth session missing'))
+}
+
 export async function validateAndCleanSession() {
   if (typeof window === 'undefined') return { valid: false, user: null }
   
@@ -161,6 +168,10 @@ export async function validateAndCleanSession() {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) {
+      if (isSessionMissingError(error)) {
+        // Expected when user isn't signed in - no cleanup necessary
+        return { valid: false, user: null }
+      }
       // Session is invalid - clear it
       console.error('[supabase/client] Invalid session detected, clearing:', error.message)
       try {
