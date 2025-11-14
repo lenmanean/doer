@@ -48,11 +48,7 @@ export default function ChangelogPage() {
             <ol className="relative border-l border-slate-200 dark:border-slate-700 pl-8 sm:pl-12 space-y-12">
               {timelineItems.map((entry) => (
                 <li key={`${entry.isoDate}-${entry.title}`} className="relative">
-                  <span className="absolute -left-4 sm:-left-5 top-1 flex items-center justify-center">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-600 shadow-sm">
-                      <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400" />
-                    </span>
-                  </span>
+                  <span className="absolute -left-3 sm:-left-3.5 top-2 h-2 w-2 rounded-full bg-indigo-500 dark:bg-indigo-400" />
 
                   <time
                     dateTime={entry.isoDate}
@@ -63,9 +59,6 @@ export default function ChangelogPage() {
                   <h3 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
                     {entry.title}
                   </h3>
-                  <p className="mt-3 text-base text-gray-600 dark:text-slate-300">
-                    {entry.description}
-                  </p>
                 </li>
               ))}
             </ol>
