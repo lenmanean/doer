@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { fetchActiveSubscription } from '@/lib/billing/plans'
+import { getActiveSubscriptionFromStripe } from '@/lib/stripe/subscriptions'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/subscription
  * Returns the active subscription for the authenticated user
+ * Now queries Stripe directly as the source of truth (no database sync needed)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -25,8 +26,8 @@ export async function GET(req: NextRequest) {
       )
     }
     
-    // Fetch active subscription using service role client (server-side only)
-    const subscription = await fetchActiveSubscription(user.id)
+    // Fetch active subscription directly from Stripe (source of truth)
+    const subscription = await getActiveSubscriptionFromStripe(user.id)
     
     return NextResponse.json({
       success: true,

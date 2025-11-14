@@ -270,40 +270,7 @@ export default function SettingsPage() {
       const data = await response.json()
       setSubscription(data.subscription)
       
-      // If no subscription found, try to recover from Stripe
-      if (!data.subscription) {
-        console.log('[Settings] No subscription found, attempting recovery from Stripe...')
-        try {
-          const recoverResponse = await fetch('/api/subscription/recover', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          })
-          
-          if (recoverResponse.ok) {
-            const recoverData = await recoverResponse.json()
-            if (recoverData.recovered > 0) {
-              // Reload subscription after recovery
-              const reloadResponse = await fetch('/api/subscription', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-              })
-              if (reloadResponse.ok) {
-                const reloadData = await reloadResponse.json()
-                setSubscription(reloadData.subscription)
-                addToast({
-                  type: 'success',
-                  title: 'Subscription Recovered',
-                  description: `Recovered ${recoverData.recovered} subscription(s) from Stripe.`,
-                  duration: 5000,
-                })
-              }
-            }
-          }
-        } catch (recoverError) {
-          console.error('[Settings] Error recovering subscription:', recoverError)
-          // Don't show error to user - recovery is optional
-        }
-      }
+      // No need for recovery - we're querying Stripe directly now
     } catch (error) {
       console.error('Error loading subscription:', error)
       addToast({
@@ -1774,7 +1741,7 @@ export default function SettingsPage() {
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="text-lg font-semibold text-[#d7d2cb]">
-                                      {subscription.planCycle.plan.name} - {subscription.planCycle.cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                                      {subscription.planDetails.name} - {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Annual'}
                                     </p>
                                     <p className="text-sm text-[#d7d2cb]/60 mt-1">
                                       Status: <span className={`capitalize ${
@@ -1825,13 +1792,13 @@ export default function SettingsPage() {
                                 <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex justify-between">
                                   <span className="text-[#d7d2cb]">API Credits</span>
                                   <span className="text-[#d7d2cb] font-semibold">
-                                    {subscription.planCycle.apiCreditLimit.toLocaleString()}
+                                    {subscription.planDetails.apiCreditLimit.toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex justify-between">
                                   <span className="text-[#d7d2cb]">Integration Actions</span>
                                   <span className="text-[#d7d2cb] font-semibold">
-                                    {subscription.planCycle.integrationActionLimit.toLocaleString()}
+                                    {subscription.planDetails.integrationActionLimit.toLocaleString()}
                                   </span>
                                 </div>
                               </div>
