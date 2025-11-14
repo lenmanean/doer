@@ -243,6 +243,12 @@ export async function POST(request: NextRequest) {
           ...sanitized.privacy
         }
       }
+      if (sanitized.workday) {
+        incomingPrefs.workday = {
+          ...(currentPrefs.workday || {}),
+          ...sanitized.workday
+        }
+      }
     }
     
     if (settings?.workday) {
@@ -295,22 +301,8 @@ export async function POST(request: NextRequest) {
       
       // Preserve existing structure if we already store workday there
       incomingPrefs.workday = {
-        ...(currentPrefs.workday || {}),
+        ...(incomingPrefs.workday || currentPrefs.workday || {}),
         ...workdayPrefs
-      }
-      
-      // Also store flat keys for backward compatibility
-      if (workdayPrefs.workday_start_hour !== undefined) {
-        incomingPrefs.workday_start_hour = workdayPrefs.workday_start_hour
-      }
-      if (workdayPrefs.workday_end_hour !== undefined) {
-        incomingPrefs.workday_end_hour = workdayPrefs.workday_end_hour
-      }
-      if (workdayPrefs.lunch_start_hour !== undefined) {
-        incomingPrefs.lunch_start_hour = workdayPrefs.lunch_start_hour
-      }
-      if (workdayPrefs.lunch_end_hour !== undefined) {
-        incomingPrefs.lunch_end_hour = workdayPrefs.lunch_end_hour
       }
     }
 

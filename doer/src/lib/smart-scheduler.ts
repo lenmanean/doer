@@ -194,10 +194,12 @@ async function redistributeTasks(
       .eq('user_id', tasks[0]?.user_id)
       .single()
 
-    const workdayStartHour = userSettings?.preferences?.workday_start_hour || 9
-    const workdayEndHour = userSettings?.preferences?.workday_end_hour || 17
-    const lunchStartHour = userSettings?.preferences?.lunch_start_hour || 12
-    const lunchEndHour = userSettings?.preferences?.lunch_end_hour || 13
+    const prefs = userSettings?.preferences || {}
+    const workdayPrefs = prefs.workday || {}
+    const workdayStartHour = workdayPrefs.workday_start_hour ?? prefs.workday_start_hour ?? 9
+    const workdayEndHour = workdayPrefs.workday_end_hour ?? prefs.workday_end_hour ?? 17
+    const lunchStartHour = workdayPrefs.lunch_start_hour ?? prefs.lunch_start_hour ?? 12
+    const lunchEndHour = workdayPrefs.lunch_end_hour ?? prefs.lunch_end_hour ?? 13
 
     // Fetch task details including durations
     const { data: tasksWithDurations } = await supabase

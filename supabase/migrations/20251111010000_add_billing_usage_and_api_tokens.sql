@@ -21,9 +21,15 @@ $$;
 
 DO $$
 BEGIN
-  CREATE TYPE public.usage_metric AS ENUM ('api_credits', 'integration_actions');
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'usage_metric'
+      AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE public.usage_metric AS ENUM ('api_credits', 'integration_actions');
+  END IF;
 END
 $$;
 

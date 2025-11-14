@@ -62,10 +62,10 @@ export interface AutoReschedulePreferences {
  * Workday preferences
  */
 export interface WorkdayPreferences {
-  workday_start_hour: number // 0-23
-  workday_end_hour: number // 0-23
-  lunch_start_hour: number // 0-23
-  lunch_end_hour: number // 0-23
+  workday_start_hour?: number // 0-23
+  workday_end_hour?: number // 0-23
+  lunch_start_hour?: number // 0-23
+  lunch_end_hour?: number // 0-23
 }
 
 /**
@@ -80,8 +80,9 @@ export interface UserPreferences {
   time_format: TimeFormat
   week_start_day: WeekStartDay
   
-  // Workday Preferences (can be nested or flat)
+  // Workday Preferences
   workday?: WorkdayPreferences
+  // Legacy/flat keys (deprecated, kept for backward compatibility during migration)
   workday_start_hour?: number
   workday_end_hour?: number
   lunch_start_hour?: number
@@ -108,10 +109,12 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   accent_color: 'orange',
   time_format: '12h',
   week_start_day: 0,
-  workday_start_hour: 9,
-  workday_end_hour: 17,
-  lunch_start_hour: 12,
-  lunch_end_hour: 13,
+  workday: {
+    workday_start_hour: 9,
+    workday_end_hour: 17,
+    lunch_start_hour: 12,
+    lunch_end_hour: 13,
+  },
   smart_scheduling: {
     enabled: true,
     auto_reschedule: true,

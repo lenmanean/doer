@@ -23,7 +23,7 @@ ALTER COLUMN "plan_id" DROP NOT NULL;
 -- Recreate the foreign key constraint (allows NULL values)
 -- PostgreSQL foreign keys allow NULL values by default
 ALTER TABLE "public"."pending_reschedules"
-ADD CONSTRAINT IF NOT EXISTS "pending_reschedules_plan_id_fkey" 
+ADD CONSTRAINT "pending_reschedules_plan_id_fkey" 
 FOREIGN KEY ("plan_id") 
 REFERENCES "public"."plans"("id") 
 ON DELETE CASCADE;

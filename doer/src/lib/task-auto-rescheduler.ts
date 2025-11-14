@@ -328,14 +328,15 @@ async function getUserWorkdaySettings(supabase: SupabaseClient, userId: string):
     if (error) throw error
 
     const prefs = data?.preferences || {}
+    const workdayPrefs = prefs.workday || {}
     const autoReschedule = prefs.auto_reschedule || {}
 
     return {
-      workdayStartHour: prefs.workday_start_hour || 9,
-      workdayStartMinute: prefs.workday_start_minute || 0,
-      workdayEndHour: prefs.workday_end_hour || 17,
-      lunchStartHour: prefs.lunch_start_hour || 12,
-      lunchEndHour: prefs.lunch_end_hour || 13,
+      workdayStartHour: workdayPrefs.workday_start_hour ?? prefs.workday_start_hour ?? 9,
+      workdayStartMinute: workdayPrefs.workday_start_minute ?? prefs.workday_start_minute ?? 0,
+      workdayEndHour: workdayPrefs.workday_end_hour ?? prefs.workday_end_hour ?? 17,
+      lunchStartHour: workdayPrefs.lunch_start_hour ?? prefs.lunch_start_hour ?? 12,
+      lunchEndHour: workdayPrefs.lunch_end_hour ?? prefs.lunch_end_hour ?? 13,
       bufferMinutes: autoReschedule.buffer_minutes || 15,
       prioritySpacing: autoReschedule.priority_spacing || 'moderate',
       rescheduleWindowDays: autoReschedule.reschedule_window_days || 3

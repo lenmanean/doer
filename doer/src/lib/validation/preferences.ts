@@ -5,13 +5,14 @@
  * Always validate on the server, even if client-side validation exists.
  */
 
-import type { 
-  Theme, 
-  AccentColor, 
-  TimeFormat, 
+import type {
+  Theme,
+  AccentColor,
+  TimeFormat,
   WeekStartDay,
   PrioritySpacing,
-  UserPreferences 
+  UserPreferences,
+  WorkdayPreferences,
 } from '@/lib/types/preferences'
 
 /**
@@ -48,6 +49,46 @@ export function validateWeekStartDay(day: any): day is WeekStartDay {
  */
 export function validateHour(hour: any): hour is number {
   return typeof hour === 'number' && hour >= 0 && hour <= 23 && Number.isInteger(hour)
+}
+
+/**
+ * Validate nested workday preferences
+ */
+export function validateWorkdayPreferences(workday: any): workday is Partial<WorkdayPreferences> {
+  if (typeof workday !== 'object' || workday === null) {
+    return false
+  }
+
+  const keys: Array<keyof WorkdayPreferences> = [
+    'workday_start_hour',
+    'workday_end_hour',
+    'lunch_start_hour',
+    'lunch_end_hour'
+  ]
+
+  for (const key of keys) {
+    if (workday[key] !== undefined && !validateHour(workday[key])) {
+      return false
+    }
+  }
+
+  if (
+    workday.workday_start_hour !== undefined &&
+    workday.workday_end_hour !== undefined &&
+    workday.workday_start_hour >= workday.workday_end_hour
+  ) {
+    return false
+  }
+
+  if (
+    workday.lunch_start_hour !== undefined &&
+    workday.lunch_end_hour !== undefined &&
+    workday.lunch_start_hour >= workday.lunch_end_hour
+  ) {
+    return false
+  }
+
+  return true
 }
 
 /**
@@ -194,32 +235,49 @@ export function sanitizePreferences(prefs: any): Partial<UserPreferences> | null
   }
   
   // Validate and sanitize workday hours
+  const ensureWorkday = (): WorkdayPreferences => {
+    if (!sanitized.workday) {
+      sanitized.workday = {}
+    }
+    return sanitized.workday as WorkdayPreferences
+  }
+
+  if (prefs.workday !== undefined) {
+    if (!validateWorkdayPreferences(prefs.workday)) {
+      return null
+    }
+    sanitized.workday = {
+      ...(sanitized.workday || {}),
+      ...prefs.workday
+    }
+  }
+
   if (prefs.workday_start_hour !== undefined) {
     if (!validateHour(prefs.workday_start_hour)) {
       return null
     }
-    sanitized.workday_start_hour = prefs.workday_start_hour
+    ensureWorkday().workday_start_hour = prefs.workday_start_hour
   }
   
   if (prefs.workday_end_hour !== undefined) {
     if (!validateHour(prefs.workday_end_hour)) {
       return null
     }
-    sanitized.workday_end_hour = prefs.workday_end_hour
+    ensureWorkday().workday_end_hour = prefs.workday_end_hour
   }
   
   if (prefs.lunch_start_hour !== undefined) {
     if (!validateHour(prefs.lunch_start_hour)) {
       return null
     }
-    sanitized.lunch_start_hour = prefs.lunch_start_hour
+    ensureWorkday().lunch_start_hour = prefs.lunch_start_hour
   }
   
   if (prefs.lunch_end_hour !== undefined) {
     if (!validateHour(prefs.lunch_end_hour)) {
       return null
     }
-    sanitized.lunch_end_hour = prefs.lunch_end_hour
+    ensureWorkday().lunch_end_hour = prefs.lunch_end_hour
   }
   
   // Validate and sanitize privacy preferences

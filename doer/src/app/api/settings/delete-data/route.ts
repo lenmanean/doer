@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { DEFAULT_PREFERENCES } from '@/lib/types/preferences'
 
 /**
  * POST /api/settings/delete-data
@@ -163,20 +164,7 @@ export async function POST(request: NextRequest) {
     const { error: settingsError } = await supabase
       .from('user_settings')
       .update({
-        preferences: {
-          time_format: '12h',
-          lunch_end_hour: 13,
-          lunch_start_hour: 12,
-          workday_end_hour: 17,
-          workday_start_hour: 9,
-          week_start_day: 0,
-          smart_scheduling: {
-            enabled: true,
-            auto_reschedule: true,
-            penalty_reduction: true,
-            notification_threshold: 24
-          }
-        }
+        preferences: DEFAULT_PREFERENCES
       })
       .eq('user_id', user.id)
 
