@@ -68,7 +68,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Get price ID
-    const priceId = requirePriceId(planSlug, billingCycle)
+    let priceId: string
+    try {
+      priceId = requirePriceId(planSlug, billingCycle)
+    } catch (priceError) {
+      console.error('[Create Subscription] Missing price ID:', priceError)
+      return NextResponse.json(
+        { 
+          error: `Configuration error: Missing Stripe price ID for ${planSlug} plan (${billingCycle}). Please contact support.`,
+          details: 'The payment configuration is incomplete. This is a server configuration issue.'
+        },
+        { status: 500 }
+      )
+    }
+
+    // Validate price ID exists in Stripe (optional check - Stripe will also validate)
+    if (stripe && priceId) {
+      try {
+        await stripe.prices.retrieve(priceId)
+      } catch (priceRetrieveError: any) {
+        // If price doesn't exist, provide a helpful error message
+        if (priceRetrieveError?.code === 'resource_missing' || priceRetrieveError?.statusCode === 404) {
+          console.error('[Create Subscription] Price ID not found in Stripe:', {
+            priceId,
+            planSlug,
+            billingCycle,
+            error: priceRetrieveError.message,
+          })
+          return NextResponse.json(
+            { 
+              error: `Configuration error: The selected plan (${planSlug} - ${billingCycle}) is not properly configured. Please contact support.`,
+              details: `Price ID '${priceId}' does not exist in Stripe. This is a server configuration issue.`
+            },
+            { status: 500 }
+          )
+        }
+        // For other errors, log but continue - Stripe will validate during subscription creation
+        console.warn('[Create Subscription] Warning: Could not validate price ID:', priceRetrieveError)
+      }
+    }
 
     // Check if user already has active subscription
     try {
@@ -607,7 +645,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Error creating subscription', error)
+    console.error('[Create Subscription] Error creating subscription:', error)
 
     // If we created a subscription but then hit an error, try to clean it up
     // This prevents accumulation of incomplete subscriptions/payment intents
@@ -622,11 +660,47 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const message =
-      error instanceof Stripe.errors.StripeError
-        ? error.message
-        : (error as Error)?.message ?? 'Unexpected server error creating subscription.'
+    // Handle Stripe-specific errors with better messages
+    if (error instanceof Stripe.errors.StripeError) {
+      let errorMessage = error.message
+      let userFriendlyMessage = error.message
 
+      // Handle specific Stripe error types
+      if (error.type === 'StripeInvalidRequestError') {
+        if (error.message.includes('No such price')) {
+          userFriendlyMessage = `Configuration error: The selected plan is not properly configured. Please contact support.`
+          console.error('[Create Subscription] Invalid price ID error:', {
+            message: error.message,
+            planSlug,
+            billingCycle,
+            priceId,
+          })
+        } else if (error.message.includes('No such customer')) {
+          userFriendlyMessage = `Payment configuration error. Please try again or contact support.`
+        } else if (error.message.includes('No such payment_method')) {
+          userFriendlyMessage = `Payment method error. Please try again with a different payment method.`
+        }
+      } else if (error.type === 'StripeCardError') {
+        userFriendlyMessage = error.message || 'Payment failed. Please check your card details and try again.'
+      } else if (error.type === 'StripeRateLimitError') {
+        userFriendlyMessage = 'Too many requests. Please wait a moment and try again.'
+      } else if (error.type === 'StripeAPIError') {
+        userFriendlyMessage = 'Payment service temporarily unavailable. Please try again in a moment.'
+      }
+
+      return NextResponse.json(
+        { 
+          error: userFriendlyMessage,
+          details: error.type === 'StripeInvalidRequestError' && error.message.includes('No such price')
+            ? `The price ID '${error.message.match(/price_[^\s']+/)?.[0] || 'unknown'}' does not exist in Stripe. This is a server configuration issue.`
+            : undefined
+        },
+        { status: 500 }
+      )
+    }
+
+    // Handle other errors
+    const message = (error as Error)?.message ?? 'Unexpected server error creating subscription.'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

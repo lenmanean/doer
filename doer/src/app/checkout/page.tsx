@@ -173,7 +173,10 @@ function CheckoutForm() {
 
       if (!subscriptionResponse.ok) {
         const errorData = await subscriptionResponse.json()
-        throw new Error(errorData.error || 'Failed to create subscription')
+        // Show details if available (helps with debugging configuration issues)
+        const errorMessage = errorData.error || 'Failed to create subscription'
+        const errorDetails = errorData.details ? ` ${errorData.details}` : ''
+        throw new Error(errorMessage + errorDetails)
       }
 
       const subscriptionData = await subscriptionResponse.json()
