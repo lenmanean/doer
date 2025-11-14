@@ -139,27 +139,44 @@ function CheckoutForm() {
         setUser(currentUser)
         console.log('[Checkout] User set in state:', currentUser.id)
 
-        // Fetch profile
+        // Fetch profile with timeout
         console.log('[Checkout] Fetching user profile from user_settings...')
-        const { data: userProfile, error: profileError } = await supabase
+        const profileFetchPromise = supabase
           .from('user_settings')
           .select('*')
           .eq('user_id', currentUser.id)
           .maybeSingle() // Use maybeSingle() to handle missing records gracefully
         
-        console.log('[Checkout] Profile fetch result:', { 
-          hasProfile: !!userProfile, 
-          error: profileError?.message,
-          errorCode: profileError?.code
-        })
+        const profileTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile fetch timeout after 5 seconds')), 5000)
+        )
+        
+        let userProfile: any = null
+        let profileError: any = null
+        
+        try {
+          const result = await Promise.race([profileFetchPromise, profileTimeoutPromise]) as any
+          userProfile = result.data
+          profileError = result.error
+          console.log('[Checkout] Profile fetch result:', { 
+            hasProfile: !!userProfile, 
+            error: profileError?.message,
+            errorCode: profileError?.code
+          })
+        } catch (timeoutError: any) {
+          console.error('[Checkout] Profile fetch timed out or failed:', timeoutError)
+          // Continue without profile - it's optional for checkout
+          userProfile = null
+          profileError = timeoutError
+        }
 
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError && profileError.code !== 'PGRST116' && profileError.message !== 'Profile fetch timeout after 5 seconds') {
           // PGRST116 is "not found" which is fine, but other errors should be logged
           console.error('[Checkout] Profile fetch error:', profileError)
         }
 
         setProfile(userProfile || null)
-        console.log('[Checkout] Profile set in state')
+        console.log('[Checkout] Profile set in state (or skipped due to error)')
 
         // Fetch plan details
         console.log('[Checkout] Fetching plan details...', { planSlug, billingCycle })
