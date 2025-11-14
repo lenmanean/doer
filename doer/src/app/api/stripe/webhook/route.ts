@@ -35,10 +35,6 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  if (!PLAN_ASSIGNMENT_ENABLED) {
-    return NextResponse.json({ success: false, message: 'Plan assignment disabled' }, { status: 202 })
-  }
-
   if (!webhookSecret) {
     return NextResponse.json({ success: false, error: 'Webhook secret not configured' }, { status: 500 })
   }
