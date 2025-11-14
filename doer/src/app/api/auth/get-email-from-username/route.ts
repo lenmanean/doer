@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * POST /api/auth/get-email-from-username
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = getServiceRoleClient()
 
     // Look up username (case-insensitive) and get the associated user_id
     const { data, error } = await supabase
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Get the user's email from auth.users
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(data.user_id)
 
-    if (userError || !userData) {
+    if (userError || !userData || !userData.user?.email) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
