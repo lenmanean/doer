@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { StripeProvider } from '@/components/providers/stripe-provider'
 import { supabase } from '@/lib/supabase/client'
+import { useSupabase } from '@/components/providers/supabase-provider'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -26,6 +27,7 @@ function CheckoutForm() {
   const stripe = useStripe()
   const elements = useElements()
   const { addToast } = useToast()
+  const { user: providerUser, loading: authLoading } = useSupabase()
 
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -85,13 +87,47 @@ function CheckoutForm() {
         setInitialLoading(true)
         setError(null)
 
-        console.log('[Checkout] Fetching user from Supabase auth...')
-        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
-        console.log('[Checkout] User fetch result:', { 
-          hasUser: !!currentUser, 
-          userId: currentUser?.id,
-          error: userError?.message 
-        })
+        console.log('[Checkout] Checking user authentication...')
+        console.log('[Checkout] Provider user:', { hasUser: !!providerUser, userId: providerUser?.id, authLoading })
+        
+        // Try to use provider user first (faster, already loaded)
+        let currentUser = providerUser
+        
+        // If provider user is not available, try direct getUser() with timeout
+        if (!currentUser && !authLoading) {
+          console.log('[Checkout] Provider user not available, fetching from Supabase auth...')
+          
+          // Add timeout wrapper for getUser() to prevent infinite hanging
+          const getUserWithTimeout = async () => {
+            return Promise.race([
+              supabase.auth.getUser(),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('getUser() timeout after 5 seconds')), 5000)
+              )
+            ]) as Promise<{ data: { user: any }, error: any }>
+          }
+          
+          let userError: any = null
+          
+          try {
+            const result = await getUserWithTimeout()
+            currentUser = result.data?.user
+            userError = result.error
+            console.log('[Checkout] User fetch result:', { 
+              hasUser: !!currentUser, 
+              userId: currentUser?.id,
+              error: userError?.message 
+            })
+          } catch (timeoutError) {
+            console.error('[Checkout] getUser() timed out or failed:', timeoutError)
+            throw new Error('Authentication check timed out. Please refresh the page and try again.')
+          }
+        } else if (authLoading) {
+          console.log('[Checkout] Waiting for auth to load from provider...')
+          // Wait a bit for auth to load
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          currentUser = providerUser
+        }
         
         if (!currentUser) {
           console.log('[Checkout] No user found, redirecting to login')
@@ -101,7 +137,7 @@ function CheckoutForm() {
         }
 
         setUser(currentUser)
-        console.log('[Checkout] User set in state')
+        console.log('[Checkout] User set in state:', currentUser.id)
 
         // Fetch profile
         console.log('[Checkout] Fetching user profile from user_settings...')
