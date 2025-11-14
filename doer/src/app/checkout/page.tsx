@@ -28,6 +28,7 @@ function CheckoutForm() {
   const { addToast } = useToast()
 
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [planDetails, setPlanDetails] = useState<PlanDetails | null>(null)
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -40,6 +41,7 @@ function CheckoutForm() {
   useEffect(() => {
     // Validate query params
     if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
+      setInitialLoading(false)
       addToast({
         type: 'error',
         title: 'Invalid Plan',
@@ -51,6 +53,7 @@ function CheckoutForm() {
     }
 
     if (!['monthly', 'annual'].includes(billingCycle)) {
+      setInitialLoading(false)
       addToast({
         type: 'error',
         title: 'Invalid Billing Cycle',
@@ -64,8 +67,12 @@ function CheckoutForm() {
     // Fetch user and profile
     const fetchUserData = async () => {
       try {
+        setInitialLoading(true)
+        setError(null)
+
         const { data: { user: currentUser } } = await supabase.auth.getUser()
         if (!currentUser) {
+          setInitialLoading(false)
           router.push('/login')
           return
         }
@@ -82,36 +89,48 @@ function CheckoutForm() {
         setProfile(userProfile)
 
         // Fetch plan details
+        console.log('[Checkout] Fetching plan details...', { planSlug, billingCycle })
         const response = await fetch(`/api/billing/plan-details?planSlug=${planSlug}&cycle=${billingCycle}`)
+        console.log('[Checkout] Plan details response:', { ok: response.ok, status: response.status })
         if (!response.ok) {
-          throw new Error('Failed to fetch plan details')
+          const errorData = await response.json().catch(() => ({}))
+          console.error('[Checkout] Plan details error:', errorData)
+          throw new Error(errorData.error || 'Failed to fetch plan details')
         }
         const planData = await response.json()
+        console.log('[Checkout] Plan details received:', planData)
         setPlanDetails(planData)
 
         // Create setup intent
+        console.log('[Checkout] Creating setup intent...', { planSlug, billingCycle })
         const setupResponse = await fetch('/api/checkout/create-setup-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ planSlug, billingCycle }),
         })
+        console.log('[Checkout] Setup intent response:', { ok: setupResponse.ok, status: setupResponse.status })
 
         if (!setupResponse.ok) {
-          const errorData = await setupResponse.json()
+          const errorData = await setupResponse.json().catch(() => ({}))
+          console.error('[Checkout] Setup intent error:', errorData)
           throw new Error(errorData.error || 'Failed to initialize payment')
         }
 
         const { clientSecret } = await setupResponse.json()
+        console.log('[Checkout] Setup intent created successfully')
         setSetupIntentClientSecret(clientSecret)
       } catch (err) {
         console.error('Error fetching checkout data:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load checkout page')
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load checkout page'
+        setError(errorMessage)
         addToast({
           type: 'error',
           title: 'Error',
-          description: err instanceof Error ? err.message : 'Failed to load checkout page',
+          description: errorMessage,
           duration: 5000,
         })
+      } finally {
+        setInitialLoading(false)
       }
     }
 
@@ -146,7 +165,7 @@ function CheckoutForm() {
               email: user?.email || undefined,
               name: profile?.first_name && profile?.last_name
                 ? `${profile.first_name} ${profile.last_name}`
-                : profile?.display_name || user?.email?.split('@')[0] || undefined,
+                : user?.email?.split('@')[0] || undefined,
             },
           },
         }
@@ -273,6 +292,37 @@ function CheckoutForm() {
   const formatPrice = (cents: number | null) => {
     if (!cents) return 'Free'
     return `$${(cents / 100).toFixed(2)}`
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#ff7f00] animate-spin" />
+      </div>
+    )
+  }
+
+  if (error && (!planDetails || !user)) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="text-red-400">Error Loading Checkout</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-[#d7d2cb]">{error}</p>
+            <div className="flex gap-4">
+              <Button onClick={() => router.push('/pricing')} variant="outline" className="flex-1">
+                Back to Pricing
+              </Button>
+              <Button onClick={() => window.location.reload()} className="flex-1">
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!planDetails || !user) {
