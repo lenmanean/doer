@@ -146,7 +146,7 @@
       "billing": {
         "label": "Billing cycle",
         "monthly": "Monthly",
-        "annual": "Annual (save 20%)"
+        "annual": "Annual (save 33%)"
       },
       "creditTooltip": "Credits cover Doer’s API endpoints—plan generation, auto-scheduling, AI retrospectives, and integrations. Each API call or integration action consumes one credit.",
       "includedFeatures": "Included features",
@@ -185,13 +185,13 @@
               "suffix": "/mo"
             },
             "annual": {
-              "primary": "$16",
-              "suffix": "/mo"
+              "primary": "$160",
+              "suffix": "/yr"
             }
           },
           "note": {
             "monthly": "Billed monthly — cancel anytime",
-            "annual": "Billed annually — $192 / yr (save 20%)"
+            "annual": "Billed annually — $160 / yr (save 33%)"
           },
           "credits": {
             "api": {

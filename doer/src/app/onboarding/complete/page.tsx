@@ -178,7 +178,7 @@ export default function OnboardingCompletePage() {
                         </div>
                         <div className="flex flex-col items-center gap-1 mb-4">
                           <span className="text-4xl font-bold text-[#d7d2cb]">FREE</span>
-                          <span className="text-[#d7d2cb]/60 line-through">$19.99/month</span>
+                          <span className="text-[#d7d2cb]/60 line-through">$20/month</span>
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 space-y-4">

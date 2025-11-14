@@ -135,11 +135,22 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                 <div className="absolute top-4 right-4 bg-[#ff7f00] text-white text-xs font-semibold px-2 py-1 rounded">
                   Popular
                 </div>
+                {billingCycle === 'annual' && (
+                  <div className="absolute top-4 left-4 bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-semibold px-2 py-1 rounded">
+                    Save 33%
+                  </div>
+                )}
                 <CardHeader>
                   <CardTitle className="text-xl">Pro</CardTitle>
                   <div className="mt-2">
+                    {billingCycle === 'annual' && (
+                      <div className="mb-1">
+                        <span className="text-sm text-[#d7d2cb]/60 line-through mr-2">$240/yr</span>
+                        <span className="text-xs text-green-400 font-semibold">33% off</span>
+                      </div>
+                    )}
                     <span className="text-3xl font-bold text-[#d7d2cb]">
-                      ${billingCycle === 'monthly' ? '29' : '290'}
+                      ${billingCycle === 'monthly' ? '20' : '160'}
                     </span>
                     <span className="text-[#d7d2cb]/60 ml-1">
                       /{billingCycle === 'monthly' ? 'mo' : 'yr'}
@@ -151,13 +162,13 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                     <div className="flex items-center gap-2 text-[#d7d2cb]/80">
                       <Zap className="w-4 h-4 text-[#ff7f00]" />
                       <span>
-                        {billingCycle === 'monthly' ? '10,000' : '120,000'} API Credits
+                        {billingCycle === 'monthly' ? '100' : '1,200'} API Credits per {billingCycle === 'monthly' ? 'month' : 'year'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-[#d7d2cb]/80">
                       <Zap className="w-4 h-4 text-[#ff7f00]" />
                       <span>
-                        {billingCycle === 'monthly' ? '500' : '6,000'} Integration Actions
+                        {billingCycle === 'monthly' ? '3,000' : '36,000'} Integration Actions per {billingCycle === 'monthly' ? 'month' : 'year'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-[#d7d2cb]/80">
@@ -196,6 +207,7 @@ export function shouldShowPlanOverlay(): boolean {
   if (typeof window === 'undefined') return false
   return localStorage.getItem(PLAN_STORAGE_KEY) !== 'true'
 }
+
 
 
 

@@ -176,16 +176,35 @@ export default function PricingPage() {
                 } ${plan.id === 'pro' && proAnimating ? 'pro-plan-fade' : ''}`}
               >
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    {plan.name}
-                  </p>
-                  {plan.price && (
-                    <p className="mt-4 text-4xl font-bold text-slate-900 dark:text-slate-100">
-                      {plan.price}
-                      <span className="text-base font-medium text-slate-500 dark:text-slate-400">
-                        {plan.suffix}
-                      </span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {plan.name}
                     </p>
+                    {plan.id === 'pro' && billingCycle === 'annual' && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
+                        Save 33%
+                      </span>
+                    )}
+                  </div>
+                  {plan.price && (
+                    <div className="mt-4">
+                      {plan.id === 'pro' && billingCycle === 'annual' && (
+                        <div className="mb-2">
+                          <span className="text-sm text-slate-500 dark:text-slate-400 line-through mr-2">
+                            $240/yr
+                          </span>
+                          <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                            33% off
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-4xl font-bold text-slate-900 dark:text-slate-100">
+                        {plan.price}
+                        <span className="text-base font-medium text-slate-500 dark:text-slate-400">
+                          {plan.suffix}
+                        </span>
+                      </p>
+                    </div>
                   )}
                   {plan.note && (
                     <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">

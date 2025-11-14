@@ -8,3 +8,4 @@ CREATE INDEX IF NOT EXISTS idx_user_plan_subscriptions_external_subscription_id
 COMMENT ON INDEX idx_user_plan_subscriptions_external_subscription_id IS 
   'Index on external_subscription_id for fast Stripe subscription lookups in webhook handlers';
 
+
