@@ -1,15 +1,33 @@
 import { getActiveSubscriptionFromStripe, type StripeSubscription } from '@/lib/stripe/subscriptions'
 import { getPlanCycleBySlugAndCycle } from '@/lib/billing/plans'
 import type { UserPlanSubscription } from '@/lib/billing/plans'
+import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
+import { logger } from '@/lib/logger'
 
 /**
  * Converts StripeSubscription to UserPlanSubscription format
  * This adapter allows CreditService to work with Stripe-based subscriptions
+ * Automatically assigns Basic plan if user has no subscription
  */
 export async function getSubscriptionForUsage(userId: string): Promise<UserPlanSubscription | null> {
-  const stripeSubscription = await getActiveSubscriptionFromStripe(userId)
+  let stripeSubscription = await getActiveSubscriptionFromStripe(userId)
+  
+  // If no subscription found, automatically assign Basic plan
+  if (!stripeSubscription) {
+    try {
+      await autoAssignBasicPlan(userId)
+      // Try to get subscription again after assignment
+      stripeSubscription = await getActiveSubscriptionFromStripe(userId)
+    } catch (error) {
+      logger.error('Failed to auto-assign Basic plan', error as Error, { userId })
+      // Re-throw error instead of silently continuing
+      // This ensures callers know that subscription assignment failed
+      throw new Error(`Failed to auto-assign Basic plan for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
   
   if (!stripeSubscription) {
+    // This should not happen if auto-assignment succeeded, but handle gracefully
     return null
   }
 

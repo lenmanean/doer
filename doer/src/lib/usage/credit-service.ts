@@ -170,6 +170,11 @@ export class CreditService {
     return { remaining: result.remaining ?? 0 }
   }
 
+  /**
+   * Reserve credits for usage
+   * Includes retry logic to handle race conditions where balance might not exist
+   * between ensureBalance check and reserve_usage call
+   */
   async reserve(
     metric: UsageMetric,
     amount: number,
@@ -182,6 +187,7 @@ export class CreditService {
     await this.ensureBalance(metric)
 
     const result = await this.reserveInternal(metric, amount, reference)
+    // Handle race condition: if balance not found, retry after ensuring balance exists
     if (result.remaining === -1) {
       await this.ensureBalance(metric)
       const retryResult = await this.reserveInternal(metric, amount, reference)

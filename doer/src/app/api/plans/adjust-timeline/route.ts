@@ -3,15 +3,64 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { openai } from '@/lib/ai'
 import { TimelineAdjustmentRequest } from '@/lib/types'
+import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
+import { UsageLimitExceeded } from '@/lib/usage/credit-service'
+
+const TIMELINE_ADJUSTMENT_CREDIT_COST = 1 // 1 OpenAI call: redistributeTasksAcrossTimeline
 
 export async function POST(request: NextRequest) {
+  let reserved = false
+  let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
+
   try {
-    const supabase = createClient()
+    // Authenticate user via API token or session
+    try {
+      authContext = await authenticateApiRequest(request.headers, {
+        requiredScopes: [], // No specific scope required for timeline adjustment
+      })
+      // Reserve credits for OpenAI call
+      await authContext.creditService.reserve('api_credits', TIMELINE_ADJUSTMENT_CREDIT_COST, {
+        route: 'plans.adjust-timeline',
+      })
+      reserved = true
+    } catch (authError) {
+      // If API token auth fails, try session auth (for web UI)
+      const supabase = await createClient()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      // For session auth, create a CreditService instance
+      const { CreditService } = await import('@/lib/usage/credit-service')
+      const creditService = new CreditService(user.id, undefined)
+      await creditService.getSubscription()
+      authContext = {
+        tokenId: '', // Empty string for session auth
+        userId: user.id,
+        scopes: [], // No scopes for session auth
+        expiresAt: null,
+        creditService,
+      }
+      // Reserve credits for OpenAI call
+      await creditService.reserve('api_credits', TIMELINE_ADJUSTMENT_CREDIT_COST, {
+        route: 'plans.adjust-timeline',
+      })
+      reserved = true
+    }
+
+    const supabase = await createClient()
     
     // Check authentication
     const supabaseClient = await supabase
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TIMELINE_ADJUSTMENT_CREDIT_COST, {
+          route: 'plans.adjust-timeline',
+          reason: 'user_not_authenticated',
+        })
+        reserved = false
+      }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -27,11 +76,27 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (planError || !plan) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TIMELINE_ADJUSTMENT_CREDIT_COST, {
+          route: 'plans.adjust-timeline',
+          reason: 'plan_not_found',
+        })
+        reserved = false
+      }
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
     }
 
     // Generate AI-powered timeline redistribution
     const adjustedTasks = await redistributeTasksAcrossTimeline(tasks, newDuration, plan.start_date)
+
+    // Commit credit after successful OpenAI call
+    if (reserved && authContext) {
+      await authContext.creditService.commit('api_credits', TIMELINE_ADJUSTMENT_CREDIT_COST, {
+        route: 'plans.adjust-timeline',
+        model: 'gpt-4o-mini',
+      })
+      reserved = false
+    }
 
     // Update plan end date
     const startDate = new Date(plan.start_date)
@@ -60,6 +125,39 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Timeline adjustment error:', error)
+    
+    // Release credit on error
+    if (reserved && authContext) {
+      await authContext.creditService.release('api_credits', TIMELINE_ADJUSTMENT_CREDIT_COST, {
+        route: 'plans.adjust-timeline',
+        reason: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }).catch((releaseError) => {
+        console.error('Failed to release credit:', releaseError)
+      })
+      reserved = false
+    }
+
+    // Handle UsageLimitExceeded error
+    if (error instanceof UsageLimitExceeded) {
+      return NextResponse.json(
+        {
+          error: 'USAGE_LIMIT_EXCEEDED',
+          message: 'You have exhausted your API credits for this billing cycle.',
+          remaining: error.remaining,
+        },
+        { status: 429 }
+      )
+    }
+
+    // Handle ApiTokenError
+    if (error instanceof ApiTokenError) {
+      return NextResponse.json(
+        { error: 'API_TOKEN_ERROR', message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

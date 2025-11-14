@@ -1,9 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { openai } from '@/lib/ai'
+import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
+import { UsageLimitExceeded } from '@/lib/usage/credit-service'
+
+const TODO_LIST_ANALYZE_CREDIT_COST = 1 // 1 OpenAI call: analyze tasks
 
 export async function POST(req: NextRequest) {
+  let reserved = false
+  let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
+
   try {
+    // Authenticate user via API token or session
+    try {
+      authContext = await authenticateApiRequest(req.headers, {
+        requiredScopes: [], // No specific scope required for todo list analysis
+      })
+      // Reserve credits for OpenAI call
+      await authContext.creditService.reserve('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+        route: 'tasks.todo-list-analyze',
+      })
+      reserved = true
+    } catch (authError) {
+      // If API token auth fails, try session auth (for web UI)
+      const supabase = await createClient()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
+      }
+      // For session auth, create a CreditService instance
+      const { CreditService } = await import('@/lib/usage/credit-service')
+      const creditService = new CreditService(user.id, undefined)
+      await creditService.getSubscription()
+      authContext = {
+        tokenId: '', // Empty string for session auth
+        userId: user.id,
+        scopes: [], // No scopes for session auth
+        expiresAt: null,
+        creditService,
+      }
+      // Reserve credits for OpenAI call
+      await creditService.reserve('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+        route: 'tasks.todo-list-analyze',
+      })
+      reserved = true
+    }
+
     const supabase = await createClient()
 
     // Authenticate user
@@ -13,6 +55,13 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser()
     
     if (userError || !user) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+          route: 'tasks.todo-list-analyze',
+          reason: 'user_not_authenticated',
+        })
+        reserved = false
+      }
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
     }
 
@@ -20,6 +69,13 @@ export async function POST(req: NextRequest) {
     const { tasks } = body
 
     if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+          route: 'tasks.todo-list-analyze',
+          reason: 'validation_error',
+        })
+        reserved = false
+      }
       return NextResponse.json(
         { error: 'Tasks array is required and must not be empty' },
         { status: 400 }
@@ -29,6 +85,13 @@ export async function POST(req: NextRequest) {
     // Validate tasks
     const validTasks = tasks.filter((t: any) => t.name && t.name.trim())
     if (validTasks.length === 0) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+          route: 'tasks.todo-list-analyze',
+          reason: 'validation_error',
+        })
+        reserved = false
+      }
       return NextResponse.json(
         { error: 'At least one task with a name is required' },
         { status: 400 }
@@ -111,12 +174,34 @@ Return only valid JSON.`
         }
       })
 
+      // Commit credit after successful OpenAI call
+      if (reserved && authContext) {
+        await authContext.creditService.commit('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+          route: 'tasks.todo-list-analyze',
+          model: 'gpt-4o-mini',
+        })
+        reserved = false
+      }
+
       return NextResponse.json({
         success: true,
         tasks: analyzedTasks
       })
     } catch (aiError) {
       console.error('AI analysis error:', aiError)
+      
+      // Release credit on error
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+          route: 'tasks.todo-list-analyze',
+          reason: 'ai_error',
+          error: aiError instanceof Error ? aiError.message : 'Unknown error',
+        }).catch((releaseError) => {
+          console.error('Failed to release credit:', releaseError)
+        })
+        reserved = false
+      }
+      
       return NextResponse.json(
         { error: 'Failed to analyze tasks with AI' },
         { status: 500 }
@@ -124,6 +209,39 @@ Return only valid JSON.`
     }
   } catch (error) {
     console.error('Todo list analyze error:', error)
+    
+    // Release credit on error
+    if (reserved && authContext) {
+      await authContext.creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+        route: 'tasks.todo-list-analyze',
+        reason: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }).catch((releaseError) => {
+        console.error('Failed to release credit:', releaseError)
+      })
+      reserved = false
+    }
+
+    // Handle UsageLimitExceeded error
+    if (error instanceof UsageLimitExceeded) {
+      return NextResponse.json(
+        {
+          error: 'USAGE_LIMIT_EXCEEDED',
+          message: 'You have exhausted your API credits for this billing cycle.',
+          remaining: error.remaining,
+        },
+        { status: 429 }
+      )
+    }
+
+    // Handle ApiTokenError
+    if (error instanceof ApiTokenError) {
+      return NextResponse.json(
+        { error: 'API_TOKEN_ERROR', message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to analyze tasks' },
       { status: 500 }

@@ -4,7 +4,8 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { fetchActiveSubscription, assignSubscription, type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
+import { assignSubscription, type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
+import { getActiveSubscriptionFromStripe } from '@/lib/stripe/subscriptions'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user already has active subscription
     try {
-      const existingSubscription = await fetchActiveSubscription(user.id)
+      const existingSubscription = await getActiveSubscriptionFromStripe(user.id)
       if (existingSubscription) {
         // User has active subscription - this will be handled as upgrade/downgrade by Stripe
         // We'll let Stripe handle proration automatically

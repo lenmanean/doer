@@ -7,6 +7,7 @@ import {
   addDays,
   daysBetween 
 } from '@/lib/date-utils'
+import { logger } from '@/lib/logger'
 
 export interface ReschedulingResult {
   newEndDate: Date
@@ -56,7 +57,7 @@ export async function detectMissedTasks(
       daysOverdue: task.days_overdue
     })) || []
   } catch (error) {
-    console.error('Error detecting missed tasks:', error)
+    logger.error('Error detecting missed tasks', error as Error, { planId, checkDate: formatDateForDB(checkDate) })
     return []
   }
 }
@@ -92,7 +93,7 @@ export async function analyzeAndReschedule(
     
     if (settingsError) throw settingsError
     if (!settingsEnabled) {
-      console.log('Smart scheduling disabled for user')
+      logger.debug('Smart scheduling disabled for user', { userId })
       return null
     }
 
@@ -112,7 +113,7 @@ export async function analyzeAndReschedule(
     const missedTasks = await detectMissedTasks(planId, checkDate)
     
     if (missedTasks.length === 0) {
-      console.log('No missed tasks found for plan')
+      logger.debug('No missed tasks found for plan', { planId, userId })
       return null
     }
 
@@ -267,7 +268,7 @@ async function redistributeTasks(
 
     return adjustments
   } catch (error) {
-    console.error('Error redistributing tasks:', error)
+    logger.error('Error redistributing tasks', error as Error, { planId, taskCount: tasks.length })
     return []
   }
 }
@@ -306,91 +307,48 @@ export async function applyScheduleChanges(
   result: ReschedulingResult
 ): Promise<boolean> {
   try {
-    // Start transaction
-    const { error: transactionError } = await supabase.rpc('begin')
+    // Fetch current plan to get original_end_date
+    const { data: currentPlan, error: planFetchError } = await supabase
+      .from('plans')
+      .select('end_date, original_end_date')
+      .eq('id', planId)
+      .eq('user_id', userId)
+      .single()
 
-    if (transactionError) throw transactionError
-
-    try {
-      // 1. Update plan end date
-      // Fetch current plan to check if original_end_date exists
-      const { data: currentPlan } = await supabase
-        .from('plans')
-        .select('end_date, original_end_date')
-        .eq('id', planId)
-        .single()
-      
-      const updateData: any = {
-        end_date: formatDateForDB(result.newEndDate)
-      }
-      
-      // Only set original_end_date if it doesn't exist yet
-      if (currentPlan && !currentPlan.original_end_date) {
-        updateData.original_end_date = currentPlan.end_date
-      }
-      
-      const { error: planUpdateError } = await supabase
-        .from('plans')
-        .update(updateData)
-        .eq('id', planId)
-
-      if (planUpdateError) throw planUpdateError
-
-      // 2. Update task schedules with time-block data
-      for (const adjustment of result.taskAdjustments) {
-        const updateData: any = {
-          date: adjustment.newDate,
-          rescheduled_from: adjustment.oldDate
-        }
-        
-        // Add time-block fields if available
-        if (adjustment.newStartTime) updateData.start_time = adjustment.newStartTime
-        if (adjustment.newEndTime) updateData.end_time = adjustment.newEndTime
-        if (adjustment.duration) updateData.duration_minutes = adjustment.duration
-        
-        const { error: scheduleUpdateError } = await supabase
-          .from('task_schedule')
-          .update(updateData)
-          .eq('task_id', adjustment.taskId)
-          .eq('plan_id', planId)
-
-        if (scheduleUpdateError) throw scheduleUpdateError
-      }
-
-      // 3. Milestones removed from system
-
-      // 4. Record in scheduling history
-      const { error: historyError } = await supabase
-        .from('scheduling_history')
-        .insert({
-          user_id: userId,
-          plan_id: planId,
-          old_end_date: result.taskAdjustments.length > 0 ? 
-            result.taskAdjustments[0].oldDate : 
-            formatDateForDB(new Date()),
-          new_end_date: formatDateForDB(result.newEndDate),
-          days_extended: result.daysExtended,
-          tasks_rescheduled: result.taskAdjustments.length,
-          milestones_adjusted: 0, // Milestones removed from system
-          reason: result.reason
-        })
-
-      if (historyError) throw historyError
-
-      // Commit transaction
-      const { error: commitError } = await supabase.rpc('commit')
-      if (commitError) throw commitError
-
-      console.log(`✅ Successfully applied rescheduling for plan ${planId}`)
-      return true
-
-    } catch (error) {
-      // Rollback on error
-      await supabase.rpc('rollback')
-      throw error
+    if (planFetchError || !currentPlan) {
+      logger.error('Error fetching plan for schedule changes', planFetchError as Error, { planId, userId })
+      return false
     }
+
+    // Prepare task adjustments as JSONB
+    const taskAdjustmentsJson = result.taskAdjustments.map(adj => ({
+      taskId: adj.taskId,
+      oldDate: adj.oldDate,
+      newDate: adj.newDate,
+      newStartTime: adj.newStartTime || null,
+      newEndTime: adj.newEndTime || null,
+      duration: adj.duration || null,
+    }))
+
+    // Call the database function that handles the transaction server-side
+    const { data, error } = await supabase.rpc('apply_schedule_changes_transaction', {
+      p_plan_id: planId,
+      p_user_id: userId,
+      p_new_end_date: formatDateForDB(result.newEndDate),
+      p_original_end_date: currentPlan.end_date,
+      p_task_adjustments: taskAdjustmentsJson,
+      p_days_extended: result.daysExtended,
+      p_reason: result.reason
+    })
+
+    if (error) {
+      logger.error('Error applying schedule changes', error as Error, { planId, userId })
+      return false
+    }
+
+    return data === true
   } catch (error) {
-    console.error('Error applying schedule changes:', error)
+    logger.error('Error applying schedule changes', error as Error, { planId, userId })
     return false
   }
 }
@@ -490,12 +448,12 @@ export async function processPlanRescheduling(planId: string): Promise<boolean> 
     const success = await applyScheduleChanges(planId, plan.user_id, result)
     
     if (success) {
-      console.log(`✅ Processed rescheduling for plan ${planId}: ${result.reason.message}`)
+      logger.info('Processed rescheduling for plan', { planId, reason: result.reason.message })
     }
 
     return success
   } catch (error) {
-    console.error(`Error processing rescheduling for plan ${planId}:`, error)
+    logger.error('Error processing rescheduling for plan', error as Error, { planId })
     return false
   }
 }

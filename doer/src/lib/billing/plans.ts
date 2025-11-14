@@ -157,17 +157,8 @@ function calculateCycleBounds(cycle: BillingCycle, referenceDate = new Date()) {
 }
 
 async function fetchPlanBySlug(slug: string) {
-  console.error('[fetchPlanBySlug] Starting fetch for slug:', slug)
-  
   const supabase = getServiceRoleClient()
-  console.error('[fetchPlanBySlug] Service role client obtained:', {
-    hasClient: !!supabase,
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'present' : 'missing',
-    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'present' : 'missing',
-  })
   
-  // First, try to fetch the plan
-  console.error('[fetchPlanBySlug] Querying billing_plans table...')
   const { data, error } = await supabase
     .from('billing_plans')
     .select('id, slug, name, description, metadata')
@@ -175,62 +166,23 @@ async function fetchPlanBySlug(slug: string) {
     .limit(1)
     .maybeSingle()
 
-  console.error('[fetchPlanBySlug] Query result:', {
-    hasData: !!data,
-    hasError: !!error,
-    errorCode: error?.code,
-    errorMessage: error?.message,
-  })
-
   if (error) {
-    console.error('[fetchPlanBySlug] Database error:', {
-      slug,
-      error: error.message,
-      code: error.code,
-      details: error,
-    })
     throw new Error(`Failed to fetch billing plan for slug "${slug}": ${error.message}`)
   }
   
   if (!data) {
-    // Plan not found - list available plans for debugging
-    console.error('[fetchPlanBySlug] Plan not found, listing all plans...')
+    // Plan not found - list available plans for error message
     const { data: allPlans, error: listError } = await supabase
       .from('billing_plans')
       .select('slug, name')
       .limit(10)
     
-    console.error('[fetchPlanBySlug] All plans query result:', {
-      hasData: !!allPlans,
-      hasError: !!listError,
-      planCount: allPlans?.length || 0,
-      listErrorCode: listError?.code,
-      listErrorMessage: listError?.message,
-    })
-    
     const availablePlans = listError ? 'Unable to list plans' : (allPlans?.map(p => p.slug).join(', ') || 'none')
-    
-    console.error('[fetchPlanBySlug] Plan not found:', {
-      requestedSlug: slug,
-      availablePlans,
-      totalPlans: allPlans?.length || 0,
-      listError: listError ? {
-        code: listError.code,
-        message: listError.message,
-        details: listError,
-      } : null,
-    })
     
     throw new Error(
       `Billing plan with slug "${slug}" not found. Available plans: ${availablePlans}`
     )
   }
-  
-  console.error('[fetchPlanBySlug] Plan found:', {
-    slug: data.slug,
-    name: data.name,
-    id: data.id,
-  })
   
   return data
 }
@@ -278,22 +230,15 @@ export async function getPlanCycleBySlugAndCycle(
   
   // Runtime type guard - check if cycle is actually a valid BillingCycle
   if (cycle !== 'monthly' && cycle !== 'annual') {
-    console.error('[getPlanCycleBySlugAndCycle] Invalid billing cycle value detected:', {
-      cycle,
-      planSlug,
-      cycleType: typeof cycle,
-    })
+    // Invalid billing cycle value detected, normalizing
     // Convert invalid values to valid enum
     const cycleStr = String(cycle || '').toLowerCase().trim()
     if (cycleStr === 'month' || cycleStr.includes('month')) {
       normalizedCycle = 'monthly'
-      console.log('[getPlanCycleBySlugAndCycle] Converted invalid cycle to monthly:', cycle, '->', normalizedCycle)
     } else if (cycleStr === 'year' || cycleStr.includes('year') || cycleStr.includes('annual')) {
       normalizedCycle = 'annual'
-      console.log('[getPlanCycleBySlugAndCycle] Converted invalid cycle to annual:', cycle, '->', normalizedCycle)
     } else {
       normalizedCycle = 'monthly' // Default fallback
-      console.log('[getPlanCycleBySlugAndCycle] Unknown cycle, defaulting to monthly:', cycle, '->', normalizedCycle)
     }
   }
   
@@ -336,62 +281,10 @@ export async function getPlanCycleBySlugAndCycle(
   return mapPlanCycle(data)
 }
 
-export async function fetchActiveSubscription(userId: string): Promise<UserPlanSubscription | null> {
-  const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
-    .from('user_plan_subscriptions')
-    .select(SUBSCRIPTION_SELECT)
-    .eq('user_id', userId)
-    .in('status', ['active', 'trialing'])
-    .order('current_period_end', { ascending: false })
-    .limit(1)
-    .maybeSingle<SubscriptionRow>()
-
-  if (error) {
-    throw new Error(`Failed to fetch active subscription for user ${userId}: ${error.message}`)
-  }
-
-  return data ? mapSubscription(data) : null
-}
-
-export async function ensureActiveSubscription(
-  userId: string
-): Promise<UserPlanSubscription> {
-  const existing = await fetchActiveSubscription(userId)
-  if (existing) return existing
-
-  const planCycle = await getPlanCycleBySlugAndCycle(DEFAULT_PLAN_SLUG, DEFAULT_BILLING_CYCLE)
-  const { start, end } = calculateCycleBounds(planCycle.cycle)
-
-  const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
-    .from('user_plan_subscriptions')
-    .insert({
-      user_id: userId,
-      billing_plan_cycle_id: planCycle.id,
-      status: 'active',
-      current_period_start: start,
-      current_period_end: end,
-    })
-    .select(SUBSCRIPTION_SELECT)
-    .limit(1)
-    .maybeSingle<SubscriptionRow>()
-
-  if (error) {
-    if (error.code === '23505') {
-      const latest = await fetchActiveSubscription(userId)
-      if (latest) return latest
-    }
-    throw new Error(`Failed to create default subscription for user ${userId}: ${error.message}`)
-  }
-  if (!data) {
-    const latest = await fetchActiveSubscription(userId)
-    if (latest) return latest
-    throw new Error(`Unable to create or fetch subscription for user ${userId}`)
-  }
-
-  return mapSubscription(data)
-}
+/**
+ * @deprecated This function is no longer used. Subscriptions are now queried directly from Stripe.
+ * This function has been removed as part of the migration away from user_plan_subscriptions table.
+ */
 
 export function getUsageLimits(planCycle: BillingPlanCycle): Record<UsageMetric, number> {
   return {
@@ -400,6 +293,13 @@ export function getUsageLimits(planCycle: BillingPlanCycle): Record<UsageMetric,
   }
 }
 
+/**
+ * @deprecated This function writes to the deprecated user_plan_subscriptions table.
+ * It is only kept for the mock webhook endpoint. In production, subscriptions should be
+ * created directly in Stripe and queried via getActiveSubscriptionFromStripe.
+ * 
+ * TODO: Remove this function once mock webhook is no longer needed.
+ */
 export async function assignSubscription(
   userId: string,
   planSlug: string,
@@ -430,10 +330,7 @@ export async function assignSubscription(
       .maybeSingle<SubscriptionRow>()
 
     if (existingByStripeId) {
-      console.log('[assignSubscription] Subscription with Stripe ID already exists, updating:', {
-        stripeSubscriptionId: options.stripeSubscriptionId,
-        userId,
-      })
+      // Subscription with Stripe ID already exists, updating
       
       // Update existing subscription
       const { data: updated, error: updateError } = await supabase
@@ -491,7 +388,6 @@ export async function assignSubscription(
           })
 
           if (error) {
-            console.error(`Failed to reset ${metric} usage:`, error)
             // Don't throw - usage reset is not critical for subscription assignment
           }
         }
@@ -561,7 +457,7 @@ export async function assignSubscription(
 
   // If Stripe IDs were provided but not stored, update the record
   if ((options?.stripeCustomerId || options?.stripeSubscriptionId) && subscriptionRow) {
-    const updateData: any = {}
+    const updateData: Partial<SubscriptionRow> = {}
     if (options.stripeCustomerId && !subscriptionRow.external_customer_id) {
       updateData.external_customer_id = options.stripeCustomerId
     }

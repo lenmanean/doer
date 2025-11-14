@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { Plan, Task, TaskSchedule } from '@/lib/types'
+import { logger } from '@/lib/logger'
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -10,11 +11,20 @@ export interface ActivePlanData {
   tasks: Task[]
 }
 
+export interface TaskCompletion {
+  id: string
+  user_id: string
+  plan_id: string
+  task_id: string
+  scheduled_date: string
+  created_at: string
+}
+
 export interface ProgressStats {
   totalTasks: number
   completedTasks: number
   completionPercentage: number
-  completions: any[]
+  completions: TaskCompletion[]
 }
 
 export interface TaskCompletionParams {
@@ -114,7 +124,7 @@ export async function getUserActivePlan(userId: string): Promise<ActivePlanData 
 
     // Ensure all tasks have required properties
     const tasks = (planData.tasks || []).map((task: any) => ({
-      ...task,
+      ...(task as Task),
       priority: task.priority || 3 // Default to medium priority if missing
     }))
 
@@ -123,7 +133,6 @@ export async function getUserActivePlan(userId: string): Promise<ActivePlanData 
       tasks
     }
   } catch (error) {
-    console.error('❌ Error in getUserActivePlan:', error)
     throw error
   }
 }
@@ -133,8 +142,6 @@ export async function getUserActivePlan(userId: string): Promise<ActivePlanData 
  */
 export async function getUserProgressStats(userId: string, planId: string): Promise<ProgressStats> {
   try {
-    console.log('🔍 Fetching progress stats for user:', userId, 'plan:', planId)
-    
     // Get task completions for this plan
     const { data: completions, error: completionsError } = await supabase
       .from('task_completions')
@@ -143,7 +150,6 @@ export async function getUserProgressStats(userId: string, planId: string): Prom
       .eq('plan_id', planId)
 
     if (completionsError) {
-      console.error('❌ Error fetching task completions:', completionsError)
       throw completionsError
     }
 
@@ -154,7 +160,6 @@ export async function getUserProgressStats(userId: string, planId: string): Prom
       .eq('plan_id', planId)
 
     if (tasksError) {
-      console.error('❌ Error fetching tasks count:', tasksError)
       throw tasksError
     }
 
@@ -162,20 +167,14 @@ export async function getUserProgressStats(userId: string, planId: string): Prom
     const completedTasks = completions?.length || 0
     const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
-    console.log('✅ Progress stats calculated:', {
-      totalTasks,
-      completedTasks,
-      completionPercentage
-    })
-
     return {
       totalTasks,
       completedTasks,
       completionPercentage,
-      completions: completions || []
+      completions: (completions || []) as TaskCompletion[]
     }
   } catch (error) {
-    console.error('❌ Error in getUserProgressStats:', error)
+    logger.error('Error in getUserProgressStats', error as Error, { userId, planId })
     throw error
   }
 }
@@ -424,14 +423,9 @@ export async function getTasksForDate(planId: string, date: string): Promise<Tas
       }
     })
 
-    console.log('✅ Tasks for date fetched:', {
-      date,
-      count: tasksForDate.length
-    })
-
     return tasksForDate
   } catch (error) {
-    console.error('❌ Error in getTasksForDate:', error)
+    logger.error('Error in getTasksForDate', error as Error, { planId, date })
     throw error
   }
 }
@@ -444,10 +438,9 @@ export async function getTasksForDate(planId: string, date: string): Promise<Tas
  * Update task completion status (unified function used by hooks)
  */
 export async function updateTaskCompletionUnified(params: TaskCompletionParams): Promise<void> {
+  const { userId, planId, taskId, scheduledDate, isCompleted } = params
+
   try {
-    const { userId, planId, taskId, scheduledDate, isCompleted } = params
-    console.log('🔍 Updating task completion:', { taskId, isCompleted, scheduledDate })
-    
     if (isCompleted) {
       // Insert completion record
       const { error: insertError } = await supabase
@@ -460,7 +453,7 @@ export async function updateTaskCompletionUnified(params: TaskCompletionParams):
         })
 
       if (insertError) {
-        console.error('❌ Error inserting task completion:', insertError)
+        logger.error('Error inserting task completion', insertError, { userId, planId, taskId, scheduledDate })
         throw insertError
       }
     } else {
@@ -474,14 +467,12 @@ export async function updateTaskCompletionUnified(params: TaskCompletionParams):
         .eq('scheduled_date', scheduledDate)
 
       if (deleteError) {
-        console.error('❌ Error deleting task completion:', deleteError)
+        logger.error('Error deleting task completion', deleteError, { userId, planId, taskId, scheduledDate })
         throw deleteError
       }
     }
-
-    console.log('✅ Task completion updated successfully')
   } catch (error) {
-    console.error('❌ Error in updateTaskCompletionUnified:', error)
+    logger.error('Error in updateTaskCompletionUnified', error as Error, { userId, planId, taskId, scheduledDate })
     throw error
   }
 }
@@ -703,13 +694,11 @@ export async function refreshPlanState(planId: string): Promise<void> {
     })
 
     if (error) {
-      console.error('❌ Error refreshing plan state:', error)
+      logger.error('Error refreshing plan state', error, { planId })
       throw error
     }
-
-    console.log('✅ Plan state refreshed:', planId)
   } catch (error) {
-    console.error('❌ Error in refreshPlanState:', error)
+    logger.error('Error in refreshPlanState', error as Error, { planId })
     throw error
   }
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { openai } from '@/lib/ai'
 import { formatDateForDB } from '@/lib/date-utils'
+import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
+import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 
 // Utilities to resolve natural language weekdays/times in a consistent timezone
 const DEFAULT_TZ = process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || 'America/Los_Angeles'
@@ -380,12 +382,58 @@ CRITICAL VALIDATION:
 }
 
 export async function POST(request: NextRequest) {
+  let reserved = false
+  let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
+  const TASK_GENERATION_CREDIT_COST = 1 // 1 OpenAI call per task generation (2 if recurring follow-up)
+
   try {
+    // Authenticate user via API token or session
+    try {
+      authContext = await authenticateApiRequest(request.headers, {
+        requiredScopes: [], // No specific scope required for task generation
+      })
+      // Reserve credits for OpenAI call
+      await authContext.creditService.reserve('api_credits', TASK_GENERATION_CREDIT_COST, {
+        route: 'tasks.ai-generate',
+      })
+      reserved = true
+    } catch (authError) {
+      // If API token auth fails, try session auth (for web UI)
+      const supabase = await createClient()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      // For session auth, create a CreditService instance
+      const { CreditService } = await import('@/lib/usage/credit-service')
+      const creditService = new CreditService(user.id, undefined)
+      await creditService.getSubscription()
+      authContext = {
+        tokenId: '', // Empty string for session auth
+        userId: user.id,
+        scopes: [], // No scopes for session auth
+        expiresAt: null,
+        creditService,
+      }
+      // Reserve credits for OpenAI call
+      await creditService.reserve('api_credits', TASK_GENERATION_CREDIT_COST, {
+        route: 'tasks.ai-generate',
+      })
+      reserved = true
+    }
+
     const supabase = await createClient()
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'user_not_authenticated',
+        })
+        reserved = false
+      }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -394,6 +442,13 @@ export async function POST(request: NextRequest) {
     const { description, constrainedDate, constrainedTime, followUpData, timeFormat = '12h' } = body
 
     if (!description || !description.trim()) {
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'validation_error',
+        })
+        reserved = false
+      }
       return NextResponse.json({ error: 'Task description is required' }, { status: 400 })
     }
 
@@ -419,6 +474,13 @@ export async function POST(request: NextRequest) {
 
     if (tasksError) {
       console.error('Error fetching user tasks:', tasksError)
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'schedule_fetch_error',
+        })
+        reserved = false
+      }
       return NextResponse.json({ error: 'Failed to fetch schedule' }, { status: 500 })
     }
 
@@ -478,7 +540,32 @@ export async function POST(request: NextRequest) {
 
     // Check if this is a follow-up response for recurring task
     if (followUpData) {
-      return handleRecurringTaskFollowUp(description, followUpData, scheduleInfo, workdayStartHour, workdayEndHour, today, userTimeFormat, priorityContext)
+      try {
+        const result = await handleRecurringTaskFollowUp(description, followUpData, scheduleInfo, workdayStartHour, workdayEndHour, today, userTimeFormat, priorityContext)
+        // Commit credit after successful OpenAI call in handleRecurringTaskFollowUp
+        if (reserved && authContext) {
+          await authContext.creditService.commit('api_credits', TASK_GENERATION_CREDIT_COST, {
+            route: 'tasks.ai-generate',
+            model: 'gpt-4o-mini',
+            type: 'recurring_followup',
+          })
+          reserved = false
+        }
+        return result
+      } catch (error) {
+        // Release credit on error
+        if (reserved && authContext) {
+          await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+            route: 'tasks.ai-generate',
+            reason: 'recurring_followup_error',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }).catch((releaseError) => {
+            console.error('Failed to release credit:', releaseError)
+          })
+          reserved = false
+        }
+        throw error
+      }
     }
 
     // Create AI prompt for initial task analysis
@@ -760,6 +847,16 @@ CRITICAL VALIDATION:
       console.warn('AI returned invalid priority, defaulting to 3')
     }
 
+    // Commit credit after successful OpenAI call
+    if (reserved && authContext) {
+      await authContext.creditService.commit('api_credits', TASK_GENERATION_CREDIT_COST, {
+        route: 'tasks.ai-generate',
+        model: 'gpt-4o-mini',
+        type: 'task_generation',
+      })
+      reserved = false
+    }
+
     return NextResponse.json({
       success: true,
       isRecurring: false,
@@ -780,6 +877,39 @@ CRITICAL VALIDATION:
 
   } catch (error) {
     console.error('Error generating AI task:', error)
+    
+    // Release credit on error
+    if (reserved && authContext) {
+      await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+        route: 'tasks.ai-generate',
+        reason: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }).catch((releaseError) => {
+        console.error('Failed to release credit:', releaseError)
+      })
+      reserved = false
+    }
+
+    // Handle UsageLimitExceeded error
+    if (error instanceof UsageLimitExceeded) {
+      return NextResponse.json(
+        {
+          error: 'USAGE_LIMIT_EXCEEDED',
+          message: 'You have exhausted your API credits for this billing cycle.',
+          remaining: error.remaining,
+        },
+        { status: 429 }
+      )
+    }
+
+    // Handle ApiTokenError
+    if (error instanceof ApiTokenError) {
+      return NextResponse.json(
+        { error: 'API_TOKEN_ERROR', message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json(
       { 
         error: 'Failed to generate task', 

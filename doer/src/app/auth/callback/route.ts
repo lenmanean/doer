@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 
 /**
  * Helper function to get the production domain URL
@@ -79,7 +80,17 @@ export async function GET(request: NextRequest) {
                   data: { username: null }
                 })
               }
+            } else {
+              // Profile created successfully - assign Basic plan (non-blocking)
+              autoAssignBasicPlan(user.id).catch((error) => {
+                console.error('[Auth Callback] Failed to assign Basic plan for new user:', error)
+              })
             }
+          } else {
+            // No username but user exists - still assign Basic plan (non-blocking)
+            autoAssignBasicPlan(user.id).catch((error) => {
+              console.error('[Auth Callback] Failed to assign Basic plan for new user:', error)
+            })
           }
           redirectPath = '/auth/profile-setup'
         } else if (!profile.username && username) {
@@ -106,6 +117,14 @@ export async function GET(request: NextRequest) {
         } else {
           redirectPath = '/dashboard'
         }
+
+        // Assign Basic plan to new users (non-blocking)
+        // This ensures all users have a subscription from the start
+        // autoAssignBasicPlan will skip if user already has a subscription
+        autoAssignBasicPlan(user.id).catch((error) => {
+          // Log error but don't block redirect
+          console.error('[Auth Callback] Failed to assign Basic plan:', error)
+        })
       }
       
       // Use custom redirect path or the determined path

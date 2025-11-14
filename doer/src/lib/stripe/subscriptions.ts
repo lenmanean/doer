@@ -1,6 +1,9 @@
 import Stripe from 'stripe'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { getPlanCycleBySlugAndCycle, type BillingCycle } from '@/lib/billing/plans'
+import { logger } from '@/lib/logger'
+import { subscriptionCache } from '@/lib/cache/subscription-cache'
+import { stripeWithRetry } from '@/lib/stripe/retry'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 let stripe: Stripe | null = null
@@ -119,18 +122,29 @@ export async function getActiveSubscriptionFromStripe(
     throw new Error('Stripe is not configured')
   }
 
+  // Check cache first
+  const cacheKey = `subscription:${userId}`
+  const cached = subscriptionCache.get<StripeSubscription | null>(cacheKey)
+  if (cached !== undefined) {
+    return cached
+  }
+
   // Get Stripe customer ID
   const stripeCustomerId = await getStripeCustomerId(userId)
   if (!stripeCustomerId) {
+    // Cache null result for shorter TTL (1 minute) to avoid repeated lookups
+    subscriptionCache.set(cacheKey, null, 60 * 1000)
     return null
   }
 
-  // Fetch active subscriptions from Stripe
-  const subscriptions = await stripe.subscriptions.list({
-    customer: stripeCustomerId,
-    status: 'all',
-    limit: 10,
-  })
+  // Fetch active subscriptions from Stripe (with retry logic)
+  const subscriptions = await stripeWithRetry(() =>
+    stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status: 'all',
+      limit: 10,
+    })
+  )
 
   // Find the most recent active or trialing subscription
   const activeSubscription = subscriptions.data
@@ -138,6 +152,8 @@ export async function getActiveSubscriptionFromStripe(
     .sort((a, b) => (b.created || 0) - (a.created || 0))[0]
 
   if (!activeSubscription) {
+    // Cache null result for shorter TTL (1 minute) to avoid repeated lookups
+    subscriptionCache.set(cacheKey, null, 60 * 1000)
     return null
   }
 
@@ -155,7 +171,7 @@ export async function getActiveSubscriptionFromStripe(
       priceCents: planCycle.priceCents,
     }
   } catch (error) {
-    console.error('[getActiveSubscriptionFromStripe] Error fetching plan details:', error)
+    logger.error('Error fetching plan details', error as Error, { userId, planSlug, billingCycle })
     // Fallback to default values
     planDetails = {
       name: planSlug === 'pro' ? 'Pro' : 'Basic',
@@ -165,7 +181,7 @@ export async function getActiveSubscriptionFromStripe(
     }
   }
 
-  return {
+  const result: StripeSubscription = {
     id: activeSubscription.id,
     status: mapStripeStatus(activeSubscription.status),
     planSlug,
@@ -176,6 +192,10 @@ export async function getActiveSubscriptionFromStripe(
     stripeCustomerId,
     planDetails,
   }
+
+  // Cache the result
+  subscriptionCache.set(cacheKey, result)
+  return result
 }
 
 /**
@@ -193,11 +213,13 @@ export async function getAllSubscriptionsFromStripe(
     return []
   }
 
-  const subscriptions = await stripe.subscriptions.list({
-    customer: stripeCustomerId,
-    status: 'all',
-    limit: 100,
-  })
+  const subscriptions = await stripeWithRetry(() =>
+    stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status: 'all',
+      limit: 100,
+    })
+  )
 
   const results: StripeSubscription[] = []
 
@@ -214,7 +236,7 @@ export async function getAllSubscriptionsFromStripe(
         priceCents: planCycle.priceCents,
       }
     } catch (error) {
-      console.error('[getAllSubscriptionsFromStripe] Error fetching plan details:', error)
+      logger.error('Error fetching plan details', error as Error, { userId, planSlug, billingCycle })
       planDetails = {
         name: planSlug === 'pro' ? 'Pro' : 'Basic',
         apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 120 : 100) : 25,

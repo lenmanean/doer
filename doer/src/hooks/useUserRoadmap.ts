@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { getUserActivePlan, getUserProgressStats, updateTaskCompletionUnified } from '@/lib/roadmap-client'
+import type { RoadmapData } from '@/lib/types/roadmap'
 
 /**
  * Centralized live data hook for user roadmap and tasks.
  * Auto-subscribes to all relevant Supabase changes.
  */
 export function useUserRoadmap(userId: string | null) {
-  const [roadmapData, setRoadmapData] = useState<any>(null)
+  const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [lastUpdate, setLastUpdate] = useState<number>(0)
@@ -20,20 +21,16 @@ export function useUserRoadmap(userId: string | null) {
     fetchLock.current = true
     try {
       const planData = await getUserActivePlan(userId)
-      console.log('🔍 getUserActivePlan result:', planData)
       if (planData) {
         const stats = await getUserProgressStats(userId, planData.plan.id)
-        console.log('🔍 getUserProgressStats result:', stats)
         setRoadmapData({ ...planData, stats })
         setError(null)
       } else {
         // No active plan - this is a valid state, not an error
-        console.log('🔍 No active plan found for user:', userId)
         setRoadmapData(null)
         setError(null)
       }
     } catch (err) {
-      console.error('Error refetching roadmap:', err)
       setError(err as Error)
       setRoadmapData(null)
     } finally {
@@ -51,7 +48,6 @@ export function useUserRoadmap(userId: string | null) {
     const fetchInitial = async () => {
       setLoading(true)
       await refetch()
-      console.log('✅ useUserRoadmap initialized for user:', userId)
     }
 
     fetchInitial()
@@ -69,7 +65,6 @@ export function useUserRoadmap(userId: string | null) {
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)
           debounceRef.current = setTimeout(() => {
-            console.log('🔁 Task completion change detected → refreshing roadmap')
             refetch()
             setLastUpdate(Date.now())
           }, 600)
@@ -81,7 +76,6 @@ export function useUserRoadmap(userId: string | null) {
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)
           debounceRef.current = setTimeout(() => {
-            console.log('🔁 Task table change detected → refreshing roadmap')
             refetch()
             setLastUpdate(Date.now())
           }, 800)
@@ -93,7 +87,6 @@ export function useUserRoadmap(userId: string | null) {
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)
           debounceRef.current = setTimeout(() => {
-            console.log('🔁 Milestone change detected → refreshing roadmap')
             refetch()
             setLastUpdate(Date.now())
           }, 1000)
@@ -102,7 +95,6 @@ export function useUserRoadmap(userId: string | null) {
       .subscribe()
 
     return () => {
-      console.log('🧹 Cleaning up roadmap sync channel for user:', userId)
       supabase.removeChannel(channel)
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
@@ -112,7 +104,6 @@ export function useUserRoadmap(userId: string | null) {
   const updateTask = useCallback(
     async (taskId: string, isCompleted: boolean, planId?: string, scheduledDate?: string) => {
       if (!userId || !planId || !scheduledDate) {
-        console.error('Missing required parameters for task update.')
         return
       }
       await updateTaskCompletionUnified({

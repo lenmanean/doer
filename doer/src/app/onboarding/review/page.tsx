@@ -9,10 +9,11 @@ import { formatDateForDisplay, parseDateFromDB } from '@/lib/date-utils'
 import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
+import type { ReviewPlanData } from '@/lib/types/roadmap'
 
 export default function ReviewPage() {
   const router = useRouter()
-  const [plan, setPlan] = useState<any>(null)
+  const [plan, setPlan] = useState<ReviewPlanData | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
@@ -20,7 +21,7 @@ export default function ReviewPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
   const [isEditingPlan, setIsEditingPlan] = useState(false)
-  const [editedPlan, setEditedPlan] = useState<any>(null)
+  const [editedPlan, setEditedPlan] = useState<ReviewPlanData | null>(null)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export default function ReviewPage() {
   }
 
   const handleAddNewTask = () => {
+    if (!plan) return
     const newTask: Task = {
       id: `temp-${Date.now()}`,
       plan_id: plan.id,
@@ -157,12 +159,18 @@ export default function ReviewPage() {
   }
 
   const handleEditPlan = () => {
+    if (!plan) return
     setIsEditingPlan(true)
     setEditedPlan({
+      ...plan,
       goal_text: plan.summary_data?.goal_text || plan.goal_text,
-      plan_summary: plan.summary_data?.plan_summary || '',
       start_date: plan.start_date,
-      end_date: plan.end_date
+      end_date: plan.end_date,
+      summary_data: {
+        ...plan.summary_data,
+        goal_text: plan.summary_data?.goal_text || plan.goal_text,
+        goal_summary: plan.summary_data?.plan_summary || '',
+      },
     })
   }
 

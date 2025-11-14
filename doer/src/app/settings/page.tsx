@@ -2525,7 +2525,7 @@ export default function SettingsPage() {
         isOpen={showSwitchPlanModal}
         onClose={() => setShowSwitchPlanModal(false)}
         hasActivePlan={!!roadmapData?.plan}
-        currentPlanTitle={roadmapData?.plan?.summary_data?.goal_title || roadmapData?.goal?.title}
+        currentPlanTitle={roadmapData?.plan?.summary_data?.goal_title || roadmapData?.plan?.goal_text}
         onPlanChanged={() => {
           // Refetch roadmap data when plan is switched/changed
           refetch()

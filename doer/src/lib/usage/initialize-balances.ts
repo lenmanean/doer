@@ -2,6 +2,7 @@ import { getActiveSubscriptionFromStripe } from '@/lib/stripe/subscriptions'
 import { getPlanCycleBySlugAndCycle } from '@/lib/billing/plans'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import type { UsageMetric } from '@/lib/billing/plans'
+import { logger } from '@/lib/logger'
 
 /**
  * Initialize usage balances for a user based on their active Stripe subscription
@@ -14,7 +15,7 @@ export async function initializeUsageBalances(userId: string): Promise<void> {
   const subscription = await getActiveSubscriptionFromStripe(userId)
   
   if (!subscription) {
-    console.log(`[initializeUsageBalances] No active subscription for user ${userId}, skipping initialization`)
+    logger.debug('No active subscription for user, skipping initialization', { userId })
     return
   }
 
@@ -39,7 +40,7 @@ export async function initializeUsageBalances(userId: string): Promise<void> {
     })
 
     if (existing) {
-      console.log(`[initializeUsageBalances] Balance already exists for ${metric}, skipping`)
+      logger.debug('Balance already exists, skipping', { userId, metric })
       continue
     }
 
@@ -60,11 +61,13 @@ export async function initializeUsageBalances(userId: string): Promise<void> {
     })
 
     if (error) {
-      console.error(`[initializeUsageBalances] Failed to initialize ${metric} for user ${userId}:`, error)
+      logger.error(`Failed to initialize ${metric} balance`, error as Error, { userId, metric })
       throw new Error(`Failed to initialize usage balance for ${metric}: ${error.message}`)
     }
 
-    console.log(`[initializeUsageBalances] Initialized ${metric} balance for user ${userId}:`, {
+    logger.info(`Initialized ${metric} balance`, {
+      userId,
+      metric,
       allocation: limits[metric],
       cycleStart: subscription.currentPeriodStart,
       cycleEnd: subscription.currentPeriodEnd,

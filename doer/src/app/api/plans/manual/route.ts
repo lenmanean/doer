@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
+import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +16,14 @@ export async function POST(req: NextRequest) {
     
     if (userError || !user) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
+    }
+
+    // Ensure user has Basic plan assigned (auto-assign if needed)
+    try {
+      await autoAssignBasicPlan(user.id)
+    } catch (error) {
+      console.warn('[Plan Manual] Failed to auto-assign Basic plan, continuing anyway:', error)
+      // Don't fail - will be handled by CreditService if needed
     }
 
     // Extract and validate data from request

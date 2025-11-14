@@ -67,7 +67,7 @@ export interface TaskSchedule {
   status?: string
   pending_reschedule_id?: string
   reschedule_count?: number
-  reschedule_reason?: any
+  reschedule_reason?: string | Record<string, unknown> | null
 }
 
 export interface RescheduleProposal {

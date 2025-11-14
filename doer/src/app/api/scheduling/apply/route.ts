@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeAndReschedule, applyScheduleChanges } from '@/lib/smart-scheduler'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error applying rescheduling:', error)
+    logger.error('Error applying rescheduling', error as Error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

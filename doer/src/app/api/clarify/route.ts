@@ -7,13 +7,14 @@ import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 export async function POST(req: NextRequest) {
   let reserved = false
   let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
+  const CLARIFY_CREDIT_COST = 2 // 2 OpenAI calls: evaluateGoalFeasibility + analyzeClarificationNeeds
 
   try {
     authContext = await authenticateApiRequest(req.headers, {
       requiredScopes: ['clarify'],
     })
 
-    await authContext.creditService.reserve('api_credits', 1, {
+    await authContext.creditService.reserve('api_credits', CLARIFY_CREDIT_COST, {
       route: 'clarify',
     })
     reserved = true
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     const { goal } = body
 
     if (!goal || !goal.trim()) {
-      await authContext.creditService.release('api_credits', 1, {
+      await authContext.creditService.release('api_credits', CLARIFY_CREDIT_COST, {
         route: 'clarify',
         reason: 'validation_error',
       })
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     const feasibility = await evaluateGoalFeasibility(trimmedGoal)
     console.log('🧠 Clarify route feasibility evaluation:', feasibility)
     if (!feasibility.isFeasible) {
-      await authContext.creditService.release('api_credits', 1, {
+      await authContext.creditService.release('api_credits', CLARIFY_CREDIT_COST, {
         route: 'clarify',
         reason: 'goal_not_feasible',
       })
@@ -56,9 +57,10 @@ export async function POST(req: NextRequest) {
 
     const clarificationNeeds = await analyzeClarificationNeeds(trimmedGoal)
 
-    await authContext.creditService.commit('api_credits', 1, {
+    await authContext.creditService.commit('api_credits', CLARIFY_CREDIT_COST, {
       route: 'clarify',
       model: 'gpt-4o-mini',
+      calls: 2, // evaluateGoalFeasibility + analyzeClarificationNeeds
     })
     reserved = false
 
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     if (reserved && authContext) {
       await authContext.creditService
-        .release('api_credits', 1, {
+        .release('api_credits', CLARIFY_CREDIT_COST, {
           route: 'clarify',
           reason: 'exception',
           error: error instanceof Error ? error.message : 'Unknown error',

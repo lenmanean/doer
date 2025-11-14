@@ -6,8 +6,9 @@ import { addDays, formatDateForDB } from '@/lib/date-utils'
 import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
+import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 
-const PLAN_GENERATION_CREDIT_COST = 5
+const PLAN_GENERATION_CREDIT_COST = 1 // 1 OpenAI call: generateRoadmapContent
 
 export async function POST(req: NextRequest) {
   let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
