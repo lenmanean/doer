@@ -3,6 +3,15 @@
  * Validates all required environment variables on startup
  */
 
+interface EmailConfig {
+  smtpHost: string
+  smtpPort: number
+  smtpUser: string
+  smtpPassword: string
+  senderEmail: string
+  senderName: string
+}
+
 interface EnvConfig {
   supabase: {
     url: string
@@ -24,6 +33,7 @@ interface EnvConfig {
     planEnforcementEnabled: boolean
     planAssignmentEnabled: boolean
   }
+  email?: EmailConfig
 }
 
 /**
@@ -48,6 +58,22 @@ export function getEnvConfig(): EnvConfig {
       hashSecret: process.env.API_TOKEN_HASH_SECRET,
     },
   }
+
+  const emailCandidate: Partial<EmailConfig> = {
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+    smtpUser: process.env.SMTP_USER,
+    smtpPassword: process.env.SMTP_PASSWORD,
+    senderEmail: process.env.EMAIL_SENDER_ADDRESS,
+    senderName: process.env.EMAIL_SENDER_NAME,
+  }
+
+  const emailConfigured = Object.values(emailCandidate).every((value) => {
+    if (typeof value === 'number') {
+      return !Number.isNaN(value)
+    }
+    return Boolean(value)
+  })
 
   const missing: string[] = []
 
@@ -90,6 +116,16 @@ export function getEnvConfig(): EnvConfig {
       planAssignmentEnabled:
         (process.env.PLAN_ASSIGNMENT_ENABLED || '').toLowerCase() === 'true',
     },
+    email: emailConfigured
+      ? {
+          smtpHost: emailCandidate.smtpHost!,
+          smtpPort: emailCandidate.smtpPort!,
+          smtpUser: emailCandidate.smtpUser!,
+          smtpPassword: emailCandidate.smtpPassword!,
+          senderEmail: emailCandidate.senderEmail!,
+          senderName: emailCandidate.senderName!,
+        }
+      : undefined,
   }
 }
 

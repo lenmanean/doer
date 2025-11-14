@@ -23,16 +23,17 @@ ON public.user_settings (LOWER(username));
   - Alphanumeric, underscores, and hyphens only
   - Pattern: `^[a-zA-Z0-9_-]{3,20}$`
 
-#### Username Immutability
-- **Location**: `supabase/migrations/20251110000000_username_security_enhancements.sql`
-- **Implementation**: Database trigger prevents username changes after initial set
+#### Username Cooldown + Audit Trail
+- **Location**: `supabase/migrations/20251116000000_credential_update_infra.sql`
+- **Implementation**: `enforce_username_change_policy()` trigger enforces a 24-hour cooldown between changes and records `username_last_changed_at`.
 ```sql
-CREATE TRIGGER trigger_prevent_username_change
+CREATE TRIGGER enforce_username_change_policy
   BEFORE UPDATE ON public.user_settings
   FOR EACH ROW
-  EXECUTE FUNCTION prevent_username_change();
+  EXECUTE FUNCTION public.enforce_username_change_policy();
 ```
-- **Protection**: Once a username is set, it cannot be changed (prevents username squatting and impersonation)
+- **Audit**: Every change is captured in `public.username_change_audit` with user_id, IP, and user-agent for forensic review.
+- **Protection**: Users can update usernames, but only once every 24 hours, preventing rapid impersonation attempts while still allowing corrections.
 
 ### 2. **API Level (Server-Side Validation)**
 
@@ -77,6 +78,14 @@ CREATE TRIGGER trigger_prevent_username_change
 5. **Auth callback** → Username inserted into `user_settings` table
 6. **If duplicate** → Database rejects, callback clears metadata, user redirected to choose new username
 
+### Username Change Process
+1. **Settings UI** → User edits username in `Settings → Account Information`.
+2. **Client validation** → `validateUsername` prevents malformed submissions.
+3. **API protection** → `POST /api/settings/change-username` rate limits, enforces cooldown, and checks global availability via the service-role client.
+4. **Database trigger** → `public.enforce_username_change_policy()` is the final authority, updating `username_last_changed_at` and throwing `USERNAME_CHANGE_COOLDOWN` when needed.
+5. **Audit logging** → Every change is persisted in `public.username_change_audit` with IP + User-Agent metadata.
+6. **Auth sync** → `updateAuthUsername` keeps `auth.users` metadata aligned so username-based login continues working.
+
 ### Race Condition Handling
 Even if two users submit the same username simultaneously:
 1. Both pass API check (race condition)
@@ -101,7 +110,7 @@ Even if two users submit the same username simultaneously:
 2. ✅ **Simultaneous signups**: Database prevents duplicates
 3. ✅ **Invalid characters**: Rejected at client and server
 4. ✅ **Length violations**: Rejected at client and server
-5. ✅ **Username change attempt**: Blocked by database trigger
+5. ✅ **Username change attempt**: Trigger enforces cooldown and audit logging
 6. ✅ **SQL injection**: Protected by parameterized queries
 
 ### Manual Testing
@@ -123,7 +132,7 @@ curl -X POST http://localhost:3000/api/auth/check-username \
 
 1. ✅ **Defense in Depth**: Multiple layers (DB, API, Client)
 2. ✅ **Case-Insensitive Uniqueness**: Prevents confusion
-3. ✅ **Immutability**: Usernames can't be changed after set
+3. ✅ **Controlled Changes**: 24-hour cooldown enforced by the database trigger + audit log
 4. ✅ **Format Validation**: Prevents malicious input
 5. ✅ **Race Condition Protection**: Database constraint is final authority
 6. ✅ **Error Handling**: Graceful fallback for all failure scenarios
@@ -135,7 +144,7 @@ curl -X POST http://localhost:3000/api/auth/check-username \
 - [ ] Username reservation system (hold username for X minutes during signup)
 - [ ] Profanity filter for usernames
 - [ ] Reserved username list (admin, support, etc.)
-- [ ] Username history tracking (for compliance)
+- [x] Username history tracking (audit table)
 - [ ] Rate limiting on username checks (prevent enumeration)
 
 ## Maintenance
@@ -156,7 +165,7 @@ HAVING COUNT(*) > 1;
 
 -- Verify trigger is active
 SELECT * FROM pg_trigger 
-WHERE tgname = 'trigger_prevent_username_change';
+WHERE tgname = 'enforce_username_change_policy';
 ```
 
 ## Conclusion

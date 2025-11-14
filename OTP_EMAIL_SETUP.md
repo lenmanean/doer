@@ -99,6 +99,29 @@ If you're still receiving links instead of codes:
 4. Try creating a new test account to verify the changes
 
 
+## Email Change OTP Flow
+
+The in-app email change experience also uses 6-digit OTP codes, but they are sent directly from the Next.js API using Nodemailer. When a user requests a new email:
+
+1. `/api/settings/change-email` validates the password, records a pending request, and emails the OTP.
+2. `/api/settings/confirm-email-change` verifies the OTP before updating Supabase auth and the audit log.
+
+### Required Environment Variables
+
+Configure the following variables so Nodemailer can send those emails:
+
+```
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+EMAIL_SENDER_ADDRESS=no-reply@yourdomain.com
+EMAIL_SENDER_NAME=DOER
+```
+
+If these values are missing, the API responds with `EMAIL_SEND_FAILED` and instructs you to configure SMTP credentials.
+
+
 
 
 

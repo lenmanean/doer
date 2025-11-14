@@ -44,6 +44,9 @@ import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { useToast } from '@/components/ui/Toast'
 import { AccentColorSelect } from '@/components/ui/AccentColorSelect'
 import { PlanManagementDropdown } from '@/components/ui/PlanManagementDropdown'
+import { validateUsername } from '@/lib/validation/username'
+import { validateEmail } from '@/lib/validation/email'
+import { formatDistanceToNow } from 'date-fns'
 
 interface SettingsData {
   // Account
@@ -141,6 +144,19 @@ export default function SettingsPage() {
   const [loadingSubscription, setLoadingSubscription] = useState(false)
   const [cancelingSubscription, setCancelingSubscription] = useState(false)
   const [openingPortal, setOpeningPortal] = useState(false)
+  const [usernameInput, setUsernameInput] = useState('')
+  const [usernameSaving, setUsernameSaving] = useState(false)
+  const [usernameMessage, setUsernameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [usernameCooldownEnds, setUsernameCooldownEnds] = useState<Date | null>(null)
+  const [emailNewValue, setEmailNewValue] = useState('')
+  const [emailPasswordInput, setEmailPasswordInput] = useState('')
+  const [emailOtpInput, setEmailOtpInput] = useState('')
+  const [emailRequestId, setEmailRequestId] = useState<string | null>(null)
+  const [emailStep, setEmailStep] = useState<'form' | 'verify'>('form')
+  const [emailMessage, setEmailMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [emailSubmitting, setEmailSubmitting] = useState(false)
+  const [emailConfirming, setEmailConfirming] = useState(false)
+  const [emailCodeExpiresAt, setEmailCodeExpiresAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (user && profile && !justSaved) {
@@ -178,6 +194,24 @@ export default function SettingsPage() {
         setProfilePicturePreview(profile.avatar_url)
       }
 
+      setUsernameInput(profile.username || '')
+      if (profile.username_last_changed_at) {
+        const nextChange = new Date(profile.username_last_changed_at)
+        nextChange.setHours(nextChange.getHours() + 24)
+        setUsernameCooldownEnds(nextChange)
+      } else {
+        setUsernameCooldownEnds(null)
+      }
+
+      if (!emailRequestId) {
+        setEmailNewValue(user.email || '')
+        setEmailPasswordInput('')
+        setEmailOtpInput('')
+        setEmailStep('form')
+        setEmailMessage(null)
+        setEmailCodeExpiresAt(null)
+      }
+
       // Load improve model setting from preferences
       // Check both new privacy structure and legacy root level
       if (prefs.privacy?.improve_model_enabled !== undefined) {
@@ -186,7 +220,7 @@ export default function SettingsPage() {
         setImproveModelEnabled(prefs.improve_model_enabled)
       }
     }
-  }, [user, profile, theme])
+  }, [user, profile, theme, emailRequestId])
 
   // Load plans and tasks when showing delete lists
   useEffect(() => {
@@ -347,6 +381,142 @@ export default function SettingsPage() {
         duration: 5000,
       })
       setOpeningPortal(false)
+    }
+  }
+
+  const handleUsernameUpdate = async () => {
+    setUsernameMessage(null)
+    const validation = validateUsername(usernameInput)
+    if (!validation.valid) {
+      setUsernameMessage({ type: 'error', text: validation.message || 'Invalid username' })
+      return
+    }
+
+    setUsernameSaving(true)
+    try {
+      const response = await fetch('/api/settings/change-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameInput }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || 'Failed to update username.')
+      }
+
+      if (payload.cooldownEnds) {
+        setUsernameCooldownEnds(new Date(payload.cooldownEnds))
+      } else {
+        setUsernameCooldownEnds(new Date(Date.now() + 24 * 60 * 60 * 1000))
+      }
+
+      setUsernameMessage({ type: 'success', text: 'Username updated successfully.' })
+    } catch (error) {
+      setUsernameMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to update username.',
+      })
+    } finally {
+      setUsernameSaving(false)
+    }
+  }
+
+  const handleStartEmailChange = async () => {
+    setEmailMessage(null)
+    const validation = validateEmail(emailNewValue)
+    if (!validation.valid) {
+      setEmailMessage({ type: 'error', text: validation.message || 'Invalid email address.' })
+      return
+    }
+    if (!emailPasswordInput) {
+      setEmailMessage({ type: 'error', text: 'Please enter your current password.' })
+      return
+    }
+
+    setEmailSubmitting(true)
+    try {
+      const response = await fetch('/api/settings/change-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newEmail: emailNewValue,
+          currentPassword: emailPasswordInput,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || 'Failed to send verification code.')
+      }
+
+      setEmailRequestId(payload.requestId)
+      setEmailCodeExpiresAt(payload.expiresAt || null)
+      setEmailStep('verify')
+      setEmailOtpInput('')
+      setEmailMessage({
+        type: 'success',
+        text: `Verification code sent to ${emailNewValue}.`,
+      })
+    } catch (error) {
+      setEmailMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Failed to send verification code.',
+      })
+    } finally {
+      setEmailSubmitting(false)
+    }
+  }
+
+  const handleConfirmEmailChange = async () => {
+    if (!emailRequestId) {
+      setEmailMessage({ type: 'error', text: 'No verification request found.' })
+      return
+    }
+    if (!emailOtpInput) {
+      setEmailMessage({ type: 'error', text: 'Please enter the verification code.' })
+      return
+    }
+
+    setEmailConfirming(true)
+    try {
+      const response = await fetch('/api/settings/confirm-email-change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: emailRequestId,
+          otp: emailOtpInput,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || 'Failed to verify code.')
+      }
+
+      const updatedEmail = payload.newEmail || emailNewValue
+      setSettingsData((prev) => ({ ...prev, email: updatedEmail }))
+      setEmailNewValue(updatedEmail)
+      setEmailPasswordInput('')
+      setEmailOtpInput('')
+      setEmailRequestId(null)
+      setEmailStep('form')
+      setEmailCodeExpiresAt(null)
+      setEmailMessage({
+        type: 'success',
+        text: 'Email updated successfully.',
+      })
+      setEmailConfirmed(true)
+    } catch (error) {
+      setEmailMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to verify code.',
+      })
+    } finally {
+      setEmailConfirming(false)
     }
   }
 
@@ -1527,48 +1697,191 @@ export default function SettingsPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Account Information</CardTitle>
-                        <CardDescription>Your account email and verification status</CardDescription>
+                        <CardDescription>Manage your login credentials securely</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Email Confirmation Notification */}
+                      <CardContent className="space-y-5">
                         {!emailConfirmed && (
                           <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="text-sm font-semibold text-orange-400 mb-1">
-                                  Email Not Confirmed
-                                </h4>
-                                <p className="text-xs text-[#d7d2cb]/70 mb-3">
-                                  Please confirm your email address to secure your account and enable all features.
-                                </p>
-                                <button
-                                  onClick={handleResendConfirmation}
-                                  disabled={resendingConfirmation}
-                                  className="text-xs px-3 py-1.5 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 hover:bg-orange-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {resendingConfirmation ? 'Sending...' : 'Resend Confirmation Email'}
-                                </button>
-                              </div>
-                            </div>
+                            <h4 className="text-sm font-semibold text-orange-400 mb-1">
+                              Email Not Confirmed
+                            </h4>
+                            <p className="text-xs text-[#d7d2cb]/70 mb-3">
+                              Please confirm your email address to secure your account and enable all features.
+                            </p>
+                            <button
+                              onClick={handleResendConfirmation}
+                              disabled={resendingConfirmation}
+                              className="text-xs px-3 py-1.5 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 hover:bg-orange-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {resendingConfirmation ? 'Sending...' : 'Resend Confirmation Email'}
+                            </button>
                           </div>
                         )}
 
-                        <div>
-                          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                            Email Address
-                          </label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d7d2cb]/40" />
+                        <div className="grid gap-5 lg:grid-cols-2">
+                          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <p className="text-sm text-[var(--muted-foreground)]">Current username</p>
+                                <p className="text-xl font-semibold text-[var(--foreground)]">
+                                  {profile?.username ? `@${profile.username}` : 'Not set'}
+                                </p>
+                              </div>
+                              {usernameCooldownEnds && usernameCooldownEnds.getTime() > Date.now() && (
+                                <span className="text-xs text-orange-400">
+                                  Next change {formatDistanceToNow(usernameCooldownEnds, { addSuffix: true })}
+                                </span>
+                              )}
+                            </div>
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                              Update username
+                            </label>
                             <input
-                              type="email"
-                              value={settingsData.email}
-                              disabled
-                              className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] cursor-not-allowed opacity-60"
+                              type="text"
+                              value={usernameInput}
+                              onChange={(e) => setUsernameInput(e.target.value)}
+                              placeholder="Choose a new username"
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             />
+                            {usernameMessage && (
+                              <p
+                                className={`mt-2 text-xs ${
+                                  usernameMessage.type === 'success' ? 'text-green-400' : 'text-red-400'
+                                }`}
+                              >
+                                {usernameMessage.text}
+                              </p>
+                            )}
+                            <button
+                              onClick={handleUsernameUpdate}
+                              disabled={usernameSaving}
+                              className="mt-3 inline-flex items-center justify-center gap-2 w-full px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {usernameSaving ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Updating...
+                                </>
+                              ) : (
+                                'Update Username'
+                              )}
+                            </button>
                           </div>
-                          <p className="text-xs text-[#d7d2cb] mt-1">
-                            {emailConfirmed ? 'Email cannot be changed' : 'Email cannot be changed - Please confirm your email'}
-                          </p>
+
+                          <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-[var(--muted-foreground)]">Current email</p>
+                                <p className="text-lg font-semibold text-[var(--foreground)] break-all">
+                                  {settingsData.email || user?.email}
+                                </p>
+                              </div>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  emailConfirmed ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'
+                                }`}
+                              >
+                                {emailConfirmed ? 'Verified' : 'Unverified'}
+                              </span>
+                            </div>
+
+                            {emailMessage && (
+                              <div
+                                className={`text-xs px-3 py-2 rounded-lg ${
+                                  emailMessage.type === 'success'
+                                    ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+                                    : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                                }`}
+                              >
+                                {emailMessage.text}
+                              </div>
+                            )}
+
+                            {emailStep === 'form' ? (
+                              <>
+                                <div>
+                                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                    New email address
+                                  </label>
+                                  <input
+                                    type="email"
+                                    value={emailNewValue}
+                                    onChange={(e) => setEmailNewValue(e.target.value)}
+                                    placeholder="you@example.com"
+                                    className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                    Current password
+                                  </label>
+                                  <input
+                                    type="password"
+                                    value={emailPasswordInput}
+                                    onChange={(e) => setEmailPasswordInput(e.target.value)}
+                                    placeholder="Enter password"
+                                    className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                                  />
+                                </div>
+                                <button
+                                  onClick={handleStartEmailChange}
+                                  disabled={emailSubmitting}
+                                  className="inline-flex items-center justify-center gap-2 w-full px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {emailSubmitting ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Sending...
+                                    </>
+                                  ) : (
+                                    'Send Verification Code'
+                                  )}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-xs text-[var(--muted-foreground)]">
+                                  Enter the verification code sent to {emailNewValue}.
+                                  {emailCodeExpiresAt && (
+                                    <>
+                                      {' '}
+                                      Code expires{' '}
+                                      {formatDistanceToNow(new Date(emailCodeExpiresAt), { addSuffix: true })}.
+                                    </>
+                                  )}
+                                </p>
+                                <input
+                                  type="text"
+                                  value={emailOtpInput}
+                                  onChange={(e) => setEmailOtpInput(e.target.value)}
+                                  placeholder="000000"
+                                  className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] tracking-widest text-center"
+                                />
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <button
+                                    onClick={handleConfirmEmailChange}
+                                    disabled={emailConfirming}
+                                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {emailConfirming ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Verifying...
+                                      </>
+                                    ) : (
+                                      'Verify & Update Email'
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={handleStartEmailChange}
+                                    className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-[var(--foreground)] hover:bg-white/20 transition-colors"
+                                  >
+                                    Resend Code
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
