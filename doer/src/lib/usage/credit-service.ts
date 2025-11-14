@@ -1,12 +1,12 @@
 import type { PostgrestError } from '@supabase/supabase-js'
 
 import {
-  ensureActiveSubscription,
   getUsageLimits,
   type UsageMetric,
   type UserPlanSubscription,
 } from '@/lib/billing/plans'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
+import { getSubscriptionForUsage } from './subscription-adapter'
 
 const PLAN_ENFORCEMENT_ENABLED = (process.env.PLAN_ENFORCEMENT_ENABLED || '').toLowerCase() === 'true'
 
@@ -29,24 +29,29 @@ export class UsageLimitExceeded extends Error {
 
 export class CreditService {
   private readonly supabase = getServiceRoleClient()
-  private readonly subscriptionPromise: Promise<UserPlanSubscription>
+  private subscriptionCache: Promise<UserPlanSubscription | null> | null = null
   private unmeteredAccessPromise?: Promise<boolean>
 
   constructor(
     private readonly userId: string,
     private readonly tokenId?: string
-  ) {
-    this.subscriptionPromise = CreditService.isEnforcementEnabled()
-      ? ensureActiveSubscription(userId)
-      : Promise.resolve(null as unknown as UserPlanSubscription)
-  }
+  ) {}
 
   private static isEnforcementEnabled(): boolean {
     return PLAN_ENFORCEMENT_ENABLED
   }
 
-  async getSubscription(): Promise<UserPlanSubscription> {
-    return this.subscriptionPromise
+  async getSubscription(): Promise<UserPlanSubscription | null> {
+    if (!CreditService.isEnforcementEnabled()) {
+      return null
+    }
+
+    // Cache the subscription promise to avoid multiple Stripe API calls
+    if (!this.subscriptionCache) {
+      this.subscriptionCache = getSubscriptionForUsage(this.userId)
+    }
+
+    return this.subscriptionCache
   }
 
   private async shouldBypassCredits(): Promise<boolean> {
@@ -90,6 +95,11 @@ export class CreditService {
     }
 
     const subscription = await this.getSubscription()
+    
+    if (!subscription) {
+      throw new Error('No active subscription found. Please subscribe to a plan to use this feature.')
+    }
+
     const limits = getUsageLimits(subscription.planCycle)
 
     const { data, error } = await this.supabase.rpc('current_usage_balance', {

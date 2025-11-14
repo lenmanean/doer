@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
+import { initializeUsageBalances } from '@/lib/usage/initialize-balances'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -91,7 +92,15 @@ export async function POST(req: NextRequest) {
           })
         }
         
-        // No need to sync subscription to database - we query Stripe directly now
+        // Initialize usage balances for the new subscription
+        try {
+          await initializeUsageBalances(userId)
+          console.log('[Stripe webhook] Initialized usage balances for user:', userId)
+        } catch (error) {
+          console.error('[Stripe webhook] Failed to initialize usage balances:', error)
+          // Don't fail the webhook - balances will be initialized on first use
+        }
+        
         console.log('[Stripe webhook] Checkout completed - subscription will be queried from Stripe when needed')
         break
       }
@@ -113,6 +122,17 @@ export async function POST(req: NextRequest) {
             }, {
               onConflict: 'user_id',
             })
+        }
+        
+        // Initialize/update usage balances if subscription is active
+        if (userId && ['active', 'trialing'].includes(subscription.status)) {
+          try {
+            await initializeUsageBalances(userId)
+            console.log('[Stripe webhook] Initialized/updated usage balances for user:', userId)
+          } catch (error) {
+            console.error('[Stripe webhook] Failed to initialize usage balances:', error)
+            // Don't fail the webhook - balances will be initialized on first use
+          }
         }
         
         // No need to sync subscription - we query Stripe directly
