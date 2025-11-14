@@ -269,6 +269,41 @@ export default function SettingsPage() {
 
       const data = await response.json()
       setSubscription(data.subscription)
+      
+      // If no subscription found, try to recover from Stripe
+      if (!data.subscription) {
+        console.log('[Settings] No subscription found, attempting recovery from Stripe...')
+        try {
+          const recoverResponse = await fetch('/api/subscription/recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          })
+          
+          if (recoverResponse.ok) {
+            const recoverData = await recoverResponse.json()
+            if (recoverData.recovered > 0) {
+              // Reload subscription after recovery
+              const reloadResponse = await fetch('/api/subscription', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+              })
+              if (reloadResponse.ok) {
+                const reloadData = await reloadResponse.json()
+                setSubscription(reloadData.subscription)
+                addToast({
+                  type: 'success',
+                  title: 'Subscription Recovered',
+                  description: `Recovered ${recoverData.recovered} subscription(s) from Stripe.`,
+                  duration: 5000,
+                })
+              }
+            }
+          }
+        } catch (recoverError) {
+          console.error('[Settings] Error recovering subscription:', recoverError)
+          // Don't show error to user - recovery is optional
+        }
+      }
     } catch (error) {
       console.error('Error loading subscription:', error)
       addToast({
