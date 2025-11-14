@@ -116,7 +116,6 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
       }, 10000)
 
       try {
-        console.error('[SupabaseProvider] Resolving user...')
         const { data, error } = await supabase.auth.getUser()
         
         if (!isMountedRef.current) return
@@ -127,7 +126,6 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
           }
           setUser(null)
         } else {
-          console.error('[SupabaseProvider] User resolved:', data.user?.id || 'null')
           setUser(data.user ?? null)
         }
       } catch (error: any) {
@@ -163,10 +161,10 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         validateAndCleanSession().then(({ valid, user: validatedUser }) => {
           if (!isMountedRef.current) return
           if (!valid || !validatedUser) {
-            console.error('[SupabaseProvider] Initial user invalid, clearing')
+            // Initial user invalid - this is expected for new sessions
             setUser(null)
           } else if (validatedUser.id !== initialUser.id) {
-            console.error('[SupabaseProvider] Initial user mismatch, updating')
+            // User mismatch - update to validated user
             setUser(validatedUser)
           }
           setLoading(false)
@@ -184,10 +182,14 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (!isMountedRef.current) return
 
-      console.error('[SupabaseProvider] Auth state change:', event)
+      // Only log non-initial events to avoid console noise
+      // INITIAL_SESSION is a normal event that occurs on app load
+      if (event !== 'INITIAL_SESSION') {
+        console.log('[SupabaseProvider] Auth state change:', event)
+      }
 
       if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
-        console.error('[SupabaseProvider] User signed out, clearing state and storage')
+        console.log('[SupabaseProvider] User signed out, clearing state and storage')
         setUser(null)
         setLoading(false)
         clearStorageOnSignOut()
@@ -251,11 +253,11 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
       if (!isMountedRef.current) return
       
       if (!valid) {
-        console.error('[SupabaseProvider] Periodic validation failed, clearing user')
+        // Periodic validation failed - clear user silently
         setUser(null)
         clearStorageOnSignOut()
       } else if (validatedUser && validatedUser.id !== user.id) {
-        console.error('[SupabaseProvider] User changed during validation, updating')
+        // User changed during validation - update silently
         setUser(validatedUser)
       }
     }, 5 * 60 * 1000) // 5 minutes
