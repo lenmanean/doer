@@ -82,7 +82,7 @@ function clearStorageOnSignOut() {
 
 export function SupabaseProvider({ children, initialUser }: SupabaseProviderProps) {
   const [user, setUser] = useState<User | null>(initialUser ?? null)
-  const [loading, setLoading] = useState(initialUser === undefined)
+  const [loading, setLoading] = useState(initialUser === undefined || initialUser === null)
   const isMountedRef = useRef(true)
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sessionValidationIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -153,29 +153,25 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
       }
     }
 
-    if (initialUser === undefined) {
+    if (initialUser === undefined || initialUser === null) {
       resolveUser()
     } else {
       // Validate initial user if provided
-      if (initialUser) {
-        validateAndCleanSession().then(({ valid, user: validatedUser }) => {
-          if (!isMountedRef.current) return
-          if (!valid || !validatedUser) {
-            // Initial user invalid - this is expected for new sessions
-            setUser(null)
-          } else if (validatedUser.id !== initialUser.id) {
-            // User mismatch - update to validated user
-            setUser(validatedUser)
-          }
-          setLoading(false)
-        }).catch(() => {
-          if (isMountedRef.current) {
-            setLoading(false)
-          }
-        })
-      } else {
+      validateAndCleanSession().then(({ valid, user: validatedUser }) => {
+        if (!isMountedRef.current) return
+        if (!valid || !validatedUser) {
+          // Initial user invalid - this is expected for new sessions
+          setUser(null)
+        } else if (validatedUser.id !== initialUser.id) {
+          // User mismatch - update to validated user
+          setUser(validatedUser)
+        }
         setLoading(false)
-      }
+      }).catch(() => {
+        if (isMountedRef.current) {
+          setLoading(false)
+        }
+      })
     }
 
     // Set up auth state change listener
