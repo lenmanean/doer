@@ -25,9 +25,11 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
   const supabase = getServiceRoleClient()
 
   // Check if user already has a Stripe customer ID
+  const { data: authUser } = await supabase.auth.admin.getUserById(userId)
+
   const { data: userSettings } = await supabase
     .from('user_settings')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, first_name, last_name, email')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -35,18 +37,27 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
 
   // Create Stripe customer if doesn't exist
   if (!stripeCustomerId) {
-    const { data: userProfile } = await supabase
-      .from('user_settings')
-      .select('email, first_name, last_name')
-      .eq('user_id', userId)
-      .maybeSingle()
+    const email =
+      userSettings?.email ||
+      authUser?.user?.email ||
+      (authUser?.user?.user_metadata as any)?.email ||
+      undefined
+
+    const firstName =
+      userSettings?.first_name ||
+      (authUser?.user?.user_metadata as any)?.first_name ||
+      authUser?.user?.email?.split('@')[0] ||
+      undefined
+
+    const lastName =
+      userSettings?.last_name ||
+      (authUser?.user?.user_metadata as any)?.last_name ||
+      undefined
 
     const customer = await stripeWithRetry(() =>
       stripe.customers.create({
-        email: userProfile?.email || undefined,
-        name: userProfile?.first_name && userProfile?.last_name
-          ? `${userProfile.first_name} ${userProfile.last_name}`
-          : undefined,
+        email,
+        name: firstName && lastName ? `${firstName} ${lastName}` : firstName,
         metadata: {
           userId,
         },
