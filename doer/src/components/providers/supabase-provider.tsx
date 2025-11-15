@@ -80,14 +80,29 @@ function clearStorageOnSignOut() {
   }
 }
 
+const pendingSync = new Map<string, AbortController>()
+
 async function syncServerAuthSession(event: string, session: Session | null) {
   try {
+    const key = 'session-sync'
+    const previous = pendingSync.get(key)
+    if (previous) {
+      previous.abort()
+    }
+    const controller = new AbortController()
+    pendingSync.set(key, controller)
+
     await fetch('/api/auth/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event, session }),
+      signal: controller.signal,
+      credentials: 'same-origin',
     })
   } catch (error) {
+    if ((error as any)?.name === 'AbortError') {
+      return
+    }
     console.error('[SupabaseProvider] Failed to sync auth session with server:', error)
   }
 }
@@ -166,7 +181,16 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     }
 
     if (initialUser === undefined || initialUser === null) {
-      resolveUser()
+      resolveUser().then(() => {
+        if (isMountedRef.current) {
+          const currentSession = supabase.auth.getSession()
+          currentSession.then(({ data }) => {
+            if (data.session) {
+              syncServerAuthSession('SIGNED_IN', data.session)
+            }
+          })
+        }
+      })
     } else {
       // Validate initial user if provided
       validateAndCleanSession().then(({ valid, user: validatedUser }) => {
@@ -174,9 +198,21 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         if (!valid || !validatedUser) {
           // Initial user invalid - this is expected for new sessions
           setUser(null)
+          syncServerAuthSession('SIGNED_OUT', null)
         } else if (validatedUser.id !== initialUser.id) {
           // User mismatch - update to validated user
           setUser(validatedUser)
+          supabase.auth.getSession().then(({ data }) => {
+            if (data.session) {
+              syncServerAuthSession('SIGNED_IN', data.session)
+            }
+          })
+        } else {
+          supabase.auth.getSession().then(({ data }) => {
+            if (data.session) {
+              syncServerAuthSession('SIGNED_IN', data.session)
+            }
+          })
         }
         setLoading(false)
       }).catch(() => {
