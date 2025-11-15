@@ -11,6 +11,8 @@ export async function POST(request: Request) {
     const { event, session } = await request.json()
     const supabase = await createClient()
 
+    console.log('[api/auth/session] syncing event:', event, 'user:', session?.user?.id ?? 'none')
+
     switch (event) {
       case 'SIGNED_IN':
       case 'TOKEN_REFRESHED':

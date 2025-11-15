@@ -25,6 +25,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   const supabaseContext = useSupabase()
   const providerUser = supabaseContext?.user || null
   const providerLoading = supabaseContext?.loading ?? true
+  const sessionReady = supabaseContext?.sessionReady ?? false
   const supabase = supabaseContext?.supabase
   const [resolvedUser, setResolvedUser] = useState<any>(providerUser)
   const [authResolutionState, setAuthResolutionState] = useState<'pending' | 'checking' | 'resolved'>(
@@ -91,6 +92,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   useEffect(() => {
     if (!supabase) return
     if (providerLoading) return
+    if (!sessionReady) return
     if (resolvedUser) return
     if (authResolutionState !== 'pending') return
 
@@ -122,11 +124,12 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     return () => {
       cancelled = true
     }
-  }, [supabase, providerLoading, resolvedUser, authResolutionState])
+  }, [supabase, providerLoading, resolvedUser, authResolutionState, sessionReady])
 
   // Redirect if, after all resolutions, no user is present
   useEffect(() => {
     if (providerLoading) return
+    if (!sessionReady) return
     if (authResolutionState !== 'resolved') return
     if (resolvedUser) return
 
@@ -134,7 +137,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     setProfile(null)
     setLoading(false)
     router.push('/login')
-  }, [authResolutionState, providerLoading, resolvedUser, router])
+  }, [authResolutionState, providerLoading, resolvedUser, router, sessionReady])
 
   const effectiveUser = resolvedUser
   const fallbackUser = effectiveUser || providerUser
@@ -142,6 +145,10 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   // Fetch profile when user is available
   useEffect(() => {
     if (!supabase) return
+    if (!sessionReady) {
+      console.warn('[useOnboardingProtection] Waiting for session sync before profile fetch')
+      return
+    }
     if (!effectiveUser) return
 
     // If provider is still loading, wait (but with timeout)
@@ -288,7 +295,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     fetchProfile()
-  }, [effectiveUser?.id, providerLoading, router, supabase, fallbackUser?.email])
+  }, [effectiveUser?.id, providerLoading, router, supabase, fallbackUser?.email, sessionReady])
 
   // Reset profile when user changes
   useEffect(() => {

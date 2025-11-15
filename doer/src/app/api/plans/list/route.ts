@@ -19,6 +19,9 @@ export async function GET(req: NextRequest) {
     } = await supabase.auth.getUser()
     
     if (userError || !user) {
+      console.warn('[api/plans/list] Unauthorized request', {
+        error: userError?.message,
+      })
       return NextResponse.json(
         { error: 'User not authenticated' },
         { status: 401 }
@@ -40,6 +43,7 @@ export async function GET(req: NextRequest) {
     // Parse JSON response from RPC function
     const plans = plansJson || []
     
+    console.log('[api/plans/list] Returning plans for user', user.id, 'count:', plans.length)
     return NextResponse.json({
       success: true,
       plans,

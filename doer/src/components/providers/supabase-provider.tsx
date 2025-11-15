@@ -8,6 +8,7 @@ interface SupabaseContextType {
   supabase: typeof supabase
   user: User | null
   loading: boolean
+  sessionReady: boolean
 }
 
 const SupabaseContext = createContext<SupabaseContextType | null>(null)
@@ -99,17 +100,31 @@ async function syncServerAuthSession(event: string, session: Session | null) {
       signal: controller.signal,
       credentials: 'same-origin',
     })
+    pendingSync.delete(key)
+    return true
   } catch (error) {
     if ((error as any)?.name === 'AbortError') {
-      return
+      return false
     }
     console.error('[SupabaseProvider] Failed to sync auth session with server:', error)
+    return false
+  }
+}
+
+async function updateServerSession(event: string, session: Session | null, setSessionReady: (ready: boolean) => void) {
+  if (event === 'SIGNED_OUT' || event === 'USER_DELETED' || !session) {
+    setSessionReady(false)
+  }
+  const success = await syncServerAuthSession(event, session)
+  if (success && session) {
+    setSessionReady(true)
   }
 }
 
 export function SupabaseProvider({ children, initialUser }: SupabaseProviderProps) {
   const [user, setUser] = useState<User | null>(initialUser ?? null)
   const [loading, setLoading] = useState(initialUser === undefined || initialUser === null)
+  const [sessionReady, setSessionReady] = useState(initialUser ? true : false)
   const isMountedRef = useRef(true)
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sessionValidationIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -180,47 +195,40 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
       }
     }
 
-    if (initialUser === undefined || initialUser === null) {
-      resolveUser().then(() => {
-        if (isMountedRef.current) {
-          const currentSession = supabase.auth.getSession()
-          currentSession.then(({ data }) => {
-            if (data.session) {
-              syncServerAuthSession('SIGNED_IN', data.session)
-            }
-          })
-        }
-      })
-    } else {
-      // Validate initial user if provided
-      validateAndCleanSession().then(({ valid, user: validatedUser }) => {
+    const init = async () => {
+      if (initialUser === undefined || initialUser === null) {
+        await resolveUser()
         if (!isMountedRef.current) return
-        if (!valid || !validatedUser) {
-          // Initial user invalid - this is expected for new sessions
-          setUser(null)
-          syncServerAuthSession('SIGNED_OUT', null)
-        } else if (validatedUser.id !== initialUser.id) {
-          // User mismatch - update to validated user
-          setUser(validatedUser)
-          supabase.auth.getSession().then(({ data }) => {
-            if (data.session) {
-              syncServerAuthSession('SIGNED_IN', data.session)
-            }
-          })
+        const { data } = await supabase.auth.getSession()
+        if (data.session) {
+          await updateServerSession('SIGNED_IN', data.session, setSessionReady)
         } else {
-          supabase.auth.getSession().then(({ data }) => {
-            if (data.session) {
-              syncServerAuthSession('SIGNED_IN', data.session)
+          setSessionReady(false)
+        }
+      } else {
+        try {
+          const { valid, user: validatedUser } = await validateAndCleanSession()
+          if (!isMountedRef.current) return
+          if (!valid || !validatedUser) {
+            setUser(null)
+            await updateServerSession('SIGNED_OUT', null, setSessionReady)
+          } else {
+            if (validatedUser.id !== initialUser.id) {
+              setUser(validatedUser)
             }
-          })
-        }
-        setLoading(false)
-      }).catch(() => {
-        if (isMountedRef.current) {
+            const { data } = await supabase.auth.getSession()
+            await updateServerSession('SIGNED_IN', data.session ?? null, setSessionReady)
+          }
           setLoading(false)
+        } catch {
+          if (isMountedRef.current) {
+            setLoading(false)
+          }
         }
-      })
+      }
     }
+
+    init()
 
     // Set up auth state change listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -237,14 +245,14 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         setUser(null)
         setLoading(false)
         clearStorageOnSignOut()
-        syncServerAuthSession(event, null)
+        await updateServerSession(event, null, setSessionReady)
         return
       }
 
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
         setUser(session.user)
         setLoading(false)
-        syncServerAuthSession(event, session)
+        await updateServerSession(event, session, setSessionReady)
         return
       }
 
@@ -254,10 +262,10 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         if (!isMountedRef.current) return
         if (valid && validatedUser) {
           setUser(validatedUser)
-          syncServerAuthSession(event, session ?? null)
+          await updateServerSession(event, session ?? null, setSessionReady)
         } else {
           setUser(null)
-          syncServerAuthSession('SIGNED_OUT', null)
+          await updateServerSession('SIGNED_OUT', null, setSessionReady)
         }
         return
       }
@@ -333,7 +341,8 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
   const contextValue: SupabaseContextType = {
     supabase,
     user,
-    loading
+    loading,
+    sessionReady
   }
 
   return (
