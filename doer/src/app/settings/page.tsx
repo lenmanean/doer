@@ -47,6 +47,7 @@ import { PlanManagementDropdown } from '@/components/ui/PlanManagementDropdown'
 import { validateUsername } from '@/lib/validation/username'
 import { validateEmail } from '@/lib/validation/email'
 import { formatDistanceToNow } from 'date-fns'
+import { useUsageSummary } from '@/hooks/useUsageSummary'
 
 interface SettingsData {
   // Account
@@ -81,6 +82,13 @@ export default function SettingsPage() {
   const { theme, setTheme, accentColor, setAccentColor } = useTheme()
   const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
   const { addToast } = useToast()
+  const {
+    metrics: usageMetrics,
+    loading: loadingUsage,
+    error: usageError,
+    getMetric: getUsageMetric,
+    refresh: refreshUsage,
+  } = useUsageSummary(user?.id)
   const [activeSection, setActiveSection] = useState('account')
   const [showSwitchPlanModal, setShowSwitchPlanModal] = useState(false)
   const [settingsData, setSettingsData] = useState<SettingsData>({
@@ -174,6 +182,13 @@ export default function SettingsPage() {
   const currentPeriodEndLabel = hasPaidBillingPeriod && subscription
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
     : null
+
+  const apiCreditsUsage = getUsageMetric('api_credits')
+  const integrationUsage = getUsageMetric('integration_actions')
+  const usageLabels = {
+    api_credits: 'AI Credits',
+    integration_actions: 'Integration Actions',
+  } as const
 
   useEffect(() => {
     if (user && profile && !justSaved) {
@@ -2168,6 +2183,61 @@ export default function SettingsPage() {
                                   </span>
                                 </div>
                               </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                Usage this Cycle
+                              </label>
+                              {loadingUsage ? (
+                                <div className="flex items-center gap-2 text-[#d7d2cb]/70 text-sm">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Checking usage…
+                                </div>
+                              ) : usageError ? (
+                                <p className="text-sm text-red-400">{usageError}</p>
+                              ) : usageMetrics && usageMetrics.length > 0 ? (
+                                <div className="space-y-4">
+                                  {[apiCreditsUsage, integrationUsage]
+                                    .filter(Boolean)
+                                    .map((metric) => {
+                                      const data = metric!
+                                      const usedPercent =
+                                        data.allocation > 0
+                                          ? Math.min(100, Math.round((data.used / data.allocation) * 100))
+                                          : 0
+                                      return (
+                                        <div key={data.metric}>
+                                          <div className="flex items-center justify-between text-sm text-[#d7d2cb]/80 mb-1">
+                                            <span>{usageLabels[data.metric]}</span>
+                                            <span className="font-semibold text-[#d7d2cb]">
+                                              {data.used.toLocaleString()} / {data.allocation.toLocaleString()} used
+                                            </span>
+                                          </div>
+                                          <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                                            <div
+                                              className={`h-full rounded-full ${
+                                                usedPercent > 85 ? 'bg-red-400' : 'bg-[#ff7f00]'
+                                              }`}
+                                              style={{ width: `${usedPercent}%` }}
+                                            />
+                                          </div>
+                                          <p className="text-xs text-[#d7d2cb]/60 mt-1">
+                                            {data.available > 0
+                                              ? `${data.available.toLocaleString()} remaining — cycle ends ${new Date(
+                                                  data.cycleEnd
+                                                ).toLocaleDateString()}`
+                                              : 'No credits remaining — renews next billing cycle.'}
+                                          </p>
+                                        </div>
+                                      )
+                                    })}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-[#d7d2cb]/60">
+                                  Usage data will appear after your first plan or automation run this cycle.
+                                </p>
+                              )}
                             </div>
                           </div>
                         ) : (
