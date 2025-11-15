@@ -128,6 +128,16 @@ export default function ConfirmEmailPage() {
           description: 'Your email has been verified. Please complete your profile setup.',
           duration: 3000
         })
+
+        try {
+          await fetch('/api/stripe/assign-basic', {
+            method: 'POST',
+            credentials: 'include'
+          })
+        } catch (assignError) {
+          console.error('[ConfirmEmail] Failed to auto-assign plan:', assignError)
+        }
+
         // Redirect to profile setup
         router.push('/auth/profile-setup')
       }
