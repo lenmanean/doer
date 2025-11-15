@@ -2118,7 +2118,7 @@ export default function SettingsPage() {
                               </label>
                               <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg">
                                 <div className="flex items-center justify-between">
-                                  <div>
+                                  <div className="flex-1">
                                     <p className="text-lg font-semibold text-[#d7d2cb]">
                                       {subscription.planDetails.name} - {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Annual'}
                                     </p>
@@ -2132,6 +2132,18 @@ export default function SettingsPage() {
                                         {subscription.status}
                                       </span>
                                     </p>
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-sm text-[#d7d2cb]/60">
+                                        API Credits: <span className="text-[#d7d2cb] font-semibold">
+                                          {subscription.planDetails.apiCreditLimit.toLocaleString()}
+                                        </span>
+                                      </p>
+                                      <p className="text-sm text-[#d7d2cb]/60">
+                                        Integration Actions: <span className="text-[#d7d2cb] font-semibold">
+                                          {subscription.planDetails.integrationActionLimit.toLocaleString()}
+                                        </span>
+                                      </p>
+                                    </div>
                                   </div>
                                   <PlanManagementDropdown
                                     onUpgrade={() => window.location.href = '/pricing'}
@@ -2139,6 +2151,8 @@ export default function SettingsPage() {
                                     onManagePayment={handleManagePayment}
                                     isCanceling={cancelingSubscription}
                                     isOpeningPortal={openingPortal}
+                                    showCancel={!(subscription.planSlug === 'basic' && subscription.billingCycle === 'monthly')}
+                                    showManagePayment={!(subscription.planSlug === 'basic' && subscription.billingCycle === 'monthly')}
                                   />
                                 </div>
                               </div>
@@ -2164,26 +2178,6 @@ export default function SettingsPage() {
                                 </div>
                               </div>
                             )}
-
-                            <div>
-                              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                                Plan Limits
-                              </label>
-                              <div className="space-y-2">
-                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex justify-between">
-                                  <span className="text-[#d7d2cb]">API Credits</span>
-                                  <span className="text-[#d7d2cb] font-semibold">
-                                    {subscription.planDetails.apiCreditLimit.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg flex justify-between">
-                                  <span className="text-[#d7d2cb]">Integration Actions</span>
-                                  <span className="text-[#d7d2cb] font-semibold">
-                                    {subscription.planDetails.integrationActionLimit.toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
 
                             <div>
                               <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
@@ -2224,8 +2218,8 @@ export default function SettingsPage() {
                                           </div>
                                           <p className="text-xs text-[#d7d2cb]/60 mt-1">
                                             {data.available > 0
-                                              ? `${data.available.toLocaleString()} remaining — cycle ends ${new Date(
-                                                  data.cycleEnd
+                                              ? `${data.available.toLocaleString()} remaining — renews ${new Date(
+                                                  subscription?.currentPeriodEnd || data.cycleEnd
                                                 ).toLocaleDateString()}`
                                               : 'No credits remaining — renews next billing cycle.'}
                                           </p>
