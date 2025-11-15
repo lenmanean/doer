@@ -1,9 +1,9 @@
 import Stripe from 'stripe'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { getPlanCycleBySlugAndCycle } from '@/lib/billing/plans'
-import { initializeUsageBalances } from '@/lib/usage/initialize-balances'
 import { logger } from '@/lib/logger'
 import { stripeWithRetry } from '@/lib/stripe/retry'
+import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 let stripe: Stripe | null = null
@@ -140,13 +140,13 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
 
     logger.info('Created Basic plan subscription', { userId, subscriptionId: subscription.id })
 
-    // Initialize usage balances
     try {
-      await initializeUsageBalances(userId)
-      logger.info('Initialized usage balances for Basic plan', { userId })
-    } catch (error) {
-      logger.error('Failed to initialize usage balances', error as Error, { userId })
-      // Don't fail - balances will be initialized on first use
+      await syncSubscriptionSnapshot(subscription, { userId })
+    } catch (syncError) {
+      logger.error('Failed to persist subscription snapshot', syncError as Error, {
+        userId,
+        subscriptionId: subscription.id,
+      })
     }
   } catch (error) {
     logger.error('Failed to create Basic plan subscription', error as Error, { userId, stripeCustomerId })

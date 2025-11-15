@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
-import { initializeUsageBalances } from '@/lib/usage/initialize-balances'
 import { logger } from '@/lib/logger'
 import { subscriptionCache } from '@/lib/cache/subscription-cache'
+import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -88,16 +88,22 @@ export async function POST(req: NextRequest) {
           logger.info('Updated stripe_customer_id', { userId, stripeCustomerId })
         }
         
-        // Initialize usage balances for the new subscription
-        try {
-          await initializeUsageBalances(userId)
-          logger.info('Initialized usage balances for user', { userId })
-        } catch (error) {
-          logger.error('Failed to initialize usage balances', error as Error, { userId })
-          // Don't fail the webhook - balances will be initialized on first use
+        if (session.subscription && typeof session.subscription === 'string') {
+          try {
+            const subscription = await stripe!.subscriptions.retrieve(session.subscription)
+            await syncSubscriptionSnapshot(subscription, { userId })
+          } catch (syncError) {
+            logger.error('Failed to sync subscription after checkout', syncError as Error, {
+              userId,
+              sessionId: session.id,
+              subscriptionId: session.subscription,
+            })
+          }
+        } else {
+          logger.warn('Checkout session missing subscription reference', { sessionId: session.id })
         }
         
-        logger.info('Checkout completed - subscription will be queried from Stripe when needed', { userId })
+        logger.info('Checkout completed - subscription snapshot updated', { userId })
         break
       }
 
@@ -125,19 +131,20 @@ export async function POST(req: NextRequest) {
           subscriptionCache.invalidateUser(userId)
         }
 
-        // Initialize/update usage balances if subscription is active
-        if (userId && ['active', 'trialing'].includes(subscription.status)) {
+        if (userId) {
           try {
-            await initializeUsageBalances(userId)
-            logger.info('Initialized/updated usage balances for user', { userId })
-          } catch (error) {
-            logger.error('Failed to initialize usage balances', error as Error, { userId })
-            // Don't fail the webhook - balances will be initialized on first use
+            await syncSubscriptionSnapshot(subscription, { userId })
+          } catch (syncError) {
+            logger.error('Failed to sync subscription snapshot from webhook', syncError as Error, {
+              userId,
+              subscriptionId: subscription.id,
+            })
           }
+        } else {
+          logger.warn('Subscription event missing userId metadata', { subscriptionId: subscription.id })
         }
         
-        // No need to sync subscription - we query Stripe directly
-        logger.info('Subscription updated/created - will be queried from Stripe when needed', {
+        logger.info('Subscription updated/created - snapshot stored', {
           subscriptionId: subscription.id,
           status: subscription.status,
           userId,
