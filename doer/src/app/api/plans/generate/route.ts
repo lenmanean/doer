@@ -523,11 +523,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Use the unified tasks array from AI content
-    // All tasks are inserted without milestone associations (milestones are legacy)
+    // All tasks are inserted without milestone associations (milestones are legacy - column removed)
     const allTasks = aiContent.tasks.map((task: any, index: number) => ({
       plan_id: plan.id,
       user_id: user.id,
-      milestone_id: null, // Milestones are legacy - always null
       idx: index + 1,
       name: task.name,
       details: task.details,
