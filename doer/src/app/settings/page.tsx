@@ -2218,9 +2218,29 @@ export default function SettingsPage() {
                                           </div>
                                           <p className="text-xs text-[#d7d2cb]/60 mt-1">
                                             {data.available > 0
-                                              ? `${data.available.toLocaleString()} remaining — renews ${new Date(
-                                                  subscription?.currentPeriodEnd || data.cycleEnd
-                                                ).toLocaleDateString()}`
+                                              ? (() => {
+                                                  // Use cycleEnd from usage metrics as it's the correct renewal date
+                                                  let renewDate = new Date(data.cycleEnd)
+                                                  const today = new Date()
+                                                  today.setHours(0, 0, 0, 0)
+                                                  renewDate.setHours(0, 0, 0, 0)
+                                                  
+                                                  // If cycleEnd is in the past, calculate next renewal based on billing cycle
+                                                  if (renewDate < today && subscription) {
+                                                    renewDate = new Date(data.cycleEnd)
+                                                    if (subscription.billingCycle === 'monthly') {
+                                                      renewDate.setMonth(renewDate.getMonth() + 1)
+                                                    } else if (subscription.billingCycle === 'annual') {
+                                                      renewDate.setFullYear(renewDate.getFullYear() + 1)
+                                                    }
+                                                  }
+                                                  
+                                                  const month = String(renewDate.getMonth() + 1).padStart(2, '0')
+                                                  const day = String(renewDate.getDate()).padStart(2, '0')
+                                                  const year = renewDate.getFullYear()
+                                                  const formattedDate = `${month}/${day}/${year}`
+                                                  return `${data.available.toLocaleString()} remaining — renews ${formattedDate}`
+                                                })()
                                               : 'No credits remaining — renews next billing cycle.'}
                                           </p>
                                         </div>
