@@ -86,9 +86,10 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
         })
       )
     } catch (updateError) {
-      logger.warn('Failed to update existing Stripe customer profile', updateError as Error, {
+      logger.warn('Failed to update existing Stripe customer profile', {
         userId,
         stripeCustomerId,
+        error: updateError instanceof Error ? updateError.message : String(updateError),
       })
     }
   }
