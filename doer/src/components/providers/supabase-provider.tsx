@@ -175,7 +175,7 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     }
 
     // Set up auth state change listener
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMountedRef.current) return
 
       // Only log non-initial events to avoid console noise
@@ -189,6 +189,12 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         setUser(null)
         setLoading(false)
         clearStorageOnSignOut()
+        return
+      }
+
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        setUser(session.user)
+        setLoading(false)
         return
       }
 
