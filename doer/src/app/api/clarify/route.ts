@@ -2,19 +2,45 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { analyzeClarificationNeeds, evaluateGoalFeasibility } from '@/lib/ai'
-import { UsageLimitExceeded } from '@/lib/usage/credit-service'
+import { UsageLimitExceeded, CreditService } from '@/lib/usage/credit-service'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   let reserved = false
   let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
+  let creditService: CreditService | null = null
+  let userId: string | null = null
   const CLARIFY_CREDIT_COST = 2 // 2 OpenAI calls: evaluateGoalFeasibility + analyzeClarificationNeeds
 
   try {
-    authContext = await authenticateApiRequest(req.headers, {
-      requiredScopes: ['clarify'],
-    })
+    // Try API token authentication first (for external API calls)
+    try {
+      authContext = await authenticateApiRequest(req.headers, {
+        requiredScopes: ['clarify'],
+      })
+      creditService = authContext.creditService
+      userId = authContext.userId
+    } catch (apiTokenError) {
+      // Fall back to session-based authentication (for browser requests)
+      if (apiTokenError instanceof ApiTokenError) {
+        const supabase = await createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError || !user) {
+          return NextResponse.json(
+            { error: 'API_TOKEN_ERROR', message: 'Authorization header missing or invalid. Please sign in to continue.' },
+            { status: 401 }
+          )
+        }
+        
+        userId = user.id
+        creditService = new CreditService(userId)
+      } else {
+        throw apiTokenError
+      }
+    }
 
-    await authContext.creditService.reserve('api_credits', CLARIFY_CREDIT_COST, {
+    await creditService.reserve('api_credits', CLARIFY_CREDIT_COST, {
       route: 'clarify',
     })
     reserved = true
@@ -23,7 +49,7 @@ export async function POST(req: NextRequest) {
     const { goal } = body
 
     if (!goal || !goal.trim()) {
-      await authContext.creditService.release('api_credits', CLARIFY_CREDIT_COST, {
+      await creditService!.release('api_credits', CLARIFY_CREDIT_COST, {
         route: 'clarify',
         reason: 'validation_error',
       })
@@ -40,7 +66,7 @@ export async function POST(req: NextRequest) {
     const feasibility = await evaluateGoalFeasibility(trimmedGoal)
     console.log('🧠 Clarify route feasibility evaluation:', feasibility)
     if (!feasibility.isFeasible) {
-      await authContext.creditService.release('api_credits', CLARIFY_CREDIT_COST, {
+      await creditService!.release('api_credits', CLARIFY_CREDIT_COST, {
         route: 'clarify',
         reason: 'goal_not_feasible',
       })
@@ -57,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     const clarificationNeeds = await analyzeClarificationNeeds(trimmedGoal)
 
-    await authContext.creditService.commit('api_credits', CLARIFY_CREDIT_COST, {
+    await creditService!.commit('api_credits', CLARIFY_CREDIT_COST, {
       route: 'clarify',
       model: 'gpt-4o-mini',
       calls: 2, // evaluateGoalFeasibility + analyzeClarificationNeeds
@@ -72,8 +98,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error analyzing clarification needs:', error)
 
-    if (reserved && authContext) {
-      await authContext.creditService
+    if (reserved && creditService) {
+      await creditService
         .release('api_credits', CLARIFY_CREDIT_COST, {
           route: 'clarify',
           reason: 'exception',
