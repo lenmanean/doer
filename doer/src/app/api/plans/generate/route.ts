@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null
   let reserved = false
   let creditMetadata: Record<string, unknown> = { route: 'plans.generate' }
+  let sessionUser: any = null // Store user from session auth to avoid re-fetching
 
   const fail = async (
     status: number,
@@ -39,12 +40,64 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    authContext = await authenticateApiRequest(req.headers, {
-      requiredScopes: ['plans.generate'],
-    })
-
-    await authContext.creditService.reserve('api_credits', PLAN_GENERATION_CREDIT_COST, creditMetadata)
-    reserved = true
+    // Authenticate user via API token or session
+    try {
+      authContext = await authenticateApiRequest(req.headers, {
+        requiredScopes: ['plans.generate'],
+      })
+      // Reserve credits for OpenAI call
+      await authContext.creditService.reserve('api_credits', PLAN_GENERATION_CREDIT_COST, creditMetadata)
+      reserved = true
+    } catch (authError) {
+      // If API token auth fails, try session auth (for web UI)
+      const supabase = await createClient()
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        // If it was an ApiTokenError, return that specific error
+        if (authError instanceof ApiTokenError) {
+          return NextResponse.json(
+            { error: 'API_TOKEN_ERROR', message: authError.message },
+            { status: authError.status }
+          )
+        }
+        return fail(
+          401,
+          { error: 'User not authenticated' },
+          'user_not_authenticated',
+          { user_error: userError?.message }
+        )
+      }
+      // For session auth, create a CreditService instance
+      // Store the user so we don't need to fetch it again
+      sessionUser = user
+      const { CreditService } = await import('@/lib/usage/credit-service')
+      const creditService = new CreditService(user.id, undefined)
+      await creditService.getSubscription()
+      authContext = {
+        tokenId: '', // Empty string for session auth
+        userId: user.id,
+        scopes: ['plans.generate'], // Include scope for session auth
+        expiresAt: null,
+        creditService,
+      }
+      // Reserve credits for OpenAI call
+      try {
+        await creditService.reserve('api_credits', PLAN_GENERATION_CREDIT_COST, creditMetadata)
+        reserved = true
+      } catch (creditError) {
+        if (creditError instanceof UsageLimitExceeded) {
+          return NextResponse.json(
+            {
+              error: 'USAGE_LIMIT_EXCEEDED',
+              message: 'You have exhausted your plan generation credits for this billing cycle.',
+              remaining: creditError.remaining,
+            },
+            { status: 429 }
+          )
+        }
+        throw creditError
+      }
+    }
   } catch (error) {
     if (error instanceof UsageLimitExceeded) {
       return NextResponse.json(
@@ -64,9 +117,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    console.error('Failed to authenticate API token for plan generation:', error)
+    console.error('Failed to authenticate for plan generation:', error)
     return NextResponse.json(
-      { error: 'API_TOKEN_ERROR', message: 'Unable to authenticate API token.' },
+      { error: 'AUTHENTICATION_ERROR', message: 'Unable to authenticate request.' },
+      { status: 401 }
+    )
+  }
+
+  if (!authContext) {
+    return NextResponse.json(
+      { error: 'AUTHENTICATION_ERROR', message: 'Authentication context not available.' },
       { status: 401 }
     )
   }
@@ -74,17 +134,23 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return fail(
-        401,
-        { error: 'User not authenticated' },
-        'user_not_authenticated',
-        { user_error: userError?.message }
-      )
+    // Get user - for session auth we already have it, for API token auth we need to fetch it
+    let user = sessionUser
+    if (!user) {
+      // Need to fetch full user object (API token auth case)
+      const {
+        data: { user: fetchedUser },
+        error: userError,
+      } = await supabase.auth.getUser()
+      if (userError || !fetchedUser) {
+        return fail(
+          401,
+          { error: 'User not authenticated' },
+          'user_not_authenticated',
+          { user_error: userError?.message }
+        )
+      }
+      user = fetchedUser
     }
 
     console.log('Fetching onboarding data for user:', user.id)
