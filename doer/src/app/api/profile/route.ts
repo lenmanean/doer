@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sanitizePreferences } from '@/lib/validation/preferences'
+import { updateStripeCustomerProfile } from '@/lib/stripe/customer-profile'
+import { updateStripeCustomerProfile } from '@/lib/stripe/customer-profile'
 
 /**
  * GET /api/profile
@@ -332,6 +334,15 @@ export async function POST(request: NextRequest) {
       console.error('Error upserting profile:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    // Update Stripe customer profile asynchronously (don't block response)
+    updateStripeCustomerProfile(user.id, {
+      firstName: first_name ?? undefined,
+      lastName: last_name ?? undefined,
+      email: user.email || undefined,
+    }).catch((stripeError) => {
+      console.warn('[profile] Failed to update Stripe customer profile:', stripeError)
+    })
 
     return NextResponse.json({ profile, success: true })
   } catch (error) {

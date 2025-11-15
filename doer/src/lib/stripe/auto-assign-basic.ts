@@ -35,25 +35,25 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
 
   let stripeCustomerId = userSettings?.stripe_customer_id
 
+  const email =
+    userSettings?.email ||
+    authUser?.user?.email ||
+    (authUser?.user?.user_metadata as any)?.email ||
+    undefined
+
+  const firstName =
+    userSettings?.first_name ||
+    (authUser?.user?.user_metadata as any)?.first_name ||
+    authUser?.user?.email?.split('@')[0] ||
+    undefined
+
+  const lastName =
+    userSettings?.last_name ||
+    (authUser?.user?.user_metadata as any)?.last_name ||
+    undefined
+
   // Create Stripe customer if doesn't exist
   if (!stripeCustomerId) {
-    const email =
-      userSettings?.email ||
-      authUser?.user?.email ||
-      (authUser?.user?.user_metadata as any)?.email ||
-      undefined
-
-    const firstName =
-      userSettings?.first_name ||
-      (authUser?.user?.user_metadata as any)?.first_name ||
-      authUser?.user?.email?.split('@')[0] ||
-      undefined
-
-    const lastName =
-      userSettings?.last_name ||
-      (authUser?.user?.user_metadata as any)?.last_name ||
-      undefined
-
     const customer = await stripeWithRetry(() =>
       stripe.customers.create({
         email,
@@ -77,6 +77,20 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
       })
 
     logger.info('Created Stripe customer', { userId, stripeCustomerId })
+  } else {
+    try {
+      await stripeWithRetry(() =>
+        stripe!.customers.update(stripeCustomerId!, {
+          email,
+          name: firstName && lastName ? `${firstName} ${lastName}` : firstName,
+        })
+      )
+    } catch (updateError) {
+      logger.warn('Failed to update existing Stripe customer profile', updateError as Error, {
+        userId,
+        stripeCustomerId,
+      })
+    }
   }
 
   // Check if user already has an active subscription (with retry logic)
