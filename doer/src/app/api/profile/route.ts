@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sanitizePreferences } from '@/lib/validation/preferences'
 import { updateStripeCustomerProfile } from '@/lib/stripe/customer-profile'
-import { updateStripeCustomerProfile } from '@/lib/stripe/customer-profile'
 
 /**
  * GET /api/profile
