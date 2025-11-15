@@ -89,6 +89,14 @@ function clearBrowserStorage() {
   }
 }
 
+export const SIGN_OUT_EVENT = 'doer:signed-out'
+
+function broadcastLocalSignOut() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(SIGN_OUT_EVENT))
+  }
+}
+
 export async function signOutClient(
   supabase: SupabaseClient,
   options?: SignOutOptions
@@ -96,6 +104,7 @@ export async function signOutClient(
   console.error('[signOutClient] Starting sign out process...')
   
   try {
+    broadcastLocalSignOut()
     // Step 1: Clear browser storage first (before sign out to prevent race conditions)
     clearBrowserStorage()
     

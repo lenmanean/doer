@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import { supabase, validateAndCleanSession } from '@/lib/supabase/client'
+import { SIGN_OUT_EVENT } from '@/lib/auth/sign-out-client'
 
 interface SupabaseContextType {
   supabase: typeof supabase
@@ -132,6 +133,15 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
   useEffect(() => {
     isMountedRef.current = true
     let subscription: { unsubscribe: () => void } | null = null
+    const handleImmediateSignOut = () => {
+      setUser(null)
+      setResolvedUser(null)
+      setAuthResolutionState('pending')
+      setSessionReady(false)
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener(SIGN_OUT_EVENT, handleImmediateSignOut)
+    }
 
     // Clean up corrupted session data on mount
     if (typeof window !== 'undefined') {
@@ -326,6 +336,9 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
 
     return () => {
       isMountedRef.current = false
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(SIGN_OUT_EVENT, handleImmediateSignOut)
+      }
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current)
       }
