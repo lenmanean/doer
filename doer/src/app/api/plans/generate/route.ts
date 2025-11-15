@@ -504,10 +504,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (updateOnboardingError) {
-      console.error('Error updating onboarding_responses with plan_id:', updateOnboardingError)
-    }
-
     const milestoneMap = new Map<number, string>()
     const milestoneCount = aiContent.milestones.length
     const totalDays = aiContent.timeline_days
