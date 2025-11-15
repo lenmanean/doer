@@ -153,45 +153,105 @@ export async function POST(req: NextRequest) {
       user = fetchedUser
     }
 
-    console.log('Fetching onboarding data for user:', user.id)
+    // Parse request body - onboarding data may come from request body or database
+    const body = await req.json().catch(() => ({}))
+    const requestGoalText = body.goal_text || body.goal
+    const requestStartDate = body.start_date
+    const requestClarifications = body.clarifications || {}
+    const requestClarificationQuestions = body.clarification_questions || []
 
-    const { data: onboardingData, error: onboardingError } = await supabase
-      .from('onboarding_responses')
-      .select('*')
-      .eq('user_id', user.id)
-      .is('plan_id', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    let onboardingData: any = null
+    let finalGoalText: string
+    let finalStartDate: string
+    let finalClarifications: Record<string, string>
+    let finalClarificationQuestions: any
 
-    if (onboardingError) {
-      console.error('Error fetching onboarding data:', onboardingError)
-      return fail(
-        500,
-        { error: 'Failed to fetch onboarding data', details: onboardingError.message },
-        'onboarding_fetch_failed',
-        { code: onboardingError.code }
-      )
+    // If data is provided in request body, save it to database first (or use it directly)
+    if (requestGoalText && requestStartDate) {
+      console.log('Onboarding data provided in request body, saving to database...')
+      
+      // Prepare responses JSONB object
+      const responses = {
+        goal_text: requestGoalText,
+        start_date: requestStartDate,
+        clarification_1: requestClarifications.clarification_1,
+        clarification_2: requestClarifications.clarification_2,
+        clarification_questions: requestClarificationQuestions,
+        clarifications: requestClarifications,
+      }
+
+      // Save to database
+      const { data: savedResponse, error: saveError } = await supabase
+        .from('onboarding_responses')
+        .insert({
+          user_id: user.id,
+          responses,
+        })
+        .select()
+        .single()
+
+      if (saveError) {
+        console.error('Error saving onboarding data:', saveError)
+        // Continue anyway - we can use the request body data directly
+        console.warn('Continuing with request body data despite save error')
+      } else {
+        console.log('Saved onboarding response to database:', savedResponse.id)
+        onboardingData = savedResponse
+      }
+
+      // Use request body data
+      finalGoalText = requestGoalText
+      finalStartDate = requestStartDate
+      finalClarifications = {
+        clarification_1: requestClarifications.clarification_1 || requestClarifications['clarification_1'],
+        clarification_2: requestClarifications.clarification_2 || requestClarifications['clarification_2'],
+      }
+      finalClarificationQuestions = requestClarificationQuestions
+    } else {
+      // No data in request body - fetch from database
+      console.log('Fetching onboarding data from database for user:', user.id)
+
+      const { data: fetchedData, error: onboardingError } = await supabase
+        .from('onboarding_responses')
+        .select('*')
+        .eq('user_id', user.id)
+        .is('plan_id', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (onboardingError) {
+        console.error('Error fetching onboarding data:', onboardingError)
+        return fail(
+          500,
+          { error: 'Failed to fetch onboarding data', details: onboardingError.message },
+          'onboarding_fetch_failed',
+          { code: onboardingError.code }
+        )
+      }
+
+      if (!fetchedData) {
+        console.error('No unlinked onboarding response found for user:', user.id)
+        return fail(
+          400,
+          { error: 'No onboarding data found. Please provide goal_text and start_date in the request, or complete onboarding first.' },
+          'onboarding_not_found'
+        )
+      }
+
+      onboardingData = fetchedData
+      console.log('Found onboarding data:', onboardingData.id)
+
+      // Extract data from JSONB responses column
+      const responses = onboardingData.responses || {}
+      finalGoalText = responses.goal_text || onboardingData.goal_text
+      finalStartDate = responses.start_date || onboardingData.start_date
+      finalClarifications = {
+        clarification_1: responses.clarification_1 || onboardingData.clarification_1,
+        clarification_2: responses.clarification_2 || onboardingData.clarification_2,
+      }
+      finalClarificationQuestions = responses.clarification_questions || onboardingData.clarification_questions
     }
-
-    if (!onboardingData) {
-      console.error('No unlinked onboarding response found for user:', user.id)
-      return fail(
-        400,
-        { error: 'No onboarding data found. Please complete onboarding first.' },
-        'onboarding_not_found'
-      )
-    }
-
-    console.log('Found onboarding data:', onboardingData.id, 'for goal:', onboardingData.goal_text)
-
-    const finalGoalText = onboardingData.goal_text
-    const finalClarifications = {
-      clarification_1: onboardingData.clarification_1,
-      clarification_2: onboardingData.clarification_2,
-    }
-    const finalClarificationQuestions = onboardingData.clarification_questions
-    const finalStartDate = onboardingData.start_date
 
     if (!finalGoalText || !finalStartDate) {
       return fail(
@@ -418,11 +478,31 @@ export async function POST(req: NextRequest) {
       timeline_days: aiContent.timeline_days,
     }
 
-    const { error: updateOnboardingError } = await supabase
-      .from('onboarding_responses')
-      .update({ plan_id: plan.id })
-      .eq('user_id', user.id)
-      .is('plan_id', null)
+    // Link the onboarding response to the created plan
+    if (onboardingData?.id) {
+      const { error: updateOnboardingError } = await supabase
+        .from('onboarding_responses')
+        .update({ plan_id: plan.id })
+        .eq('id', onboardingData.id)
+
+      if (updateOnboardingError) {
+        console.error('Error updating onboarding_responses with plan_id:', updateOnboardingError)
+      } else {
+        console.log('Linked onboarding response to plan:', onboardingData.id, '→', plan.id)
+      }
+    } else {
+      // Fallback: try to link any unlinked response for this user
+      const { error: updateOnboardingError } = await supabase
+        .from('onboarding_responses')
+        .update({ plan_id: plan.id })
+        .eq('user_id', user.id)
+        .is('plan_id', null)
+        .limit(1)
+
+      if (updateOnboardingError) {
+        console.error('Error updating onboarding_responses with plan_id:', updateOnboardingError)
+      }
+    }
 
     if (updateOnboardingError) {
       console.error('Error updating onboarding_responses with plan_id:', updateOnboardingError)
