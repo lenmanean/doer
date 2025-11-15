@@ -396,14 +396,10 @@ export async function POST(req: NextRequest) {
     const endDate = addDays(startDate, aiContent.timeline_days - 1)
     const calculatedEndDate = endDate.toISOString().split('T')[0]
 
-    // Initialize milestones array early for validation logging
-    const milestones = aiContent.milestones || []
-
     console.log('✅ AI content validated:', {
       timeline_days: aiContent.timeline_days,
       ai_end_date: aiContent.end_date,
       calculated_end_date: calculatedEndDate,
-      milestones: milestones.length,
       tasks: aiContent.tasks.length,
     })
 
@@ -526,52 +522,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle milestones if they exist in AI content
-    // Milestones are optional - the AI function may not always return them
-    const milestoneMap = new Map<number, string>()
-    const milestoneCount = milestones.length
-    const totalDays = aiContent.timeline_days
-
-    if (milestoneCount > 0) {
-      console.log(`Creating ${milestoneCount} milestones for plan`)
-      for (let i = 0; i < milestoneCount; i++) {
-        const milestone = milestones[i]
-
-        const dayOffset = Math.floor((totalDays / (milestoneCount + 1)) * (i + 1))
-        const targetDate = addDays(startDate, dayOffset)
-        const targetDateStr = formatDateForDB(targetDate)
-
-        const { data: milestoneData, error: milestoneError } = await supabase
-          .from('milestones')
-          .insert({
-            plan_id: plan.id,
-            user_id: user.id,
-            idx: i + 1,
-            name: milestone.name || `Milestone ${i + 1}`,
-            rationale: milestone.rationale || '',
-            target_date: targetDateStr,
-          })
-          .select()
-          .single()
-
-        if (milestoneError) {
-          console.error('Milestone insert error:', milestoneError)
-          continue
-        }
-
-        milestoneMap.set(i + 1, milestoneData.id)
-      }
-      console.log(`✅ Created ${milestoneMap.size} milestones`)
-    } else {
-      console.log('No milestones in AI content - skipping milestone creation')
-    }
-
     // Use the unified tasks array from AI content
-    // All tasks are inserted as daily tasks (milestone association happens via generateTaskSchedule)
+    // All tasks are inserted without milestone associations (milestones are legacy)
     const allTasks = aiContent.tasks.map((task: any, index: number) => ({
       plan_id: plan.id,
       user_id: user.id,
-      milestone_id: null, // Will be set by generateTaskSchedule if needed
+      milestone_id: null, // Milestones are legacy - always null
       idx: index + 1,
       name: task.name,
       details: task.details,
