@@ -27,7 +27,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   const providerLoading = supabaseContext?.loading ?? true
   const supabase = supabaseContext?.supabase
   const [resolvedUser, setResolvedUser] = useState<any>(providerUser)
-  const [authCheckInProgress, setAuthCheckInProgress] = useState(false)
+  const [authCheckInProgress, setAuthCheckInProgress] = useState<'idle' | 'checking' | 'complete'>('idle')
   
   // Only manage profile state - user comes from provider
   const [profile, setProfile] = useState<any>(null)
@@ -79,40 +79,6 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     setResolvedUser(providerUser || null)
   }, [providerUser?.id, providerUser])
 
-  // When provider reports no user but we're authenticated locally (fresh login),
-  // attempt to resolve the user directly from Supabase once before redirecting.
-  useEffect(() => {
-    if (!supabase) return
-    if (providerLoading) return
-    if (providerUser) return
-    if (authCheckInProgress) return
-
-    let isMounted = true
-    setAuthCheckInProgress(true)
-
-    supabase.auth.getUser()
-      .then(({ data, error }) => {
-        if (!isMounted) return
-        if (!providerUser && data?.user && !error) {
-          setResolvedUser(data.user)
-        }
-      })
-      .catch((error) => {
-        if (error && !error.message?.includes('session')) {
-          console.error('[useOnboardingProtection] Fallback user lookup failed:', error)
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setAuthCheckInProgress(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [supabase, providerLoading, providerUser, authCheckInProgress])
-
   const effectiveUser = resolvedUser
   const fallbackUser = effectiveUser || providerUser
 
@@ -138,16 +104,48 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
 
     // Provider finished loading
     if (!effectiveUser) {
-      if (authCheckInProgress) {
+      if (!providerLoading && !providerUser && authCheckInProgress === 'idle') {
+        let cancelled = false
+        setAuthCheckInProgress('checking')
+        supabase.auth.getUser()
+          .then(({ data, error }) => {
+            if (cancelled) return
+            if (!providerUser && data?.user && !error) {
+              setResolvedUser(data.user)
+            }
+          })
+          .catch((error) => {
+            if (error && !error.message?.includes('session')) {
+              console.error('[useOnboardingProtection] Fallback user lookup failed:', error)
+            }
+          })
+          .finally(() => {
+            if (!cancelled) {
+              setAuthCheckInProgress('complete')
+            }
+          })
+
+        return () => { cancelled = true }
+      }
+
+      if (authCheckInProgress === 'checking') {
         console.warn('[useOnboardingProtection] Awaiting auth resolution before redirecting')
         return
       }
-      // No user - redirect to login
+
+      if (authCheckInProgress !== 'complete') {
+        console.warn('[useOnboardingProtection] Waiting for auth check to complete')
+        return
+      }
+
+      // No user even after fallback - redirect to login
       console.error('[useOnboardingProtection] No user found, redirecting to login')
       setLoading(false)
       setProfile(null)
       router.push('/login')
       return
+    } else if (authCheckInProgress !== 'idle') {
+      setAuthCheckInProgress('idle')
     }
 
     // Prevent concurrent fetches or re-fetching for the same user
