@@ -144,6 +144,7 @@ export default function SettingsPage() {
   const [loadingSubscription, setLoadingSubscription] = useState(false)
   const [cancelingSubscription, setCancelingSubscription] = useState(false)
   const [openingPortal, setOpeningPortal] = useState(false)
+  const [reactivatingBasic, setReactivatingBasic] = useState(false)
   const [usernameInput, setUsernameInput] = useState('')
   const [usernameSaving, setUsernameSaving] = useState(false)
   const [usernameMessage, setUsernameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -157,6 +158,22 @@ export default function SettingsPage() {
   const [emailSubmitting, setEmailSubmitting] = useState(false)
   const [emailConfirming, setEmailConfirming] = useState(false)
   const [emailCodeExpiresAt, setEmailCodeExpiresAt] = useState<string | null>(null)
+
+  const hasPaidBillingPeriod = Boolean(
+    subscription &&
+    subscription.planSlug !== 'basic' &&
+    subscription.currentPeriodStart &&
+    subscription.currentPeriodEnd &&
+    !Number.isNaN(new Date(subscription.currentPeriodStart).getTime()) &&
+    !Number.isNaN(new Date(subscription.currentPeriodEnd).getTime())
+  )
+
+  const currentPeriodStartLabel = hasPaidBillingPeriod && subscription
+    ? new Date(subscription.currentPeriodStart).toLocaleDateString()
+    : null
+  const currentPeriodEndLabel = hasPaidBillingPeriod && subscription
+    ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+    : null
 
   useEffect(() => {
     if (user && profile && !justSaved) {
@@ -381,6 +398,40 @@ export default function SettingsPage() {
         duration: 5000,
       })
       setOpeningPortal(false)
+    }
+  }
+
+  const handleReactivateBasicPlan = async () => {
+    setReactivatingBasic(true)
+    try {
+      const response = await fetch('/api/stripe/assign-basic', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reactivate Basic plan')
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Basic Plan Restored',
+        description: 'Your Basic plan has been reactivated.',
+        duration: 4000,
+      })
+
+      await loadSubscription()
+    } catch (error: any) {
+      console.error('Error reactivating Basic plan:', error)
+      addToast({
+        type: 'error',
+        title: 'Unable to Reactivate',
+        description: error.message || 'Please try again in a moment.',
+        duration: 5000,
+      })
+    } finally {
+      setReactivatingBasic(false)
     }
   }
 
@@ -2078,24 +2129,26 @@ export default function SettingsPage() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                                  Current Period Start
-                                </label>
-                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
-                                  {new Date(subscription.currentPeriodStart).toLocaleDateString()}
+                            {hasPaidBillingPeriod && (
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                    Current Period Start
+                                  </label>
+                                  <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
+                                    {currentPeriodStartLabel}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                    Current Period End
+                                  </label>
+                                  <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
+                                    {currentPeriodEndLabel}
+                                  </div>
                                 </div>
                               </div>
-                              <div>
-                                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                                  Current Period End
-                                </label>
-                                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
-                                  {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-                                </div>
-                              </div>
-                            </div>
+                            )}
 
                             <div>
                               <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
@@ -2118,15 +2171,29 @@ export default function SettingsPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="text-center py-8">
-                            <CreditCard className="w-12 h-12 text-[#d7d2cb]/40 mx-auto mb-4" />
-                            <p className="text-[#d7d2cb] mb-4">No active subscription</p>
-                            <Button
-                              onClick={() => window.location.href = '/pricing'}
-                              variant="primary"
-                            >
-                              View Plans
-                            </Button>
+                          <div className="text-center py-8 space-y-4">
+                            <CreditCard className="w-12 h-12 text-[#d7d2cb]/40 mx-auto" />
+                            <div>
+                              <p className="text-[#d7d2cb] font-semibold">No active subscription</p>
+                              <p className="text-sm text-[#d7d2cb]/70 mt-1">
+                                Restore the Basic plan to keep using DOER or explore paid plans for more capacity.
+                              </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                              <Button
+                                onClick={() => window.location.href = '/pricing'}
+                                variant="primary"
+                              >
+                                View Paid Plans
+                              </Button>
+                              <Button
+                                onClick={handleReactivateBasicPlan}
+                                disabled={reactivatingBasic}
+                                variant="secondary"
+                              >
+                                {reactivatingBasic ? 'Restoring Basic...' : 'Restore Basic Plan'}
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </CardContent>
