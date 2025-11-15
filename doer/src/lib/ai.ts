@@ -25,10 +25,14 @@ export async function evaluateGoalFeasibility(goal: string): Promise<{
 You are a feasibility reviewer. Determine if the following goal can realistically be achieved WITHIN 21 DAYS and provide a short reason.
 
 RULES:
-- Focus on realistic outcomes for an individual or small team.
-- Consider learning curve, resources, legal/ethical constraints, and scope.
-- If the goal is clearly impossible or wildly unrealistic for 21 days, return isFeasible = false.
-- If the goal is (barely) possible but extremely ambitious, return isFeasible = false and explain why.
+- Be PERMISSIVE - only reject goals that are clearly impossible or violate physical/logical constraints.
+- Accept ambitious goals as long as they are technically achievable, even if challenging.
+- Consider that users may work intensively, have prior experience, or use shortcuts.
+- Only return isFeasible = false for goals that are:
+  * Physically impossible (e.g., "travel to Mars in 21 days")
+  * Legally/ethically impossible (e.g., "become a licensed doctor in 21 days")
+  * Logically contradictory (e.g., "complete a 6-month course in 1 day")
+- For tight timelines or ambitious goals, return isFeasible = true and note the challenge in reasoning.
 - Respond in JSON ONLY: { "isFeasible": boolean, "reasoning": "string" }
 
 Goal: "${goal}"
@@ -38,7 +42,7 @@ Goal: "${goal}"
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a feasibility reviewer. Return strict JSON with boolean isFeasible and string reasoning.' },
+        { role: 'system', content: 'You are a permissive feasibility reviewer. Only reject clearly impossible goals. Return strict JSON with boolean isFeasible and string reasoning.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.1,
