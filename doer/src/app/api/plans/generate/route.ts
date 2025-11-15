@@ -286,8 +286,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Ensure aiContent has tasks array
+    if (!aiContent.tasks || !Array.isArray(aiContent.tasks)) {
+      console.error('❌ AI content missing tasks array:', aiContent)
+      return fail(
+        500,
+        {
+          error: 'AI_GENERATION_INVALID',
+          message: 'AI generated invalid content structure. Please try again.',
+        },
+        'ai_generation_invalid',
+        { aiContent: JSON.stringify(aiContent).substring(0, 500) }
+      )
+    }
+
     const expectedDailyTasks = aiContent.timeline_days - 2
-    const actualDailyTasks = aiContent.daily_tasks.length
+    const actualDailyTasks = aiContent.tasks.length
 
     if (actualDailyTasks !== expectedDailyTasks) {
       console.warn(`⚠️ Adjusting daily task count: ${actualDailyTasks} → ${expectedDailyTasks}`)
@@ -298,21 +312,23 @@ export async function POST(req: NextRequest) {
         if (actualDailyTasks < 3) {
           console.error('⚠️ AI generated insufficient daily tasks for padding. Creating generic tasks.')
           const genericTasks = [
-            { name: 'Review your progress', details: 'Take time to reflect on what you have learned.' },
-            { name: 'Practice core skills', details: 'Focus on fundamental techniques.' },
-            { name: 'Study relevant materials', details: 'Continue learning about your goal.' },
+            { name: 'Review your progress', details: 'Take time to reflect on what you have learned.', estimated_duration_minutes: 20, priority: 3 as const },
+            { name: 'Practice core skills', details: 'Focus on fundamental techniques.', estimated_duration_minutes: 30, priority: 2 as const },
+            { name: 'Study relevant materials', details: 'Continue learning about your goal.', estimated_duration_minutes: 25, priority: 2 as const },
           ]
 
           for (let i = 0; i < tasksNeeded; i++) {
             const template = genericTasks[i % genericTasks.length]
-            aiContent.daily_tasks.push({
+            aiContent.tasks.push({
               name: `${template.name} (Day ${actualDailyTasks + i + 1})`,
               details: template.details,
+              estimated_duration_minutes: template.estimated_duration_minutes,
+              priority: template.priority,
             })
           }
         } else {
           const sampleSize = Math.min(10, actualDailyTasks)
-          const sampleTasks = aiContent.daily_tasks.slice(-sampleSize)
+          const sampleTasks = aiContent.tasks.slice(-sampleSize)
 
           for (let i = 0; i < tasksNeeded; i++) {
             const template = sampleTasks[i % sampleTasks.length]
@@ -339,35 +355,39 @@ export async function POST(req: NextRequest) {
             ]
 
             const variationFn = variations[i % variations.length]
-            aiContent.daily_tasks.push({
+            aiContent.tasks.push({
               name: variationFn(template.name),
               details: template.details,
+              estimated_duration_minutes: template.estimated_duration_minutes || 30,
+              priority: (template.priority as 1 | 2 | 3 | 4) || 3,
             })
           }
           console.log(`✅ Padded ${tasksNeeded} daily tasks with grammatically correct variations`)
         }
       } else {
         const tasksToRemove = actualDailyTasks - expectedDailyTasks
-        aiContent.daily_tasks = aiContent.daily_tasks.slice(0, expectedDailyTasks)
-        console.log(`✅ Trimmed ${tasksToRemove} excess daily tasks`)
+        aiContent.tasks = aiContent.tasks.slice(0, expectedDailyTasks)
+        console.log(`✅ Trimmed ${tasksToRemove} excess tasks`)
       }
     }
 
-    if (aiContent.milestone_tasks.length < aiContent.milestones.length) {
-      console.error('Insufficient milestone tasks:', {
-        expected: aiContent.milestones.length,
-        actual: aiContent.milestone_tasks.length,
+    // Validate that we have enough tasks
+    // For a plan with N days, we typically want at least N-1 tasks (one per day minus start/end days)
+    if (aiContent.tasks.length < Math.max(1, aiContent.timeline_days - 2)) {
+      console.error('Insufficient tasks:', {
+        expected: Math.max(1, aiContent.timeline_days - 2),
+        actual: aiContent.tasks.length,
       })
       await supabase.from('onboarding_responses').delete().eq('user_id', user.id)
       return fail(
         400,
         {
           error: 'VALIDATION_FAILED',
-          message: 'AI generated insufficient milestone tasks. Please restart onboarding.',
+          message: 'AI generated insufficient tasks. Please restart onboarding.',
           redirect: '/onboarding',
         },
-        'milestone_validation_failed',
-        { expected: aiContent.milestones.length, actual: aiContent.milestone_tasks.length }
+        'task_validation_failed',
+        { expected: Math.max(1, aiContent.timeline_days - 2), actual: aiContent.tasks.length }
       )
     }
 
@@ -380,9 +400,8 @@ export async function POST(req: NextRequest) {
       timeline_days: aiContent.timeline_days,
       ai_end_date: aiContent.end_date,
       calculated_end_date: calculatedEndDate,
-      milestones: aiContent.milestones.length,
-      milestone_tasks: aiContent.milestone_tasks.length,
-      daily_tasks: aiContent.daily_tasks.length,
+      milestones: milestones.length,
+      tasks: aiContent.tasks.length,
     })
 
     console.log('Checking for existing active plans...')
@@ -504,61 +523,64 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Handle milestones if they exist in AI content
+    // Milestones are optional - the AI function may not always return them
     const milestoneMap = new Map<number, string>()
-    const milestoneCount = aiContent.milestones.length
+    const milestones = aiContent.milestones || []
+    const milestoneCount = milestones.length
     const totalDays = aiContent.timeline_days
 
-    for (let i = 0; i < aiContent.milestones.length; i++) {
-      const milestone = aiContent.milestones[i]
+    if (milestoneCount > 0) {
+      console.log(`Creating ${milestoneCount} milestones for plan`)
+      for (let i = 0; i < milestoneCount; i++) {
+        const milestone = milestones[i]
 
-      const dayOffset = Math.floor((totalDays / (milestoneCount + 1)) * (i + 1))
-      const targetDate = addDays(startDate, dayOffset)
-      const targetDateStr = formatDateForDB(targetDate)
+        const dayOffset = Math.floor((totalDays / (milestoneCount + 1)) * (i + 1))
+        const targetDate = addDays(startDate, dayOffset)
+        const targetDateStr = formatDateForDB(targetDate)
 
-      const { data: milestoneData, error: milestoneError } = await supabase
-        .from('milestones')
-        .insert({
-          plan_id: plan.id,
-          user_id: user.id,
-          idx: i + 1,
-          name: milestone.name,
-          rationale: milestone.rationale,
-          target_date: targetDateStr,
-        })
-        .select()
-        .single()
+        const { data: milestoneData, error: milestoneError } = await supabase
+          .from('milestones')
+          .insert({
+            plan_id: plan.id,
+            user_id: user.id,
+            idx: i + 1,
+            name: milestone.name || `Milestone ${i + 1}`,
+            rationale: milestone.rationale || '',
+            target_date: targetDateStr,
+          })
+          .select()
+          .single()
 
-      if (milestoneError) {
-        console.error('Milestone insert error:', milestoneError)
-        continue
+        if (milestoneError) {
+          console.error('Milestone insert error:', milestoneError)
+          continue
+        }
+
+        milestoneMap.set(i + 1, milestoneData.id)
       }
-
-      milestoneMap.set(i + 1, milestoneData.id)
+      console.log(`✅ Created ${milestoneMap.size} milestones`)
+    } else {
+      console.log('No milestones in AI content - skipping milestone creation')
     }
 
-    const allTasks = [
-      ...aiContent.milestone_tasks.map((task: any, index: number) => ({
-        plan_id: plan.id,
-        user_id: user.id,
-        milestone_id: milestoneMap.get(task.milestone_idx) || null,
-        idx: index + 1,
-        name: task.name,
-        category: 'milestone_task',
-      })),
-      ...aiContent.daily_tasks.map((task: any, index: number) => ({
-        plan_id: plan.id,
-        user_id: user.id,
-        milestone_id: null,
-        idx: aiContent.milestone_tasks.length + index + 1,
-        name: task.name,
-        category: 'daily_task',
-      })),
-    ]
+    // Use the unified tasks array from AI content
+    // All tasks are inserted as daily tasks (milestone association happens via generateTaskSchedule)
+    const allTasks = aiContent.tasks.map((task: any, index: number) => ({
+      plan_id: plan.id,
+      user_id: user.id,
+      milestone_id: null, // Will be set by generateTaskSchedule if needed
+      idx: index + 1,
+      name: task.name,
+      details: task.details,
+      estimated_duration_minutes: task.estimated_duration_minutes || 30,
+      priority: task.priority || 3,
+      category: 'daily_task', // All tasks from AI are daily tasks
+    }))
 
     console.log('Inserting tasks:', {
-      milestone_tasks: aiContent.milestone_tasks.length,
-      daily_tasks: aiContent.daily_tasks.length,
       total_tasks: allTasks.length,
+      tasks: aiContent.tasks.length,
     })
 
     const { error: taskError } = await supabase.from('tasks').insert(allTasks)
