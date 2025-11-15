@@ -29,10 +29,6 @@ interface EnvConfig {
   apiTokens: {
     hashSecret: string
   }
-  features: {
-    planEnforcementEnabled: boolean
-    planAssignmentEnabled: boolean
-  }
   email?: EmailConfig
 }
 
@@ -109,12 +105,6 @@ export function getEnvConfig(): EnvConfig {
     },
     apiTokens: {
       hashSecret: required.apiTokens.hashSecret!,
-    },
-    features: {
-      planEnforcementEnabled:
-        (process.env.PLAN_ENFORCEMENT_ENABLED || '').toLowerCase() === 'true',
-      planAssignmentEnabled:
-        (process.env.PLAN_ASSIGNMENT_ENABLED || '').toLowerCase() === 'true',
     },
     email: emailConfigured
       ? {

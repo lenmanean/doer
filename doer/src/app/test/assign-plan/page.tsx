@@ -59,7 +59,7 @@ export default function TestAssignPlanPage() {
         <h1 className="text-3xl font-bold text-[#d7d2cb] mb-6">Test Plan Assignment</h1>
         <p className="text-[#d7d2cb]/60 mb-8">
           This page lets you test plan assignment without going through Stripe checkout.
-          Make sure <code className="bg-white/10 px-2 py-1 rounded">PLAN_ASSIGNMENT_ENABLED=true</code> in your .env.local
+          Plan assignment is always enabled in production.
         </p>
 
         <div className="space-y-4">

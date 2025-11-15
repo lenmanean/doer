@@ -68,16 +68,16 @@ For implementation details see:
 Add these environment variables alongside the existing Supabase and OpenAI keys:
 
 - `API_TOKEN_HASH_PEPPER`: High-entropy string used when hashing token secrets.
-- `PLAN_ENFORCEMENT_ENABLED`: When `true`, credit reservations are enforced. Leave `false` while billing flows are under construction.
-- `PLAN_ASSIGNMENT_ENABLED`: Controls whether payment/webhook stubs call `assignSubscription`. Keep `false` until the billing flow is live.
 - `user_settings.unmetered_access`: Admin-only flag that bypasses credit checks for trusted accounts (set via service role tooling).
+
+**Note**: Plan enforcement and plan assignment are always enabled in production. Credit reservations are enforced by default, and plan assignment always happens via Stripe webhooks.
 
 ## Plan Assignment Stub
 
 - `POST /api/stripe/mock-webhook`
   - Body: `{ "userId": "uuid", "planSlug": "pro", "cycle": "monthly" }`
-  - Respects `PLAN_ASSIGNMENT_ENABLED`. When disabled, responds with 202 and no changes. When enabled, invokes `assignSubscription` and seeds usage balances.
-  - Intended for dev/test usage until real Stripe webhooks are wired up.
+  - Invokes `assignSubscription` and seeds usage balances.
+  - Intended for dev/test usage. In production, plan assignment happens automatically via real Stripe webhooks.
 
 ## Test Mode Scripts
 
@@ -98,11 +98,11 @@ The script stores metadata on both the Checkout session and the resulting subscr
 1. **Secrets**
    - Store `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_BASIC`, `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_ANNUAL`, `API_TOKEN_HASH_PEPPER`, and `SUPABASE_SERVICE_ROLE_KEY` in your production secret manager.
 
-2. **Feature Flags**
-   - When you are ready for plan assignment: set `PLAN_ASSIGNMENT_ENABLED=true`.
-   - After verifying assignments and ledger activity, enable `PLAN_ENFORCEMENT_ENABLED=true` to enforce credit usage.
+2. **Plan Enforcement**
+   - Plan enforcement is always enabled in production. Credit reservations are enforced by default.
+   - Admin override: Use `user_settings.unmetered_access` to bypass credit checks for specific users if needed (admin use only).
 
-3. **Monitoring & Rollback**
+3. **Monitoring**
    - Watch the Stripe Dashboard → Webhooks for delivery failures.
    - Tail Supabase logs for the `/api/stripe/webhook` route and `usage_ledger` inserts.
-   - If issues arise, immediately set `PLAN_ASSIGNMENT_ENABLED=false` and/or `PLAN_ENFORCEMENT_ENABLED=false` to pause enforcement while investigating.
+   - Monitor credit usage and subscription status to ensure proper enforcement.

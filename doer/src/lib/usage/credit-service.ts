@@ -8,8 +8,6 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { getSubscriptionForUsage } from './subscription-adapter'
 
-const PLAN_ENFORCEMENT_ENABLED = (process.env.PLAN_ENFORCEMENT_ENABLED || '').toLowerCase() === 'true'
-
 export interface ReservationResult {
   remaining: number
 }
@@ -37,14 +35,7 @@ export class CreditService {
     private readonly tokenId?: string
   ) {}
 
-  private static isEnforcementEnabled(): boolean {
-    return PLAN_ENFORCEMENT_ENABLED
-  }
-
   async getSubscription(): Promise<UserPlanSubscription | null> {
-    if (!CreditService.isEnforcementEnabled()) {
-      return null
-    }
 
     // Cache the subscription promise to avoid multiple Stripe API calls
     if (!this.subscriptionCache) {
@@ -55,10 +46,8 @@ export class CreditService {
   }
 
   private async shouldBypassCredits(): Promise<boolean> {
-    if (!CreditService.isEnforcementEnabled()) {
-      return true
-    }
-
+    // Only bypass if user has unmetered access (admin override)
+    // Plan enforcement is always enabled in production
     if (await this.hasUnmeteredAccess()) {
       return true
     }

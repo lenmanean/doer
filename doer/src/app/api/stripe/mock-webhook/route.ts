@@ -3,19 +3,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { assignSubscription, type BillingCycle } from '@/lib/billing/plans'
 import { logger } from '@/lib/logger'
 
-const PLAN_ASSIGNMENT_ENABLED = (process.env.PLAN_ASSIGNMENT_ENABLED || '').toLowerCase() === 'true'
-
+/**
+ * Mock webhook endpoint for testing plan assignment
+ * In production, plan assignment always happens via the real Stripe webhook
+ */
 export async function POST(req: NextRequest) {
   let userId: string | undefined
   let planSlug: string | undefined
   let cycle: BillingCycle = 'monthly'
-
-  if (!PLAN_ASSIGNMENT_ENABLED) {
-    return NextResponse.json(
-      { success: false, message: 'Plan assignment disabled' },
-      { status: 202 }
-    )
-  }
 
   try {
     const body = await req.json()
