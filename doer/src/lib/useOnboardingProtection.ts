@@ -144,7 +144,6 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
 
   // Fetch profile when user is available
   useEffect(() => {
-    if (!supabase) return
     if (!sessionReady) {
       console.warn('[useOnboardingProtection] Waiting for session sync before profile fetch')
       return
@@ -153,7 +152,6 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
 
     // If provider is still loading, wait (but with timeout)
     if (providerLoading) {
-      // Set loading timeout - never wait more than 10 seconds
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current)
       }
@@ -163,119 +161,71 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
           setLoading(false)
         }
       }, 10000)
-      
       return
     }
 
-    // Prevent concurrent fetches or re-fetching for the same user
     if (isFetchingRef.current) {
       return
     }
 
-    // If we've already fetched for this user, don't fetch again
     if (fetchedUserIdRef.current === effectiveUser.id) {
-      // Profile might still be loading, but we've already initiated the fetch
       if (profile) {
         setLoading(false)
       }
       return
     }
 
-    // Fetch profile with timeout protection
     const fetchProfile = async () => {
-      if (!supabase || !effectiveUser || isFetchingRef.current) return
-      
+      if (!effectiveUser || isFetchingRef.current) return
+
       isFetchingRef.current = true
       fetchedUserIdRef.current = effectiveUser.id
       hasFetchedProfileRef.current = true
-      
-      // Set timeout for profile fetch (10 seconds max)
+
       if (profileFetchTimeoutRef.current) {
         clearTimeout(profileFetchTimeoutRef.current)
       }
-      
-      const timeoutPromise = new Promise<void>((resolve) => {
-        profileFetchTimeoutRef.current = setTimeout(() => {
-          resolve()
-        }, 10000)
-      })
+
+      const controller = new AbortController()
+      profileFetchTimeoutRef.current = setTimeout(() => {
+        controller.abort()
+      }, 10000)
 
       try {
-        console.error('[useOnboardingProtection] Fetching user profile for user:', effectiveUser.id)
+        console.error('[useOnboardingProtection] Fetching user profile via /api/profile for user:', effectiveUser.id)
         
-        const profilePromise = supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', effectiveUser.id)
-          .single()
-
-        const result = await Promise.race([
-          profilePromise.then((result) => ({ result, timedOut: false })),
-          timeoutPromise.then(() => ({ result: null, timedOut: true }))
-        ])
+        const response = await fetch('/api/profile', {
+          method: 'GET',
+          credentials: 'include',
+          signal: controller.signal
+        })
 
         if (!isMountedRef.current) return
 
-        if (result.timedOut) {
-          console.error('[useOnboardingProtection] Profile fetch timed out, using fallback')
-          setProfile({
-            first_name: effectiveUser.email?.split('@')[0] || 'User',
-            email: effectiveUser.email
-          })
-          setLoading(false)
-          return
-        }
-
-        const { data: userProfile, error: profileError } = result.result as any
-
-        if (profileError?.code === 'PGRST116') {
-          // Profile doesn't exist - create it
-          console.error('[useOnboardingProtection] Profile not found, creating...')
-          try {
-            const { data: newProfile, error: createError } = await supabase
-              .from('user_settings')
-              .insert({
-                user_id: effectiveUser.id,
-                first_name: effectiveUser.email?.split('@')[0] || 'User'
-              })
-              .select()
-              .single()
-
-            if (!isMountedRef.current) return
-
-            if (createError) {
-              console.error('[useOnboardingProtection] Error creating profile:', createError)
-              setProfile({
-                first_name: effectiveUser.email?.split('@')[0] || 'User',
-                email: effectiveUser.email
-              })
-            } else if (newProfile) {
-              setProfile(newProfile)
-            }
-          } catch (createErr) {
-            console.error('[useOnboardingProtection] Error in profile creation:', createErr)
-            setProfile({
-              first_name: effectiveUser.email?.split('@')[0] || 'User',
-              email: effectiveUser.email
-            })
-          }
-        } else if (profileError) {
-          console.error('[useOnboardingProtection] Error fetching profile:', profileError)
-          setProfile({
-            first_name: effectiveUser.email?.split('@')[0] || 'User',
-            email: effectiveUser.email
-          })
-        } else if (userProfile) {
-          console.error('[useOnboardingProtection] Profile fetched successfully')
-          setProfile(userProfile)
-        } else {
+        if (!response.ok) {
+          console.error('[useOnboardingProtection] /api/profile returned error', response.status)
           setProfile({
             first_name: fallbackUser?.email?.split('@')[0] || 'User',
             email: fallbackUser?.email || undefined
           })
+        } else {
+          const data = await response.json()
+          if (data?.profile) {
+            console.error('[useOnboardingProtection] Profile fetched successfully via API')
+            setProfile(data.profile)
+          } else {
+            setProfile({
+              first_name: fallbackUser?.email?.split('@')[0] || 'User',
+              email: fallbackUser?.email || undefined
+            })
+          }
         }
-      } catch (error) {
-        console.error('[useOnboardingProtection] Unexpected error fetching profile:', error)
+      } catch (error: any) {
+        if (error?.name === 'AbortError') {
+          console.error('[useOnboardingProtection] Profile fetch timed out via API, using fallback')
+        } else {
+          console.error('[useOnboardingProtection] Unexpected error fetching profile via API:', error)
+        }
         if (isMountedRef.current) {
           setProfile({
             first_name: fallbackUser?.email?.split('@')[0] || 'User',
@@ -295,7 +245,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     fetchProfile()
-  }, [effectiveUser?.id, providerLoading, router, supabase, fallbackUser?.email, sessionReady])
+  }, [effectiveUser?.id, providerLoading, router, fallbackUser?.email, sessionReady])
 
   // Reset profile when user changes
   useEffect(() => {
