@@ -135,8 +135,6 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     let subscription: { unsubscribe: () => void } | null = null
     const handleImmediateSignOut = () => {
       setUser(null)
-      setResolvedUser(null)
-      setAuthResolutionState('pending')
       setSessionReady(false)
     }
     if (typeof window !== 'undefined') {
