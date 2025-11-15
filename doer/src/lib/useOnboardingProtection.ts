@@ -27,7 +27,9 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   const providerLoading = supabaseContext?.loading ?? true
   const supabase = supabaseContext?.supabase
   const [resolvedUser, setResolvedUser] = useState<any>(providerUser)
-  const [authCheckInProgress, setAuthCheckInProgress] = useState<'idle' | 'checking' | 'complete'>('idle')
+  const [authResolutionState, setAuthResolutionState] = useState<'pending' | 'checking' | 'resolved'>(
+    providerUser ? 'resolved' : 'pending'
+  )
   
   // Only manage profile state - user comes from provider
   const [profile, setProfile] = useState<any>(null)
@@ -74,10 +76,65 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
   }, [supabase])
 
-  // Keep resolved user in sync with provider user
+  // Sync resolved user whenever provider user changes
   useEffect(() => {
-    setResolvedUser(providerUser || null)
+    if (providerUser) {
+      setResolvedUser(providerUser)
+      setAuthResolutionState('resolved')
+    } else {
+      setResolvedUser(null)
+      setAuthResolutionState((state) => (state === 'checking' ? state : 'pending'))
+    }
   }, [providerUser?.id, providerUser])
+
+  // When provider hasn't supplied a user yet, attempt a one-time fallback lookup
+  useEffect(() => {
+    if (!supabase) return
+    if (providerLoading) return
+    if (resolvedUser) return
+    if (authResolutionState !== 'pending') return
+
+    let cancelled = false
+    setAuthResolutionState('checking')
+    console.warn('[useOnboardingProtection] Provider user missing, running fallback auth check')
+
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (data?.user && !error) {
+          console.warn('[useOnboardingProtection] Fallback auth resolved user:', data.user.id)
+          setResolvedUser(data.user)
+        } else {
+          console.warn('[useOnboardingProtection] Fallback auth returned no user')
+        }
+      })
+      .catch((error) => {
+        if (!cancelled && error && !error.message?.includes('session')) {
+          console.error('[useOnboardingProtection] Fallback auth lookup failed:', error)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAuthResolutionState('resolved')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, providerLoading, resolvedUser, authResolutionState])
+
+  // Redirect if, after all resolutions, no user is present
+  useEffect(() => {
+    if (providerLoading) return
+    if (authResolutionState !== 'resolved') return
+    if (resolvedUser) return
+
+    console.error('[useOnboardingProtection] No authenticated user after resolution, redirecting to login')
+    setProfile(null)
+    setLoading(false)
+    router.push('/login')
+  }, [authResolutionState, providerLoading, resolvedUser, router])
 
   const effectiveUser = resolvedUser
   const fallbackUser = effectiveUser || providerUser
@@ -85,7 +142,8 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   // Fetch profile when user is available
   useEffect(() => {
     if (!supabase) return
-    
+    if (!effectiveUser) return
+
     // If provider is still loading, wait (but with timeout)
     if (providerLoading) {
       // Set loading timeout - never wait more than 10 seconds
@@ -100,52 +158,6 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
       }, 10000)
       
       return
-    }
-
-    // Provider finished loading
-    if (!effectiveUser) {
-      if (!providerLoading && !providerUser && authCheckInProgress === 'idle') {
-        let cancelled = false
-        setAuthCheckInProgress('checking')
-        supabase.auth.getUser()
-          .then(({ data, error }) => {
-            if (cancelled) return
-            if (!providerUser && data?.user && !error) {
-              setResolvedUser(data.user)
-            }
-          })
-          .catch((error) => {
-            if (error && !error.message?.includes('session')) {
-              console.error('[useOnboardingProtection] Fallback user lookup failed:', error)
-            }
-          })
-          .finally(() => {
-            if (!cancelled) {
-              setAuthCheckInProgress('complete')
-            }
-          })
-
-        return () => { cancelled = true }
-      }
-
-      if (authCheckInProgress === 'checking') {
-        console.warn('[useOnboardingProtection] Awaiting auth resolution before redirecting')
-        return
-      }
-
-      if (authCheckInProgress !== 'complete') {
-        console.warn('[useOnboardingProtection] Waiting for auth check to complete')
-        return
-      }
-
-      // No user even after fallback - redirect to login
-      console.error('[useOnboardingProtection] No user found, redirecting to login')
-      setLoading(false)
-      setProfile(null)
-      router.push('/login')
-      return
-    } else if (authCheckInProgress !== 'idle') {
-      setAuthCheckInProgress('idle')
     }
 
     // Prevent concurrent fetches or re-fetching for the same user
@@ -276,7 +288,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     fetchProfile()
-  }, [effectiveUser?.id, providerLoading, router, supabase, authCheckInProgress, fallbackUser?.email])
+  }, [effectiveUser?.id, providerLoading, router, supabase, fallbackUser?.email])
 
   // Reset profile when user changes
   useEffect(() => {
