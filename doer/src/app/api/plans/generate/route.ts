@@ -396,6 +396,9 @@ export async function POST(req: NextRequest) {
     const endDate = addDays(startDate, aiContent.timeline_days - 1)
     const calculatedEndDate = endDate.toISOString().split('T')[0]
 
+    // Initialize milestones array early for validation logging
+    const milestones = aiContent.milestones || []
+
     console.log('✅ AI content validated:', {
       timeline_days: aiContent.timeline_days,
       ai_end_date: aiContent.end_date,
@@ -526,7 +529,6 @@ export async function POST(req: NextRequest) {
     // Handle milestones if they exist in AI content
     // Milestones are optional - the AI function may not always return them
     const milestoneMap = new Map<number, string>()
-    const milestones = aiContent.milestones || []
     const milestoneCount = milestones.length
     const totalDays = aiContent.timeline_days
 
