@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
 import { assignSubscription, type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
-import { getActiveSubscriptionFromStripe } from '@/lib/stripe/subscriptions'
+import { getActiveSubscriptionFromStripe, type StripeSubscription } from '@/lib/stripe/subscriptions'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
@@ -112,18 +112,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if user already has active subscription
-    try {
-      const existingSubscription = await getActiveSubscriptionFromStripe(user.id)
-      if (existingSubscription) {
-        // User has active subscription - this will be handled as upgrade/downgrade by Stripe
-        // We'll let Stripe handle proration automatically
-      }
-    } catch (error) {
-      // If fetch fails, continue anyway - might be first subscription
-      console.log('[Create Subscription] Could not check existing subscription:', error)
-    }
-
     const stripeCustomerId = await ensureStripeCustomer({
       supabase,
       stripe,
@@ -143,37 +131,94 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Create subscription with payment behavior that requires payment intent
-    subscription = await stripe.subscriptions.create({
-      customer: stripeCustomerId,
-      items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      payment_behavior: 'default_incomplete',
-      payment_settings: {
-        payment_method_types: ['card'],
-        save_default_payment_method: 'on_subscription',
-      },
-      metadata: {
-        userId: user.id,
-        planSlug,
-        billingCycle,
-      },
-      expand: ['latest_invoice', 'latest_invoice.payment_intent'],
-    })
+    // Check if user already has active subscription - if so, UPDATE it instead of creating new
+    let existingSubscription: StripeSubscription | null = null
+    try {
+      existingSubscription = await getActiveSubscriptionFromStripe(user.id)
+    } catch (error) {
+      // If fetch fails, continue anyway - might be first subscription
+      console.log('[Create Subscription] Could not check existing subscription:', error)
+    }
 
-    console.error('[Create Subscription] Subscription created:', {
-      subscriptionId: subscription.id,
-      status: subscription.status,
-      latestInvoice: subscription.latest_invoice
-        ? typeof subscription.latest_invoice === 'string'
-          ? subscription.latest_invoice
-          : subscription.latest_invoice.id
-        : null,
-    })
+    if (existingSubscription && existingSubscription.id) {
+      // User has active subscription - UPDATE it instead of creating new
+      console.log('[Create Subscription] Upgrading existing subscription:', {
+        existingSubscriptionId: existingSubscription.id,
+        newPlanSlug: planSlug,
+        newBillingCycle: billingCycle,
+        newPriceId: priceId,
+      })
+
+      // Get the current subscription from Stripe to update it
+      const stripeSubscription = await stripe.subscriptions.retrieve(existingSubscription.id)
+      
+      // Get the current subscription item ID
+      const currentItemId = stripeSubscription.items.data[0]?.id
+      
+      if (!currentItemId) {
+        throw new Error('Cannot find subscription item to update')
+      }
+
+      // Update the existing subscription by replacing the subscription item
+      subscription = await stripe.subscriptions.update(stripeSubscription.id, {
+        items: [
+          {
+            id: currentItemId,
+            price: priceId, // Update to new price
+          },
+        ],
+        metadata: {
+          userId: user.id,
+          planSlug,
+          billingCycle,
+        },
+        payment_behavior: 'default_incomplete', // Require payment for the change
+        proration_behavior: 'always_invoice', // Prorate the difference
+        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+      })
+
+      console.log('[Create Subscription] Subscription updated (upgrade):', {
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        latestInvoice: subscription.latest_invoice
+          ? typeof subscription.latest_invoice === 'string'
+            ? subscription.latest_invoice
+            : subscription.latest_invoice.id
+          : null,
+      })
+    } else {
+      // No existing subscription - create new one
+      subscription = await stripe.subscriptions.create({
+        customer: stripeCustomerId,
+        items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        payment_behavior: 'default_incomplete',
+        payment_settings: {
+          payment_method_types: ['card'],
+          save_default_payment_method: 'on_subscription',
+        },
+        metadata: {
+          userId: user.id,
+          planSlug,
+          billingCycle,
+        },
+        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+      })
+
+      console.log('[Create Subscription] New subscription created:', {
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        latestInvoice: subscription.latest_invoice
+          ? typeof subscription.latest_invoice === 'string'
+            ? subscription.latest_invoice
+            : subscription.latest_invoice.id
+          : null,
+      })
+    }
 
     const invoice = subscription.latest_invoice as Stripe.Invoice | string | null
     if (!invoice) {

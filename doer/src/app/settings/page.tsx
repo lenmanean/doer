@@ -319,13 +319,32 @@ export default function SettingsPage() {
     }
   }, [activeSection, user?.id])
 
-  const loadSubscription = async () => {
+  // Refresh subscription if coming from upgrade (check URL params)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const upgraded = searchParams.get('upgraded')
+    if (upgraded === 'true' && activeSection === 'subscription' && user?.id) {
+      // Force refresh subscription data after upgrade (bypass cache)
+      loadSubscription(true)
+      // Clear the URL param
+      const newUrl = window.location.pathname + window.location.search.replace(/[?&]upgraded=true(&|$)/, '').replace(/[?&]plan=[^&]*(&|$)/, '')
+      window.history.replaceState({}, '', newUrl || window.location.pathname)
+    }
+  }, [activeSection, user?.id])
+
+  const loadSubscription = async (forceRefresh = false) => {
     if (!user?.id) return
     setLoadingSubscription(true)
     try {
-      const response = await fetch('/api/subscription', {
+      // Add timestamp to force fresh fetch if needed
+      const url = forceRefresh 
+        ? `/api/subscription?t=${Date.now()}`
+        : '/api/subscription'
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store', // Always fetch fresh data
       })
 
       if (!response.ok) {

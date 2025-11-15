@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LogOut, Calendar, Upload, Activity, Target, Clock, TrendingUp, Award, CheckCircle, Star, Zap, Users, BarChart3, Plus, TrendingDown, ExternalLink, RefreshCw } from 'lucide-react'
 // import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -90,6 +90,9 @@ function DashboardContent() {
   // Plan selection overlay state
   const [showPlanOverlay, setShowPlanOverlay] = useState(false)
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+  
+  // Track if upgrade notification has been shown to prevent duplicates
+  const upgradeNotificationShown = useRef(false)
   
   // Refresh email confirmation status - check immediately and on user changes
   useEffect(() => {
@@ -205,8 +208,10 @@ function DashboardContent() {
     const upgraded = searchParams.get('upgraded')
     const planSlug = searchParams.get('plan')
 
-    if (upgraded === 'true' && planSlug) {
+    if (upgraded === 'true' && planSlug && !upgradeNotificationShown.current) {
       const planName = planSlug === 'pro' ? 'Pro' : 'Basic'
+      upgradeNotificationShown.current = true
+      
       addToast({
         type: 'success',
         title: 'Plan Upgraded Successfully!',
@@ -214,8 +219,13 @@ function DashboardContent() {
         duration: 7000,
       })
 
-      // Clear URL params
+      // Clear URL params immediately to prevent re-triggering
       router.replace('/dashboard', { scroll: false })
+      
+      // Reset the ref after a delay to allow for page reloads/navigation
+      setTimeout(() => {
+        upgradeNotificationShown.current = false
+      }, 5000)
     }
   }, [searchParams, router, addToast])
 
