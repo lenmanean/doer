@@ -130,6 +130,7 @@ export async function signOutClient(
           'Content-Type': 'application/json',
         },
         cache: 'no-store',
+        credentials: 'include',
       })
 
       if (!response.ok) {
@@ -172,10 +173,25 @@ export async function signOutClient(
       }
     }
     
-    // Step 5: Final storage cleanup (ensure everything is cleared)
+    // Step 5: Force server session sync to remove any lingering cookies
+    try {
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+        credentials: 'include',
+        body: JSON.stringify({ event: 'SIGNED_OUT', session: null }),
+      })
+    } catch (syncError) {
+      console.warn('[signOutClient] Failed to sync server session during sign out:', syncError)
+    }
+    
+    // Step 6: Final storage cleanup (ensure everything is cleared)
     clearBrowserStorage()
 
-    // Step 6: Call optional callback
+    // Step 7: Call optional callback
     if (options?.onAfterSignOut) {
       console.error('[signOutClient] Calling onAfterSignOut callback...')
       await options.onAfterSignOut()
