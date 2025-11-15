@@ -114,6 +114,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   }, [supabase, providerLoading, providerUser, authCheckInProgress])
 
   const effectiveUser = resolvedUser
+  const fallbackUser = effectiveUser || providerUser
 
   // Fetch profile when user is available
   useEffect(() => {
@@ -252,16 +253,16 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
           setProfile(userProfile)
         } else {
           setProfile({
-            first_name: providerUser.email?.split('@')[0] || 'User',
-            email: providerUser.email
+            first_name: fallbackUser?.email?.split('@')[0] || 'User',
+            email: fallbackUser?.email || undefined
           })
         }
       } catch (error) {
         console.error('[useOnboardingProtection] Unexpected error fetching profile:', error)
         if (isMountedRef.current) {
           setProfile({
-            first_name: providerUser.email?.split('@')[0] || 'User',
-            email: providerUser.email
+            first_name: fallbackUser?.email?.split('@')[0] || 'User',
+            email: fallbackUser?.email || undefined
           })
         }
       } finally {
@@ -277,23 +278,23 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     fetchProfile()
-  }, [providerUser, providerLoading, router, supabase]) // Removed profile from deps to prevent infinite loop
+  }, [effectiveUser?.id, providerLoading, router, supabase, authCheckInProgress, fallbackUser?.email])
 
   // Reset profile when user changes
   useEffect(() => {
-    if (!providerUser) {
+    if (!effectiveUser) {
       setProfile(null)
       hasFetchedProfileRef.current = false
       fetchedUserIdRef.current = null
       isFetchingRef.current = false
-    } else if (fetchedUserIdRef.current && fetchedUserIdRef.current !== providerUser.id) {
+    } else if (fetchedUserIdRef.current && fetchedUserIdRef.current !== effectiveUser.id) {
       // User changed - reset profile and fetch state
       setProfile(null)
       hasFetchedProfileRef.current = false
       fetchedUserIdRef.current = null
       isFetchingRef.current = false
     }
-  }, [providerUser]) // Removed profile from deps to prevent infinite loop
+  }, [effectiveUser?.id]) // Removed profile from deps to prevent infinite loop
 
   // Cleanup on unmount
   useEffect(() => {
@@ -305,7 +306,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   }, [cleanup])
 
   return {
-    user: providerUser, // Always use provider user as source of truth
+    user: effectiveUser, // Use resolved user as source of truth
     profile,
     loading: providerLoading || loading, // Loading if provider is loading OR we're fetching profile
     handleSignOut
