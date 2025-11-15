@@ -26,6 +26,8 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
   const providerUser = supabaseContext?.user || null
   const providerLoading = supabaseContext?.loading ?? true
   const supabase = supabaseContext?.supabase
+  const [resolvedUser, setResolvedUser] = useState<any>(providerUser)
+  const [authCheckInProgress, setAuthCheckInProgress] = useState(false)
   
   // Only manage profile state - user comes from provider
   const [profile, setProfile] = useState<any>(null)
@@ -72,6 +74,47 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
   }, [supabase])
 
+  // Keep resolved user in sync with provider user
+  useEffect(() => {
+    setResolvedUser(providerUser || null)
+  }, [providerUser?.id, providerUser])
+
+  // When provider reports no user but we're authenticated locally (fresh login),
+  // attempt to resolve the user directly from Supabase once before redirecting.
+  useEffect(() => {
+    if (!supabase) return
+    if (providerLoading) return
+    if (providerUser) return
+    if (authCheckInProgress) return
+
+    let isMounted = true
+    setAuthCheckInProgress(true)
+
+    supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!isMounted) return
+        if (!providerUser && data?.user && !error) {
+          setResolvedUser(data.user)
+        }
+      })
+      .catch((error) => {
+        if (error && !error.message?.includes('session')) {
+          console.error('[useOnboardingProtection] Fallback user lookup failed:', error)
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setAuthCheckInProgress(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [supabase, providerLoading, providerUser, authCheckInProgress])
+
+  const effectiveUser = resolvedUser
+
   // Fetch profile when user is available
   useEffect(() => {
     if (!supabase) return
@@ -93,7 +136,11 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     // Provider finished loading
-    if (!providerUser) {
+    if (!effectiveUser) {
+      if (authCheckInProgress) {
+        console.warn('[useOnboardingProtection] Awaiting auth resolution before redirecting')
+        return
+      }
       // No user - redirect to login
       console.error('[useOnboardingProtection] No user found, redirecting to login')
       setLoading(false)
@@ -108,7 +155,7 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
     }
 
     // If we've already fetched for this user, don't fetch again
-    if (fetchedUserIdRef.current === providerUser.id) {
+    if (fetchedUserIdRef.current === effectiveUser.id) {
       // Profile might still be loading, but we've already initiated the fetch
       if (profile) {
         setLoading(false)
@@ -118,10 +165,10 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
 
     // Fetch profile with timeout protection
     const fetchProfile = async () => {
-      if (!supabase || !providerUser || isFetchingRef.current) return
+      if (!supabase || !effectiveUser || isFetchingRef.current) return
       
       isFetchingRef.current = true
-      fetchedUserIdRef.current = providerUser.id
+      fetchedUserIdRef.current = effectiveUser.id
       hasFetchedProfileRef.current = true
       
       // Set timeout for profile fetch (10 seconds max)
@@ -136,12 +183,12 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
       })
 
       try {
-        console.error('[useOnboardingProtection] Fetching user profile for user:', providerUser.id)
+        console.error('[useOnboardingProtection] Fetching user profile for user:', effectiveUser.id)
         
         const profilePromise = supabase
           .from('user_settings')
           .select('*')
-          .eq('user_id', providerUser.id)
+          .eq('user_id', effectiveUser.id)
           .single()
 
         const result = await Promise.race([
@@ -154,8 +201,8 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
         if (result.timedOut) {
           console.error('[useOnboardingProtection] Profile fetch timed out, using fallback')
           setProfile({
-            first_name: providerUser.email?.split('@')[0] || 'User',
-            email: providerUser.email
+            first_name: effectiveUser.email?.split('@')[0] || 'User',
+            email: effectiveUser.email
           })
           setLoading(false)
           return
@@ -170,8 +217,8 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
             const { data: newProfile, error: createError } = await supabase
               .from('user_settings')
               .insert({
-                user_id: providerUser.id,
-                first_name: providerUser.email?.split('@')[0] || 'User'
+                user_id: effectiveUser.id,
+                first_name: effectiveUser.email?.split('@')[0] || 'User'
               })
               .select()
               .single()
@@ -181,8 +228,8 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
             if (createError) {
               console.error('[useOnboardingProtection] Error creating profile:', createError)
               setProfile({
-                first_name: providerUser.email?.split('@')[0] || 'User',
-                email: providerUser.email
+                first_name: effectiveUser.email?.split('@')[0] || 'User',
+                email: effectiveUser.email
               })
             } else if (newProfile) {
               setProfile(newProfile)
@@ -190,15 +237,15 @@ export function useOnboardingProtection(): UseOnboardingProtectionReturn {
           } catch (createErr) {
             console.error('[useOnboardingProtection] Error in profile creation:', createErr)
             setProfile({
-              first_name: providerUser.email?.split('@')[0] || 'User',
-              email: providerUser.email
+              first_name: effectiveUser.email?.split('@')[0] || 'User',
+              email: effectiveUser.email
             })
           }
         } else if (profileError) {
           console.error('[useOnboardingProtection] Error fetching profile:', profileError)
           setProfile({
-            first_name: providerUser.email?.split('@')[0] || 'User',
-            email: providerUser.email
+            first_name: effectiveUser.email?.split('@')[0] || 'User',
+            email: effectiveUser.email
           })
         } else if (userProfile) {
           console.error('[useOnboardingProtection] Profile fetched successfully')
