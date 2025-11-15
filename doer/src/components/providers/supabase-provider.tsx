@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { User } from '@supabase/supabase-js'
+import { Session, User } from '@supabase/supabase-js'
 import { supabase, validateAndCleanSession } from '@/lib/supabase/client'
 
 interface SupabaseContextType {
@@ -77,6 +77,18 @@ function clearStorageOnSignOut() {
     })
   } catch {
     // Ignore storage errors
+  }
+}
+
+async function syncServerAuthSession(event: string, session: Session | null) {
+  try {
+    await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, session }),
+    })
+  } catch (error) {
+    console.error('[SupabaseProvider] Failed to sync auth session with server:', error)
   }
 }
 
@@ -189,12 +201,14 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         setUser(null)
         setLoading(false)
         clearStorageOnSignOut()
+        syncServerAuthSession(event, null)
         return
       }
 
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
         setUser(session.user)
         setLoading(false)
+        syncServerAuthSession(event, session)
         return
       }
 
@@ -204,8 +218,10 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
         if (!isMountedRef.current) return
         if (valid && validatedUser) {
           setUser(validatedUser)
+          syncServerAuthSession(event, session ?? null)
         } else {
           setUser(null)
+          syncServerAuthSession('SIGNED_OUT', null)
         }
         return
       }
