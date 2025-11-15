@@ -11,6 +11,8 @@ import { calculateDuration, formatDuration, isValidTimeFormat, parseTimeToMinute
 import { formatDateForDB } from '@/lib/date-utils'
 import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
 import { convertUrlsToLinks } from '@/lib/url-utils'
+import { useSupabase } from '@/components/providers/supabase-provider'
+import { useUsageSummary } from '@/hooks/useUsageSummary'
 
 interface CreateTaskModalProps {
   isOpen: boolean
@@ -307,6 +309,75 @@ export function CreateTaskModal({
 }: CreateTaskModalProps) {
   // Force dark mode for now - theme functionality disabled
   const currentTheme = 'dark'
+  const { user } = useSupabase()
+  const {
+    loading: loadingUsage,
+    error: usageError,
+    getMetric: getUsageMetric,
+  } = useUsageSummary(user?.id)
+  const aiCreditsUsage = getUsageMetric('api_credits')
+  const aiCreditsDepleted = aiCreditsUsage ? aiCreditsUsage.available <= 0 : false
+  const aiCreditsBanner = useMemo(() => {
+    if (!user?.id) return null
+
+    const baseClasses =
+      currentTheme === 'dark'
+        ? 'rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#d7d2cb]'
+        : 'rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-800'
+
+    if (loadingUsage) {
+      return (
+        <div className={baseClasses}>
+          Checking your AI credits…
+        </div>
+      )
+    }
+
+    if (usageError) {
+      return (
+        <div
+          className={`rounded-lg border px-4 py-3 text-xs ${
+            currentTheme === 'dark'
+              ? 'border-red-500/40 bg-red-500/10 text-red-200'
+              : 'border-red-200 bg-red-50 text-red-600'
+          }`}
+        >
+          Unable to load AI credits. Please try again.
+        </div>
+      )
+    }
+
+    if (aiCreditsUsage) {
+      if (aiCreditsDepleted) {
+        return (
+          <div
+            className={`rounded-lg border px-4 py-3 text-xs font-medium ${
+              currentTheme === 'dark'
+                ? 'border-red-500/40 bg-red-500/10 text-red-200'
+                : 'border-red-200 bg-red-50 text-red-600'
+            }`}
+          >
+            No AI credits remaining this billing cycle.
+          </div>
+        )
+      }
+
+      return (
+        <div className={baseClasses}>
+          <span className="font-semibold">
+            {aiCreditsUsage.available.toLocaleString()} of {aiCreditsUsage.allocation.toLocaleString()} AI credits
+          </span>{' '}
+          remaining this cycle.
+        </div>
+      )
+    }
+
+    return (
+      <div className={baseClasses}>
+        Usage data will appear after your first AI-generated task this cycle.
+      </div>
+    )
+  }, [aiCreditsDepleted, aiCreditsUsage, currentTheme, loadingUsage, usageError, user?.id])
   
   const [formData, setFormData] = useState({
     name: '',
@@ -2087,6 +2158,10 @@ export function CreateTaskModal({
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-4"
                 >
+                  {aiCreditsBanner && (
+                    <div>{aiCreditsBanner}</div>
+                  )}
+
                   {/* Start Time Field - Only show when time slot is selected */}
                   {selectedTime && (
                     <div>
@@ -2544,6 +2619,10 @@ export function CreateTaskModal({
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-4"
                 >
+                  {aiCreditsBanner && (
+                    <div>{aiCreditsBanner}</div>
+                  )}
+
                   <div className="mb-4">
                     <h3 className={`text-sm font-medium mb-2 ${
                       currentTheme === 'dark' ? 'text-[#d7d2cb]' : 'text-gray-900'
