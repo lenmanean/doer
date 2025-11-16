@@ -1110,7 +1110,7 @@ function DashboardContent() {
                   </h3>
                   <p className="text-sm text-[#d7d2cb]/70">
                     {(() => {
-                      const summary = activePlan.summary_data?.plan_summary
+                      const summary = activePlan.summary_data?.plan_summary || activePlan.summary_data?.goal_summary
                       if (summary && typeof summary === 'string' && summary.trim().length > 0) return summary
                       // Derive a short summary (≤14 words) from goal_text
                       const raw = (activePlan.goal_text || '').trim()

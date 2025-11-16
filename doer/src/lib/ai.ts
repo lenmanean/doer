@@ -127,6 +127,7 @@ Return JSON format:
 export async function generateRoadmapContent(request: AIModelRequest): Promise<{
   timeline_days: number
   goal_text: string
+  goal_title: string
   plan_summary: string
   tasks: Array<{
     name: string

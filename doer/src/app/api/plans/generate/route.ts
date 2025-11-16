@@ -466,6 +466,32 @@ export async function POST(req: NextRequest) {
 
     console.log('Proceeding to insert new plan with status=active...')
 
+    // Ensure goal title and summary exist – derive sensible fallbacks if AI omitted them
+    const deriveTitle = (text: string): string => {
+      const raw = (text || '').trim()
+      if (!raw) return 'New Goal'
+      const firstSentence = raw.split(/[.!?]/)[0] || raw
+      const words = firstSentence.split(/\s+/).filter(Boolean).slice(0, 8)
+      const title = words.join(' ')
+      return raw.length > title.length ? `${title}…` : title
+    }
+    const deriveSummary = (text: string): string => {
+      const raw = (text || '').trim()
+      if (!raw) return 'Personalized plan generated.'
+      const firstSentence = raw.split(/[.!?]/)[0] || raw
+      const words = firstSentence.split(/\s+/).filter(Boolean).slice(0, 14)
+      const short = words.join(' ')
+      return raw.length > short.length ? `${short}…` : short
+    }
+    const safeGoalTitle =
+      (aiContent as any).goal_title && typeof (aiContent as any).goal_title === 'string'
+        ? (aiContent as any).goal_title
+        : deriveTitle(finalGoalText)
+    const safePlanSummary =
+      (aiContent as any).plan_summary && typeof (aiContent as any).plan_summary === 'string'
+        ? (aiContent as any).plan_summary
+        : deriveSummary(finalGoalText)
+
     const { data: plan, error: planError } = await supabase
       .from('plans')
       .insert({
@@ -478,8 +504,8 @@ export async function POST(req: NextRequest) {
         plan_type: 'ai',
         summary_data: {
           total_duration_days: aiContent.timeline_days,
-          goal_title: aiContent.goal_title,
-          goal_summary: aiContent.plan_summary,
+          goal_title: safeGoalTitle,
+          plan_summary: safePlanSummary,
         },
       })
       .select()
