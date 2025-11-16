@@ -529,6 +529,10 @@ export async function POST(req: NextRequest) {
 
     // Use the unified tasks array from AI content
     // All tasks are inserted without milestone associations (milestones are legacy - column removed)
+    // Note: We intentionally omit the "category" column here. The database enforces
+    // a CHECK constraint that only allows 'A', 'B', or 'C' for category, and it is
+    // nullable. By not setting it, we let the column default to NULL, which passes
+    // the constraint and keeps categorisation logic decoupled from plan generation.
     const allTasks = aiContent.tasks.map((task: any, index: number) => ({
       plan_id: plan.id,
       user_id: user.id,
@@ -537,7 +541,6 @@ export async function POST(req: NextRequest) {
       details: task.details,
       estimated_duration_minutes: task.estimated_duration_minutes || 30,
       priority: task.priority || 3,
-      category: 'daily_task', // All tasks from AI are daily tasks
     }))
 
     console.log('Inserting tasks:', {
