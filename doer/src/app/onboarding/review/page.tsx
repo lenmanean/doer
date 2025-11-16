@@ -8,12 +8,13 @@ import { Task } from '@/lib/types'
 import { formatDateForDisplay, parseDateFromDB } from '@/lib/date-utils'
 import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
+import { useSupabase } from '@/components/providers/supabase-provider'
 import type { ReviewPlanData } from '@/lib/types/roadmap'
 
 export default function ReviewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, supabase, loading: authLoading } = useSupabase()
   const [plan, setPlan] = useState<ReviewPlanData | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,18 +27,18 @@ export default function ReviewPage() {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      router.replace('/login')
+      return
+    }
     // Load plan and tasks directly from DB (no client storage fallbacks)
     const bootstrap = async () => {
       try {
         const planId = searchParams.get('plan')
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          router.replace('/login')
-          return
-        }
         if (!planId) {
           // If no planId specified, fetch latest active plan for user
-          const { data: latestPlan } = await supabase
+          const { data: latestPlan, error: planErr } = await supabase
             .from('plans')
             .select('*')
             .eq('user_id', user.id)
@@ -45,36 +46,40 @@ export default function ReviewPage() {
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle()
+          if (planErr) throw planErr
           if (!latestPlan) {
             router.replace('/onboarding')
             return
           }
           setPlan(latestPlan as any)
-          const { data: fetchedTasks } = await supabase
+          const { data: fetchedTasks, error: tasksErr } = await supabase
             .from('tasks')
             .select('*')
             .eq('user_id', user.id)
             .eq('plan_id', latestPlan.id)
             .order('idx', { ascending: true })
+          if (tasksErr) throw tasksErr
           setTasks(Array.isArray(fetchedTasks) ? (fetchedTasks as any) : [])
         } else {
-          const { data: dbPlan } = await supabase
+          const { data: dbPlan, error: dbErr } = await supabase
             .from('plans')
             .select('*')
             .eq('user_id', user.id)
             .eq('id', planId)
             .maybeSingle()
+          if (dbErr) throw dbErr
           if (!dbPlan) {
             router.replace('/onboarding')
             return
           }
           setPlan(dbPlan as any)
-          const { data: fetchedTasks } = await supabase
+          const { data: fetchedTasks, error: tasksErr } = await supabase
             .from('tasks')
             .select('*')
             .eq('user_id', user.id)
             .eq('plan_id', planId)
             .order('idx', { ascending: true })
+          if (tasksErr) throw tasksErr
           setTasks(Array.isArray(fetchedTasks) ? (fetchedTasks as any) : [])
         }
       } catch (error) {
@@ -85,7 +90,7 @@ export default function ReviewPage() {
       }
     }
     bootstrap()
-  }, [router, searchParams])
+  }, [authLoading, user, supabase, router, searchParams])
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Calculate total duration in minutes
