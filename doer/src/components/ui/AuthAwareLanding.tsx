@@ -279,7 +279,7 @@ export default function AuthAwareLanding() {
                       ) : (
                         <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-sm font-medium">
-                            {(profile?.first_name || user.email || 'U').charAt(0).toUpperCase()}
+                            {(profile?.first_name || user?.email || 'U').charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
