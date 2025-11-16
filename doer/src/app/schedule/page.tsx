@@ -28,6 +28,7 @@ import { calculateTaskPosition, validateTaskPosition, groupTasksByTimeSlot, dete
 import { useTheme } from '@/components/providers/theme-provider'
 import { signOutClient } from '@/lib/auth/sign-out-client'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { isEmailConfirmed } from '@/lib/email-confirmation'
 
 interface WeekDay {
   date: Date
@@ -45,6 +46,20 @@ function ScheduleContent() {
   const { resolvedTheme } = useTheme()
   const theme = resolvedTheme
   const { user } = useSupabase()
+  
+  // Global pending reschedules check for sidebar badge (all plans + free-mode)
+  const { hasPending: hasGlobalPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
+  
+  // Email confirmation status for settings badge
+  const [emailConfirmed, setEmailConfirmed] = useState(true)
+  
+  useEffect(() => {
+    if (!user) {
+      setEmailConfirmed(true)
+      return
+    }
+    setEmailConfirmed(isEmailConfirmed(user))
+  }, [user?.id])
   
   const handleSignOut = async () => {
     try {
@@ -341,11 +356,8 @@ function ScheduleContent() {
     return () => clearInterval(interval)
   }, [userId, currentPlanId]) // Removed refetchPending to prevent infinite loops
 
-  // Use global hook for sidebar badge (but don't show badge on schedule page since modal shows instead)
-  const { hasPending: globalHasPending } = useGlobalPendingReschedules(userId)
-
   // Clear dismissed proposal IDs when navigating to the schedule page
-  // This allows the modal to appear again on next visit
+  // This allows the modal to appear again on next visit if proposals still exist
   useEffect(() => {
     setDismissedProposalIds(new Set())
   }, []) // Only run on mount
@@ -1252,7 +1264,12 @@ function ScheduleContent() {
   if (isLoadingSettings || isLoadingPlan) {
     return (
       <div className="h-screen bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden">
-        <Sidebar currentPath="/schedule" onSignOut={handleSignOut} hasPendingReschedules={false} />
+        <Sidebar 
+          currentPath="/schedule" 
+          onSignOut={handleSignOut} 
+          hasPendingReschedules={hasGlobalPendingReschedules}
+          emailConfirmed={emailConfirmed}
+        />
         <div className="ml-64 h-full flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
@@ -1265,7 +1282,12 @@ function ScheduleContent() {
 
   return (
     <div className="h-screen bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden">
-      <Sidebar currentPath="/schedule" onSignOut={handleSignOut} hasPendingReschedules={false} />
+      <Sidebar 
+        currentPath="/schedule" 
+        onSignOut={handleSignOut} 
+        hasPendingReschedules={hasGlobalPendingReschedules}
+        emailConfirmed={emailConfirmed}
+      />
       
       {/* Merged Floating Panel - Week Selector & Add Task */}
       <div 

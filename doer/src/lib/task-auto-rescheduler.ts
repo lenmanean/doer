@@ -108,6 +108,8 @@ export async function detectOverdueTasks(
     })
     
     // Filter for free-mode or plan-based tasks
+    // Include 'scheduled', 'overdue', and 'rescheduling' statuses
+    // Exclude 'pending_reschedule' (already has proposal) and 'rescheduled' (already rescheduled)
     const filteredSchedules = (allSchedules || []).filter((s: any) => {
       if (planId === null) {
         return s.plan_id === null
@@ -115,7 +117,9 @@ export async function detectOverdueTasks(
         return s.plan_id === planId
       }
     }).filter((s: any) => 
-      ['scheduled', 'overdue'].includes(s.status) && s.end_time !== null
+      ['scheduled', 'overdue', 'rescheduling'].includes(s.status) && 
+      s.end_time !== null &&
+      s.status !== 'pending_reschedule' // Already has a proposal
     )
     
     console.log('[detectOverdueTasks] Filtered schedules:', {
@@ -1120,11 +1124,33 @@ export async function rescheduleOverdueTasks(
           continue
         }
         
-        // Mark as rescheduling
-        await supabase
-          .from('task_schedule')
-          .update({ status: 'rescheduling' })
-          .eq('id', task.schedule_id)
+        // Check if there's already a pending proposal for this schedule
+        const { data: existingProposal } = await supabase
+          .from('pending_reschedules')
+          .select('id')
+          .eq('task_schedule_id', task.schedule_id)
+          .eq('status', 'pending')
+          .single()
+        
+        if (existingProposal) {
+          console.log(`Task ${task.task_id} already has pending proposal (ID: ${existingProposal.id}), skipping`)
+          // Update status to pending_reschedule if not already
+          if (task.status !== 'pending_reschedule') {
+            await supabase
+              .from('task_schedule')
+              .update({ status: 'pending_reschedule', pending_reschedule_id: existingProposal.id })
+              .eq('id', task.schedule_id)
+          }
+          continue
+        }
+        
+        // Mark as rescheduling only if not already rescheduling
+        if (task.status !== 'rescheduling') {
+          await supabase
+            .from('task_schedule')
+            .update({ status: 'rescheduling' })
+            .eq('id', task.schedule_id)
+        }
 
         // Find best slot
         let slot = await findIntelligentRescheduleSlot(
