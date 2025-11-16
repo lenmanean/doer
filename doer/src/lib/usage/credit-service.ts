@@ -144,7 +144,14 @@ export class CreditService {
 
     if (error) {
       const code = this.getErrorCode(error)
-      if (code === 'USAGE_BALANCE_NOT_FOUND') {
+      // Some PostgREST errors may use a generic code (e.g. PGRST204)
+      // while putting our domain-specific code in the message field.
+      // Treat either the extracted code OR the raw message of
+      // USAGE_BALANCE_NOT_FOUND as the sentinel for missing balance.
+      if (
+        code === 'USAGE_BALANCE_NOT_FOUND' ||
+        error.message === 'USAGE_BALANCE_NOT_FOUND'
+      ) {
         return { remaining: -1 }
       }
       throw new Error(`Failed to reserve ${metric}: ${error.message}`)

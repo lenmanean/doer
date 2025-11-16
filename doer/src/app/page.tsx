@@ -28,7 +28,7 @@ import { MdEmail } from 'react-icons/md'
 
 export default function Home() {
   const router = useRouter()
-  const { user } = useSupabase()
+  const { user, loading, sessionReady } = useSupabase()
   const t = useTranslations()
   const [goal, setGoal] = useState('')
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
@@ -83,10 +83,12 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [isFocused, goal, placeholderTexts.length])
 
+  const isAuthenticated = Boolean(user && sessionReady && !loading)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (goal.trim()) {
-      if (user) {
+      if (isAuthenticated) {
         router.push(`/onboarding?goal=${encodeURIComponent(goal.trim())}`)
       } else {
         localStorage.setItem('pendingGoal', goal.trim())
@@ -665,7 +667,7 @@ export default function Home() {
                 t('pricing.databaseFunctionality'),
               ]}
               buttonText="Get Started"
-              buttonHref={user ? '/dashboard' : '/auth/signup'}
+              buttonHref={isAuthenticated ? '/dashboard' : '/auth/signup'}
               delay={0}
             />
             {/* Paid Plans Card */}
@@ -798,7 +800,7 @@ export default function Home() {
                 }}
               >{t('cta.doer')}</span>{t('cta.question')}
             </p>
-            <Link href={user ? '/dashboard' : '/auth/signup'}>
+            <Link href={isAuthenticated ? '/dashboard' : '/auth/signup'}>
               <Button variant="primary" size="lg" className="text-xl px-12 py-6 bg-orange-500 !text-white hover:bg-orange-600 shadow-2xl animate-glow animate-button-pulse">
                 {t('cta.button')}
               </Button>

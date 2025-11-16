@@ -40,7 +40,8 @@ export default function AuthAwareLanding() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const router = useRouter()
-  const { user, supabase, loading } = useSupabase()
+  const { user, supabase, loading, sessionReady } = useSupabase()
+  const isAuthenticated = Boolean(user && sessionReady && !loading)
   
   useEffect(() => {
     // Force dark theme on landing page
@@ -53,7 +54,7 @@ export default function AuthAwareLanding() {
   
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) {
+      if (!isAuthenticated) {
         setProfile(null)
         return
       }
@@ -110,7 +111,7 @@ export default function AuthAwareLanding() {
     }
   
     fetchProfile()
-  }, [user, supabase])
+  }, [user, supabase, isAuthenticated])
   
   const handleSignOut = async () => {
     try {
@@ -248,7 +249,7 @@ export default function AuthAwareLanding() {
               <a href="#testimonials" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Testimonials</a>
               <a href="#pricing" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
               
-              {user ? (
+              {isAuthenticated ? (
                 <div className="flex items-center space-x-4">
                   <Button 
                     variant="outline" 
@@ -345,7 +346,7 @@ export default function AuthAwareLanding() {
                 <a href="#testimonials" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Testimonials</a>
                 <a href="#pricing" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
                 <div className="flex flex-col space-y-2 pt-4 border-t border-white/10">
-                  {user ? (
+                  {isAuthenticated ? (
                     <>
                       <Button 
                         variant="outline" 
@@ -401,7 +402,7 @@ export default function AuthAwareLanding() {
                 actionable plans you can actually follow.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                {user ? (
+                {isAuthenticated ? (
                   <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto" onClick={handleDashboardClick}>
                     Go to Dashboard
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -479,7 +480,7 @@ export default function AuthAwareLanding() {
                     <p className="text-xl text-[#d7d2cb]/70 leading-relaxed mb-6">
                       {feature.description}
                     </p>
-                    {!user ? (
+                    {!isAuthenticated ? (
                       <Link href="/login">
                         <Button variant="outline" size="lg" className="group">
                           Start building

@@ -14,7 +14,7 @@ export function PublicHeader() {
   const t = useTranslations()
   const router = useRouter()
   const pathname = usePathname()
-  const { user, supabase } = useSupabase()
+  const { user, supabase, loading, sessionReady } = useSupabase()
 
   const isClientRoute = Boolean(
     pathname &&
@@ -22,7 +22,8 @@ export function PublicHeader() {
         pathname.startsWith('/settings') ||
         pathname.startsWith('/schedule'))
   )
-  const showAuthedCta = Boolean(user && isClientRoute)
+  const isAuthenticated = Boolean(user && sessionReady && !loading)
+  const showAuthedCta = Boolean(isAuthenticated && isClientRoute)
   const [productOpen, setProductOpen] = useState(false)
   const [resourcesOpen, setResourcesOpen] = useState(false)
   const [solutionsOpen, setSolutionsOpen] = useState(false)
@@ -336,7 +337,7 @@ export function PublicHeader() {
           </div>
 
           {/* CTA Button */}
-          {!user ? (
+          {!isAuthenticated ? (
             <div className="hidden md:flex items-center space-x-3">
               <Link href="/login">
                 <Button variant="outline" size="sm">{t('common.logIn')}</Button>
