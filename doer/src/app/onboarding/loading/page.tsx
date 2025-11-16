@@ -134,36 +134,10 @@ export default function OnboardingLoadingPage() {
         await new Promise(resolve => setTimeout(resolve, 800))
         updateStepStatus('finalize', 'complete', 'Your plan is ready!')
 
-        // Persist plan + tasks to session storage for review page
-        try {
-          const plan = planData.plan
-          let tasks: any[] = []
-          if (plan?.id) {
-            // Retry a few times to handle replication delay
-            const MAX_RETRIES = 3
-            const DELAY_MS = 400
-            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-              const { data: fetchedTasks } = await supabase
-                .from('tasks')
-                .select('*')
-                .eq('plan_id', plan.id)
-                .order('idx', { ascending: true })
-              tasks = Array.isArray(fetchedTasks) ? fetchedTasks : []
-              if (tasks.length > 0) break
-              await new Promise(r => setTimeout(r, DELAY_MS))
-            }
-          }
-          const payload = JSON.stringify({ plan, tasks })
-          sessionStorage.setItem('generatedPlan', payload)
-          // duplicate write to localStorage for added resilience in case of sessionStorage quirks
-          try { localStorage.setItem('generatedPlan', payload) } catch {}
-        } catch (persistErr) {
-          console.error('Failed to persist generated plan to session storage:', persistErr)
-        }
-        
-        // Wait a moment to show completion, then redirect
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        router.push('/onboarding/review')
+        // Finalize by redirecting to review with explicit planId
+        const plan = planData.plan
+        await new Promise(resolve => setTimeout(resolve, 600))
+        router.push(plan?.id ? `/onboarding/review?plan=${plan.id}` : '/onboarding/review')
 
       } catch (err: any) {
         console.error('Error during plan generation:', err)
