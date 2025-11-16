@@ -791,7 +791,7 @@ export default function ReviewPage() {
                                     }
                                   }}
                                   placeholder={timeFormat === '12h' ? '9:00 AM' : '09:00'}
-                                  pattern={timeFormat === '24h' ? undefined : /^([0-9]|0[0-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i}
+                                  pattern={timeFormat === '24h' ? undefined : '^([0-9]|0[0-9]|1[0-2]):[0-5][0-9] (AM|PM)$'}
                                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                                 />
                               </div>
@@ -817,7 +817,7 @@ export default function ReviewPage() {
                                     }
                                   }}
                                   placeholder={timeFormat === '12h' ? '5:00 PM' : '17:00'}
-                                  pattern={timeFormat === '24h' ? undefined : /^([0-9]|0[0-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i}
+                                  pattern={timeFormat === '24h' ? undefined : '^([0-9]|0[0-9]|1[0-2]):[0-5][0-9] (AM|PM)$'}
                                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                                 />
                               </div>
