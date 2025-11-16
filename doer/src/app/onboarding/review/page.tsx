@@ -451,7 +451,7 @@ export default function ReviewPage() {
                     <h1 className="text-3xl md:text-4xl font-bold text-[var(--primary)] mb-2">
                       {(() => {
                         // Parse summary_data if it's a JSON string
-                        let summaryData = plan.summary_data
+                        let summaryData: any = plan.summary_data
                         if (typeof summaryData === 'string') {
                           try {
                             summaryData = JSON.parse(summaryData)
@@ -464,7 +464,7 @@ export default function ReviewPage() {
                       })()}
                     </h1>
                     {(() => {
-                      let summaryData = plan.summary_data
+                      let summaryData: any = plan.summary_data
                       if (typeof summaryData === 'string') {
                         try {
                           summaryData = JSON.parse(summaryData)
