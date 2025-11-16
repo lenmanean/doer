@@ -1092,10 +1092,34 @@ function DashboardContent() {
               ) : (
                 <div>
                   <h3 className="text-5xl font-bold text-[var(--primary)] mb-4">
-                    {activePlan.summary_data?.goal_title || activePlan.goal_text || 'No goal set'}
+                    {(() => {
+                      const explicitTitle = activePlan.summary_data?.goal_title
+                      if (explicitTitle && typeof explicitTitle === 'string' && explicitTitle.trim().length > 0) {
+                        return explicitTitle
+                      }
+                      // Derive a concise title from goal_text (3-8 words)
+                      const raw = (activePlan.goal_text || '').trim()
+                      if (!raw) return 'No goal set'
+                      // Take first sentence, then first 8 words
+                      const firstSentence = raw.split(/[.!?]/)[0] || raw
+                      const words = firstSentence.split(/\s+/).filter(Boolean).slice(0, 8)
+                      const title = words.join(' ')
+                      // Ensure trailing ellipsis if goal is longer
+                      return raw.length > title.length ? `${title}…` : title
+                    })()}
                   </h3>
                   <p className="text-sm text-[#d7d2cb]/70">
-                    {activePlan.summary_data?.plan_summary ?? 'Set your goal to get started on your journey.'}
+                    {(() => {
+                      const summary = activePlan.summary_data?.plan_summary
+                      if (summary && typeof summary === 'string' && summary.trim().length > 0) return summary
+                      // Derive a short summary (≤14 words) from goal_text
+                      const raw = (activePlan.goal_text || '').trim()
+                      if (!raw) return 'Set your goal to get started on your journey.'
+                      const firstSentence = raw.split(/[.!?]/)[0] || raw
+                      const words = firstSentence.split(/\s+/).filter(Boolean).slice(0, 14)
+                      const short = words.join(' ')
+                      return raw.length > short.length ? `${short}…` : short
+                    })()}
                   </p>
                   
                   {/* Plan Tasks List */}
