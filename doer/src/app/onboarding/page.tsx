@@ -166,9 +166,10 @@ function OnboardingContent() {
       }
 
       if (data.success && data.plan?.id) {
+        const tasksArray = Array.isArray(data.tasks) ? data.tasks : Array.isArray(data.tasks?.items) ? data.tasks.items : []
         sessionStorage.setItem('generatedPlan', JSON.stringify({
           plan: data.plan,
-          tasks: data.tasks || [],
+          tasks: tasksArray,
         }))
         router.push('/onboarding/review')
       } else {

@@ -45,7 +45,8 @@ export default function ReviewPage() {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Calculate total duration in minutes
   const totalDurationMinutes = useMemo(() => {
-    return tasks.reduce((sum, task) => sum + task.estimated_duration_minutes, 0)
+    const safeTasks = Array.isArray(tasks) ? tasks : []
+    return safeTasks.reduce((sum, task) => sum + (task?.estimated_duration_minutes ?? 0), 0)
   }, [tasks])
 
   // Calculate total days - always call hooks, even if plan is null
