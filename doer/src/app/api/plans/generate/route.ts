@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
 
   try {
     // Authenticate user via API token or session
-    try {
-      authContext = await authenticateApiRequest(req.headers, {
-        requiredScopes: ['plans.generate'],
-      })
+  try {
+    authContext = await authenticateApiRequest(req.headers, {
+      requiredScopes: ['plans.generate'],
+    })
       // Reserve credits for OpenAI call
-      await authContext.creditService.reserve('api_credits', PLAN_GENERATION_CREDIT_COST, creditMetadata)
-      reserved = true
+    await authContext.creditService.reserve('api_credits', PLAN_GENERATION_CREDIT_COST, creditMetadata)
+    reserved = true
     } catch (authError) {
       // If API token auth fails, try session auth (for web UI)
       const supabase = await createClient()
@@ -138,18 +138,18 @@ export async function POST(req: NextRequest) {
     let user = sessionUser
     if (!user) {
       // Need to fetch full user object (API token auth case)
-      const {
+    const {
         data: { user: fetchedUser },
-        error: userError,
-      } = await supabase.auth.getUser()
+      error: userError,
+    } = await supabase.auth.getUser()
       if (userError || !fetchedUser) {
-        return fail(
-          401,
-          { error: 'User not authenticated' },
-          'user_not_authenticated',
-          { user_error: userError?.message }
-        )
-      }
+      return fail(
+        401,
+        { error: 'User not authenticated' },
+        'user_not_authenticated',
+        { user_error: userError?.message }
+      )
+    }
       user = fetchedUser
     }
 
@@ -212,32 +212,32 @@ export async function POST(req: NextRequest) {
       console.log('Fetching onboarding data from database for user:', user.id)
 
       const { data: fetchedData, error: onboardingError } = await supabase
-        .from('onboarding_responses')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('plan_id', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      .from('onboarding_responses')
+      .select('*')
+      .eq('user_id', user.id)
+      .is('plan_id', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-      if (onboardingError) {
-        console.error('Error fetching onboarding data:', onboardingError)
-        return fail(
-          500,
-          { error: 'Failed to fetch onboarding data', details: onboardingError.message },
-          'onboarding_fetch_failed',
-          { code: onboardingError.code }
-        )
-      }
+    if (onboardingError) {
+      console.error('Error fetching onboarding data:', onboardingError)
+      return fail(
+        500,
+        { error: 'Failed to fetch onboarding data', details: onboardingError.message },
+        'onboarding_fetch_failed',
+        { code: onboardingError.code }
+      )
+    }
 
       if (!fetchedData) {
-        console.error('No unlinked onboarding response found for user:', user.id)
-        return fail(
-          400,
+      console.error('No unlinked onboarding response found for user:', user.id)
+      return fail(
+        400,
           { error: 'No onboarding data found. Please provide goal_text and start_date in the request, or complete onboarding first.' },
-          'onboarding_not_found'
-        )
-      }
+        'onboarding_not_found'
+      )
+    }
 
       onboardingData = fetchedData
       console.log('Found onboarding data:', onboardingData.id)
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
       finalClarifications = {
         clarification_1: responses.clarification_1 || onboardingData.clarification_1,
         clarification_2: responses.clarification_2 || onboardingData.clarification_2,
-      }
+    }
       finalClarificationQuestions = responses.clarification_questions || onboardingData.clarification_questions
     }
 
@@ -305,75 +305,75 @@ export async function POST(req: NextRequest) {
     // For very short timelines (1–2 days), trust the AI's task count as-is.
     // The N-2 heuristic only makes sense for plans longer than 2 days.
     if (aiContent.timeline_days > 2) {
-      const expectedDailyTasks = aiContent.timeline_days - 2
+    const expectedDailyTasks = aiContent.timeline_days - 2
 
-      if (actualDailyTasks !== expectedDailyTasks) {
-        console.warn(`⚠️ Adjusting daily task count: ${actualDailyTasks} → ${expectedDailyTasks}`)
+    if (actualDailyTasks !== expectedDailyTasks) {
+      console.warn(`⚠️ Adjusting daily task count: ${actualDailyTasks} → ${expectedDailyTasks}`)
 
-        if (actualDailyTasks < expectedDailyTasks) {
-          const tasksNeeded = expectedDailyTasks - actualDailyTasks
+      if (actualDailyTasks < expectedDailyTasks) {
+        const tasksNeeded = expectedDailyTasks - actualDailyTasks
 
-          if (actualDailyTasks < 3) {
-            console.error('⚠️ AI generated insufficient daily tasks for padding. Creating generic tasks.')
-            const genericTasks = [
+        if (actualDailyTasks < 3) {
+          console.error('⚠️ AI generated insufficient daily tasks for padding. Creating generic tasks.')
+          const genericTasks = [
               { name: 'Review your progress', details: 'Take time to reflect on what you have learned.', estimated_duration_minutes: 20, priority: 3 as const },
               { name: 'Practice core skills', details: 'Focus on fundamental techniques.', estimated_duration_minutes: 30, priority: 2 as const },
               { name: 'Study relevant materials', details: 'Continue learning about your goal.', estimated_duration_minutes: 25, priority: 2 as const },
-            ]
+          ]
 
-            for (let i = 0; i < tasksNeeded; i++) {
-              const template = genericTasks[i % genericTasks.length]
+          for (let i = 0; i < tasksNeeded; i++) {
+            const template = genericTasks[i % genericTasks.length]
               aiContent.tasks.push({
-                name: `${template.name} (Day ${actualDailyTasks + i + 1})`,
-                details: template.details,
+              name: `${template.name} (Day ${actualDailyTasks + i + 1})`,
+              details: template.details,
                 estimated_duration_minutes: template.estimated_duration_minutes,
                 priority: template.priority,
-              })
-            }
-          } else {
-            const sampleSize = Math.min(10, actualDailyTasks)
-            const sampleTasks = aiContent.tasks.slice(-sampleSize)
-
-            for (let i = 0; i < tasksNeeded; i++) {
-              const template = sampleTasks[i % sampleTasks.length]
-
-              const variations = [
-                (name: string) =>
-                  `Review your progress on ${name
-                    .toLowerCase()
-                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-                (name: string) =>
-                  `Continue ${name.toLowerCase().replace(/^(practice|learn|study|research|create|attend) /, '$1ing ')}`,
-                (name: string) =>
-                  `Spend more time ${name
-                    .toLowerCase()
-                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-                (name: string) =>
-                  `Revisit ${name
-                    .toLowerCase()
-                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-                (name: string) =>
-                  `Dedicate additional time to ${name
-                    .toLowerCase()
-                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-              ]
-
-              const variationFn = variations[i % variations.length]
-              aiContent.tasks.push({
-                name: variationFn(template.name),
-                details: template.details,
-                estimated_duration_minutes: template.estimated_duration_minutes || 30,
-                priority: (template.priority as 1 | 2 | 3 | 4) || 3,
-              })
-            }
-            console.log(`✅ Padded ${tasksNeeded} daily tasks with grammatically correct variations`)
+            })
           }
         } else {
-          const tasksToRemove = actualDailyTasks - expectedDailyTasks
+          const sampleSize = Math.min(10, actualDailyTasks)
+            const sampleTasks = aiContent.tasks.slice(-sampleSize)
+
+          for (let i = 0; i < tasksNeeded; i++) {
+            const template = sampleTasks[i % sampleTasks.length]
+
+            const variations = [
+              (name: string) =>
+                `Review your progress on ${name
+                  .toLowerCase()
+                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+              (name: string) =>
+                `Continue ${name.toLowerCase().replace(/^(practice|learn|study|research|create|attend) /, '$1ing ')}`,
+              (name: string) =>
+                `Spend more time ${name
+                  .toLowerCase()
+                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+              (name: string) =>
+                `Revisit ${name
+                  .toLowerCase()
+                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+              (name: string) =>
+                `Dedicate additional time to ${name
+                  .toLowerCase()
+                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+            ]
+
+            const variationFn = variations[i % variations.length]
+              aiContent.tasks.push({
+              name: variationFn(template.name),
+              details: template.details,
+                estimated_duration_minutes: template.estimated_duration_minutes || 30,
+                priority: (template.priority as 1 | 2 | 3 | 4) || 3,
+            })
+          }
+          console.log(`✅ Padded ${tasksNeeded} daily tasks with grammatically correct variations`)
+        }
+      } else {
+        const tasksToRemove = actualDailyTasks - expectedDailyTasks
           aiContent.tasks = aiContent.tasks.slice(0, expectedDailyTasks)
           console.log(`✅ Trimmed ${tasksToRemove} excess tasks`)
-        }
       }
+    }
     }
 
     // Validate that we have enough tasks
@@ -515,16 +515,16 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Fallback: try to link any unlinked response for this user
-      const { error: updateOnboardingError } = await supabase
-        .from('onboarding_responses')
-        .update({ plan_id: plan.id })
-        .eq('user_id', user.id)
-        .is('plan_id', null)
+    const { error: updateOnboardingError } = await supabase
+      .from('onboarding_responses')
+      .update({ plan_id: plan.id })
+      .eq('user_id', user.id)
+      .is('plan_id', null)
         .limit(1)
 
-      if (updateOnboardingError) {
-        console.error('Error updating onboarding_responses with plan_id:', updateOnboardingError)
-      }
+    if (updateOnboardingError) {
+      console.error('Error updating onboarding_responses with plan_id:', updateOnboardingError)
+    }
     }
 
     // Use the unified tasks array from AI content
@@ -534,10 +534,10 @@ export async function POST(req: NextRequest) {
     // nullable. By not setting it, we let the column default to NULL, which passes
     // the constraint and keeps categorisation logic decoupled from plan generation.
     const allTasks = aiContent.tasks.map((task: any, index: number) => ({
-      plan_id: plan.id,
-      user_id: user.id,
-      idx: index + 1,
-      name: task.name,
+        plan_id: plan.id,
+        user_id: user.id,
+        idx: index + 1,
+        name: task.name,
       details: task.details,
       estimated_duration_minutes: task.estimated_duration_minutes || 30,
       priority: task.priority || 3,

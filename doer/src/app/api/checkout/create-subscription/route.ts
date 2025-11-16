@@ -188,36 +188,36 @@ export async function POST(request: NextRequest) {
       })
     } else {
       // No existing subscription - create new one
-      subscription = await stripe.subscriptions.create({
-        customer: stripeCustomerId,
-        items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        payment_behavior: 'default_incomplete',
-        payment_settings: {
-          payment_method_types: ['card'],
-          save_default_payment_method: 'on_subscription',
+    subscription = await stripe.subscriptions.create({
+      customer: stripeCustomerId,
+      items: [
+        {
+          price: priceId,
+          quantity: 1,
         },
-        metadata: {
-          userId: user.id,
-          planSlug,
-          billingCycle,
-        },
-        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
-      })
+      ],
+      payment_behavior: 'default_incomplete',
+      payment_settings: {
+        payment_method_types: ['card'],
+        save_default_payment_method: 'on_subscription',
+      },
+      metadata: {
+        userId: user.id,
+        planSlug,
+        billingCycle,
+      },
+      expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+    })
 
       console.log('[Create Subscription] New subscription created:', {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        latestInvoice: subscription.latest_invoice
-          ? typeof subscription.latest_invoice === 'string'
-            ? subscription.latest_invoice
-            : subscription.latest_invoice.id
-          : null,
-      })
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      latestInvoice: subscription.latest_invoice
+        ? typeof subscription.latest_invoice === 'string'
+          ? subscription.latest_invoice
+          : subscription.latest_invoice.id
+        : null,
+    })
     }
 
     const invoice = subscription.latest_invoice as Stripe.Invoice | string | null

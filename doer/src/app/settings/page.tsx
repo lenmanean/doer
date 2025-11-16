@@ -2160,8 +2160,8 @@ export default function SettingsPage() {
                                       <p className="text-sm text-[#d7d2cb]/60">
                                         Integration Actions: <span className="text-[#d7d2cb] font-semibold">
                                           {subscription.planDetails.integrationActionLimit.toLocaleString()}
-                                        </span>
-                                      </p>
+                                      </span>
+                                    </p>
                                     </div>
                                   </div>
                                   <PlanManagementDropdown

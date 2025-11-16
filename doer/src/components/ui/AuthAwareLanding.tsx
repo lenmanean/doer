@@ -61,7 +61,7 @@ export default function AuthAwareLanding() {
       }
   
       const currentUser = user
-
+  
       try {
         // Fetch user profile
         const { data: userProfile, error: profileError } = await supabase
