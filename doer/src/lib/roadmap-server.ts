@@ -74,6 +74,11 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
       name: t.name,
       estimated_duration_minutes: t.estimated_duration_minutes || 60,
       priority: t.priority || 3,
+      // Map to a reasonable complexity score if missing: invert priority to complexity
+      // Priority 1 (highest) -> complexity 8, 2 -> 6, 3 -> 4, 4 -> 2
+      complexity_score: typeof (t as any).complexity_score === 'number'
+        ? (t as any).complexity_score
+        : (5 - (t.priority || 3)) * 2,
     })),
     startDate,
     endDate,
