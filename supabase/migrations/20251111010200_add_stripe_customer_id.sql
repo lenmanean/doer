@@ -11,3 +11,4 @@ COMMENT ON COLUMN public.user_settings.stripe_customer_id IS 'Stripe customer id
 
 
 
+

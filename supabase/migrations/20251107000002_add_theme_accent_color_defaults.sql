@@ -52,3 +52,4 @@ COMMENT ON COLUMN "public"."user_settings"."preferences" IS 'JSONB containing us
 
 
 
+

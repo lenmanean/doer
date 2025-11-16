@@ -129,7 +129,7 @@ export async function analyzeAndReschedule(
     const { data: remainingTasks, error: tasksError } = await supabase
       .from('tasks')
       .select(`
-        id, name, category, milestone_id,
+        id, name,
         task_schedule!inner (
           id, date, day_index
         )
@@ -204,7 +204,7 @@ async function redistributeTasks(
     // Fetch task details including durations
     const { data: tasksWithDurations } = await supabase
       .from('tasks')
-      .select('id, name, estimated_duration_minutes, complexity_score, milestone_id, priority, idx')
+      .select('id, name, estimated_duration_minutes, priority, idx')
       .in('id', tasks.map(t => t.id))
 
     if (!tasksWithDurations) return []
@@ -273,31 +273,6 @@ async function redistributeTasks(
     logger.error('Error redistributing tasks', error as Error, { planId, taskCount: tasks.length })
     return []
   }
-}
-
-/**
- * Shift milestone dates proportionally
- */
-function shiftMilestones(
-  milestones: any[],
-  daysExtended: number
-): Array<{ milestoneId: string; oldDate: string; newDate: string }> {
-  const adjustments: Array<{ milestoneId: string; oldDate: string; newDate: string }> = []
-
-  for (const milestone of milestones) {
-    const oldDate = milestone.target_date
-    const oldDateObj = parseDateFromDB(oldDate)
-    const newDateObj = addDays(oldDateObj, daysExtended)
-    const newDate = formatDateForDB(newDateObj)
-
-    adjustments.push({
-      milestoneId: milestone.id,
-      oldDate,
-      newDate
-    })
-  }
-
-  return adjustments
 }
 
 /**
