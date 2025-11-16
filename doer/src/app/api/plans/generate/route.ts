@@ -586,10 +586,8 @@ export async function POST(req: NextRequest) {
         timeline: {
           days: aiContent.timeline_days,
         },
-        milestones: aiContent.milestones.length,
+        // Legacy milestone fields removed; the new AI returns a single unified tasks array.
         tasks: {
-          milestone: aiContent.milestone_tasks.length,
-          daily: aiContent.daily_tasks.length,
           total: allTasks.length,
         },
       },
