@@ -25,50 +25,22 @@ export default function ReviewPage() {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
 
   useEffect(() => {
-    // Load plan data from session storage
-    const bootstrap = async () => {
-      try {
-        const planData = sessionStorage.getItem('generatedPlan')
-        if (planData) {
-          try {
-            const parsed = JSON.parse(planData)
-            if (parsed?.plan) setPlan(parsed.plan)
-            if (Array.isArray(parsed?.tasks)) setTasks(parsed.tasks)
-          } catch (error) {
-            console.error('Error parsing plan data:', error)
-          }
-        }
-        // Fallback: fetch latest active plan + tasks from DB if sessionStorage missing or empty
-        if (!plan || !Array.isArray(tasks) || tasks.length === 0) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: latestPlan } = await supabase
-              .from('plans')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single()
-            if (latestPlan) {
-              setPlan(latestPlan as any)
-              const { data: fetchedTasks } = await supabase
-                .from('tasks')
-                .select('*')
-                .eq('user_id', user.id)
-                .eq('plan_id', latestPlan.id)
-                .order('idx', { ascending: true })
-              setTasks(Array.isArray(fetchedTasks) ? (fetchedTasks as any) : [])
-              // Refresh sessionStorage for subsequent loads
-              sessionStorage.setItem('generatedPlan', JSON.stringify({ plan: latestPlan, tasks: fetchedTasks || [] }))
-            }
-          }
-        }
-      } finally {
-        setLoading(false)
+    // Load plan data from session storage only; if missing, redirect to onboarding.
+    try {
+      const planData = sessionStorage.getItem('generatedPlan')
+      if (planData) {
+        const parsed = JSON.parse(planData)
+        setPlan(parsed?.plan || null)
+        setTasks(Array.isArray(parsed?.tasks) ? parsed.tasks : [])
+      } else {
+        router.replace('/onboarding')
       }
+    } catch (error) {
+      console.error('Error parsing plan data from session:', error)
+      router.replace('/onboarding')
+    } finally {
+      setLoading(false)
     }
-    bootstrap()
   }, [router])
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS

@@ -58,18 +58,33 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Check auth state (non-blocking)
+  // Enforce route gating
+  const url = new URL(req.url)
+  const pathname = url.pathname
+
+  const PROTECTED_PREFIXES = ['/dashboard', '/schedule', '/roadmap', '/settings', '/community', '/health']
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+
+  let user = null as any
   try {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error && !error.message?.includes('session')) {
-      console.warn('[Middleware] Auth check error:', error.message)
-    }
-  } catch (error) {
-    if (error instanceof Error && !error.message?.includes('timeout')) {
-      console.warn('[Middleware] Auth check exception:', error.message)
-    }
+    const { data, error } = await supabase.auth.getUser()
+    if (!error) user = data?.user ?? null
+  } catch {
+    user = null
   }
-  
+
+  // Redirect signed-out users away from protected routes
+  if (isProtected && !user) {
+    const redirectUrl = new URL('/login', req.url)
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Prevent visiting login when already authenticated
+  if ((pathname === '/login' || pathname.startsWith('/login')) && user) {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
+  }
+
   return res
 }
 
