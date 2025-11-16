@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 
+// Force dynamic rendering since this route uses searchParams
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/check-subscription?userId=xxx
  * Admin endpoint to check subscription data for a user
