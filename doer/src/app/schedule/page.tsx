@@ -27,6 +27,7 @@ import { calculateDuration } from '@/lib/task-time-utils'
 import { calculateTaskPosition, validateTaskPosition, groupTasksByTimeSlot, detectOverlappingTasks, OverlapGroup } from '@/lib/task-positioning'
 import { useTheme } from '@/components/providers/theme-provider'
 import { signOutClient } from '@/lib/auth/sign-out-client'
+import { useSupabase } from '@/components/providers/supabase-provider'
 
 interface WeekDay {
   date: Date
@@ -43,6 +44,7 @@ function ScheduleContent() {
   const planIdFromUrl = searchParams.get('plan')
   const { resolvedTheme } = useTheme()
   const theme = resolvedTheme
+  const { user } = useSupabase()
   
   const handleSignOut = async () => {
     try {
@@ -713,8 +715,7 @@ function ScheduleContent() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
+        if (!user?.id) {
           setIsLoadingSettings(false)
           setIsLoadingPlan(false)
           return
@@ -827,7 +828,7 @@ function ScheduleContent() {
     }
 
     loadSettings()
-  }, [])
+  }, [user?.id])
 
   // Get the start of week based on user's preference
   const getStartOfWeek = useCallback((date: Date) => {

@@ -94,76 +94,14 @@ function DashboardContent() {
   // Track if upgrade notification has been shown to prevent duplicates
   const upgradeNotificationShown = useRef(false)
   
-  // Refresh email confirmation status - check immediately and on user changes
+  // Refresh email confirmation status when provider user changes (single source of truth)
   useEffect(() => {
     if (!user) {
-      setEmailConfirmed(true) // Default to true if no user
+      setEmailConfirmed(true)
       return
     }
-    
-    const checkEmailStatus = async () => {
-      try {
-        // Get fresh user data to ensure we have latest email_confirmed_at
-        const { data: { user: currentUser }, error } = await supabase.auth.getUser()
-        
-        if (error) {
-          console.error('[Dashboard] Error getting user for email check:', error)
-          // Fallback to checking the user we have
-          const confirmed = isEmailConfirmed(user)
-          setEmailConfirmed(confirmed)
-          return
-        }
-        
-        if (currentUser) {
-          const confirmed = isEmailConfirmed(currentUser)
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[Dashboard] Email confirmation status:', {
-              userId: currentUser.id,
-              email: currentUser.email,
-              confirmed,
-              email_confirmed_at: currentUser.email_confirmed_at
-            })
-          }
-          setEmailConfirmed(confirmed)
-        } else {
-          // Fallback to checking the user we have
-          const confirmed = isEmailConfirmed(user)
-          setEmailConfirmed(confirmed)
-        }
-      } catch (error) {
-        console.error('[Dashboard] Error checking email status:', error)
-        // Fallback to checking the user we have
-        const confirmed = isEmailConfirmed(user)
-        setEmailConfirmed(confirmed)
-      }
-    }
-    
-    // Check immediately
-    checkEmailStatus()
-    
-    // Listen for auth state changes to update email confirmation status
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Dashboard] Auth state changed:', event)
-        }
-        if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          const { data: { user: currentUser } } = await supabase.auth.getUser()
-          if (currentUser) {
-            const confirmed = isEmailConfirmed(currentUser)
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[Dashboard] Updated email confirmation status:', confirmed)
-            }
-            setEmailConfirmed(confirmed)
-          }
-        }
-      }
-    )
-    
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [user?.id]) // Re-run when user ID changes
+    setEmailConfirmed(isEmailConfirmed(user))
+  }, [user?.id])
 
   // Check subscription status and show plan overlay if needed
   useEffect(() => {
