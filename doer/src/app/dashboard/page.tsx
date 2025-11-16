@@ -379,6 +379,7 @@ function DashboardContent() {
         .from('tasks')
         .select('id, name, idx')
         .eq('plan_id', activePlan.id)
+        .eq('user_id', user.id)
         .order('idx', { ascending: true })
       
       if (tasksError) {
@@ -1091,10 +1092,10 @@ function DashboardContent() {
               ) : (
                 <div>
                   <h3 className="text-5xl font-bold text-[var(--primary)] mb-4">
-                    {activePlan.summary_data?.goal_text || activePlan.goal_text || 'No goal set'}
+                    {activePlan.summary_data?.goal_title || activePlan.goal_text || 'No goal set'}
                   </h3>
                   <p className="text-sm text-[#d7d2cb]/70">
-                    {activePlan.summary_data?.plan_summary || 'Set your goal to get started on your journey.'}
+                    {activePlan.summary_data?.plan_summary ?? 'Set your goal to get started on your journey.'}
                   </p>
                   
                   {/* Plan Tasks List */}
