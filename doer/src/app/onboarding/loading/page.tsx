@@ -24,7 +24,8 @@ export default function OnboardingLoadingPage() {
     { id: 'load', label: 'Loading your preferences', icon: Target, status: 'pending' },
     { id: 'analyze', label: 'Analyzing your goal', icon: Brain, status: 'pending' },
     { id: 'generate', label: 'Generating personalized roadmap', icon: Target, status: 'pending' },
-    { id: 'milestones', label: 'Estimating task durations', icon: Clock, status: 'pending' },
+    // Keep a lightweight duration estimation step (no legacy milestones)
+    { id: 'durations', label: 'Estimating task durations', icon: Clock, status: 'pending' },
     { id: 'schedule', label: 'Creating time-block schedule', icon: Calendar, status: 'pending' },
     { id: 'finalize', label: 'Finalizing your plan', icon: Zap, status: 'pending' },
   ])
@@ -116,10 +117,10 @@ export default function OnboardingLoadingPage() {
         updateStepStatus('generate', 'complete', 'Roadmap generated successfully')
         moveToNextStep()
 
-        // Step 5: Creating milestones
-        updateStepStatus('milestones', 'processing', `Creating ${planData.milestones} key milestones...`)
-        await new Promise(resolve => setTimeout(resolve, 1200))
-        updateStepStatus('milestones', 'complete', `${planData.milestones} milestones created`)
+        // Step 5: Estimate durations (no legacy milestones)
+        updateStepStatus('durations', 'processing', 'Estimating task durations...')
+        await new Promise(resolve => setTimeout(resolve, 600))
+        updateStepStatus('durations', 'complete', 'Durations estimated')
         moveToNextStep()
 
         // Step 6: Scheduling tasks
@@ -132,7 +133,24 @@ export default function OnboardingLoadingPage() {
         updateStepStatus('finalize', 'processing', 'Finalizing your personalized plan...')
         await new Promise(resolve => setTimeout(resolve, 800))
         updateStepStatus('finalize', 'complete', 'Your plan is ready!')
-        
+
+        // Persist plan + tasks to session storage for review page
+        try {
+          const plan = planData.plan
+          let tasks: any[] = []
+          if (plan?.id) {
+            const { data: fetchedTasks } = await supabase
+              .from('tasks')
+              .select('*')
+              .eq('plan_id', plan.id)
+              .order('idx', { ascending: true })
+            tasks = Array.isArray(fetchedTasks) ? fetchedTasks : []
+          }
+          sessionStorage.setItem('generatedPlan', JSON.stringify({ plan, tasks }))
+        } catch (persistErr) {
+          console.error('Failed to persist generated plan to session storage:', persistErr)
+        }
+
         // Wait a moment to show completion, then redirect
         await new Promise(resolve => setTimeout(resolve, 1000))
         router.push('/onboarding/review')
