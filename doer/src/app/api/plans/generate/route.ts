@@ -300,74 +300,79 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const expectedDailyTasks = aiContent.timeline_days - 2
     const actualDailyTasks = aiContent.tasks.length
 
-    if (actualDailyTasks !== expectedDailyTasks) {
-      console.warn(`⚠️ Adjusting daily task count: ${actualDailyTasks} → ${expectedDailyTasks}`)
+    // For very short timelines (1–2 days), trust the AI's task count as-is.
+    // The N-2 heuristic only makes sense for plans longer than 2 days.
+    if (aiContent.timeline_days > 2) {
+      const expectedDailyTasks = aiContent.timeline_days - 2
 
-      if (actualDailyTasks < expectedDailyTasks) {
-        const tasksNeeded = expectedDailyTasks - actualDailyTasks
+      if (actualDailyTasks !== expectedDailyTasks) {
+        console.warn(`⚠️ Adjusting daily task count: ${actualDailyTasks} → ${expectedDailyTasks}`)
 
-        if (actualDailyTasks < 3) {
-          console.error('⚠️ AI generated insufficient daily tasks for padding. Creating generic tasks.')
-          const genericTasks = [
-            { name: 'Review your progress', details: 'Take time to reflect on what you have learned.', estimated_duration_minutes: 20, priority: 3 as const },
-            { name: 'Practice core skills', details: 'Focus on fundamental techniques.', estimated_duration_minutes: 30, priority: 2 as const },
-            { name: 'Study relevant materials', details: 'Continue learning about your goal.', estimated_duration_minutes: 25, priority: 2 as const },
-          ]
+        if (actualDailyTasks < expectedDailyTasks) {
+          const tasksNeeded = expectedDailyTasks - actualDailyTasks
 
-          for (let i = 0; i < tasksNeeded; i++) {
-            const template = genericTasks[i % genericTasks.length]
-            aiContent.tasks.push({
-              name: `${template.name} (Day ${actualDailyTasks + i + 1})`,
-              details: template.details,
-              estimated_duration_minutes: template.estimated_duration_minutes,
-              priority: template.priority,
-            })
-          }
-        } else {
-          const sampleSize = Math.min(10, actualDailyTasks)
-          const sampleTasks = aiContent.tasks.slice(-sampleSize)
-
-          for (let i = 0; i < tasksNeeded; i++) {
-            const template = sampleTasks[i % sampleTasks.length]
-
-            const variations = [
-              (name: string) =>
-                `Review your progress on ${name
-                  .toLowerCase()
-                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-              (name: string) =>
-                `Continue ${name.toLowerCase().replace(/^(practice|learn|study|research|create|attend) /, '$1ing ')}`,
-              (name: string) =>
-                `Spend more time ${name
-                  .toLowerCase()
-                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-              (name: string) =>
-                `Revisit ${name
-                  .toLowerCase()
-                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
-              (name: string) =>
-                `Dedicate additional time to ${name
-                  .toLowerCase()
-                  .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+          if (actualDailyTasks < 3) {
+            console.error('⚠️ AI generated insufficient daily tasks for padding. Creating generic tasks.')
+            const genericTasks = [
+              { name: 'Review your progress', details: 'Take time to reflect on what you have learned.', estimated_duration_minutes: 20, priority: 3 as const },
+              { name: 'Practice core skills', details: 'Focus on fundamental techniques.', estimated_duration_minutes: 30, priority: 2 as const },
+              { name: 'Study relevant materials', details: 'Continue learning about your goal.', estimated_duration_minutes: 25, priority: 2 as const },
             ]
 
-            const variationFn = variations[i % variations.length]
-            aiContent.tasks.push({
-              name: variationFn(template.name),
-              details: template.details,
-              estimated_duration_minutes: template.estimated_duration_minutes || 30,
-              priority: (template.priority as 1 | 2 | 3 | 4) || 3,
-            })
+            for (let i = 0; i < tasksNeeded; i++) {
+              const template = genericTasks[i % genericTasks.length]
+              aiContent.tasks.push({
+                name: `${template.name} (Day ${actualDailyTasks + i + 1})`,
+                details: template.details,
+                estimated_duration_minutes: template.estimated_duration_minutes,
+                priority: template.priority,
+              })
+            }
+          } else {
+            const sampleSize = Math.min(10, actualDailyTasks)
+            const sampleTasks = aiContent.tasks.slice(-sampleSize)
+
+            for (let i = 0; i < tasksNeeded; i++) {
+              const template = sampleTasks[i % sampleTasks.length]
+
+              const variations = [
+                (name: string) =>
+                  `Review your progress on ${name
+                    .toLowerCase()
+                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+                (name: string) =>
+                  `Continue ${name.toLowerCase().replace(/^(practice|learn|study|research|create|attend) /, '$1ing ')}`,
+                (name: string) =>
+                  `Spend more time ${name
+                    .toLowerCase()
+                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+                (name: string) =>
+                  `Revisit ${name
+                    .toLowerCase()
+                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+                (name: string) =>
+                  `Dedicate additional time to ${name
+                    .toLowerCase()
+                    .replace(/^(practice|learn|study|research|watch|read|create|attend) /, '$1ing ')}`,
+              ]
+
+              const variationFn = variations[i % variations.length]
+              aiContent.tasks.push({
+                name: variationFn(template.name),
+                details: template.details,
+                estimated_duration_minutes: template.estimated_duration_minutes || 30,
+                priority: (template.priority as 1 | 2 | 3 | 4) || 3,
+              })
+            }
+            console.log(`✅ Padded ${tasksNeeded} daily tasks with grammatically correct variations`)
           }
-          console.log(`✅ Padded ${tasksNeeded} daily tasks with grammatically correct variations`)
+        } else {
+          const tasksToRemove = actualDailyTasks - expectedDailyTasks
+          aiContent.tasks = aiContent.tasks.slice(0, expectedDailyTasks)
+          console.log(`✅ Trimmed ${tasksToRemove} excess tasks`)
         }
-      } else {
-        const tasksToRemove = actualDailyTasks - expectedDailyTasks
-        aiContent.tasks = aiContent.tasks.slice(0, expectedDailyTasks)
-        console.log(`✅ Trimmed ${tasksToRemove} excess tasks`)
       }
     }
 
