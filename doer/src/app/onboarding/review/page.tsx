@@ -52,14 +52,38 @@ export default function ReviewPage() {
             return
           }
           setPlan(latestPlan as any)
+          // Fetch tasks with their schedule information
           const { data: fetchedTasks, error: tasksErr } = await supabase
             .from('tasks')
-            .select('*')
+            .select(`
+              *,
+              task_schedule (
+                id,
+                date,
+                start_time,
+                end_time,
+                duration_minutes
+              )
+            `)
             .eq('user_id', user.id)
             .eq('plan_id', latestPlan.id)
             .order('idx', { ascending: true })
           if (tasksErr) throw tasksErr
-          setTasks(Array.isArray(fetchedTasks) ? (fetchedTasks as any) : [])
+          // Merge schedule data into tasks
+          const tasksWithSchedule = (Array.isArray(fetchedTasks) ? fetchedTasks : []).map((task: any) => {
+            const schedules = Array.isArray(task.task_schedule) ? task.task_schedule : []
+            const primarySchedule = schedules[0] || null
+            return {
+              ...task,
+              scheduled_date: primarySchedule?.date || null,
+              start_time: primarySchedule?.start_time || null,
+              end_time: primarySchedule?.end_time || null,
+              estimated_duration_minutes: primarySchedule?.duration_minutes || task.estimated_duration_minutes || 0,
+              schedule_id: primarySchedule?.id || null,
+              schedules: schedules // Keep all schedules for split tasks
+            }
+          })
+          setTasks(tasksWithSchedule as any)
         } else {
           const { data: dbPlan, error: dbErr } = await supabase
             .from('plans')
@@ -73,14 +97,38 @@ export default function ReviewPage() {
             return
           }
           setPlan(dbPlan as any)
+          // Fetch tasks with their schedule information
           const { data: fetchedTasks, error: tasksErr } = await supabase
             .from('tasks')
-            .select('*')
+            .select(`
+              *,
+              task_schedule (
+                id,
+                date,
+                start_time,
+                end_time,
+                duration_minutes
+              )
+            `)
             .eq('user_id', user.id)
             .eq('plan_id', planId)
             .order('idx', { ascending: true })
           if (tasksErr) throw tasksErr
-          setTasks(Array.isArray(fetchedTasks) ? (fetchedTasks as any) : [])
+          // Merge schedule data into tasks
+          const tasksWithSchedule = (Array.isArray(fetchedTasks) ? fetchedTasks : []).map((task: any) => {
+            const schedules = Array.isArray(task.task_schedule) ? task.task_schedule : []
+            const primarySchedule = schedules[0] || null
+            return {
+              ...task,
+              scheduled_date: primarySchedule?.date || null,
+              start_time: primarySchedule?.start_time || null,
+              end_time: primarySchedule?.end_time || null,
+              estimated_duration_minutes: primarySchedule?.duration_minutes || task.estimated_duration_minutes || 0,
+              schedule_id: primarySchedule?.id || null,
+              schedules: schedules // Keep all schedules for split tasks
+            }
+          })
+          setTasks(tasksWithSchedule as any)
         }
       } catch (error) {
         console.error('Failed to load plan for review:', error)
@@ -157,9 +205,26 @@ export default function ReviewPage() {
     setExpandedTaskId(null)
   }
 
+  // Calculate duration from start and end times
+  const calculateDuration = (startTime: string | null, endTime: string | null): number => {
+    if (!startTime || !endTime) return 0
+    const [startHours, startMins] = startTime.split(':').map(Number)
+    const [endHours, endMins] = endTime.split(':').map(Number)
+    const startTotal = startHours * 60 + startMins
+    const endTotal = endHours * 60 + endMins
+    return Math.max(0, endTotal - startTotal)
+  }
+
   const handleTaskInputChange = (field: keyof Task, value: any) => {
     if (editingTask) {
-      setEditingTask({ ...editingTask, [field]: value })
+      const updated = { ...editingTask, [field]: value }
+      // Auto-calculate duration when start_time or end_time changes
+      if (field === 'start_time' || field === 'end_time') {
+        const newStartTime = field === 'start_time' ? value : updated.start_time
+        const newEndTime = field === 'end_time' ? value : updated.end_time
+        updated.estimated_duration_minutes = calculateDuration(newStartTime, newEndTime)
+      }
+      setEditingTask(updated)
     }
   }
 
@@ -384,13 +449,35 @@ export default function ReviewPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-4xl font-bold text-[var(--primary)] mb-2">
-                      {plan.summary_data?.goal_title || plan.summary_data?.goal_text || plan.goal_text}
+                      {(() => {
+                        // Parse summary_data if it's a JSON string
+                        let summaryData = plan.summary_data
+                        if (typeof summaryData === 'string') {
+                          try {
+                            summaryData = JSON.parse(summaryData)
+                          } catch {
+                            summaryData = null
+                          }
+                        }
+                        // Prioritize AI-generated goal_title
+                        return summaryData?.goal_title || plan.goal_text || 'Untitled Plan'
+                      })()}
                     </h1>
-                    {plan.summary_data?.plan_summary && (
-                      <p className="text-lg text-[#d7d2cb]/70">
-                        {plan.summary_data.plan_summary}
-                      </p>
-                    )}
+                    {(() => {
+                      let summaryData = plan.summary_data
+                      if (typeof summaryData === 'string') {
+                        try {
+                          summaryData = JSON.parse(summaryData)
+                        } catch {
+                          summaryData = null
+                        }
+                      }
+                      return summaryData?.plan_summary ? (
+                        <p className="text-lg text-[#d7d2cb]/70">
+                          {summaryData.plan_summary}
+                        </p>
+                      ) : null
+                    })()}
                   </div>
                   <button
                     onClick={handleEditPlan}
@@ -621,7 +708,11 @@ export default function ReviewPage() {
                                 </label>
                                 <input
                                   type="date"
-                                  value={editingTask.scheduled_date || ''}
+                                  value={editingTask.scheduled_date 
+                                    ? (editingTask.scheduled_date.includes('T') 
+                                      ? editingTask.scheduled_date.split('T')[0] 
+                                      : editingTask.scheduled_date)
+                                    : ''}
                                   onChange={(e) => handleTaskInputChange('scheduled_date', e.target.value)}
                                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                                 />
@@ -656,18 +747,23 @@ export default function ReviewPage() {
 
                             {/* Duration and Priority Row */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Duration */}
+                              {/* Duration - Read-only, calculated from start/end times */}
                               <div>
                                 <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
                                   Duration (minutes) *
                                 </label>
                                 <input
                                   type="number"
-                                  value={editingTask.estimated_duration_minutes || 0}
-                                  onChange={(e) => handleTaskInputChange('estimated_duration_minutes', parseInt(e.target.value) || 0)}
-                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                  value={editingTask.start_time && editingTask.end_time 
+                                    ? calculateDuration(editingTask.start_time, editingTask.end_time)
+                                    : (editingTask.estimated_duration_minutes || 0)}
+                                  readOnly
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]/60 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50"
                                   min="1"
                                 />
+                                <p className="text-xs text-[#d7d2cb]/50 mt-1">
+                                  Auto-calculated from start and end times
+                                </p>
                               </div>
 
                               {/* Priority */}
