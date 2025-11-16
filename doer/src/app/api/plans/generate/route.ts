@@ -483,13 +483,22 @@ export async function POST(req: NextRequest) {
       const short = words.join(' ')
       return raw.length > short.length ? `${short}…` : short
     }
+    // Normalize possible model variations: title/summary vs goal_title/plan_summary
+    const aiTitle =
+      (aiContent as any).goal_title ??
+      (aiContent as any).title ??
+      null
+    const aiSummary =
+      (aiContent as any).plan_summary ??
+      (aiContent as any).summary ??
+      null
     const safeGoalTitle =
-      (aiContent as any).goal_title && typeof (aiContent as any).goal_title === 'string'
-        ? (aiContent as any).goal_title
+      typeof aiTitle === 'string' && aiTitle.trim().length > 0
+        ? aiTitle.trim()
         : deriveTitle(finalGoalText)
     const safePlanSummary =
-      (aiContent as any).plan_summary && typeof (aiContent as any).plan_summary === 'string'
-        ? (aiContent as any).plan_summary
+      typeof aiSummary === 'string' && aiSummary.trim().length > 0
+        ? aiSummary.trim()
         : deriveSummary(finalGoalText)
 
     const { data: plan, error: planError } = await supabase
