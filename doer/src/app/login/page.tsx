@@ -241,21 +241,7 @@ function CustomLoginForm() {
 
 export default function LoginPage() {
   const router = useRouter()
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_IN') {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          router.push('/dashboard')
-        }
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [router, supabase.auth])
+  // SupabaseProvider + middleware handle post-login redirects; no extra auth listener needed here
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">

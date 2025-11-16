@@ -291,26 +291,7 @@ export default function SettingsPage() {
     checkEmailStatus()
   }, [user, profile, theme])
 
-  // Listen for auth state changes to update email confirmation status
-  useEffect(() => {
-    if (!user) return
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
-        if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-          // Refresh user data to get latest email confirmation status
-          const { data: { user: currentUser } } = await supabase.auth.getUser()
-          if (currentUser) {
-            setEmailConfirmed(isEmailConfirmed(currentUser))
-          }
-        }
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [user])
+  // Email confirmation state is derived from current user/profile; no extra auth listener needed
 
   // Load subscription when subscription section is active
   useEffect(() => {

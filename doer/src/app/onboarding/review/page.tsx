@@ -288,14 +288,10 @@ export default function ReviewPage() {
       })
       
       if (!healthCheck.ok) {
-        console.error('[Review] Auth session not valid, refreshing...')
-        const { data: { user: verifiedUser }, error } = await supabase.auth.getUser()
-        if (error || !verifiedUser) {
-          console.error('[Review] User verification failed:', error)
-          alert('Your session has expired. Please sign in again.')
-          router.push('/login')
-          return
-        }
+        console.error('[Review] Auth session not valid for current user')
+        alert('Your session has expired. Please sign in again.')
+        router.push('/login')
+        return
       }
       
       const healthData = await healthCheck.json()

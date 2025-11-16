@@ -251,35 +251,12 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: R
     }
 
     const checkUserAndLoad = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      await loadUserPreferences(user?.id || null)
+      // Rely on server-rendered userId from props when available
+      await loadUserPreferences(initialUser?.id || null)
     }
 
     checkUserAndLoad()
-
-    // Listen for auth state changes (user login/logout/switch)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
-        if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
-          // Clear preferences on logout
-          localStorage.removeItem('theme')
-          localStorage.removeItem('accentColor')
-          setTheme(defaultTheme)
-          setAccentColorState('orange')
-          applyAccentColor('orange')
-          setIsLoading(false)
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          // Reload preferences when user signs in or session refreshes
-          const { data: { user } } = await supabase.auth.getUser()
-          await loadUserPreferences(user?.id || null)
-        }
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+  }, [initialUser?.id])
 
   // Update resolved theme based on current theme setting
   useEffect(() => {

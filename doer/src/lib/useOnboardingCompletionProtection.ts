@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { useSupabase } from '@/components/providers/supabase-provider'
 
 interface UseOnboardingCompletionProtectionReturn {
   user: any
@@ -13,24 +13,21 @@ interface UseOnboardingCompletionProtectionReturn {
  * Note: With multiple plans support, users can access onboarding even with existing plans
  */
 export function useOnboardingCompletionProtection(): UseOnboardingCompletionProtectionReturn {
-  const [user, setUser] = useState<any>(null)
+  const { user, supabase, loading: authLoading, sessionReady } = useSupabase()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
+    // Wait for provider to resolve auth state
+    if (authLoading || !sessionReady) return
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
     const checkUserAndOnboarding = async () => {
       try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          router.push('/login')
-          return
-        }
-
-        setUser(user)
-
         // Fetch user profile (optional - for display purposes)
         // Note: We no longer redirect users with existing plans since they can create multiple plans
         const { data: plan, error } = await supabase
@@ -64,7 +61,7 @@ export function useOnboardingCompletionProtection(): UseOnboardingCompletionProt
     }
 
     checkUserAndOnboarding()
-  }, [router, supabase.auth])
+  }, [router, supabase, user, authLoading, sessionReady])
 
   return {
     user,

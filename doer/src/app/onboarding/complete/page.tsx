@@ -8,28 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { FadeInWrapper, StaggeredFadeIn } from '@/components/ui/FadeInWrapper'
-import { supabase } from '@/lib/supabase/client'
+import { useSupabase } from '@/components/providers/supabase-provider'
 
 export default function OnboardingCompletePage() {
   const router = useRouter()
+  const { user, loading: authLoading, sessionReady } = useSupabase()
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [showPlanSelection, setShowPlanSelection] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        router.push('/login')
-        return
-      }
-      
-      setLoading(false)
+    if (authLoading || !sessionReady) return
+    if (!user) {
+      router.push('/login')
+      return
     }
-    
-    checkUser()
-  }, [router])
+    setLoading(false)
+  }, [authLoading, sessionReady, user, router])
   
   useEffect(() => {
     // Show plan selection after a brief delay

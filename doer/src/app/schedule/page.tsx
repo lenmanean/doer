@@ -2239,14 +2239,13 @@ function ScheduleContent() {
                 // Reload plan data
                 const loadSettings = async () => {
                   try {
-                    const { data: { user } } = await supabase.auth.getUser()
-                    if (!user) return
+                    // Reload active plan using existing userId
+                    if (!userId) return
 
-                    // Reload active plan
                     const { data: planData } = await supabase
                       .from('plans')
                       .select('id, status, start_date')
-                      .eq('user_id', user.id)
+                      .eq('user_id', userId)
                       .eq('status', 'active')
                       .order('created_at', { ascending: false })
                       .limit(1)

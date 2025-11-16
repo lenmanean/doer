@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle, Loader2, Brain, Target, Calendar, Zap, Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { supabase } from '@/lib/supabase/client'
+import { useSupabase } from '@/components/providers/supabase-provider'
 
 interface ProcessStep {
   id: string
@@ -18,7 +19,7 @@ interface ProcessStep {
 export default function OnboardingLoadingPage() {
   const router = useRouter()
   const hasStartedRef = useRef(false)
-  const [user, setUser] = useState<any>(null)
+  const { user, loading: authLoading, sessionReady } = useSupabase()
   const [steps, setSteps] = useState<ProcessStep[]>([
     { id: 'auth', label: 'Authenticating', icon: Zap, status: 'pending' },
     { id: 'load', label: 'Loading your preferences', icon: Target, status: 'pending' },
@@ -51,18 +52,19 @@ export default function OnboardingLoadingPage() {
     }
     hasStartedRef.current = true
 
+    // Wait for auth to resolve
+    if (authLoading || !sessionReady) {
+      return
+    }
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
     const authenticateAndGenerate = async () => {
       try {
-        // Step 1: Authenticate
+        // Step 1: Authenticate (trust provider state)
         updateStepStatus('auth', 'processing')
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          router.push('/login')
-          return
-        }
-        
-        setUser(user)
         await new Promise(resolve => setTimeout(resolve, 500))
         updateStepStatus('auth', 'complete')
         moveToNextStep()
@@ -152,7 +154,7 @@ export default function OnboardingLoadingPage() {
     }
 
     authenticateAndGenerate()
-  }, [])
+  }, [authLoading, sessionReady, user, router])
 
   const getStepIcon = (step: ProcessStep) => {
     const IconComponent = step.icon
