@@ -495,21 +495,46 @@ export async function POST(req: NextRequest) {
     // Create a concise imperative title from goal text when AI title is missing or unhelpful
     const createTitleFromGoal = (text: string): string => {
       let t = (text || '').trim()
-      t = t.replace(/^(i\s+need\s+to|i\s+want\s+to|i\s+have\s+to|help\s+me\s+to|help\s+me)\s+/i, '')
-      t = t.replace(/\.$/, '')
-      const words = t.split(/\s+/).slice(0, 8)
-      const title = words.length > 0 ? words[0].charAt(0).toUpperCase() + words[0].slice(1) + (words.length > 1 ? ' ' + words.slice(1).join(' ') : '') : 'My Plan'
+      // Remove common prefixes
+      t = t.replace(/^(i\s+need\s+to|i\s+want\s+to|i\s+have\s+to|i\s+must\s+to|help\s+me\s+to|help\s+me|i\s+should)\s+/i, '')
+      // Remove trailing punctuation
+      t = t.replace(/[.,;:]$/, '')
+      // Remove time references that make titles wordy
+      t = t.replace(/\s+(for\s+tomorrow|for\s+next\s+week|for\s+next\s+month|by\s+tomorrow|by\s+next\s+week).*$/i, '')
+      // Take key words but prioritize action verbs and nouns, limit to 5-6 words max
+      const words = t.split(/\s+/)
+      // Find the action verb if it exists
+      let actionIndex = words.findIndex(w => /^(prepare|create|build|make|write|develop|learn|study|practice|complete|finish|organize|plan)/i.test(w))
+      let titleWords: string[] = []
+      if (actionIndex >= 0) {
+        // Start from action verb, take up to 5-6 words total
+        titleWords = words.slice(actionIndex, actionIndex + 6)
+      } else {
+        // No clear action verb, take first 5-6 meaningful words
+        titleWords = words.slice(0, 6).filter(w => w.length > 2) // Filter out very short words
+      }
+      // Capitalize first word
+      if (titleWords.length > 0) {
+        titleWords[0] = titleWords[0].charAt(0).toUpperCase() + titleWords[0].slice(1)
+      }
+      const title = titleWords.join(' ')
+      // If result is too long, truncate more aggressively
+      if (title.length > 50) {
+        return title.split(/\s+/).slice(0, 4).join(' ')
+      }
       return title.length > 0 ? title : 'My Plan'
     }
     const candidateTitle =
       typeof aiTitle === 'string' && aiTitle.trim().length > 0
         ? aiTitle.trim()
         : createTitleFromGoal(finalGoalText)
-    // If AI title equals the raw goal text (or very long), coerce to concise version
-    const safeGoalTitle =
-      candidateTitle.toLowerCase() === finalGoalText.trim().toLowerCase() || candidateTitle.length > 60
-        ? createTitleFromGoal(finalGoalText)
-        : candidateTitle
+    // If AI title equals the raw goal text (or very long), improve it with better logic
+    const needsFallback = candidateTitle.toLowerCase() === finalGoalText.trim().toLowerCase() || 
+                          candidateTitle.length > 60 ||
+                          candidateTitle.split(/\s+/).length > 8
+    const safeGoalTitle = needsFallback
+      ? createTitleFromGoal(finalGoalText)
+      : candidateTitle
     const safePlanSummary =
       typeof aiSummary === 'string' && aiSummary.trim().length > 0
         ? aiSummary.trim()

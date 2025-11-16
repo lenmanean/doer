@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Task } from '@/lib/types'
-import { formatDateForDisplay, parseDateFromDB } from '@/lib/date-utils'
+import { formatDateForDisplay, parseDateFromDB, formatTimeForDisplay } from '@/lib/date-utils'
 import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSupabase } from '@/components/providers/supabase-provider'
@@ -25,6 +25,7 @@ export default function ReviewPage() {
   const [isEditingPlan, setIsEditingPlan] = useState(false)
   const [editedPlan, setEditedPlan] = useState<ReviewPlanData | null>(null)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
 
   useEffect(() => {
     if (authLoading) return
@@ -139,6 +140,57 @@ export default function ReviewPage() {
     }
     bootstrap()
   }, [authLoading, user, supabase, router, searchParams])
+
+  // Load user's time format preference
+  useEffect(() => {
+    if (!user) return
+    const loadTimeFormat = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('preferences')
+          .eq('user_id', user.id)
+          .single()
+
+        if (!error && data?.preferences?.time_format) {
+          setTimeFormat(data.preferences.time_format)
+        }
+      } catch (error) {
+        console.error('Error loading time format preference:', error)
+      }
+    }
+    loadTimeFormat()
+  }, [user, supabase])
+
+  // Helper function to format time string (HH:MM) to user's preferred format
+  const formatTimeString = (timeStr: string | null | undefined): string => {
+    if (!timeStr) return ''
+    // Parse HH:MM format
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    if (isNaN(hours) || isNaN(minutes)) return timeStr
+    // Create a date object with today's date and the time
+    const date = new Date()
+    date.setHours(hours, minutes, 0, 0)
+    return formatTimeForDisplay(date, timeFormat)
+  }
+
+  // Helper function to convert formatted time back to HH:MM for time inputs
+  const parseTimeString = (timeStr: string | null | undefined): string => {
+    if (!timeStr) return ''
+    // If already in HH:MM format, return as-is
+    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr
+    // Parse 12-hour format (e.g., "9:00 AM" or "09:30 PM")
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (match) {
+      let hour = parseInt(match[1], 10)
+      const minute = parseInt(match[2], 10)
+      const period = match[3].toUpperCase()
+      if (period === 'PM' && hour !== 12) hour += 12
+      if (period === 'AM' && hour === 12) hour = 0
+      return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+    }
+    return timeStr
+  }
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Calculate total duration in minutes
@@ -629,7 +681,7 @@ export default function ReviewPage() {
                                   year: undefined
                                 })}
                                 {schedule.start_time && schedule.end_time && (
-                                  <> {schedule.start_time} - {schedule.end_time}</>
+                                  <> {formatTimeString(schedule.start_time)} - {formatTimeString(schedule.end_time)}</>
                                 )}
                                 {idx < (task as any).schedules.length - 1 && <span className="mx-1 text-[#d7d2cb]/40">|</span>}
                               </span>
@@ -647,7 +699,7 @@ export default function ReviewPage() {
                             </span>
                             {task.start_time && task.end_time && (
                               <span>
-                                {task.start_time} - {task.end_time}
+                                {formatTimeString(task.start_time)} - {formatTimeString(task.end_time)}
                               </span>
                             )}
                           </>
@@ -724,9 +776,22 @@ export default function ReviewPage() {
                                   Start Time
                                 </label>
                                 <input
-                                  type="time"
-                                  value={editingTask.start_time || ''}
-                                  onChange={(e) => handleTaskInputChange('start_time', e.target.value)}
+                                  type={timeFormat === '24h' ? 'time' : 'text'}
+                                  value={timeFormat === '24h' 
+                                    ? (editingTask.start_time || '')
+                                    : formatTimeString(editingTask.start_time)}
+                                  onChange={(e) => {
+                                    const value = e.target.value
+                                    if (timeFormat === '24h') {
+                                      handleTaskInputChange('start_time', value)
+                                    } else {
+                                      // Parse 12-hour format back to 24-hour
+                                      const parsed = parseTimeString(value)
+                                      if (parsed) handleTaskInputChange('start_time', parsed)
+                                    }
+                                  }}
+                                  placeholder={timeFormat === '12h' ? '9:00 AM' : '09:00'}
+                                  pattern={timeFormat === '24h' ? undefined : /^([0-9]|0[0-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i}
                                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                                 />
                               </div>
@@ -737,9 +802,22 @@ export default function ReviewPage() {
                                   End Time
                                 </label>
                                 <input
-                                  type="time"
-                                  value={editingTask.end_time || ''}
-                                  onChange={(e) => handleTaskInputChange('end_time', e.target.value)}
+                                  type={timeFormat === '24h' ? 'time' : 'text'}
+                                  value={timeFormat === '24h'
+                                    ? (editingTask.end_time || '')
+                                    : formatTimeString(editingTask.end_time)}
+                                  onChange={(e) => {
+                                    const value = e.target.value
+                                    if (timeFormat === '24h') {
+                                      handleTaskInputChange('end_time', value)
+                                    } else {
+                                      // Parse 12-hour format back to 24-hour
+                                      const parsed = parseTimeString(value)
+                                      if (parsed) handleTaskInputChange('end_time', parsed)
+                                    }
+                                  }}
+                                  placeholder={timeFormat === '12h' ? '5:00 PM' : '17:00'}
+                                  pattern={timeFormat === '24h' ? undefined : /^([0-9]|0[0-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i}
                                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                                 />
                               </div>

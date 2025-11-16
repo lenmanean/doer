@@ -338,7 +338,7 @@ START: ${request.start_date}
 JSON FORMAT:
 {
   "timeline_days": <calculated based on total duration>,
-  "goal_text": "3-6 word title",
+  "goal_title": "3-6 word catchy, concise title (e.g., 'Prepare tomorrow's presentation', NOT the full goal text)",
   "plan_summary": "14 word max summary",
   "tasks": [
     {
@@ -349,6 +349,17 @@ JSON FORMAT:
     }
   ]
 }
+
+CRITICAL TITLE REQUIREMENTS:
+- goal_title MUST be 3-6 words, catchy, and concise
+- goal_title should NOT be the full user goal text
+- goal_title should be an imperative, action-oriented phrase
+- Examples:
+  * User says "I need to prepare a presentation for tomorrow morning" → goal_title: "Prepare Tomorrow's Presentation"
+  * User says "I want to learn React in 2 weeks" → goal_title: "Learn React Fundamentals"
+  * User says "Help me build a portfolio website" → goal_title: "Build Portfolio Website"
+- Avoid: Long sentences, full goal text, time references in title (e.g., "for tomorrow", "next week")
+- Prefer: Action verb + key noun phrase
 
 IMPORTANT: Do NOT include "end_date" in the response. The application will calculate it from timeline_days and start_date.
 
