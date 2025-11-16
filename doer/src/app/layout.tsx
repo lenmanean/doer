@@ -143,15 +143,15 @@ export default async function RootLayout({
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <LocaleProvider locale={locale} messages={messages} timeZone={timeZone}>
-          <ThemeProvider>
-            <SupabaseProvider initialUser={initialUser}>
+          <SupabaseProvider initialUser={initialUser}>
+            <ThemeProvider>
               <ToastProvider>
                 <PageFadeIn className="min-h-screen">
                   {children}
                 </PageFadeIn>
               </ToastProvider>
-            </SupabaseProvider>
-          </ThemeProvider>
+            </ThemeProvider>
+          </SupabaseProvider>
         </LocaleProvider>
       </body>
     </html>

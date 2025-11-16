@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { useSupabase } from './supabase-provider'
 
 type Theme = 'dark' | 'light' | 'system'
 type AccentColor = 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple'
@@ -28,6 +29,7 @@ const accentColors: Record<AccentColor, string> = {
 }
 
 export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: React.ReactNode, defaultTheme?: Theme }) {
+  const { user } = useSupabase()
   // Initialize from localStorage immediately to prevent flash
   const getInitialTheme = (): Theme => {
     if (typeof window === 'undefined') return defaultTheme
@@ -251,12 +253,12 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: R
     }
 
     const checkUserAndLoad = async () => {
-      // Rely on server-rendered userId from props when available
-      await loadUserPreferences(initialUser?.id || null)
+      // Use user from Supabase provider
+      await loadUserPreferences(user?.id || null)
     }
 
     checkUserAndLoad()
-  }, [initialUser?.id])
+  }, [user?.id])
 
   // Update resolved theme based on current theme setting
   useEffect(() => {
