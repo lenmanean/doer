@@ -27,9 +27,11 @@ export default function ReviewPage() {
   useEffect(() => {
     // Load plan data from session storage only; if missing, redirect to onboarding.
     try {
-      const planData = sessionStorage.getItem('generatedPlan')
-      if (planData) {
-        const parsed = JSON.parse(planData)
+      const ss = sessionStorage.getItem('generatedPlan')
+      const ls = !ss ? localStorage.getItem('generatedPlan') : null
+      const raw = ss || ls
+      if (raw) {
+        const parsed = JSON.parse(raw)
         setPlan(parsed?.plan || null)
         setTasks(Array.isArray(parsed?.tasks) ? parsed.tasks : [])
       } else {

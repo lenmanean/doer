@@ -492,10 +492,24 @@ export async function POST(req: NextRequest) {
       (aiContent as any).plan_summary ??
       (aiContent as any).summary ??
       null
-    const safeGoalTitle =
+    // Create a concise imperative title from goal text when AI title is missing or unhelpful
+    const createTitleFromGoal = (text: string): string => {
+      let t = (text || '').trim()
+      t = t.replace(/^(i\s+need\s+to|i\s+want\s+to|i\s+have\s+to|help\s+me\s+to|help\s+me)\s+/i, '')
+      t = t.replace(/\.$/, '')
+      const words = t.split(/\s+/).slice(0, 8)
+      const title = words.length > 0 ? words[0].charAt(0).toUpperCase() + words[0].slice(1) + (words.length > 1 ? ' ' + words.slice(1).join(' ') : '') : 'My Plan'
+      return title.length > 0 ? title : 'My Plan'
+    }
+    const candidateTitle =
       typeof aiTitle === 'string' && aiTitle.trim().length > 0
         ? aiTitle.trim()
-        : deriveTitle(finalGoalText)
+        : createTitleFromGoal(finalGoalText)
+    // If AI title equals the raw goal text (or very long), coerce to concise version
+    const safeGoalTitle =
+      candidateTitle.toLowerCase() === finalGoalText.trim().toLowerCase() || candidateTitle.length > 60
+        ? createTitleFromGoal(finalGoalText)
+        : candidateTitle
     const safePlanSummary =
       typeof aiSummary === 'string' && aiSummary.trim().length > 0
         ? aiSummary.trim()
