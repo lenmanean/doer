@@ -26,20 +26,49 @@ export default function ReviewPage() {
 
   useEffect(() => {
     // Load plan data from session storage
-    const planData = sessionStorage.getItem('generatedPlan')
-    if (planData) {
+    const bootstrap = async () => {
       try {
-        const parsed = JSON.parse(planData)
-        setPlan(parsed.plan)
-        setTasks(parsed.tasks || [])
-      } catch (error) {
-        console.error('Error parsing plan data:', error)
-        router.push('/onboarding')
+        const planData = sessionStorage.getItem('generatedPlan')
+        if (planData) {
+          try {
+            const parsed = JSON.parse(planData)
+            if (parsed?.plan) setPlan(parsed.plan)
+            if (Array.isArray(parsed?.tasks)) setTasks(parsed.tasks)
+          } catch (error) {
+            console.error('Error parsing plan data:', error)
+          }
+        }
+        // Fallback: fetch latest active plan + tasks from DB if sessionStorage missing or empty
+        if (!plan || !Array.isArray(tasks) || tasks.length === 0) {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { data: latestPlan } = await supabase
+              .from('plans')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single()
+            if (latestPlan) {
+              setPlan(latestPlan as any)
+              const { data: fetchedTasks } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('plan_id', latestPlan.id)
+                .order('idx', { ascending: true })
+              setTasks(Array.isArray(fetchedTasks) ? (fetchedTasks as any) : [])
+              // Refresh sessionStorage for subsequent loads
+              sessionStorage.setItem('generatedPlan', JSON.stringify({ plan: latestPlan, tasks: fetchedTasks || [] }))
+            }
+          }
+        }
+      } finally {
+        setLoading(false)
       }
-    } else {
-      router.push('/onboarding')
     }
-    setLoading(false)
+    bootstrap()
   }, [router])
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
@@ -318,7 +347,7 @@ export default function ReviewPage() {
     )
   }
 
-  if (!plan || !tasks.length) {
+  if (!plan) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-[#d7d2cb] text-xl">No plan data found</div>
@@ -338,7 +367,7 @@ export default function ReviewPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-4xl font-bold text-[var(--primary)] mb-2">
-                      {plan.summary_data?.goal_text || plan.goal_text}
+                      {plan.summary_data?.goal_title || plan.summary_data?.goal_text || plan.goal_text}
                     </h1>
                     {plan.summary_data?.plan_summary && (
                       <p className="text-lg text-[#d7d2cb]/70">
