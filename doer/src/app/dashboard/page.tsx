@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/Progress'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { FadeInWrapper, StaggeredFadeIn } from '@/components/ui/FadeInWrapper'
 import { supabase } from '@/lib/supabase/client'
-import { parseDateFromDB, formatDateForDisplay } from '@/lib/date-utils'
+import { parseDateFromDB, formatDateForDisplay, formatTimeForDisplay } from '@/lib/date-utils'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useCountUp } from '@/hooks/useCountUp'
@@ -63,6 +63,7 @@ function DashboardContent() {
   const [planTasks, setPlanTasks] = useState<Array<{id: string, name: string, idx: number, completed: boolean, schedule_date?: string, start_time?: string, end_time?: string}>>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [hoveredTaskIndex, setHoveredTaskIndex] = useState<number | null>(null)
+  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
   
   // Cycling insights state
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0)
@@ -79,7 +80,7 @@ function DashboardContent() {
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
   
   // Also check provider loading state - don't show fallback if provider is still loading
-  const { loading: providerLoading } = useSupabase()
+  const { loading: providerLoading, supabase: supabaseClient } = useSupabase()
   
   // Use global hook to check for pending reschedules (for sidebar badge)
   const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
@@ -102,6 +103,27 @@ function DashboardContent() {
     }
     setEmailConfirmed(isEmailConfirmed(user))
   }, [user?.id])
+
+  // Load user's time format preference
+  useEffect(() => {
+    if (!user || !supabaseClient) return
+    const loadTimeFormat = async () => {
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_settings')
+          .select('preferences')
+          .eq('user_id', user.id)
+          .single()
+
+        if (!error && data?.preferences?.time_format) {
+          setTimeFormat(data.preferences.time_format)
+        }
+      } catch (error) {
+        console.error('Error loading time format preference:', error)
+      }
+    }
+    loadTimeFormat()
+  }, [user, supabaseClient])
 
   // Check subscription status and show plan overlay if needed
   useEffect(() => {
@@ -1160,19 +1182,22 @@ function DashboardContent() {
                                   {(task.start_time || task.end_time) && (
                                     <span className="whitespace-nowrap">
                                       {(() => {
-                                        const formatTime = (time: string | undefined) => {
-                                          if (!time) return ''
-                                          const [hours, minutes] = time.split(':')
-                                          const hour = parseInt(hours)
-                                          const ampm = hour >= 12 ? 'PM' : 'AM'
-                                          const hour12 = hour % 12 || 12
-                                          return `${hour12}:${minutes} ${ampm}`
+                                        // Helper function to format time string (HH:MM) to user's preferred format
+                                        const formatTimeString = (timeStr: string | undefined): string => {
+                                          if (!timeStr) return ''
+                                          // Parse HH:MM format
+                                          const [hours, minutes] = timeStr.split(':').map(Number)
+                                          if (isNaN(hours) || isNaN(minutes)) return timeStr
+                                          // Create a date object with today's date and the time
+                                          const date = new Date()
+                                          date.setHours(hours, minutes, 0, 0)
+                                          return formatTimeForDisplay(date, timeFormat)
                                         }
                                         
                                         if (task.start_time && task.end_time) {
-                                          return `${formatTime(task.start_time)} - ${formatTime(task.end_time)}`
+                                          return `${formatTimeString(task.start_time)} - ${formatTimeString(task.end_time)}`
                                         } else if (task.start_time) {
-                                          return formatTime(task.start_time)
+                                          return formatTimeString(task.start_time)
                                         }
                                         return ''
                                       })()}
