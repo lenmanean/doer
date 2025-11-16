@@ -54,17 +54,20 @@ export default function AuthAwareLanding() {
   
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!isAuthenticated) {
+      // Ensure we have a fully authenticated, non-null user before querying
+      if (!isAuthenticated || !user) {
         setProfile(null)
         return
       }
   
+      const currentUser = user
+
       try {
         // Fetch user profile
         const { data: userProfile, error: profileError } = await supabase
           .from('user_settings')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', currentUser.id)
           .single()
   
         if (profileError?.code === 'PGRST116') {
@@ -73,14 +76,14 @@ export default function AuthAwareLanding() {
           const defaultLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US'
           
           // Extract username from auth metadata
-          const username = (user as any).user_metadata?.username || null
+          const username = (currentUser as any).user_metadata?.username || null
           
           const { data: newProfile } = await supabase
             .from('user_settings')
             .insert({
-              user_id: user.id,
+              user_id: currentUser.id,
               username: username,
-              first_name: user.email?.split('@')[0] || 'User',
+              first_name: currentUser.email?.split('@')[0] || 'User',
               timezone: defaultTimezone,
               locale: defaultLocale
             })
@@ -92,9 +95,9 @@ export default function AuthAwareLanding() {
           console.error('Error fetching user profile:', profileError)
           // Set fallback profile
           setProfile({ 
-            id: user.id,
-            first_name: user.email?.split('@')[0] || 'User',
-            email: user.email
+            id: currentUser.id,
+            first_name: currentUser.email?.split('@')[0] || 'User',
+            email: currentUser.email
           })
         } else {
           setProfile(userProfile)
@@ -103,9 +106,9 @@ export default function AuthAwareLanding() {
         console.error('Error fetching profile:', error)
         // Set fallback profile
         setProfile({ 
-          id: user.id,
-          first_name: user.email?.split('@')[0] || 'User',
-          email: user.email
+          id: currentUser.id,
+          first_name: currentUser.email?.split('@')[0] || 'User',
+          email: currentUser.email
         })
       }
     }
