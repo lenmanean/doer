@@ -292,10 +292,10 @@ export default function AuthAwareLanding() {
                           <div className="text-sm font-medium text-[#d7d2cb]">
                             {profile?.first_name 
                               ? `${profile.first_name}${profile?.last_name ? ` ${profile.last_name}` : ''}`.trim()
-                              : user.email?.split('@')[0] || 'User'}
+                            : user?.email?.split('@')[0] || 'User'}
                           </div>
                           <div className="text-xs text-[#d7d2cb]/60">
-                            {user.email}
+                          {user?.email ?? ''}
                           </div>
                         </div>
                         <div className="p-1">
