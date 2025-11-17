@@ -120,7 +120,7 @@ function DashboardContent() {
         }
       } catch (error) {
         console.error('Error loading time format preference:', error)
-      }
+        }
     }
     loadTimeFormat()
   }, [user, supabaseClient])

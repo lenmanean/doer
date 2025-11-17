@@ -125,19 +125,25 @@ export async function syncSubscriptionSnapshot(
       .maybeSingle()
 
     if (existing?.id) {
+      // Update existing subscription record
       await supabase.from('user_plan_subscriptions').update(basePayload).eq('id', existing.id)
     } else {
-      await supabase
-        .from('user_plan_subscriptions')
-        .update({
-          status: 'canceled',
-          cancel_at: currentPeriodStart,
-          cancel_at_period_end: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId)
-        .in('status', ['active', 'trialing'])
+      // Only cancel other active/trialing subscriptions if the new one is active/trialing
+      // Don't cancel existing subscriptions if the new one is incomplete (payment might be pending)
+      if (status === 'active' || status === 'trialing') {
+        await supabase
+          .from('user_plan_subscriptions')
+          .update({
+            status: 'canceled',
+            cancel_at: currentPeriodStart,
+            cancel_at_period_end: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+          .in('status', ['active', 'trialing'])
+      }
 
+      // Insert new subscription record
       await supabase
         .from('user_plan_subscriptions')
         .insert({

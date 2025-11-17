@@ -21,10 +21,10 @@ export function useOnboardingCompletionProtection(): UseOnboardingCompletionProt
   useEffect(() => {
     // Wait for provider to resolve auth state
     if (authLoading || !sessionReady) return
-    if (!user) {
-      router.push('/login')
-      return
-    }
+        if (!user) {
+          router.push('/login')
+          return
+        }
 
     const checkUserAndOnboarding = async () => {
       try {

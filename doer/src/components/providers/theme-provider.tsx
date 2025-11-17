@@ -24,7 +24,7 @@ const accentColors: Record<AccentColor, string> = {
   green: '#51e889',    // lightened from #16a34a (pure green-600, no teal)
   yellow: '#f7b442',   // adjusted to match green lightness
   pink: '#ec4d9c',     // adjusted to match green lightness
-  orange: '#ff9c3a',   // adjusted to match green lightness
+  orange: '#ea580c',   // orange-600 to match regenerate button
   purple: '#7a44f5'    // adjusted to match green lightness
 }
 

@@ -84,7 +84,7 @@ export async function middleware(req: NextRequest) {
   if ((pathname === '/login' || pathname.startsWith('/login')) && user) {
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
-
+  
   return res
 }
 

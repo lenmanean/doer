@@ -56,11 +56,11 @@ export default function OnboardingLoadingPage() {
     if (authLoading || !sessionReady) {
       return
     }
-    if (!user) {
-      router.push('/login')
-      return
-    }
-
+        if (!user) {
+          router.push('/login')
+          return
+        }
+        
     const authenticateAndGenerate = async () => {
       try {
         // Step 1: Authenticate (trust provider state)
@@ -135,7 +135,7 @@ export default function OnboardingLoadingPage() {
         updateStepStatus('finalize', 'processing', 'Finalizing your personalized plan...')
         await new Promise(resolve => setTimeout(resolve, 800))
         updateStepStatus('finalize', 'complete', 'Your plan is ready!')
-
+        
         // Finalize by redirecting to review with explicit planId
         const plan = planData.plan
         await new Promise(resolve => setTimeout(resolve, 600))

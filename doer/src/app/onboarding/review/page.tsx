@@ -85,7 +85,7 @@ export default function ReviewPage() {
             }
           })
           setTasks(tasksWithSchedule as any)
-        } else {
+    } else {
           const { data: dbPlan, error: dbErr } = await supabase
             .from('plans')
             .select('*')
@@ -135,7 +135,7 @@ export default function ReviewPage() {
         console.error('Failed to load plan for review:', error)
         router.replace('/onboarding')
       } finally {
-        setLoading(false)
+    setLoading(false)
       }
     }
     bootstrap()
@@ -406,9 +406,9 @@ export default function ReviewPage() {
       
       if (!healthCheck.ok) {
         console.error('[Review] Auth session not valid for current user')
-        alert('Your session has expired. Please sign in again.')
-        router.push('/login')
-        return
+          alert('Your session has expired. Please sign in again.')
+          router.push('/login')
+          return
       }
       
       const healthData = await healthCheck.json()
@@ -525,9 +525,9 @@ export default function ReviewPage() {
                         }
                       }
                       return summaryData?.plan_summary ? (
-                        <p className="text-lg text-[#d7d2cb]/70">
+                      <p className="text-lg text-[#d7d2cb]/70">
                           {summaryData.plan_summary}
-                        </p>
+                      </p>
                       ) : null
                     })()}
                   </div>

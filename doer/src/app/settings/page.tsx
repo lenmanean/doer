@@ -300,16 +300,28 @@ export default function SettingsPage() {
     }
   }, [activeSection, user?.id])
 
+  // Also check URL params to set active section
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const section = searchParams.get('section')
+    if (section && ['account', 'subscription', 'scheduling', 'privacy', 'preferences'].includes(section)) {
+      setActiveSection(section)
+    }
+  }, [])
+
   // Refresh subscription if coming from upgrade (check URL params)
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
     const upgraded = searchParams.get('upgraded')
     if (upgraded === 'true' && activeSection === 'subscription' && user?.id) {
       // Force refresh subscription data after upgrade (bypass cache)
-      loadSubscription(true)
-      // Clear the URL param
-      const newUrl = window.location.pathname + window.location.search.replace(/[?&]upgraded=true(&|$)/, '').replace(/[?&]plan=[^&]*(&|$)/, '')
-      window.history.replaceState({}, '', newUrl || window.location.pathname)
+      // Wait a moment for webhook to process, then refresh
+      setTimeout(() => {
+        loadSubscription(true)
+        // Clear the URL param after refresh
+        const newUrl = window.location.pathname + window.location.search.replace(/[?&]upgraded=true(&|$)/, '').replace(/[?&]plan=[^&]*(&|$)/, '')
+        window.history.replaceState({}, '', newUrl || window.location.pathname)
+      }, 1000)
     }
   }, [activeSection, user?.id])
 

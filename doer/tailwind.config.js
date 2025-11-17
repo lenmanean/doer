@@ -19,7 +19,7 @@ module.exports = {
           foreground: '#64748b',
         },
         primary: {
-          DEFAULT: '#ff7f00',
+          DEFAULT: '#ea580c',
           foreground: '#ffffff',
         },
         secondary: {
@@ -36,7 +36,7 @@ module.exports = {
         },
         border: 'rgba(255, 255, 255, 0.1)',
         input: 'rgba(255, 255, 255, 0.05)',
-        ring: '#ff7f00',
+        ring: '#ea580c',
       },
       
       fontFamily: {

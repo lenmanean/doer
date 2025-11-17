@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Clock, Calendar, Plus, Settings, Move, RotateCcw, ArrowUpDown, ArrowLeftRight, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft as LeftArrow, ArrowRight as RightArrow, Expand, X, GripVertical } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Calendar, Plus, Settings, Move, RotateCcw, ArrowUpDown, ArrowLeftRight, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft as LeftArrow, ArrowRight as RightArrow, Expand, X, GripVertical, UtensilsCrossed } from 'lucide-react'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -1688,11 +1688,11 @@ function ScheduleContent() {
                           }}
                         >
                           {isLunchTimeSlot && (
-                            <span
-                              className={`absolute inset-y-1 left-0 w-1 rounded-full ${
+                            <UtensilsCrossed
+                              className={`absolute left-0 top-1/2 -translate-y-1/2 w-3 h-3 ${
                                 theme === 'dark'
-                                  ? 'bg-[var(--primary)]'
-                                  : 'bg-[var(--primary)]/80'
+                                  ? 'text-gray-400'
+                                  : 'text-gray-500'
                               }`}
                             />
                           )}

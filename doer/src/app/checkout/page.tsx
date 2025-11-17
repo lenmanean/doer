@@ -314,7 +314,12 @@ function CheckoutForm() {
       }
 
       const subscriptionData = await subscriptionResponse.json()
-      const { clientSecret: paymentIntentClientSecret, status: subscriptionStatus, message } = subscriptionData
+      const { 
+        clientSecret: paymentIntentClientSecret, 
+        status: subscriptionStatus, 
+        message,
+        subscriptionId 
+      } = subscriptionData
 
       // If subscription was created successfully but no payment is needed (e.g., $0 invoice)
       if (!paymentIntentClientSecret && subscriptionStatus === 'active') {
@@ -381,8 +386,36 @@ function CheckoutForm() {
       }
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-        // Payment succeeded - invalidate subscription cache to force refresh
-        // The webhook will sync the subscription, but we'll also trigger a cache invalidation
+        // Payment succeeded - wait a moment for Stripe to process and update subscription status
+        // Then check subscription status and sync if needed
+        console.log('[Checkout] Payment succeeded, waiting for subscription activation...')
+        
+        // Give Stripe a moment to process the payment and update subscription status
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Try to sync the subscription status by calling our API
+        // This will trigger a refresh and ensure the subscription is active
+        try {
+          if (subscriptionId) {
+            const syncResponse = await fetch('/api/subscription/sync-after-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                subscriptionId,
+              }),
+            })
+          
+          if (syncResponse.ok) {
+            console.log('[Checkout] Subscription synced after payment')
+          } else {
+            console.warn('[Checkout] Failed to sync subscription, webhook will handle it')
+          }
+        } catch (syncError) {
+          // Non-critical - webhook will handle sync
+          console.warn('[Checkout] Error syncing subscription after payment:', syncError)
+        }
+        
+        // Invalidate subscription cache to force refresh
         try {
           await fetch('/api/subscription?refresh=true', {
             method: 'GET',
@@ -394,7 +427,7 @@ function CheckoutForm() {
         }
         
         // Redirect to success page
-        router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}`)
+        router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}&upgraded=true`)
       } else if (paymentIntent?.status === 'requires_action') {
         // Handle 3D Secure or other actions
         throw new Error('Additional authentication required. Please complete the verification.')

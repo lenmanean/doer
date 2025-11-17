@@ -19,11 +19,11 @@ export default function OnboardingCompletePage() {
 
   useEffect(() => {
     if (authLoading || !sessionReady) return
-    if (!user) {
-      router.push('/login')
-      return
-    }
-    setLoading(false)
+      if (!user) {
+        router.push('/login')
+        return
+      }
+      setLoading(false)
   }, [authLoading, sessionReady, user, router])
   
   useEffect(() => {

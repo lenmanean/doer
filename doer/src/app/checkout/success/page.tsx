@@ -25,7 +25,8 @@ function CheckoutSuccessContent() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          router.push(`/dashboard?upgraded=true&plan=${planSlug}`)
+          // Redirect to settings page with upgrade flag to show updated subscription
+          router.push(`/settings?upgraded=true&plan=${planSlug}&section=subscription`)
           return 0
         }
         return prev - 1

@@ -147,9 +147,68 @@ export async function getActiveSubscriptionFromStripe(
   )
 
   // Find the most recent active or trialing subscription
-  const activeSubscription = subscriptions.data
+  // Also check incomplete subscriptions - if payment succeeded, they might become active soon
+  let activeSubscription = subscriptions.data
     .filter(sub => ['active', 'trialing'].includes(sub.status))
     .sort((a, b) => (b.created || 0) - (a.created || 0))[0]
+
+  // If no active subscription, check for incomplete ones with successful payments
+  // This handles the case where payment succeeded but subscription status hasn't updated yet
+  if (!activeSubscription) {
+    const incompleteSubscriptions = subscriptions.data
+      .filter(sub => sub.status === 'incomplete')
+      .sort((a, b) => (b.created || 0) - (a.created || 0))
+
+    // Check if any incomplete subscription has a successful payment
+    for (const incompleteSub of incompleteSubscriptions) {
+      try {
+        // Retrieve the subscription with invoice to check payment status
+        const subWithInvoice = await stripeWithRetry(() =>
+          stripe.subscriptions.retrieve(incompleteSub.id, {
+            expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+          })
+        )
+
+        const invoice = subWithInvoice.latest_invoice
+        if (invoice) {
+          let invoiceObj: Stripe.Invoice | null = null
+          if (typeof invoice === 'string') {
+            invoiceObj = await stripeWithRetry(() => stripe.invoices.retrieve(invoice))
+          } else if (invoice && typeof invoice === 'object') {
+            invoiceObj = invoice as Stripe.Invoice
+          }
+
+          if (invoiceObj) {
+            const paymentIntent = (invoiceObj as any).payment_intent
+            let paymentIntentObj: Stripe.PaymentIntent | null = null
+
+            if (typeof paymentIntent === 'string') {
+              paymentIntentObj = await stripeWithRetry(() => stripe.paymentIntents.retrieve(paymentIntent))
+            } else if (paymentIntent && typeof paymentIntent === 'object') {
+              paymentIntentObj = paymentIntent as Stripe.PaymentIntent
+            }
+
+            // If payment succeeded, treat this subscription as effectively active
+            // Stripe will update the status shortly, but we can show it now
+            if (paymentIntentObj?.status === 'succeeded') {
+              logger.info('Found incomplete subscription with succeeded payment, treating as active', {
+                subscriptionId: incompleteSub.id,
+                userId,
+              })
+              activeSubscription = incompleteSub
+              break
+            }
+          }
+        }
+      } catch (checkError) {
+        logger.warn('Error checking incomplete subscription payment status', {
+          error: checkError instanceof Error ? checkError.message : String(checkError),
+          subscriptionId: incompleteSub.id,
+        })
+        // Continue checking other subscriptions
+      }
+    }
+  }
 
   if (!activeSubscription) {
     // Cache null result for shorter TTL (1 minute) to avoid repeated lookups
@@ -159,6 +218,15 @@ export async function getActiveSubscriptionFromStripe(
 
   // Infer plan details
   const { planSlug, billingCycle } = inferPlanFromStripeSubscription(activeSubscription)
+
+  // Determine subscription status
+  // If subscription is incomplete but payment succeeded, treat it as active
+  let subscriptionStatus = mapStripeStatus(activeSubscription.status)
+  if (activeSubscription.status === 'incomplete') {
+    // We already checked payment status above, so if we're using this subscription,
+    // it means payment succeeded - treat as active
+    subscriptionStatus = 'active'
+  }
 
   // Get plan details from our database (for limits and pricing)
   let planDetails
@@ -183,7 +251,7 @@ export async function getActiveSubscriptionFromStripe(
 
   const result: StripeSubscription = {
     id: activeSubscription.id,
-    status: mapStripeStatus(activeSubscription.status),
+    status: subscriptionStatus,
     planSlug,
     billingCycle,
     currentPeriodStart: formatStripeDate((activeSubscription as any).current_period_start) || '',

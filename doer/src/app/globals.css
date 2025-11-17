@@ -12,7 +12,7 @@
   --muted-foreground: #64748b;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.05);
-  --primary: #ff7f00;
+  --primary: #ea580c;
   --primary-foreground: #ffffff;
   --secondary: #353839;
   --secondary-foreground: #ffffff;
@@ -20,7 +20,7 @@
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --ring: #ff7f00;
+  --ring: #ea580c;
   --radius: 0.75rem;
 }
 
@@ -32,7 +32,7 @@
   --muted-foreground: #334155;
   --border: #e2e8f0;
   --input: #f8fafc;
-  --primary: #ff7f00;
+  --primary: #ea580c;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
@@ -40,7 +40,7 @@
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --ring: #ff7f00;
+  --ring: #ea580c;
 }
 
 /* Light Theme Global Styles */
@@ -264,7 +264,7 @@
   --muted-foreground: #64748b;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.05);
-  --primary: #ff7f00;
+  --primary: #ea580c;
   --primary-foreground: #ffffff;
   --secondary: #353839;
   --secondary-foreground: #ffffff;
@@ -272,7 +272,7 @@
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --ring: #ff7f00;
+  --ring: #ea580c;
 }
 
 @theme inline {
