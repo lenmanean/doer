@@ -210,9 +210,14 @@ export async function POST(req: NextRequest) {
       case 'invoice.payment_succeeded': {
         // Payment succeeded - sync the subscription to ensure it's up to date
         const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = typeof invoice.subscription === 'string' 
-          ? invoice.subscription 
-          : invoice.subscription?.id
+        // Invoice.subscription can be a string ID or an expanded Subscription object
+        // Access subscription using type assertion since it may not be in the type definition
+        const invoiceSubscription = (invoice as any).subscription
+        const subscriptionId = invoiceSubscription
+          ? (typeof invoiceSubscription === 'string' 
+            ? invoiceSubscription 
+            : (invoiceSubscription as Stripe.Subscription).id)
+          : null
         
         if (subscriptionId && stripe) {
           try {
