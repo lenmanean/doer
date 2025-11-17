@@ -783,12 +783,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           const endTime = addMinutesToTime(startTime, durationToSchedule)
           
           // Check if this time slot is in the past (only for current day)
-          if (currentTime && isStartDateToday && dayIndex === 0) {
+          if (currentTime && currentDate && dayIndex === 0) {
             const [startHour, startMinute] = startTime.split(':').map(Number)
             const taskStartTime = new Date(currentDate)
             taskStartTime.setHours(startHour, startMinute, 0, 0)
             
-            if (taskStartTime < currentTime) {
+            // Compare dates properly - if same date, compare times
+            const currentDateStr = currentDate.toISOString().split('T')[0]
+            const taskDateStr = taskStartTime.toISOString().split('T')[0]
+            
+            if (currentDateStr === taskDateStr && taskStartTime < currentTime) {
               console.log(`    Skipping past time slot: ${startTime} (current time: ${currentTime.toTimeString().split(' ')[0]})`)
               continue
             }
@@ -985,6 +989,24 @@ function findNextAvailableSlot(
   // Try the suggested time first
   let candidateStart = currentStartMinutes
   let candidateEnd = candidateStart + duration
+  
+  // If this is today and we have current time, ensure we don't schedule in the past
+  if (currentTime && currentDate) {
+    const currentDateStr = currentDate.toISOString().split('T')[0]
+    const suggestedDateStr = dateStr
+    
+    if (currentDateStr === suggestedDateStr) {
+      const currentHour = currentTime.getHours()
+      const currentMinute = currentTime.getMinutes()
+      const currentMinutes = currentHour * 60 + currentMinute
+      
+      // If suggested time is in the past, start from current time
+      if (candidateStart < currentMinutes) {
+        candidateStart = currentMinutes
+        candidateEnd = candidateStart + duration
+      }
+    }
+  }
   
   // Check if suggested time is valid (within workday, not during lunch if lunch overlaps)
   const lunchOverlapStart = Math.max(dayConfig.startHour, dayConfig.lunchStartHour)

@@ -72,6 +72,10 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   // If it's a single-day plan or the start date is a weekend, allow weekends to avoid zero capacity
   const effectiveAllowWeekends = allowWeekends || singleDay || startIsWeekend
 
+  // Get current time to avoid scheduling tasks in the past
+  const now = new Date()
+  const currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
+
   // Run scheduler
   const { placements, totalScheduledHours, unscheduledTasks } = timeBlockScheduler({
     tasks: tasks.map(t => ({
@@ -94,6 +98,7 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     lunchStartHour,
     lunchEndHour,
     allowWeekends: effectiveAllowWeekends,
+    currentTime,
     // We don't pass existingSchedules because we just cleared them
     existingSchedules: []
   })

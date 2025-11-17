@@ -658,11 +658,14 @@ ANALYSIS RULES:
      - If the user's description mentions a different time within the same day, use that time (e.g., if user says "12:30-1pm" but selected 12:00pm slot, use 12:30-1pm)
      - Only adjust duration if needed
      - If time conflicts, suggest the closest available slot on that day
+     - CRITICAL: If ${constrainedDate} is today (${formatDateForDB(today)}), the suggested_time MUST be AFTER the current time (${today.getHours()}:${today.getMinutes().toString().padStart(2, '0')}). Do NOT suggest times in the past.
      - In your reasoning, explain why you're using the selected date (${constrainedDate}) and how you balanced it with the user's stated time preferences` :
      `- Find the NEXT AVAILABLE slot from today onward
+     - CRITICAL: Current time is ${today.getHours()}:${today.getMinutes().toString().padStart(2, '0')} on ${formatDateForDB(today)}. You MUST NOT suggest times in the past.
+     - If scheduling for today, suggested_time MUST be AFTER ${today.getHours()}:${today.getMinutes().toString().padStart(2, '0')}
      - Prefer work hours (${workdayStartHour}:00-${workdayEndHour}:00) when possible
      - Avoid scheduling during existing tasks
-     - If no slots available, suggest the earliest possible time`}
+     - If no slots available today, suggest the earliest possible time tomorrow or later`}
 
 5. For TIME PARSING:
    - "Thursday at 5pm" → Thursday, 17:00
@@ -825,8 +828,37 @@ CRITICAL VALIDATION:
       aiResponse.duration_minutes = Math.max(5, Math.min(360, aiResponse.duration_minutes))
     }
 
+    // Validate that suggested time is not in the past (if scheduling for today)
+    const suggestedDate = new Date(aiResponse.suggested_date + 'T00:00:00')
+    const todayDate = new Date(formatDateForDB(today) + 'T00:00:00')
+    let startTime = aiResponse.suggested_time
+    
+    if (suggestedDate.getTime() === todayDate.getTime()) {
+      // Same day - check if time is in the past
+      const [suggestedHour, suggestedMinute] = startTime.split(':').map(Number)
+      const suggestedTimeMinutes = suggestedHour * 60 + suggestedMinute
+      const currentTimeMinutes = today.getHours() * 60 + today.getMinutes()
+      
+      if (suggestedTimeMinutes < currentTimeMinutes) {
+        // Time is in the past - adjust to current time or next available slot
+        console.log(`AI suggested past time (${startTime}), adjusting to current time`)
+        
+        // If current time is before workday end, use current time
+        if (currentTimeMinutes < workdayEndHour * 60) {
+          const adjustedHour = today.getHours()
+          const adjustedMinute = today.getMinutes()
+          startTime = `${adjustedHour.toString().padStart(2, '0')}:${adjustedMinute.toString().padStart(2, '0')}`
+        } else {
+          // Past workday end, suggest tomorrow at workday start
+          const tomorrow = new Date(today)
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          aiResponse.suggested_date = formatDateForDB(tomorrow)
+          startTime = `${workdayStartHour.toString().padStart(2, '0')}:00`
+        }
+      }
+    }
+
     // Calculate end time - use explicit end time if available, otherwise calculate from duration
-    const startTime = aiResponse.suggested_time
     let endTime: string
     if (explicitTime?.endTime) {
       endTime = explicitTime.endTime
