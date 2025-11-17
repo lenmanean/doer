@@ -110,6 +110,18 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated':
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription
+        
+        // Skip processing if subscription is canceled - we handle deletions separately
+        // This prevents race conditions where a canceled subscription gets re-synced as active
+        if (subscription.status === 'canceled' || subscription.cancel_at_period_end) {
+          logger.info('Skipping sync for canceled subscription', {
+            subscriptionId: subscription.id,
+            status: subscription.status,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          })
+          break
+        }
+        
         const stripeCustomerId = extractCustomerId(subscription)
         let userId = subscription.metadata?.userId
         

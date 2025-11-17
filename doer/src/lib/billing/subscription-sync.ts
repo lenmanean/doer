@@ -201,12 +201,23 @@ export async function syncSubscriptionSnapshot(
 
     const { data: existing } = await supabase
       .from('user_plan_subscriptions')
-      .select('id')
+      .select('id, status')
       .eq('external_subscription_id', subscription.id)
       .maybeSingle()
 
     if (existing?.id) {
       // Update existing subscription record
+      // But don't update if it's already canceled and we're trying to sync a canceled subscription
+      // This prevents race conditions where a canceled subscription gets re-activated
+      if (existing.status === 'canceled' && status === 'canceled') {
+        // Subscription is already canceled, don't update it
+        logger.info('[subscription-sync] Skipping update - subscription already canceled', {
+          subscriptionId: subscription.id,
+          userId,
+        })
+        return
+      }
+      
       await supabase.from('user_plan_subscriptions').update(basePayload).eq('id', existing.id)
     } else {
       // Only cancel other active/trialing subscriptions if the new one is active/trialing
@@ -215,6 +226,9 @@ export async function syncSubscriptionSnapshot(
       if (status === 'active' || status === 'trialing') {
         // Cancel other active/trialing subscriptions for this user
         // But exclude the current subscription ID to avoid canceling itself
+        // Also exclude subscriptions that were just canceled (within last 5 seconds) to prevent race conditions
+        const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString()
+        
         await supabase
           .from('user_plan_subscriptions')
           .update({
@@ -226,6 +240,7 @@ export async function syncSubscriptionSnapshot(
           .eq('user_id', userId)
           .in('status', ['active', 'trialing'])
           .neq('external_subscription_id', subscription.id) // Don't cancel the subscription we're syncing
+          .or(`updated_at.lt.${fiveSecondsAgo},cancel_at.is.null`) // Don't cancel recently canceled subscriptions
       }
 
       // Insert new subscription record

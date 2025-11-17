@@ -192,10 +192,37 @@ export async function POST(request: NextRequest) {
       // When upgrading, cancel the old subscription and create a new one
       // This ensures a clean billing cycle start and avoids proration/overdue issues
       console.log('[Create Subscription] Canceling existing subscription to create fresh upgrade')
+      const oldSubscriptionId = existingStripeSubscription.id
       try {
         // Cancel the existing subscription immediately (don't wait for period end)
-        await stripe.subscriptions.cancel(existingStripeSubscription.id)
-        console.log('[Create Subscription] Successfully canceled existing subscription:', existingStripeSubscription.id)
+        await stripe.subscriptions.cancel(oldSubscriptionId)
+        console.log('[Create Subscription] Successfully canceled existing subscription:', oldSubscriptionId)
+        
+        // Immediately mark the old subscription as canceled in database to prevent race conditions
+        // This prevents webhook from re-syncing it as active and canceling the new subscription
+        try {
+          const supabase = await createClient()
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
+            const serviceSupabase = getServiceRoleClient()
+            await serviceSupabase
+              .from('user_plan_subscriptions')
+              .update({
+                status: 'canceled',
+                cancel_at: new Date().toISOString().split('T')[0],
+                cancel_at_period_end: false,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('external_subscription_id', oldSubscriptionId)
+              .eq('user_id', user.id)
+            
+            console.log('[Create Subscription] Marked old subscription as canceled in database:', oldSubscriptionId)
+          }
+        } catch (dbError) {
+          console.warn('[Create Subscription] Error marking old subscription as canceled in database:', dbError)
+          // Non-critical - webhook will handle it
+        }
       } catch (cancelError) {
         console.warn('[Create Subscription] Error canceling existing subscription:', cancelError)
         // Continue anyway - we'll create a new subscription
