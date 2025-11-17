@@ -381,6 +381,18 @@ function CheckoutForm() {
       }
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
+        // Payment succeeded - invalidate subscription cache to force refresh
+        // The webhook will sync the subscription, but we'll also trigger a cache invalidation
+        try {
+          await fetch('/api/subscription?refresh=true', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (refreshError) {
+          // Non-critical - webhook will handle sync
+          console.warn('Failed to refresh subscription cache:', refreshError)
+        }
+        
         // Redirect to success page
         router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}`)
       } else if (paymentIntent?.status === 'requires_action') {

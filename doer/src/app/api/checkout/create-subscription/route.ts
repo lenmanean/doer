@@ -131,62 +131,116 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Check if user already has active subscription - if so, UPDATE it instead of creating new
+    // Check if user already has any subscription (active, trialing, or incomplete) - if so, UPDATE it instead of creating new
     let existingSubscription: StripeSubscription | null = null
+    let existingStripeSubscription: Stripe.Subscription | null = null
+    
     try {
+      // First try to get active subscription
       existingSubscription = await getActiveSubscriptionFromStripe(user.id)
+      
+      // If no active subscription found, check for incomplete subscriptions directly from Stripe
+      if (!existingSubscription) {
+        const stripeCustomerId = await ensureStripeCustomer({
+          supabase,
+          stripe,
+          userId: user.id,
+          email: user.email,
+        })
+        
+        if (stripeCustomerId) {
+          const allSubscriptions = await stripe.subscriptions.list({
+            customer: stripeCustomerId,
+            status: 'all',
+            limit: 10,
+          })
+          
+          // Find the most recent subscription (active, trialing, or incomplete)
+          const recentSubscription = allSubscriptions.data
+            .filter(sub => ['active', 'trialing', 'incomplete', 'incomplete_expired'].includes(sub.status))
+            .sort((a, b) => (b.created || 0) - (a.created || 0))[0]
+          
+          if (recentSubscription) {
+            existingStripeSubscription = recentSubscription
+            console.log('[Create Subscription] Found existing subscription with status:', recentSubscription.status)
+          }
+        }
+      } else if (existingSubscription.id) {
+        // If we found an active subscription, retrieve it from Stripe to update
+        try {
+          existingStripeSubscription = await stripe.subscriptions.retrieve(existingSubscription.id)
+        } catch (retrieveError) {
+          console.warn('[Create Subscription] Could not retrieve existing subscription:', retrieveError)
+        }
+      }
     } catch (error) {
       // If fetch fails, continue anyway - might be first subscription
       console.log('[Create Subscription] Could not check existing subscription:', error)
     }
 
-    if (existingSubscription && existingSubscription.id) {
-      // User has active subscription - UPDATE it instead of creating new
+    if (existingStripeSubscription && existingStripeSubscription.id) {
+      // User has existing subscription - UPDATE it instead of creating new
       console.log('[Create Subscription] Upgrading existing subscription:', {
-        existingSubscriptionId: existingSubscription.id,
+        existingSubscriptionId: existingStripeSubscription.id,
+        existingStatus: existingStripeSubscription.status,
         newPlanSlug: planSlug,
         newBillingCycle: billingCycle,
         newPriceId: priceId,
       })
 
-      // Get the current subscription from Stripe to update it
-      const stripeSubscription = await stripe.subscriptions.retrieve(existingSubscription.id)
-      
       // Get the current subscription item ID
-      const currentItemId = stripeSubscription.items.data[0]?.id
+      const currentItemId = existingStripeSubscription.items.data[0]?.id
       
       if (!currentItemId) {
         throw new Error('Cannot find subscription item to update')
       }
 
-      // Update the existing subscription by replacing the subscription item
-      subscription = await stripe.subscriptions.update(stripeSubscription.id, {
-        items: [
-          {
-            id: currentItemId,
-            price: priceId, // Update to new price
+      // If subscription is incomplete, cancel it and create a new one
+      // This is cleaner than trying to update an incomplete subscription
+      if (existingStripeSubscription.status === 'incomplete' || existingStripeSubscription.status === 'incomplete_expired') {
+        console.log('[Create Subscription] Canceling incomplete subscription and creating new one')
+        try {
+          await stripe.subscriptions.cancel(existingStripeSubscription.id)
+        } catch (cancelError) {
+          console.warn('[Create Subscription] Error canceling incomplete subscription:', cancelError)
+          // Continue anyway - we'll create a new subscription
+        }
+        
+        // Create new subscription (will be handled by the else block below)
+        existingStripeSubscription = null
+      } else {
+        // Update the existing subscription by replacing the subscription item
+        subscription = await stripe.subscriptions.update(existingStripeSubscription.id, {
+          items: [
+            {
+              id: currentItemId,
+              price: priceId, // Update to new price
+            },
+          ],
+          metadata: {
+            userId: user.id,
+            planSlug,
+            billingCycle,
           },
-        ],
-        metadata: {
-          userId: user.id,
-          planSlug,
-          billingCycle,
-        },
-        payment_behavior: 'default_incomplete', // Require payment for the change
-        proration_behavior: 'always_invoice', // Prorate the difference
-        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
-      })
+          payment_behavior: 'default_incomplete', // Require payment for the change
+          proration_behavior: 'always_invoice', // Prorate the difference
+          expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+        })
 
-      console.log('[Create Subscription] Subscription updated (upgrade):', {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        latestInvoice: subscription.latest_invoice
-          ? typeof subscription.latest_invoice === 'string'
-            ? subscription.latest_invoice
-            : subscription.latest_invoice.id
-          : null,
-      })
-    } else {
+        console.log('[Create Subscription] Subscription updated (upgrade):', {
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          latestInvoice: subscription.latest_invoice
+            ? typeof subscription.latest_invoice === 'string'
+              ? subscription.latest_invoice
+              : subscription.latest_invoice.id
+            : null,
+        })
+      }
+    }
+    
+    // Create new subscription if we don't have one yet (either no existing subscription or we canceled an incomplete one)
+    if (!subscription) {
       // No existing subscription - create new one
     subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
