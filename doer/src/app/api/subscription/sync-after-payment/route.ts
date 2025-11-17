@@ -73,15 +73,16 @@ export async function POST(req: NextRequest) {
         invoiceObj = invoice as Stripe.Invoice
       }
 
-      if (invoiceObj) {
-        const paymentIntent = invoiceObj.payment_intent
-        let paymentIntentObj: Stripe.PaymentIntent | null = null
+          if (invoiceObj) {
+            // payment_intent is an expandable property, use type assertion
+            const paymentIntent = (invoiceObj as any).payment_intent
+            let paymentIntentObj: Stripe.PaymentIntent | null = null
 
-        if (typeof paymentIntent === 'string') {
-          paymentIntentObj = await stripe.paymentIntents.retrieve(paymentIntent)
-        } else if (paymentIntent && typeof paymentIntent === 'object') {
-          paymentIntentObj = paymentIntent as Stripe.PaymentIntent
-        }
+            if (typeof paymentIntent === 'string') {
+              paymentIntentObj = await stripe.paymentIntents.retrieve(paymentIntent)
+            } else if (paymentIntent && typeof paymentIntent === 'object') {
+              paymentIntentObj = paymentIntent as Stripe.PaymentIntent
+            }
 
         // If payment succeeded, the subscription should become active
         // Sometimes Stripe needs a moment to update the subscription status
