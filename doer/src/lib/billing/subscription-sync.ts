@@ -99,9 +99,90 @@ export async function syncSubscriptionSnapshot(
     const planCycle = await getPlanCycleBySlugAndCycle(planSlug, billingCycle)
     const supabase = getServiceRoleClient()
 
-    const status = mapStripeStatus(subscription.status)
-    const currentPeriodStart = formatStripeDate((subscription as any).current_period_start)
-    const currentPeriodEnd = formatStripeDate((subscription as any).current_period_end)
+    // Check if subscription is incomplete but payment succeeded
+    // In this case, we should treat it as active, not canceled
+    let status = mapStripeStatus(subscription.status)
+    let currentPeriodStart = formatStripeDate((subscription as any).current_period_start)
+    let currentPeriodEnd = formatStripeDate((subscription as any).current_period_end)
+    
+    // If subscription is incomplete, check if payment succeeded
+    if (subscription.status === 'incomplete') {
+      try {
+        // Try to get the invoice to check payment status
+        const invoice = subscription.latest_invoice
+        if (invoice) {
+          let invoiceObj: Stripe.Invoice | null = null
+          if (typeof invoice === 'string') {
+            // Import Stripe client
+            const { default: Stripe } = await import('stripe')
+            const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+            if (stripeSecretKey) {
+              const stripe = new Stripe(stripeSecretKey)
+              invoiceObj = await stripe.invoices.retrieve(invoice, {
+                expand: ['payment_intent'],
+              })
+            }
+          } else if (invoice && typeof invoice === 'object') {
+            invoiceObj = invoice as Stripe.Invoice
+          }
+
+          if (invoiceObj) {
+            const paymentIntent = (invoiceObj as any).payment_intent
+            let paymentIntentObj: Stripe.PaymentIntent | null = null
+
+            if (typeof paymentIntent === 'string') {
+              // Import Stripe client
+              const { default: Stripe } = await import('stripe')
+              const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+              if (stripeSecretKey) {
+                const stripe = new Stripe(stripeSecretKey)
+                paymentIntentObj = await stripe.paymentIntents.retrieve(paymentIntent)
+              }
+            } else if (paymentIntent && typeof paymentIntent === 'object') {
+              paymentIntentObj = paymentIntent as Stripe.PaymentIntent
+            }
+
+            // If payment succeeded, treat as active
+            if (paymentIntentObj?.status === 'succeeded') {
+              status = 'active'
+              logger.info('[subscription-sync] Incomplete subscription with succeeded payment, treating as active', {
+                subscriptionId: subscription.id,
+                userId,
+              })
+            }
+          }
+        }
+      } catch (checkError) {
+        logger.warn('[subscription-sync] Error checking payment status for incomplete subscription', {
+          error: checkError instanceof Error ? checkError.message : String(checkError),
+          subscriptionId: subscription.id,
+        })
+        // Continue with original status if check fails
+      }
+    }
+
+    // If period dates are the same or not set, calculate them based on billing cycle
+    if (!currentPeriodStart || !currentPeriodEnd || currentPeriodStart === currentPeriodEnd) {
+      const now = new Date()
+      currentPeriodStart = formatStripeDate(Math.floor(now.getTime() / 1000))
+      
+      // Calculate end date based on billing cycle
+      const endDate = new Date(now)
+      if (billingCycle === 'annual') {
+        endDate.setFullYear(endDate.getFullYear() + 1)
+      } else {
+        endDate.setMonth(endDate.getMonth() + 1)
+      }
+      currentPeriodEnd = formatStripeDate(Math.floor(endDate.getTime() / 1000))
+      
+      logger.info('[subscription-sync] Calculated period dates for subscription', {
+        subscriptionId: subscription.id,
+        currentPeriodStart,
+        currentPeriodEnd,
+        billingCycle,
+      })
+    }
+
     const cancelAt = subscription.cancel_at ? formatStripeDate(subscription.cancel_at) : null
     const stripeCustomerId = extractCustomerId(subscription)
 
@@ -130,17 +211,21 @@ export async function syncSubscriptionSnapshot(
     } else {
       // Only cancel other active/trialing subscriptions if the new one is active/trialing
       // Don't cancel existing subscriptions if the new one is incomplete (payment might be pending)
+      // Also don't cancel if the new subscription is already canceled (might be a cleanup)
       if (status === 'active' || status === 'trialing') {
+        // Cancel other active/trialing subscriptions for this user
+        // But exclude the current subscription ID to avoid canceling itself
         await supabase
           .from('user_plan_subscriptions')
           .update({
             status: 'canceled',
             cancel_at: currentPeriodStart,
-            cancel_at_period_end: true,
+            cancel_at_period_end: false, // Cancel immediately, not at period end
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', userId)
           .in('status', ['active', 'trialing'])
+          .neq('external_subscription_id', subscription.id) // Don't cancel the subscription we're syncing
       }
 
       // Insert new subscription record
