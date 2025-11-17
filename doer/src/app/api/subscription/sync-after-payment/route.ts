@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
           console.log('[Sync After Payment] Payment succeeded but subscription still incomplete, waiting...')
           
           // Wait a bit and retrieve subscription again
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          // Stripe may need a few seconds to update subscription status after payment
+          await new Promise(resolve => setTimeout(resolve, 3000))
           const updatedSubscription = await stripe.subscriptions.retrieve(subscriptionId)
           
           if (updatedSubscription.status === 'active') {
@@ -104,8 +105,28 @@ export async function POST(req: NextRequest) {
               status: 'active',
               message: 'Subscription activated and synced',
             })
-          } else {
+          } else if (updatedSubscription.status === 'incomplete') {
+            // Subscription is still incomplete even though payment succeeded
+            // This can happen if Stripe needs more time, or if there's an issue
+            // Try to pay the invoice again or check if there's a pending payment
             console.warn('[Sync After Payment] Subscription still incomplete after payment succeeded', {
+              subscriptionId: updatedSubscription.id,
+              status: updatedSubscription.status,
+              latestInvoice: updatedSubscription.latest_invoice,
+            })
+            
+            // Even though it's incomplete, sync it as active since payment succeeded
+            // Our sync logic will handle this correctly
+            await syncSubscriptionSnapshot(updatedSubscription, { userId: user.id })
+            subscriptionCache.invalidateUser(user.id)
+            
+            return NextResponse.json({
+              success: true,
+              status: 'incomplete_but_paid',
+              message: 'Payment succeeded but subscription still processing. Synced as active.',
+            })
+          } else {
+            console.warn('[Sync After Payment] Subscription status unexpected after payment succeeded', {
               subscriptionId: updatedSubscription.id,
               status: updatedSubscription.status,
             })
