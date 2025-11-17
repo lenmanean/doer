@@ -1259,14 +1259,6 @@ function ScheduleContent() {
     lunchEndHourClamped = clampHour(lunchStartHourClamped + 1)
   }
   const lunchRangeTooltip = `Lunch: ${formatTime(lunchStartHourClamped % 24, 0)} - ${formatTime(lunchEndHourClamped % 24, 0)}`
-  
-  // Helper function to check if a time slot is during lunch hours
-  const isLunchSlot = useCallback((hour: number, minute: number) => {
-    const slotMinutes = hour * 60 + minute
-    const lunchStartMinutes = lunchStartHourClamped * 60
-    const lunchEndMinutes = lunchEndHourClamped * 60
-    return slotMinutes >= lunchStartMinutes && slotMinutes < lunchEndMinutes
-  }, [lunchStartHourClamped, lunchEndHourClamped])
 
   // Show loading state
   if (isLoadingSettings || isLoadingPlan) {

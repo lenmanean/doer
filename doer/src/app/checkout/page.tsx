@@ -404,11 +404,12 @@ function CheckoutForm() {
                 subscriptionId,
               }),
             })
-          
-          if (syncResponse.ok) {
-            console.log('[Checkout] Subscription synced after payment')
-          } else {
-            console.warn('[Checkout] Failed to sync subscription, webhook will handle it')
+            
+            if (syncResponse.ok) {
+              console.log('[Checkout] Subscription synced after payment')
+            } else {
+              console.warn('[Checkout] Failed to sync subscription, webhook will handle it')
+            }
           }
         } catch (syncError) {
           // Non-critical - webhook will handle sync
