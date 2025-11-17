@@ -117,9 +117,10 @@ export async function POST(req: NextRequest) {
         if (!userId && stripeCustomerId && stripe) {
           try {
             const customer = await stripe.customers.retrieve(stripeCustomerId)
-            if (typeof customer !== 'string' && customer.metadata?.userId) {
-              userId = customer.metadata.userId
-            } else if (typeof customer !== 'string') {
+            // Check if customer is not deleted and has metadata
+            if (customer && typeof customer !== 'string' && !customer.deleted && 'metadata' in customer && customer.metadata?.userId) {
+              userId = customer.metadata.userId as string
+            } else {
               // Try to find userId from user_settings by stripe_customer_id
               const supabase = getServiceRoleClient()
               const { data: userSettings } = await supabase
@@ -225,9 +226,10 @@ export async function POST(req: NextRequest) {
               if (stripeCustomerId) {
                 try {
                   const customer = await stripe.customers.retrieve(stripeCustomerId)
-                  if (typeof customer !== 'string' && customer.metadata?.userId) {
-                    userId = customer.metadata.userId
-                  } else if (typeof customer !== 'string') {
+                  // Check if customer is not deleted and has metadata
+                  if (customer && typeof customer !== 'string' && !customer.deleted && 'metadata' in customer && customer.metadata?.userId) {
+                    userId = customer.metadata.userId as string
+                  } else {
                     // Try to find userId from user_settings by stripe_customer_id
                     const supabase = getServiceRoleClient()
                     const { data: userSettings } = await supabase
