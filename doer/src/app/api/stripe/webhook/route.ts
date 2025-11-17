@@ -111,7 +111,35 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription
         const stripeCustomerId = extractCustomerId(subscription)
-        const userId = subscription.metadata?.userId
+        let userId = subscription.metadata?.userId
+        
+        // Fallback: If userId is missing from subscription metadata, try to get it from customer metadata or user_settings
+        if (!userId && stripeCustomerId && stripe) {
+          try {
+            const customer = await stripe.customers.retrieve(stripeCustomerId)
+            if (typeof customer !== 'string' && customer.metadata?.userId) {
+              userId = customer.metadata.userId
+            } else if (typeof customer !== 'string') {
+              // Try to find userId from user_settings by stripe_customer_id
+              const supabase = getServiceRoleClient()
+              const { data: userSettings } = await supabase
+                .from('user_settings')
+                .select('user_id')
+                .eq('stripe_customer_id', stripeCustomerId)
+                .maybeSingle()
+              
+              if (userSettings?.user_id) {
+                userId = userSettings.user_id
+              }
+            }
+          } catch (lookupError) {
+            logger.warn('Failed to lookup userId from customer', {
+              error: lookupError instanceof Error ? lookupError.message : String(lookupError),
+              stripeCustomerId,
+              subscriptionId: subscription.id,
+            })
+          }
+        }
         
         // Update stripe_customer_id if we have it
         if (stripeCustomerId && userId) {
@@ -141,7 +169,11 @@ export async function POST(req: NextRequest) {
             })
           }
         } else {
-          logger.warn('Subscription event missing userId metadata', { subscriptionId: subscription.id })
+          logger.warn('Subscription event missing userId metadata', { 
+            subscriptionId: subscription.id,
+            stripeCustomerId,
+            hasMetadata: !!subscription.metadata,
+          })
         }
         
         logger.info('Subscription updated/created - snapshot stored', {
@@ -175,8 +207,79 @@ export async function POST(req: NextRequest) {
       }
 
       case 'invoice.payment_succeeded': {
-        // Payment succeeded - no action needed, we query Stripe directly
-        logger.info('Payment succeeded')
+        // Payment succeeded - sync the subscription to ensure it's up to date
+        const invoice = event.data.object as Stripe.Invoice
+        const subscriptionId = typeof invoice.subscription === 'string' 
+          ? invoice.subscription 
+          : invoice.subscription?.id
+        
+        if (subscriptionId && stripe) {
+          try {
+            // Retrieve the subscription to get the latest state
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+            let userId = subscription.metadata?.userId
+            
+            // Fallback: If userId is missing from subscription metadata, try to get it from customer
+            if (!userId) {
+              const stripeCustomerId = extractCustomerId(subscription)
+              if (stripeCustomerId) {
+                try {
+                  const customer = await stripe.customers.retrieve(stripeCustomerId)
+                  if (typeof customer !== 'string' && customer.metadata?.userId) {
+                    userId = customer.metadata.userId
+                  } else if (typeof customer !== 'string') {
+                    // Try to find userId from user_settings by stripe_customer_id
+                    const supabase = getServiceRoleClient()
+                    const { data: userSettings } = await supabase
+                      .from('user_settings')
+                      .select('user_id')
+                      .eq('stripe_customer_id', stripeCustomerId)
+                      .maybeSingle()
+                    
+                    if (userSettings?.user_id) {
+                      userId = userSettings.user_id
+                    }
+                  }
+                } catch (lookupError) {
+                  logger.warn('Failed to lookup userId from customer after payment', {
+                    error: lookupError instanceof Error ? lookupError.message : String(lookupError),
+                    stripeCustomerId,
+                    subscriptionId: subscription.id,
+                  })
+                }
+              }
+            }
+            
+            if (userId) {
+              // Invalidate cache for this user
+              subscriptionCache.invalidateUser(userId)
+              
+              // Sync the subscription snapshot
+              await syncSubscriptionSnapshot(subscription, { userId })
+              
+              logger.info('Payment succeeded - subscription synced', {
+                subscriptionId: subscription.id,
+                status: subscription.status,
+                userId,
+              })
+            } else {
+              logger.warn('Payment succeeded but subscription missing userId metadata', {
+                subscriptionId: subscription.id,
+                invoiceId: invoice.id,
+                hasMetadata: !!subscription.metadata,
+              })
+            }
+          } catch (syncError) {
+            logger.error('Failed to sync subscription after payment succeeded', syncError as Error, {
+              subscriptionId,
+              invoiceId: invoice.id,
+            })
+          }
+        } else {
+          logger.warn('Payment succeeded but invoice missing subscription reference', {
+            invoiceId: invoice.id,
+          })
+        }
         break
       }
 
