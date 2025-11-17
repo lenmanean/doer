@@ -188,55 +188,21 @@ export async function POST(request: NextRequest) {
         newPriceId: priceId,
       })
 
-      // Get the current subscription item ID
-      const currentItemId = existingStripeSubscription.items.data[0]?.id
+      // When upgrading, cancel the old subscription and create a new one
+      // This ensures a clean billing cycle start and avoids proration/overdue issues
+      console.log('[Create Subscription] Canceling existing subscription to create fresh upgrade')
+      try {
+        // Cancel the existing subscription immediately (don't wait for period end)
+        await stripe.subscriptions.cancel(existingStripeSubscription.id)
+        console.log('[Create Subscription] Successfully canceled existing subscription:', existingStripeSubscription.id)
+      } catch (cancelError) {
+        console.warn('[Create Subscription] Error canceling existing subscription:', cancelError)
+        // Continue anyway - we'll create a new subscription
+        // If cancel fails, Stripe might still allow creating a new subscription
+      }
       
-      if (!currentItemId) {
-        throw new Error('Cannot find subscription item to update')
-      }
-
-      // If subscription is incomplete, cancel it and create a new one
-      // This is cleaner than trying to update an incomplete subscription
-      if (existingStripeSubscription.status === 'incomplete' || existingStripeSubscription.status === 'incomplete_expired') {
-        console.log('[Create Subscription] Canceling incomplete subscription and creating new one')
-        try {
-          await stripe.subscriptions.cancel(existingStripeSubscription.id)
-        } catch (cancelError) {
-          console.warn('[Create Subscription] Error canceling incomplete subscription:', cancelError)
-          // Continue anyway - we'll create a new subscription
-        }
-        
-        // Create new subscription (will be handled by the else block below)
-        existingStripeSubscription = null
-      } else {
-        // Update the existing subscription by replacing the subscription item
-        subscription = await stripe.subscriptions.update(existingStripeSubscription.id, {
-          items: [
-            {
-              id: currentItemId,
-              price: priceId, // Update to new price
-            },
-          ],
-          metadata: {
-            userId: user.id,
-            planSlug,
-            billingCycle,
-          },
-          payment_behavior: 'default_incomplete', // Require payment for the change
-          proration_behavior: 'always_invoice', // Prorate the difference
-          expand: ['latest_invoice', 'latest_invoice.payment_intent'],
-        })
-
-        console.log('[Create Subscription] Subscription updated (upgrade):', {
-          subscriptionId: subscription.id,
-          status: subscription.status,
-          latestInvoice: subscription.latest_invoice
-            ? typeof subscription.latest_invoice === 'string'
-              ? subscription.latest_invoice
-              : subscription.latest_invoice.id
-            : null,
-        })
-      }
+      // Clear the existing subscription so we create a new one below
+      existingStripeSubscription = null
     }
     
     // Create new subscription if we don't have one yet (either no existing subscription or we canceled an incomplete one)
