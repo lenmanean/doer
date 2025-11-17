@@ -338,25 +338,17 @@ export async function POST(request: NextRequest) {
           return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
         }
         
-        const status = mapStatus(subscription.status)
-        // Access period dates safely - they are numbers (Unix timestamps) on Stripe.Subscription
-        const periodStart = formatDate((subscription as any).current_period_start)
-        const periodEnd = formatDate((subscription as any).current_period_end)
+        // Use syncSubscriptionSnapshot instead of deprecated assignSubscription
+        // This properly handles incomplete subscriptions and payment status
+        await syncSubscriptionSnapshot(subscription, { userId: user.id })
         
-        await assignSubscription(user.id, planSlug, billingCycle, {
-          stripeCustomerId,
-          stripeSubscriptionId: subscription.id,
-          status,
-          currentPeriodStart: periodStart,
-          currentPeriodEnd: periodEnd,
-        })
-        
-        console.log('[Create Subscription] Successfully assigned subscription to database', {
+        console.log('[Create Subscription] Successfully synced subscription to database', {
           userId: user.id,
           planSlug,
           billingCycle,
           stripeCustomerId,
           stripeSubscriptionId: subscription.id,
+          status: subscription.status,
         })
       } catch (assignError) {
         console.error('[Create Subscription] Error assigning subscription to database:', assignError)
