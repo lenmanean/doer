@@ -4,7 +4,8 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { assignSubscription, type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
+import { type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
+import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 import { getActiveSubscriptionFromStripe, type StripeSubscription } from '@/lib/stripe/subscriptions'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
@@ -685,15 +686,12 @@ export async function POST(request: NextRequest) {
       const periodStart = formatDate((subscription as any).current_period_start)
       const periodEnd = formatDate((subscription as any).current_period_end)
       
-      await assignSubscription(user.id, planSlug, billingCycle, {
-        stripeCustomerId,
-        stripeSubscriptionId: subscription.id,
-        status,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-      })
+      // Use syncSubscriptionSnapshot instead of deprecated assignSubscription
+      // This properly handles incomplete subscriptions and payment status
+      const { syncSubscriptionSnapshot } = await import('@/lib/billing/subscription-sync')
+      await syncSubscriptionSnapshot(subscription, { userId: user.id })
       
-      console.log('[Create Subscription] Successfully assigned subscription to database', {
+      console.log('[Create Subscription] Successfully synced subscription to database', {
         userId: user.id,
         planSlug,
         billingCycle,
