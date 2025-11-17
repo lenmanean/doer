@@ -1259,6 +1259,14 @@ function ScheduleContent() {
     lunchEndHourClamped = clampHour(lunchStartHourClamped + 1)
   }
   const lunchRangeTooltip = `Lunch: ${formatTime(lunchStartHourClamped % 24, 0)} - ${formatTime(lunchEndHourClamped % 24, 0)}`
+  
+  // Helper function to check if a time slot is during lunch hours
+  const isLunchSlot = useCallback((hour: number, minute: number) => {
+    const slotMinutes = hour * 60 + minute
+    const lunchStartMinutes = lunchStartHourClamped * 60
+    const lunchEndMinutes = lunchEndHourClamped * 60
+    return slotMinutes >= lunchStartMinutes && slotMinutes < lunchEndMinutes
+  }, [lunchStartHourClamped, lunchEndHourClamped])
 
   // Show loading state
   if (isLoadingSettings || isLoadingPlan) {
@@ -1667,7 +1675,9 @@ function ScheduleContent() {
                           }}
                         >
                         <div
-                          className="relative flex items-center justify-end w-full pr-1"
+                          className={`relative flex items-center justify-end w-full pr-1 ${
+                            isLunchTimeSlot ? 'pl-5' : ''
+                          }`}
                           title={isLunchTimeSlot ? lunchRangeTooltip : undefined}
                           aria-label={isLunchTimeSlot ? lunchRangeTooltip : undefined}
                           onMouseEnter={() => {
@@ -1689,7 +1699,7 @@ function ScheduleContent() {
                         >
                           {isLunchTimeSlot && (
                             <UtensilsCrossed
-                              className={`absolute left-0 top-1/2 -translate-y-1/2 w-3 h-3 ${
+                              className={`absolute left-1 top-1/2 -translate-y-1/2 w-3 h-3 ${
                                 theme === 'dark'
                                   ? 'text-gray-400'
                                   : 'text-gray-500'
