@@ -242,7 +242,7 @@ export default function DataPage() {
         {/* Activity Heatmap */}
         <Card className="bg-white/5 border-white/10 mb-8">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-[#d7d2cb]">
+            <CardTitle className="text-2xl font-semibold text-[#d7d2cb]">
               Activity Heatmap
             </CardTitle>
           </CardHeader>

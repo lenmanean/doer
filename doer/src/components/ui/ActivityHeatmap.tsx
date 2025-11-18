@@ -74,15 +74,19 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const handleDayHover = (e: React.MouseEvent<HTMLDivElement>, date: string) => {
     if (!date) return
     setHoveredDate(date)
-    const rect = e.currentTarget.getBoundingClientRect()
+    // Get the parent container (the div with padding)
+    const squareContainer = e.currentTarget.closest('.relative.aspect-square')
     const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
-    if (containerRect) {
-      // Position relative to container - center horizontally and above vertically
-      const x = rect.left - containerRect.left + rect.width / 2
-      const y = rect.top - containerRect.top + rect.height / 2
+    
+    if (squareContainer && containerRect) {
+      const squareRect = squareContainer.getBoundingClientRect()
+      // Position relative to container - center horizontally and vertically
+      const x = squareRect.left - containerRect.left + squareRect.width / 2
+      const y = squareRect.top - containerRect.top + squareRect.height / 2
       setTooltipPosition({ x, y })
     } else {
-      // Fallback to absolute positioning
+      // Fallback
+      const rect = e.currentTarget.getBoundingClientRect()
       setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
     }
   }
@@ -129,14 +133,14 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   return (
     <div ref={containerRef} data-heatmap-container className={cn('relative overflow-visible', className)}>
       {/* Month/Year Navigation */}
-      <div className="flex items-center justify-center mb-1">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-center mb-4">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => navigateMonth('prev')}
             className="p-1 rounded hover:bg-white/10 transition-colors"
             aria-label="Previous month"
           >
-            <ChevronLeft className="w-5 h-5 text-[#d7d2cb]/70" />
+            <ChevronLeft className="w-6 h-6 text-[#d7d2cb]/70" />
           </button>
           
           {/* Month Selector */}
@@ -147,7 +151,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                 setShowYearSelector(false)
               }}
               className={cn(
-                'px-5 py-2.5 rounded hover:bg-white/10 transition-colors text-[#d7d2cb] font-medium text-lg',
+                'px-6 py-3 rounded hover:bg-white/10 transition-colors text-[#d7d2cb] font-medium text-xl',
                 showMonthSelector && 'bg-white/10'
               )}
             >
@@ -244,13 +248,13 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             className="p-1 rounded hover:bg-white/10 transition-colors"
             aria-label="Next month"
           >
-            <ChevronRight className="w-5 h-5 text-[#d7d2cb]/70" />
+            <ChevronRight className="w-6 h-6 text-[#d7d2cb]/70" />
           </button>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="w-full">
+      <div className="w-full px-2">
         {/* Weekday Labels */}
         <div className="grid grid-cols-7 gap-1.5 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
@@ -261,14 +265,19 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 overflow-hidden">
+        <div className="grid grid-cols-7 gap-1.5 overflow-visible">
           {monthData.map((day, dayIndex) => {
             if (!day.date) {
-              return <div key={`empty-${dayIndex}`} className="aspect-square" />
+              return (
+                <div 
+                  key={`empty-${dayIndex}`} 
+                  className="aspect-square border border-white/5 rounded-sm"
+                />
+              )
             }
 
             return (
-              <div key={day.date} className="relative aspect-square overflow-visible">
+              <div key={day.date} className="relative aspect-square overflow-visible p-0.5">
                 <motion.div
                   className={cn(
                     'w-full h-full rounded-sm cursor-pointer transition-all',
@@ -316,7 +325,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
               top: `${tooltipPosition.y}px`,
               transform: 'translate(-50%, -100%)',
               maxWidth: '200px',
-              marginTop: '-8px'
+              marginTop: '-12px'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
