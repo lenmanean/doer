@@ -6,11 +6,11 @@ import { getActiveSubscriptionFromStripe } from '@/lib/stripe/subscriptions'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const planSlug = searchParams.get('planSlug')?.toLowerCase()
-    const cycle = (searchParams.get('cycle')?.toLowerCase() || 'monthly') as BillingCycle
+  const searchParams = request.nextUrl.searchParams
+  const planSlug = searchParams.get('planSlug')?.toLowerCase()
+  const cycle = (searchParams.get('cycle')?.toLowerCase() || 'monthly') as BillingCycle
 
+  try {
     if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
       return NextResponse.json(
         { error: 'Invalid planSlug. Must be "basic" or "pro"' },
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     if (errorMessage.includes('not found')) {
       return NextResponse.json(
         { 
-          error: `Billing plan cycle "${planSlug}" (${cycle}) not found. Please ensure the plan is properly configured in the database.`,
+          error: `Billing plan cycle "${planSlug || 'unknown'}" (${cycle}) not found. Please ensure the plan is properly configured in the database.`,
           details: errorMessage
         },
         { status: 404 }
