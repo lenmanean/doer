@@ -283,7 +283,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       <div className="flex justify-center">
         <div className="flex gap-2">
           {/* Y-axis (day numbers) */}
-          <div className="flex flex-col gap-0.5 pt-5">
+          <div className="flex flex-col gap-1 pt-6">
             {weeksData.map((week, weekIndex) => {
               // Get the day numbers for this week (filter out empty days)
               const dayNumbers = week
@@ -291,7 +291,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                 .filter(num => num > 0)
               
               if (dayNumbers.length === 0) {
-                return <div key={`week-${weekIndex}`} className="h-8" />
+                return <div key={`week-${weekIndex}`} className="h-12" />
               }
               
               // Format: "1" or "2-8" or "9-15" etc.
@@ -302,7 +302,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
               return (
                 <div
                   key={`week-${weekIndex}`}
-                  className="text-xs text-[#d7d2cb]/60 text-right pr-2 h-8 flex items-center justify-end"
+                  className="text-xs text-[#d7d2cb]/60 text-right pr-2 h-12 flex items-center justify-end"
                 >
                   {label}
                 </div>
@@ -313,26 +313,26 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
           {/* Main Calendar Grid */}
           <div>
             {/* Weekday Labels */}
-            <div className="grid grid-cols-7 gap-0.5 mb-1">
+            <div className="grid grid-cols-7 gap-1 mb-1.5">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-xs text-[#d7d2cb]/50 text-center w-8">
+                <div key={day} className="text-xs text-[#d7d2cb]/50 text-center w-12">
                   {day}
                 </div>
               ))}
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-0.5 overflow-hidden">
+            <div className="grid grid-cols-7 gap-1 overflow-hidden">
               {monthData.map((day, dayIndex) => {
                 if (!day.date) {
-                  return <div key={`empty-${dayIndex}`} className="w-8 h-8" />
+                  return <div key={`empty-${dayIndex}`} className="w-12 h-12" />
                 }
 
                 return (
-                  <div key={day.date} className="relative w-8 h-8 overflow-hidden">
+                  <div key={day.date} className="relative w-12 h-12 overflow-hidden">
                     <motion.div
                       className={cn(
-                        'w-8 h-8 rounded-sm cursor-pointer transition-all',
+                        'w-12 h-12 rounded-sm cursor-pointer transition-all',
                         getColor(day.count),
                         hoveredDate === day.date && 'ring-1 ring-white/50'
                       )}
