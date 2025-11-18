@@ -212,23 +212,23 @@ export default function DataPage() {
             color="#3b82f6"
             formatValue={(v) => `${Math.round(v)} days`}
           />
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-center">
-            <ProgressRing
-              percentage={onTimeRate}
-              size={75}
-              strokeWidth={8}
-              color="#f59e0b"
-              showBreakdown={true}
-              breakdown={[
-                { label: 'On-time', value: 85, color: '#22c55e' },
-                { label: 'Late', value: 7, color: '#f59e0b' },
-                { label: 'Missed', value: 8, color: '#ef4444' }
-              ]}
-            />
-            <div className="ml-3">
-              <div className="text-sm font-medium text-[#d7d2cb]/70 mb-1">On-Time Rate</div>
-              <div className="text-2xl font-bold text-[#d7d2cb]">{onTimeRate}%</div>
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col h-full">
+            <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1.5">On-Time Rate</h3>
+            <div className="flex items-center gap-3 mb-2">
+              <ProgressRing
+                percentage={onTimeRate}
+                size={60}
+                strokeWidth={6}
+                color="#f59e0b"
+                showBreakdown={false}
+              />
+              <div>
+                <div className="text-2xl font-bold text-[#d7d2cb]" style={{ color: '#f59e0b' }}>
+                  {onTimeRate}%
+                </div>
+              </div>
             </div>
+            <p className="text-xs text-[#d7d2cb]/50 leading-tight">Tasks completed on schedule</p>
           </div>
           <MetricCard
             title="Reschedule Rate"

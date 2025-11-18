@@ -77,13 +77,13 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     const rect = e.currentTarget.getBoundingClientRect()
     const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
     if (containerRect) {
-      // Position relative to container
+      // Position relative to container - center horizontally and above vertically
       const x = rect.left - containerRect.left + rect.width / 2
-      const y = rect.top - containerRect.top
+      const y = rect.top - containerRect.top + rect.height / 2
       setTooltipPosition({ x, y })
     } else {
       // Fallback to absolute positioning
-      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
+      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
     }
   }
 
@@ -125,36 +125,6 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
 
   const hoveredData = hoveredDate ? data.find(d => d.date === hoveredDate) : null
-
-  // Group days by week for y-axis labels
-  const weeksData = useMemo(() => {
-    const weeks: Array<Array<{ date: string; count: number; tasks?: string[]; dayNumber: number }>> = []
-    let currentWeek: Array<{ date: string; count: number; tasks?: string[]; dayNumber: number }> = []
-    
-    monthData.forEach((day, index) => {
-      if (!day.date) {
-        // Empty cell
-        currentWeek.push({ ...day, dayNumber: 0 })
-      } else {
-        // Extract day number from date
-        const dayNumber = parseInt(day.date.split('-')[2], 10)
-        currentWeek.push({ ...day, dayNumber })
-      }
-      
-      // If we've filled 7 days (a week), start a new week
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek)
-        currentWeek = []
-      }
-    })
-    
-    // Add the last week if it's not complete
-    if (currentWeek.length > 0) {
-      weeks.push(currentWeek)
-    }
-    
-    return weeks
-  }, [monthData])
 
   return (
     <div ref={containerRef} data-heatmap-container className={cn('relative overflow-visible', className)}>
@@ -279,89 +249,58 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         </div>
       </div>
 
-      {/* Calendar Grid with Y-axis Labels */}
-      <div className="flex gap-3">
-        {/* Y-axis (day numbers) */}
-        <div className="flex flex-col gap-1.5 pt-7 flex-shrink-0">
-          {weeksData.map((week, weekIndex) => {
-            // Get the day numbers for this week (filter out empty days)
-            const dayNumbers = week
-              .map(day => day.dayNumber)
-              .filter(num => num > 0)
-            
-            if (dayNumbers.length === 0) {
-              return <div key={`week-${weekIndex}`} className="h-16" />
+      {/* Calendar Grid */}
+      <div className="w-full">
+        {/* Weekday Labels */}
+        <div className="grid grid-cols-7 gap-1.5 mb-2">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+            <div key={day} className="text-sm text-[#d7d2cb]/50 text-center">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1.5 overflow-hidden">
+          {monthData.map((day, dayIndex) => {
+            if (!day.date) {
+              return <div key={`empty-${dayIndex}`} className="aspect-square" />
             }
-            
-            // Format: "1" or "2-8" or "9-15" etc.
-            const label = dayNumbers.length === 1 
-              ? dayNumbers[0].toString()
-              : `${dayNumbers[0]}-${dayNumbers[dayNumbers.length - 1]}`
-            
+
             return (
-              <div
-                key={`week-${weekIndex}`}
-                className="text-sm text-[#d7d2cb]/60 text-right pr-2 h-16 flex items-center justify-end"
-              >
-                {label}
+              <div key={day.date} className="relative aspect-square overflow-visible">
+                <motion.div
+                  className={cn(
+                    'w-full h-full rounded-sm cursor-pointer transition-all',
+                    getColor(day.count),
+                    hoveredDate === day.date && 'ring-2 ring-white/70 shadow-lg shadow-white/20'
+                  )}
+                  onMouseEnter={(e) => handleDayHover(e, day.date)}
+                  onMouseLeave={() => {
+                    setHoveredDate(null)
+                    setTooltipPosition(null)
+                  }}
+                  onClick={() => handleDayClick(day.date)}
+                  whileHover={{ scale: 1.05, zIndex: 10 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ transformOrigin: 'center' }}
+                />
               </div>
             )
           })}
         </div>
-
-        {/* Main Calendar Grid */}
-        <div className="flex-1 min-w-0">
-          {/* Weekday Labels */}
-          <div className="grid grid-cols-7 gap-1.5 mb-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="text-sm text-[#d7d2cb]/50 text-center">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1.5 overflow-hidden">
-            {monthData.map((day, dayIndex) => {
-              if (!day.date) {
-                return <div key={`empty-${dayIndex}`} className="aspect-square" />
-              }
-
-              return (
-                <div key={day.date} className="relative aspect-square overflow-hidden">
-                  <motion.div
-                    className={cn(
-                      'w-full h-full rounded-sm cursor-pointer transition-all',
-                      getColor(day.count),
-                      hoveredDate === day.date && 'ring-1 ring-white/50'
-                    )}
-                    onMouseEnter={(e) => handleDayHover(e, day.date)}
-                    onMouseLeave={() => {
-                      setHoveredDate(null)
-                      setTooltipPosition(null)
-                    }}
-                    onClick={() => handleDayClick(day.date)}
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ transformOrigin: 'center' }}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </div>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-2 mt-2 text-xs text-[#d7d2cb]/60">
-        <span>Less</span>
+      <div className="flex items-center justify-center gap-3 mt-3 text-xs text-[#d7d2cb]/60">
+        <span className="font-medium">No activity</span>
         <div className="flex gap-1">
           <div className="w-3 h-3 rounded-sm bg-gray-800/50" />
           <div className="w-3 h-3 rounded-sm bg-green-500/40" />
           <div className="w-3 h-3 rounded-sm bg-green-500/60" />
           <div className="w-3 h-3 rounded-sm bg-green-500" />
         </div>
-        <span>More</span>
+        <span className="font-medium">High activity</span>
       </div>
 
       {/* Tooltip */}
@@ -374,9 +313,10 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             className="absolute z-[100] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none"
             style={{
               left: `${tooltipPosition.x}px`,
-              top: `${tooltipPosition.y - 10}px`,
+              top: `${tooltipPosition.y}px`,
               transform: 'translate(-50%, -100%)',
-              maxWidth: '200px'
+              maxWidth: '200px',
+              marginTop: '-8px'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
