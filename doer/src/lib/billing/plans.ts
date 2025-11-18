@@ -167,6 +167,11 @@ async function fetchPlanBySlug(slug: string) {
     .maybeSingle()
 
   if (error) {
+    console.error('[fetchPlanBySlug] Database error:', {
+      slug,
+      error: error.message,
+      errorCode: error.code,
+    })
     throw new Error(`Failed to fetch billing plan for slug "${slug}": ${error.message}`)
   }
   
@@ -179,10 +184,21 @@ async function fetchPlanBySlug(slug: string) {
     
     const availablePlans = listError ? 'Unable to list plans' : (allPlans?.map(p => p.slug).join(', ') || 'none')
     
+    console.error('[fetchPlanBySlug] Plan not found:', {
+      slug,
+      availablePlans,
+    })
+    
     throw new Error(
       `Billing plan with slug "${slug}" not found. Available plans: ${availablePlans}`
     )
   }
+  
+  console.log('[fetchPlanBySlug] Found plan:', {
+    slug,
+    planId: data.id,
+    name: data.name,
+  })
   
   return data
 }
