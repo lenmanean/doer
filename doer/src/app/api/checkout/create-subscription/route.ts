@@ -232,6 +232,8 @@ export async function POST(request: NextRequest) {
         
         // For upgrades, use 'pending_if_incomplete' which will attempt to charge
         // the default payment method automatically, but requires confirmation if payment fails
+        // NOTE: metadata cannot be passed when payment_behavior is 'pending_if_incomplete'
+        // We'll update metadata separately after the subscription update
         subscription = await stripe.subscriptions.update(existingStripeSubscription.id, {
           items: [
             {
@@ -239,15 +241,26 @@ export async function POST(request: NextRequest) {
               price: priceId, // Update to new price
             },
           ],
-          metadata: {
-            userId: user.id,
-            planSlug,
-            billingCycle,
-          },
+          // metadata is NOT allowed with pending_if_incomplete - will update separately
           payment_behavior: 'pending_if_incomplete', // Try to charge default payment method, require confirmation if it fails
           proration_behavior: 'always_invoice', // Prorate the difference
           expand: ['latest_invoice', 'latest_invoice.payment_intent'],
         })
+        
+        // Update metadata separately (not allowed in the update call above)
+        try {
+          await stripe.subscriptions.update(existingStripeSubscription.id, {
+            metadata: {
+              userId: user.id,
+              planSlug,
+              billingCycle,
+            },
+          })
+          console.log('[Create Subscription] Metadata updated separately after subscription update')
+        } catch (metadataError) {
+          console.warn('[Create Subscription] Failed to update metadata separately:', metadataError)
+          // Non-critical - metadata update can fail without breaking the subscription
+        }
 
         console.log('[Create Subscription] Subscription updated (upgrade):', {
           subscriptionId: subscription.id,
