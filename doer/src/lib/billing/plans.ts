@@ -245,6 +245,13 @@ export async function getPlanCycleBySlugAndCycle(
   const supabase = getServiceRoleClient()
   const plan = await fetchPlanBySlug(planSlug)
 
+  // Log for debugging
+  console.log('[getPlanCycleBySlugAndCycle] Querying for:', {
+    planSlug,
+    normalizedCycle,
+    planId: plan.id,
+  })
+
   const { data, error } = await supabase
     .from('billing_plan_cycles')
     .select(
@@ -270,13 +277,41 @@ export async function getPlanCycleBySlugAndCycle(
     .maybeSingle<PlanCycleRow>()
 
   if (error) {
+    console.error('[getPlanCycleBySlugAndCycle] Database error:', {
+      planSlug,
+      normalizedCycle,
+      planId: plan.id,
+      error: error.message,
+      errorCode: error.code,
+    })
     throw new Error(
       `Failed to load billing plan cycle "${planSlug}" (${normalizedCycle}): ${error.message}`
     )
   }
   if (!data) {
-    throw new Error(`Billing plan cycle "${planSlug}" (${normalizedCycle}) not found`)
+    // Log available cycles for debugging
+    const { data: allCycles } = await supabase
+      .from('billing_plan_cycles')
+      .select('cycle, billing_plan_id')
+      .eq('billing_plan_id', plan.id)
+    
+    console.error('[getPlanCycleBySlugAndCycle] Plan cycle not found:', {
+      planSlug,
+      normalizedCycle,
+      planId: plan.id,
+      availableCycles: allCycles?.map(c => c.cycle) || [],
+    })
+    
+    throw new Error(
+      `Billing plan cycle "${planSlug}" (${normalizedCycle}) not found. Available cycles for this plan: ${allCycles?.map(c => c.cycle).join(', ') || 'none'}`
+    )
   }
+
+  console.log('[getPlanCycleBySlugAndCycle] Found plan cycle:', {
+    planSlug,
+    cycle: data.cycle,
+    id: data.id,
+  })
 
   return mapPlanCycle(data)
 }
