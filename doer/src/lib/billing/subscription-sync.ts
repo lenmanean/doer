@@ -226,9 +226,7 @@ export async function syncSubscriptionSnapshot(
       if (status === 'active' || status === 'trialing') {
         // Cancel other active/trialing subscriptions for this user
         // But exclude the current subscription ID to avoid canceling itself
-        // Also exclude subscriptions that were just canceled (within last 5 seconds) to prevent race conditions
-        const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString()
-        
+        // This ensures only one active subscription per user
         await supabase
           .from('user_plan_subscriptions')
           .update({
@@ -240,7 +238,6 @@ export async function syncSubscriptionSnapshot(
           .eq('user_id', userId)
           .in('status', ['active', 'trialing'])
           .neq('external_subscription_id', subscription.id) // Don't cancel the subscription we're syncing
-          .or(`updated_at.lt.${fiveSecondsAgo},cancel_at.is.null`) // Don't cancel recently canceled subscriptions
       }
 
       // Insert new subscription record
