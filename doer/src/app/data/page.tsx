@@ -292,7 +292,6 @@ export default function DataPage() {
               <BarChart
                 data={productivityPatterns}
                 title=""
-                color="#3b82f6"
                 colors={['#3b82f6']}
               />
             </CardContent>
