@@ -243,7 +243,7 @@ export async function getActiveSubscriptionFromStripe(
     // Fallback to default values
     planDetails = {
       name: planSlug === 'pro' ? 'Pro' : 'Basic',
-      apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 120 : 100) : 25,
+      apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 150 : 100) : 10,
       integrationActionLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 4000 : 3000) : 100,
       priceCents: null,
     }
@@ -307,7 +307,7 @@ export async function getAllSubscriptionsFromStripe(
       logger.error('Error fetching plan details', error as Error, { userId, planSlug, billingCycle })
       planDetails = {
         name: planSlug === 'pro' ? 'Pro' : 'Basic',
-        apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 120 : 100) : 25,
+        apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 150 : 100) : 10,
         integrationActionLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 4000 : 3000) : 100,
         priceCents: null,
       }
