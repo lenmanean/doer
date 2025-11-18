@@ -31,6 +31,7 @@ interface UserProfile {
   id: string
   first_name?: string
   last_name?: string
+  username?: string
   email?: string
   avatar_url?: string
 }
@@ -279,10 +280,17 @@ export default function AuthAwareLanding() {
                       ) : (
                         <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-sm font-medium">
-                            {(profile?.first_name || user?.email || 'U').charAt(0).toUpperCase()}
+                            {(profile?.first_name || profile?.username || user?.email || 'U').charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
+                      <span className="text-sm text-[#d7d2cb] hidden md:block">
+                        {profile?.first_name 
+                          ? profile.first_name
+                          : profile?.username 
+                            ? profile.username
+                            : user?.email?.split('@')[0] || 'User'}
+                      </span>
                     </button>
                     
                     {/* Dropdown Menu */}
@@ -292,7 +300,9 @@ export default function AuthAwareLanding() {
                           <div className="text-sm font-medium text-[#d7d2cb]">
                             {profile?.first_name 
                               ? `${profile.first_name}${profile?.last_name ? ` ${profile.last_name}` : ''}`.trim()
-                            : user?.email?.split('@')[0] || 'User'}
+                            : profile?.username
+                              ? profile.username
+                              : user?.email?.split('@')[0] || 'User'}
                           </div>
                           <div className="text-xs text-[#d7d2cb]/60">
                           {user?.email ?? ''}

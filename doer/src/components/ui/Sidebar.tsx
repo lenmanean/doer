@@ -16,7 +16,6 @@ import {
   ChevronRight,
   BarChart3,
   HelpCircle,
-  Heart,
   Users
 } from 'lucide-react'
 import { Button } from './Button'
@@ -43,7 +42,7 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Schedule', href: '/schedule', icon: Calendar },
-    { name: 'Health', href: '/health', icon: Heart },
+    { name: 'Data', href: '/data', icon: BarChart3 },
     { name: 'Community', href: '/community', icon: Users },
     { name: 'Settings', href: '/settings', icon: Cog },
     { name: 'Help', href: '/help', icon: HelpCircle },

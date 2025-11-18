@@ -6,7 +6,6 @@ export { Progress } from './Progress'
 export { Skeleton } from './Skeleton'
 export { FadeInWrapper, StaggeredFadeIn } from './FadeInWrapper'
 export { Sidebar } from './Sidebar'
-export { HealthModal } from './HealthModal'
 // export { DurationBadge } from './DurationBadge' // Component not implemented yet
 export { TaskBlock } from './TaskBlock'
 export { CreateTaskModal } from './CreateTaskModal'

@@ -62,7 +62,7 @@ export async function middleware(req: NextRequest) {
   const url = new URL(req.url)
   const pathname = url.pathname
 
-  const PROTECTED_PREFIXES = ['/dashboard', '/schedule', '/roadmap', '/settings', '/community', '/health']
+  const PROTECTED_PREFIXES = ['/dashboard', '/schedule', '/roadmap', '/settings', '/community', '/data']
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
   let user = null as any

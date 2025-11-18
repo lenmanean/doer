@@ -15,10 +15,6 @@ import { supabase } from '@/lib/supabase/client'
 import { parseDateFromDB, formatDateForDisplay, formatTimeForDisplay } from '@/lib/date-utils'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
 import { useSupabase } from '@/components/providers/supabase-provider'
-import { useCountUp } from '@/hooks/useCountUp'
-import { HealthModal } from '@/components/ui/HealthModal'
-import { PulseOrb } from '@/components/ui/PulseOrb'
-import { HealthCountdownTimer } from '@/components/ui/HealthCountdownTimer'
 // FloatingInsightCard removed - using inline insights instead
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
 import { SwitchPlanModal } from '@/components/ui/SwitchPlanModal'
@@ -35,15 +31,6 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const { addToast } = useToast()
   const [isClient, setIsClient] = useState(false)
-  // Health metrics (degrading health model)
-  const [healthScore, setHealthScore] = useState(100)
-  const [hasScheduledTasks, setHasScheduledTasks] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [consistency, setConsistency] = useState(0)
-  const [efficiency, setEfficiency] = useState<number | null>(0)
-  const [loadingHealth, setLoadingHealth] = useState(true)
-  const [healthColor, setHealthColor] = useState('#10b981') // Start green
-  const [healthHistory, setHealthHistory] = useState<any>(null)
   const [todayTasks, setTodayTasks] = useState<Array<{id: string, text: string, completed: boolean, dbTask?: boolean, scheduled_date?: string, estimated_duration_minutes?: number, complexity_score?: number}>>([])
   const [tasksGlowing, setTasksGlowing] = useState(false)
   const [recentActivities, setRecentActivities] = useState<Array<any>>([])
@@ -72,9 +59,6 @@ function DashboardContent() {
   // Smart scheduling state
   const [schedulingStats, setSchedulingStats] = useState<any>(null)
   const [smartSchedulingEnabled, setSmartSchedulingEnabled] = useState(true)
-  
-  // Count-up animation for health score display
-  const animatedValue = useCountUp(healthScore, 800)
   
   // Use onboarding protection hook
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
@@ -519,60 +503,15 @@ function DashboardContent() {
     }
   }, [activePlan, loadingPlans])
   
-  // Generate cycling insights based on health metrics (memoized to prevent erratic cycling)
+  // Generate cycling insights - simplified version without health metrics
   useEffect(() => {
-    if (activePlan && !loadingHealth) {
-      const insights: string[] = []
-      
-      // Calculate metric changes from history
-      if (healthHistory) {
-        // Efficiency change
-        if (healthHistory.efficiency && healthHistory.efficiency.length > 1) {
-          const latestEff = (healthHistory.efficiency[healthHistory.efficiency.length - 1] as any)?.value || 0
-          const earliestEff = (healthHistory.efficiency[0] as any)?.value || 0
-          const effChange = latestEff - earliestEff
-          if (Math.abs(effChange) > 0.5) {
-            insights.push(`Efficiency ${effChange > 0 ? 'up' : 'down'} ${Math.abs(effChange).toFixed(1)}%`)
-          }
-        }
-        
-        // Progress change this week
-        if (healthHistory.progress && healthHistory.progress.length > 1) {
-          const latestProg = (healthHistory.progress[healthHistory.progress.length - 1] as any)?.value || 0
-          const earliestProg = (healthHistory.progress[0] as any)?.value || 0
-          const progChange = latestProg - earliestProg
-          if (Math.abs(progChange) > 0.5) {
-            insights.push(`${progChange > 0 ? '+' : ''}${progChange.toFixed(1)}% progress this week`)
-          }
-        }
-        
-        // Consistency change
-        if (healthHistory.consistency && healthHistory.consistency.length > 1) {
-          const latestCons = (healthHistory.consistency[healthHistory.consistency.length - 1] as any)?.value || 0
-          const earliestCons = (healthHistory.consistency[0] as any)?.value || 0
-          const consChange = latestCons - earliestCons
-          if (Math.abs(consChange) > 0.5) {
-            insights.push(`${consChange > 0 ? '+' : ''}${consChange.toFixed(1)}% consistency this week`)
-          }
-        }
-      }
-      
-      // Day streak
-      if (consistency >= 30) {
-        const dayStreak = Math.round(consistency / 10)
-        insights.push(`${dayStreak} day streak`)
-      }
-      
-      // Default insight if none generated
-      if (insights.length === 0) {
-        insights.push('No insights yet')
-      }
-      
+    if (activePlan) {
+      const insights: string[] = ['No insights yet']
       setCyclingInsights(insights)
     } else {
       setCyclingInsights(['No insights yet'])
     }
-  }, [activePlan, loadingHealth, healthHistory, efficiency, consistency, progress, healthScore])
+  }, [activePlan])
   
   // Cycle through insights
   useEffect(() => {
@@ -813,28 +752,6 @@ function DashboardContent() {
             filter: `plan_id=eq.${activePlan.id}`
           },
           async (payload) => {
-            // Refresh health metrics
-            const loadHealthMetrics = async () => {
-              try {
-                // Mock health metrics for now - can be implemented later
-                setHealthScore(85)
-                setHasScheduledTasks(true)
-                setProgress(75)
-                setConsistency(80)
-                setEfficiency(70)
-                setHealthHistory([])
-                
-                // Set color based on health score (degrading health model)
-                if (!true) setHealthColor('#9ca3af') // hasScheduledTasks is true
-                else if (85 >= 80) setHealthColor('#10b981')
-                else if (85 >= 60) setHealthColor('#f59e0b')
-                else setHealthColor('#ef4444')
-              } catch (error) {
-                console.error('Error refreshing health metrics:', error)
-              }
-            }
-            loadHealthMetrics()
-            
             // For now, just set empty tasks since we're using the schedule system
             setTodayTasks([])
             
