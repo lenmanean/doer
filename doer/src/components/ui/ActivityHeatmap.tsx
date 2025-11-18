@@ -280,76 +280,74 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       </div>
 
       {/* Calendar Grid with Y-axis Labels */}
-      <div className="flex justify-center">
-        <div className="flex gap-2">
-          {/* Y-axis (day numbers) */}
-          <div className="flex flex-col gap-1.5 pt-7">
-            {weeksData.map((week, weekIndex) => {
-              // Get the day numbers for this week (filter out empty days)
-              const dayNumbers = week
-                .map(day => day.dayNumber)
-                .filter(num => num > 0)
-              
-              if (dayNumbers.length === 0) {
-                return <div key={`week-${weekIndex}`} className="h-16" />
+      <div className="flex gap-3">
+        {/* Y-axis (day numbers) */}
+        <div className="flex flex-col gap-1.5 pt-7 flex-shrink-0">
+          {weeksData.map((week, weekIndex) => {
+            // Get the day numbers for this week (filter out empty days)
+            const dayNumbers = week
+              .map(day => day.dayNumber)
+              .filter(num => num > 0)
+            
+            if (dayNumbers.length === 0) {
+              return <div key={`week-${weekIndex}`} className="h-16" />
+            }
+            
+            // Format: "1" or "2-8" or "9-15" etc.
+            const label = dayNumbers.length === 1 
+              ? dayNumbers[0].toString()
+              : `${dayNumbers[0]}-${dayNumbers[dayNumbers.length - 1]}`
+            
+            return (
+              <div
+                key={`week-${weekIndex}`}
+                className="text-sm text-[#d7d2cb]/60 text-right pr-2 h-16 flex items-center justify-end"
+              >
+                {label}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Main Calendar Grid */}
+        <div className="flex-1 min-w-0">
+          {/* Weekday Labels */}
+          <div className="grid grid-cols-7 gap-1.5 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <div key={day} className="text-sm text-[#d7d2cb]/50 text-center">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-1.5 overflow-hidden">
+            {monthData.map((day, dayIndex) => {
+              if (!day.date) {
+                return <div key={`empty-${dayIndex}`} className="aspect-square" />
               }
-              
-              // Format: "1" or "2-8" or "9-15" etc.
-              const label = dayNumbers.length === 1 
-                ? dayNumbers[0].toString()
-                : `${dayNumbers[0]}-${dayNumbers[dayNumbers.length - 1]}`
-              
+
               return (
-                <div
-                  key={`week-${weekIndex}`}
-                  className="text-sm text-[#d7d2cb]/60 text-right pr-3 h-16 flex items-center justify-end"
-                >
-                  {label}
+                <div key={day.date} className="relative aspect-square overflow-hidden">
+                  <motion.div
+                    className={cn(
+                      'w-full h-full rounded-sm cursor-pointer transition-all',
+                      getColor(day.count),
+                      hoveredDate === day.date && 'ring-1 ring-white/50'
+                    )}
+                    onMouseEnter={(e) => handleDayHover(e, day.date)}
+                    onMouseLeave={() => {
+                      setHoveredDate(null)
+                      setTooltipPosition(null)
+                    }}
+                    onClick={() => handleDayClick(day.date)}
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ transformOrigin: 'center' }}
+                  />
                 </div>
               )
             })}
-          </div>
-
-          {/* Main Calendar Grid */}
-          <div>
-            {/* Weekday Labels */}
-            <div className="grid grid-cols-7 gap-1.5 mb-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-sm text-[#d7d2cb]/50 text-center w-16">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1.5 overflow-hidden">
-              {monthData.map((day, dayIndex) => {
-                if (!day.date) {
-                  return <div key={`empty-${dayIndex}`} className="w-16 h-16" />
-                }
-
-                return (
-                  <div key={day.date} className="relative w-16 h-16 overflow-hidden">
-                    <motion.div
-                      className={cn(
-                        'w-16 h-16 rounded-sm cursor-pointer transition-all',
-                        getColor(day.count),
-                        hoveredDate === day.date && 'ring-1 ring-white/50'
-                      )}
-                      onMouseEnter={(e) => handleDayHover(e, day.date)}
-                      onMouseLeave={() => {
-                        setHoveredDate(null)
-                        setTooltipPosition(null)
-                      }}
-                      onClick={() => handleDayClick(day.date)}
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ duration: 0.2 }}
-                      style={{ transformOrigin: 'center' }}
-                    />
-                  </div>
-                )
-              })}
-            </div>
           </div>
         </div>
       </div>
