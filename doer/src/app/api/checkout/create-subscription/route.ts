@@ -230,6 +230,8 @@ export async function POST(request: NextRequest) {
         // This maintains the same subscription ID and avoids race conditions
         console.log('[Create Subscription] Updating existing subscription to new plan')
         
+        // For upgrades, use 'pending_if_incomplete' which will attempt to charge
+        // the default payment method automatically, but requires confirmation if payment fails
         subscription = await stripe.subscriptions.update(existingStripeSubscription.id, {
           items: [
             {
@@ -242,7 +244,7 @@ export async function POST(request: NextRequest) {
             planSlug,
             billingCycle,
           },
-          payment_behavior: 'default_incomplete', // Require payment for the change
+          payment_behavior: 'pending_if_incomplete', // Try to charge default payment method, require confirmation if it fails
           proration_behavior: 'always_invoice', // Prorate the difference
           expand: ['latest_invoice', 'latest_invoice.payment_intent'],
         })
@@ -256,6 +258,25 @@ export async function POST(request: NextRequest) {
               : subscription.latest_invoice.id
             : null,
         })
+        
+        // If subscription is incomplete or past_due after update, we need to handle payment
+        // The invoice should have a payment intent that needs confirmation
+        if (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired' || subscription.status === 'past_due') {
+          console.log('[Create Subscription] Subscription requires payment after update, will handle payment via invoice', {
+            status: subscription.status,
+          })
+          // Continue to invoice processing below - the payment intent will be extracted and returned
+        } else if (subscription.status === 'active') {
+          // Payment succeeded automatically - sync to database immediately
+          console.log('[Create Subscription] Subscription is active after update, syncing to database')
+          try {
+            await syncSubscriptionSnapshot(subscription, { userId: user.id })
+            console.log('[Create Subscription] Successfully synced updated subscription to database')
+          } catch (syncError) {
+            console.error('[Create Subscription] Error syncing updated subscription:', syncError)
+            // Continue - webhook will handle it
+          }
+        }
       }
     }
     
