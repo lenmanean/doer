@@ -16,16 +16,21 @@ function CheckoutSuccessContent() {
   const billingCycle = searchParams.get('cycle')
 
   useEffect(() => {
+    console.log('[CheckoutSuccess] Page loaded with params:', { planSlug, billingCycle })
+    
     if (!planSlug) {
+      console.warn('[CheckoutSuccess] No planSlug found, redirecting to dashboard')
       router.push('/dashboard')
       return
     }
 
+    console.log('[CheckoutSuccess] Starting countdown timer')
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
           // Redirect to settings page with upgrade flag to show updated subscription
+          console.log('[CheckoutSuccess] Countdown complete, redirecting to settings')
           router.push(`/settings?upgraded=true&plan=${planSlug}&section=subscription`)
           return 0
         }

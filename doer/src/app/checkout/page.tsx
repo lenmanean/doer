@@ -428,6 +428,7 @@ function CheckoutForm() {
         }
         
         // Redirect to success page
+        console.log('[Checkout] Redirecting to success page:', { planSlug, billingCycle })
         router.push(`/checkout/success?plan=${planSlug}&cycle=${billingCycle}&upgraded=true`)
       } else if (paymentIntent?.status === 'requires_action') {
         // Handle 3D Secure or other actions
