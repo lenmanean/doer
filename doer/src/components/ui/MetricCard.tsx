@@ -41,7 +41,6 @@ export function MetricCard({
     return `M ${points.join(' L ')}`
   }
 
-  const trendIcon = trend && trend !== 0 ? (trend > 0 ? TrendingUp : TrendingDown) : null
   const trendColor = trend && trend > 0 ? 'text-green-400' : trend && trend < 0 ? 'text-red-400' : 'text-[#d7d2cb]/60'
 
   return (
@@ -61,7 +60,11 @@ export function MetricCard({
             </span>
             {trend !== undefined && trend !== 0 && (
               <div className={cn('flex items-center text-xs font-medium', trendColor)}>
-                {trendIcon && <trendIcon className="w-3 h-3" />}
+                {trend > 0 ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : (
+                  <TrendingDown className="w-3 h-3" />
+                )}
                 <span className="ml-1">{Math.abs(Math.round(trend))}%</span>
               </div>
             )}
@@ -128,7 +131,11 @@ export function MetricCard({
               )}
               {trend !== undefined && trend !== 0 && (
                 <div className={cn('flex items-center justify-center gap-1 text-sm mt-2', trendColor)}>
-                  {trendIcon && <trendIcon className="w-4 h-4" />}
+                  {trend > 0 ? (
+                    <TrendingUp className="w-4 h-4" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4" />
+                  )}
                   <span>{trend > 0 ? 'Up' : 'Down'} {Math.abs(Math.round(trend))}% from last period</span>
                 </div>
               )}
