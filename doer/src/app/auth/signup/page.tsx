@@ -124,7 +124,10 @@ function CustomSignupForm() {
         
         let errorDescription = error.message
         if (isRateLimitError) {
-          errorDescription = 'Too many signup attempts. Please wait a few minutes and try again, or contact support if the issue persists.'
+          // Extract retry-after if available, otherwise suggest 5-10 minutes
+          const retryAfter = (error as any).retryAfter || 300 // Default to 5 minutes
+          const waitMinutes = Math.ceil(retryAfter / 60)
+          errorDescription = `Too many signup attempts. Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} and try again. If this persists, the rate limit may need to be increased in the Supabase dashboard.`
         } else if (isEmailError) {
           errorDescription = 'Unable to send confirmation email. This may be due to rate limiting. Please wait a few minutes and try again, or contact support.'
         }
@@ -133,7 +136,7 @@ function CustomSignupForm() {
           type: 'error',
           title: 'Signup Failed',
           description: errorDescription,
-          duration: 7000
+          duration: 10000 // Longer duration for rate limit errors
         })
       } else {
         // Account created - user may or may not have received email
