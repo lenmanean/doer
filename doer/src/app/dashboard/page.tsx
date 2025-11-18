@@ -693,48 +693,6 @@ function DashboardContent() {
     }
   }, [planTasks.length, user?.id, loadingPlans, loadNotifications])
 
-  // Load health metrics (degrading health model)
-  useEffect(() => {
-    const loadHealthMetrics = async () => {
-      if (user?.id && activePlan) {
-        try {
-          setLoadingHealth(true)
-          // Mock health metrics for now - can be implemented later
-          setHealthScore(85)
-          setHasScheduledTasks(true)
-          setProgress(75)
-          setConsistency(80)
-          setEfficiency(70)
-          setHealthHistory([])
-          
-          // Set health color based on health score (degrading health model)
-          if (!true) { // hasScheduledTasks is true
-            setHealthColor('#9ca3af') // gray - no tasks scheduled
-          } else if (85 >= 80) {
-            setHealthColor('#10b981') // green - excellent health
-          } else if (85 >= 60) {
-            setHealthColor('#f59e0b') // yellow/orange - health degrading
-          } else {
-            setHealthColor('#ef4444') // red - critical health
-          }
-          
-        } catch (error) {
-          console.error('Error loading health metrics:', error)
-          // Set default values on error
-          setHealthScore(100)
-          setHasScheduledTasks(false)
-          setProgress(0)
-          setConsistency(0)
-          setEfficiency(null)
-          setHealthColor('#9ca3af')
-        } finally {
-          setLoadingHealth(false)
-        }
-      }
-    }
-
-    loadHealthMetrics()
-  }, [user?.id, activePlan?.id])
 
   // OLD INSIGHTS LOGIC REMOVED - Using new metric-based insights above (lines 118-182)
 
