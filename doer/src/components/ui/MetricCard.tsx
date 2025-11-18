@@ -25,18 +25,6 @@ export function MetricCard({
   formatValue = (v) => `${Math.round(v)}%`,
   className
 }: MetricCardProps) {
-  // Generate sparkline path
-  const generateSparkline = (data: number[]) => {
-    if (data.length === 0) return ''
-    const width = 100
-    const height = 20
-    const points = data.map((d, i) => {
-      const x = (i / (data.length - 1)) * width
-      const y = height - (d / 100) * height
-      return `${x},${y}`
-    })
-    return `M ${points.join(' L ')}`
-  }
 
   const trendColor = trend && trend > 0 ? 'text-green-400' : trend && trend < 0 ? 'text-red-400' : 'text-[#d7d2cb]/60'
 
@@ -66,42 +54,6 @@ export function MetricCard({
         </div>
       </div>
 
-      {/* Sparkline */}
-      {sparklineData.length > 0 && (
-        <div className="mt-3 h-5">
-          <svg width="100%" height="20" viewBox="0 0 100 20" className="overflow-visible">
-            {sparklineData.length > 1 && (
-              <motion.path
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 0.8, ease: 'easeInOut' }}
-                d={generateSparkline(sparklineData)}
-                fill="none"
-                stroke={color}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-            {sparklineData.map((point, i) => {
-              const x = sparklineData.length === 1 ? 50 : (i / (sparklineData.length - 1)) * 100
-              const y = 20 - (point / 100) * 20
-              return (
-                <motion.circle
-                  key={i}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.1 * i }}
-                  cx={x}
-                  cy={y}
-                  r="1.5"
-                  fill={color}
-                />
-              )
-            })}
-          </svg>
-        </div>
-      )}
 
     </div>
   )

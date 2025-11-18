@@ -201,7 +201,6 @@ export default function DataPage() {
             title="Completion Rate"
             value={completionRate}
             trend={2.5}
-            sparklineData={[80, 82, 81, 83, 85, 84, 85]}
             description="Overall task completion"
             color="#22c55e"
           />
@@ -209,12 +208,11 @@ export default function DataPage() {
             title="Current Streak"
             value={streak}
             trend={3}
-            sparklineData={[8, 9, 10, 11, 12, 12, 12]}
             description="Consecutive days with completions"
             color="#3b82f6"
             formatValue={(v) => `${Math.round(v)} days`}
           />
-          <div className="flex items-center justify-center">
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-center">
             <ProgressRing
               percentage={onTimeRate}
               size={100}
@@ -236,7 +234,6 @@ export default function DataPage() {
             title="Reschedule Rate"
             value={rescheduleRate}
             trend={-1.2}
-            sparklineData={[10, 9, 8, 9, 8, 8, 8]}
             description="Tasks requiring rescheduling"
             color="#ef4444"
           />
@@ -245,7 +242,7 @@ export default function DataPage() {
         {/* Activity Heatmap */}
         <Card className="bg-white/5 border-white/10 mb-8">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
+            <CardTitle className="text-xl font-semibold text-[#d7d2cb]">
               Activity Heatmap
             </CardTitle>
           </CardHeader>
