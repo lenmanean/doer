@@ -160,11 +160,7 @@
           "credits": {
             "api": {
               "label": "APIクレジット",
-              "value": "月25件"
-            },
-            "integrations": {
-              "label": "連携アクション",
-              "value": "月100件"
+              "value": "月10件"
             }
           },
           "highlights": [
@@ -198,7 +194,7 @@
               "label": "APIクレジット",
               "value": {
                 "monthly": "月100件",
-                "annual": "月120件"
+                "annual": "月150件"
               }
             },
             "integrations": {

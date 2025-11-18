@@ -160,11 +160,7 @@
           "credits": {
             "api": {
               "label": "API 크레딧",
-              "value": "월 25회"
-            },
-            "integrations": {
-              "label": "통합 작업",
-              "value": "월 100회"
+              "value": "월 10회"
             }
           },
           "highlights": [
@@ -198,7 +194,7 @@
               "label": "API 크레딧",
               "value": {
                 "monthly": "월 100회",
-                "annual": "월 120회"
+                "annual": "월 150회"
               }
             },
             "integrations": {

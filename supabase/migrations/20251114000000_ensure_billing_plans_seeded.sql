@@ -22,7 +22,7 @@ SELECT bp.id,
        bc.metadata
 FROM (
   VALUES
-    ('basic', 'monthly'::public.billing_cycle, 10, 100, 0, '{}'::jsonb),
+    ('basic', 'monthly'::public.billing_cycle, 10, 0, 0, '{}'::jsonb),
     ('pro', 'monthly'::public.billing_cycle, 100, 3000, 2000, jsonb_build_object('stripe_price_id', 'price_pro_monthly')),
     ('pro', 'annual'::public.billing_cycle, 150, 4000, 16000, jsonb_build_object('stripe_price_id', 'price_pro_annual'))
 ) AS bc(plan_slug, cycle, api_limit, integration_limit, price_cents, metadata)

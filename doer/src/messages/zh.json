@@ -160,11 +160,7 @@
           "credits": {
             "api": {
               "label": "API 积分",
-              "value": "每月 25 次"
-            },
-            "integrations": {
-              "label": "集成操作",
-              "value": "每月 100 次"
+              "value": "每月 10 次"
             }
           },
           "highlights": [
@@ -198,7 +194,7 @@
               "label": "API 积分",
               "value": {
                 "monthly": "每月 100 次",
-                "annual": "每月 120 次"
+                "annual": "每月 150 次"
               }
             },
             "integrations": {

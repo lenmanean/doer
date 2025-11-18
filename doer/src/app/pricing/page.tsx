@@ -56,10 +56,6 @@ export default function PricingPage() {
           label: t('pages.pricing.plans.basic.credits.api.label'),
           value: t('pages.pricing.plans.basic.credits.api.value'),
         },
-        {
-          label: t('pages.pricing.plans.basic.credits.integrations.label'),
-          value: t('pages.pricing.plans.basic.credits.integrations.value'),
-        },
       ],
       highlights: [
         t('pages.pricing.plans.basic.highlights.0'),

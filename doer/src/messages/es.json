@@ -160,11 +160,7 @@
           "credits": {
             "api": {
               "label": "Créditos de API",
-              "value": "25 / mes"
-            },
-            "integrations": {
-              "label": "Acciones de integración",
-              "value": "100 / mes"
+              "value": "10 / mes"
             }
           },
           "highlights": [
@@ -198,7 +194,7 @@
               "label": "Créditos de API",
               "value": {
                 "monthly": "100 / mes",
-                "annual": "120 / mes"
+                "annual": "150 / mes"
               }
             },
             "integrations": {
