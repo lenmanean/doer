@@ -73,7 +73,8 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const handleDayHover = (e: React.MouseEvent<HTMLDivElement>, date: string) => {
     if (!date) return
     setHoveredDate(date)
-    setTooltipPosition({ x: e.clientX, y: e.clientY })
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
   }
 
   const handleDayClick = (date: string) => {
@@ -148,7 +149,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   return (
     <div className={cn('relative', className)}>
       {/* Month/Year Navigation */}
-      <div className="flex items-center justify-center mb-2">
+      <div className="flex items-center justify-center mb-1">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateMonth('prev')}
@@ -272,7 +273,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       <div className="flex justify-center">
         <div className="flex gap-2">
           {/* Y-axis (day numbers) */}
-          <div className="flex flex-col gap-0.5 pt-6">
+          <div className="flex flex-col gap-0.5 pt-5">
             {weeksData.map((week, weekIndex) => {
               // Get the day numbers for this week (filter out empty days)
               const dayNumbers = week
@@ -344,7 +345,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-2 mt-3 text-xs text-[#d7d2cb]/60">
+      <div className="flex items-center justify-center gap-2 mt-2 text-xs text-[#d7d2cb]/60">
         <span>Less</span>
         <div className="flex gap-1">
           <div className="w-3 h-3 rounded-sm bg-gray-800/50" />
@@ -362,11 +363,11 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none"
+            className="fixed z-[9999] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none"
             style={{
-              left: `${tooltipPosition.x + 10}px`,
+              left: `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y - 10}px`,
-              transform: 'translateY(-100%)'
+              transform: 'translate(-50%, -100%)'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">

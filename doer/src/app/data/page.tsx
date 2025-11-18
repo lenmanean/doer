@@ -196,7 +196,7 @@ export default function DataPage() {
         </div>
 
         {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
           <MetricCard
             title="Completion Rate"
             value={completionRate}
@@ -246,7 +246,7 @@ export default function DataPage() {
               Activity Heatmap
             </CardTitle>
           </CardHeader>
-          <CardContent className="py-4">
+          <CardContent className="py-3 px-4">
             <ActivityHeatmap
               data={activityData}
               onDayClick={(date) => {
