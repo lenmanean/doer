@@ -113,17 +113,26 @@ function CustomSignupForm() {
       })
 
       if (error) {
-        // Check for SMTP/email sending errors
+        // Check for rate limiting (429) or email sending errors
+        const isRateLimitError = error.status === 429 || 
+                                 error.message.toLowerCase().includes('rate limit') ||
+                                 error.message.toLowerCase().includes('too many requests')
         const isEmailError = error.message.toLowerCase().includes('email') || 
                             error.message.toLowerCase().includes('smtp') ||
-                            error.message.toLowerCase().includes('mail')
+                            error.message.toLowerCase().includes('mail') ||
+                            isRateLimitError
+        
+        let errorDescription = error.message
+        if (isRateLimitError) {
+          errorDescription = 'Too many signup attempts. Please wait a few minutes and try again, or contact support if the issue persists.'
+        } else if (isEmailError) {
+          errorDescription = 'Unable to send confirmation email. This may be due to rate limiting. Please wait a few minutes and try again, or contact support.'
+        }
         
         addToast({
           type: 'error',
           title: 'Signup Failed',
-          description: isEmailError 
-            ? 'Unable to send confirmation email. Please contact support or try again later.'
-            : error.message,
+          description: errorDescription,
           duration: 7000
         })
       } else {
