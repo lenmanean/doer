@@ -246,7 +246,7 @@ export default function DataPage() {
               Activity Heatmap
             </CardTitle>
           </CardHeader>
-          <CardContent className="overflow-visible">
+          <CardContent className="py-4">
             <ActivityHeatmap
               data={activityData}
               onDayClick={(date) => {

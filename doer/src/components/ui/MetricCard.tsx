@@ -28,9 +28,9 @@ export function MetricCard({
   const trendColor = trend && trend > 0 ? 'text-green-400' : trend && trend < 0 ? 'text-red-400' : 'text-[#d7d2cb]/60'
 
   return (
-    <div className={cn('relative bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col h-full', className)}>
+    <div className={cn('relative bg-white/5 border border-white/10 rounded-lg p-4', className)}>
       <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1">{title}</h3>
-      <div className="flex items-baseline gap-2 mb-2">
+      <div className="flex items-baseline gap-2 mb-1">
         <span className="text-2xl font-bold text-[#d7d2cb]" style={{ color }}>
           {formatValue(value)}
         </span>
@@ -46,7 +46,7 @@ export function MetricCard({
         )}
       </div>
       {description && (
-        <p className="text-xs text-[#d7d2cb]/50 mt-auto">{description}</p>
+        <p className="text-xs text-[#d7d2cb]/50">{description}</p>
       )}
     </div>
   )

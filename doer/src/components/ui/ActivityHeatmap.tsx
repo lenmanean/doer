@@ -148,7 +148,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   return (
     <div className={cn('relative', className)}>
       {/* Month/Year Navigation */}
-      <div className="flex items-center justify-center mb-3">
+      <div className="flex items-center justify-center mb-2">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateMonth('prev')}
@@ -269,7 +269,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       </div>
 
       {/* Calendar Grid with Y-axis Labels */}
-      <div className="flex justify-center overflow-visible">
+      <div className="flex justify-center">
         <div className="flex gap-2">
           {/* Y-axis (day numbers) */}
           <div className="flex flex-col gap-0.5 pt-6">
@@ -302,7 +302,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
           {/* Main Calendar Grid */}
           <div>
             {/* Weekday Labels */}
-            <div className="grid grid-cols-7 gap-0.5 mb-1.5">
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                 <div key={day} className="text-xs text-[#d7d2cb]/50 text-center w-8">
                   {day}
@@ -311,19 +311,19 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-0.5 overflow-visible">
+            <div className="grid grid-cols-7 gap-0.5 overflow-hidden">
               {monthData.map((day, dayIndex) => {
                 if (!day.date) {
                   return <div key={`empty-${dayIndex}`} className="w-8 h-8" />
                 }
 
                 return (
-                  <div key={day.date} className="relative w-8 h-8">
+                  <div key={day.date} className="relative w-8 h-8 overflow-hidden">
                     <motion.div
                       className={cn(
                         'w-8 h-8 rounded-sm cursor-pointer transition-all',
                         getColor(day.count),
-                        hoveredDate === day.date && 'ring-2 ring-white/50'
+                        hoveredDate === day.date && 'ring-1 ring-white/50'
                       )}
                       onMouseEnter={(e) => handleDayHover(e, day.date)}
                       onMouseLeave={() => {
@@ -331,8 +331,9 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                         setTooltipPosition(null)
                       }}
                       onClick={() => handleDayClick(day.date)}
-                      whileHover={{ scale: 1.05 }}
+                      whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.2 }}
+                      style={{ transformOrigin: 'center' }}
                     />
                   </div>
                 )
@@ -343,7 +344,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-2 mt-4 text-xs text-[#d7d2cb]/60">
+      <div className="flex items-center gap-2 mt-3 text-xs text-[#d7d2cb]/60">
         <span>Less</span>
         <div className="flex gap-1">
           <div className="w-3 h-3 rounded-sm bg-gray-800/50" />
