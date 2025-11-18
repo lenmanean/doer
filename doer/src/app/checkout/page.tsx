@@ -191,6 +191,19 @@ function CheckoutForm() {
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}))
             console.error('[Checkout] Plan details error:', errorData)
+            
+            // If user already has this plan, redirect to settings
+            if (errorData.alreadySubscribed) {
+              addToast({
+                type: 'info',
+                title: 'Already Subscribed',
+                description: errorData.error || 'You already have this plan active.',
+                duration: 5000,
+              })
+              router.push('/settings?section=subscription')
+              return
+            }
+            
             throw new Error(errorData.error || 'Failed to fetch plan details')
           }
           const planData = await response.json()
