@@ -2144,6 +2144,29 @@ export default function SettingsPage() {
                                         {subscription.status}
                                       </span>
                                     </p>
+                                    {subscription.cancelAtPeriodEnd && (
+                                      <div className="mt-2 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                        <div className="flex items-start gap-2">
+                                          <AlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <p className="text-sm font-medium text-orange-400">
+                                              Subscription Canceled
+                                            </p>
+                                            <p className="text-xs text-[#d7d2cb]/70 mt-1">
+                                              Your subscription will end on{' '}
+                                              <span className="font-semibold text-[#d7d2cb]">
+                                                {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                                  year: 'numeric'
+                                                })}
+                                              </span>
+                                              . You will not be charged again, and you'll continue to have access until then.
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
                                     <div className="mt-2 space-y-1">
                                       <p className="text-sm text-[#d7d2cb]/60">
                                         API Credits: <span className="text-[#d7d2cb] font-semibold">

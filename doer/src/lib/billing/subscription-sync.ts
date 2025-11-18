@@ -183,7 +183,15 @@ export async function syncSubscriptionSnapshot(
       })
     }
 
-    const cancelAt = subscription.cancel_at ? formatStripeDate(subscription.cancel_at) : null
+    // Set cancel_at to current_period_end if cancel_at_period_end is true but cancel_at is null
+    // This ensures we have a cancellation date even if Stripe hasn't set it yet
+    let cancelAt: string | null = null
+    if (subscription.cancel_at) {
+      cancelAt = formatStripeDate(subscription.cancel_at)
+    } else if (subscription.cancel_at_period_end && currentPeriodEnd) {
+      // If cancel_at_period_end is true but cancel_at is null, use current_period_end
+      cancelAt = currentPeriodEnd
+    }
     const stripeCustomerId = extractCustomerId(subscription)
 
     const basePayload = {
