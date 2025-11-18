@@ -269,7 +269,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       </div>
 
       {/* Calendar Grid with Y-axis Labels */}
-      <div className="flex justify-center">
+      <div className="flex justify-center overflow-visible">
         <div className="flex gap-2">
           {/* Y-axis (day numbers) */}
           <div className="flex flex-col gap-0.5 pt-6">
@@ -311,29 +311,30 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-0.5">
+            <div className="grid grid-cols-7 gap-0.5 overflow-visible">
               {monthData.map((day, dayIndex) => {
                 if (!day.date) {
                   return <div key={`empty-${dayIndex}`} className="w-8 h-8" />
                 }
 
                 return (
-                  <motion.div
-                    key={day.date}
-                    className={cn(
-                      'w-8 h-8 rounded-sm cursor-pointer transition-all',
-                      getColor(day.count),
-                      hoveredDate === day.date && 'ring-2 ring-white/50 scale-110'
-                    )}
-                    onMouseEnter={(e) => handleDayHover(e, day.date)}
-                    onMouseLeave={() => {
-                      setHoveredDate(null)
-                      setTooltipPosition(null)
-                    }}
-                    onClick={() => handleDayClick(day.date)}
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ duration: 0.2 }}
-                  />
+                  <div key={day.date} className="relative w-8 h-8">
+                    <motion.div
+                      className={cn(
+                        'w-8 h-8 rounded-sm cursor-pointer transition-all',
+                        getColor(day.count),
+                        hoveredDate === day.date && 'ring-2 ring-white/50'
+                      )}
+                      onMouseEnter={(e) => handleDayHover(e, day.date)}
+                      onMouseLeave={() => {
+                        setHoveredDate(null)
+                        setTooltipPosition(null)
+                      }}
+                      onClick={() => handleDayClick(day.date)}
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  </div>
                 )
               })}
             </div>
