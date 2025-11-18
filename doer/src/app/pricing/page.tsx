@@ -154,10 +154,10 @@ export default function PricingPage() {
               <button
                 type="button"
                 onClick={() => setBillingCycle('annual')}
-                className={`rounded-full px-4 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
+                className={`rounded-full px-4 py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
                   billingCycle === 'annual'
-                    ? 'bg-orange-500 text-white shadow-sm dark:bg-orange-400 dark:text-slate-950'
-                    : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70'
+                    ? 'bg-orange-500 text-white dark:bg-orange-400 dark:text-slate-950 shadow-[0_0_15px_rgba(249,115,22,0.5)] dark:shadow-[0_0_15px_rgba(251,146,60,0.5)]'
+                    : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70 shadow-[0_0_8px_rgba(249,115,22,0.3)] dark:shadow-[0_0_8px_rgba(251,146,60,0.3)]'
                 }`}
               >
                 {t('pages.pricing.billing.annual')}
@@ -191,7 +191,7 @@ export default function PricingPage() {
                       {plan.id === 'pro' && billingCycle === 'annual' && (
                         <div className="mb-2">
                           <span className="text-sm text-slate-500 dark:text-slate-400 line-through mr-2">
-                            $240/yr
+                            $20/mo
                           </span>
                           <span className="text-xs font-semibold text-green-600 dark:text-green-400">
                             33% off
@@ -199,9 +199,9 @@ export default function PricingPage() {
                         </div>
                       )}
                       <p className="text-4xl font-bold text-slate-900 dark:text-slate-100">
-                        {plan.price}
+                        {plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price}
                         <span className="text-base font-medium text-slate-500 dark:text-slate-400">
-                          {plan.suffix}
+                          {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
                         </span>
                       </p>
                     </div>
