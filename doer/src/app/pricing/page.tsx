@@ -121,8 +121,55 @@ export default function PricingPage() {
   const creditTooltipText = t('pages.pricing.creditTooltip')
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors">
-      <PublicHeader />
+    <>
+      <style>{`
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 0 0 6px rgba(249, 115, 22, 0.4), 0 0 10px rgba(249, 115, 22, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 15px rgba(249, 115, 22, 0.3);
+          }
+        }
+        @keyframes pulse-glow-dark {
+          0%, 100% {
+            box-shadow: 0 0 6px rgba(251, 146, 60, 0.4), 0 0 10px rgba(251, 146, 60, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 10px rgba(251, 146, 60, 0.6), 0 0 15px rgba(251, 146, 60, 0.3);
+          }
+        }
+        @keyframes pulse-glow-subtle {
+          0%, 100% {
+            box-shadow: 0 0 3px rgba(249, 115, 22, 0.25);
+          }
+          50% {
+            box-shadow: 0 0 5px rgba(249, 115, 22, 0.35);
+          }
+        }
+        @keyframes pulse-glow-subtle-dark {
+          0%, 100% {
+            box-shadow: 0 0 3px rgba(251, 146, 60, 0.25);
+          }
+          50% {
+            box-shadow: 0 0 5px rgba(251, 146, 60, 0.35);
+          }
+        }
+        .glow-animated {
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
+        .dark .glow-animated {
+          animation: pulse-glow-dark 2s ease-in-out infinite;
+        }
+        .glow-animated-subtle {
+          animation: pulse-glow-subtle 2s ease-in-out infinite;
+        }
+        .dark .glow-animated-subtle {
+          animation: pulse-glow-subtle-dark 2s ease-in-out infinite;
+        }
+      `}</style>
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors">
+        <PublicHeader />
       
       <main className="flex-1 py-20 px-4 sm:px-6 lg:px-12 bg-white dark:bg-gray-900 transition-colors">
         <div className="max-w-4xl mx-auto text-center">
@@ -156,8 +203,8 @@ export default function PricingPage() {
                 onClick={() => setBillingCycle('annual')}
                 className={`rounded-full px-4 py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
                   billingCycle === 'annual'
-                    ? 'bg-orange-500 text-white dark:bg-orange-400 dark:text-slate-950 shadow-[0_0_15px_rgba(249,115,22,0.5)] dark:shadow-[0_0_15px_rgba(251,146,60,0.5)]'
-                    : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70 shadow-[0_0_8px_rgba(249,115,22,0.3)] dark:shadow-[0_0_8px_rgba(251,146,60,0.3)]'
+                    ? 'bg-orange-500 text-white dark:bg-orange-400 dark:text-slate-950 glow-animated'
+                    : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70 glow-animated-subtle'
                 }`}
               >
                 {t('pages.pricing.billing.annual')}
@@ -296,7 +343,8 @@ export default function PricingPage() {
       </main>
 
       <PublicFooter />
-    </div>
+      </div>
+    </>
   )
 }
 
