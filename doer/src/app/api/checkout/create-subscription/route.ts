@@ -180,7 +180,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingStripeSubscription && existingStripeSubscription.id) {
-      // User has existing subscription - UPDATE it instead of creating new
+      // User has existing subscription - UPDATE it instead of canceling and creating new
+      // This is Stripe's recommended approach and avoids race conditions
       console.log('[Create Subscription] Upgrading existing subscription:', {
         existingSubscriptionId: existingStripeSubscription.id,
         existingStatus: existingStripeSubscription.status,
@@ -189,21 +190,21 @@ export async function POST(request: NextRequest) {
         newPriceId: priceId,
       })
 
-      // When upgrading, cancel the old subscription and create a new one
-      // This ensures a clean billing cycle start and avoids proration/overdue issues
-      console.log('[Create Subscription] Canceling existing subscription to create fresh upgrade')
-      const oldSubscriptionId = existingStripeSubscription.id
-      try {
-        // Cancel the existing subscription immediately (don't wait for period end)
-        await stripe.subscriptions.cancel(oldSubscriptionId)
-        console.log('[Create Subscription] Successfully canceled existing subscription:', oldSubscriptionId)
-        
-        // Immediately mark the old subscription as canceled in database to prevent race conditions
-        // This prevents webhook from re-syncing it as active and canceling the new subscription
+      // Get the current subscription item ID to update
+      const currentItemId = existingStripeSubscription.items.data[0]?.id
+      
+      if (!currentItemId) {
+        throw new Error('Cannot find subscription item to update')
+      }
+
+      // If subscription is incomplete or incomplete_expired, cancel it first
+      // Then create a new one (can't update incomplete subscriptions)
+      if (existingStripeSubscription.status === 'incomplete' || existingStripeSubscription.status === 'incomplete_expired') {
+        console.log('[Create Subscription] Existing subscription is incomplete, canceling and creating new one')
         try {
-          const supabase = await createClient()
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
+          await stripe.subscriptions.cancel(existingStripeSubscription.id)
+          // Mark as canceled in database immediately
+          try {
             const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
             const serviceSupabase = getServiceRoleClient()
             await serviceSupabase
@@ -214,23 +215,48 @@ export async function POST(request: NextRequest) {
                 cancel_at_period_end: false,
                 updated_at: new Date().toISOString(),
               })
-              .eq('external_subscription_id', oldSubscriptionId)
+              .eq('external_subscription_id', existingStripeSubscription.id)
               .eq('user_id', user.id)
-            
-            console.log('[Create Subscription] Marked old subscription as canceled in database:', oldSubscriptionId)
+          } catch (dbError) {
+            console.warn('[Create Subscription] Error marking incomplete subscription as canceled:', dbError)
           }
-        } catch (dbError) {
-          console.warn('[Create Subscription] Error marking old subscription as canceled in database:', dbError)
-          // Non-critical - webhook will handle it
+        } catch (cancelError) {
+          console.warn('[Create Subscription] Error canceling incomplete subscription:', cancelError)
         }
-      } catch (cancelError) {
-        console.warn('[Create Subscription] Error canceling existing subscription:', cancelError)
-        // Continue anyway - we'll create a new subscription
-        // If cancel fails, Stripe might still allow creating a new subscription
+        // Clear reference so we create new subscription below
+        existingStripeSubscription = null
+      } else {
+        // Update the existing subscription - Stripe's recommended approach
+        // This maintains the same subscription ID and avoids race conditions
+        console.log('[Create Subscription] Updating existing subscription to new plan')
+        
+        subscription = await stripe.subscriptions.update(existingStripeSubscription.id, {
+          items: [
+            {
+              id: currentItemId,
+              price: priceId, // Update to new price
+            },
+          ],
+          metadata: {
+            userId: user.id,
+            planSlug,
+            billingCycle,
+          },
+          payment_behavior: 'default_incomplete', // Require payment for the change
+          proration_behavior: 'always_invoice', // Prorate the difference
+          expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+        })
+
+        console.log('[Create Subscription] Subscription updated (upgrade):', {
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          latestInvoice: subscription.latest_invoice
+            ? typeof subscription.latest_invoice === 'string'
+              ? subscription.latest_invoice
+              : subscription.latest_invoice.id
+            : null,
+        })
       }
-      
-      // Clear the existing subscription so we create a new one below
-      existingStripeSubscription = null
     }
     
     // Create new subscription if we don't have one yet (either no existing subscription or we canceled an incomplete one)
