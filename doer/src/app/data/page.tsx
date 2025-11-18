@@ -215,8 +215,8 @@ export default function DataPage() {
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-center">
             <ProgressRing
               percentage={onTimeRate}
-              size={100}
-              strokeWidth={10}
+              size={75}
+              strokeWidth={8}
               color="#f59e0b"
               showBreakdown={true}
               breakdown={[
@@ -225,7 +225,7 @@ export default function DataPage() {
                 { label: 'Missed', value: 8, color: '#ef4444' }
               ]}
             />
-            <div className="ml-4">
+            <div className="ml-3">
               <div className="text-sm font-medium text-[#d7d2cb]/70 mb-1">On-Time Rate</div>
               <div className="text-2xl font-bold text-[#d7d2cb]">{onTimeRate}%</div>
             </div>
@@ -246,7 +246,7 @@ export default function DataPage() {
               Activity Heatmap
             </CardTitle>
           </CardHeader>
-          <CardContent className="py-3 px-4">
+          <CardContent className="py-3 px-4 overflow-visible">
             <ActivityHeatmap
               data={activityData}
               onDayClick={(date) => {

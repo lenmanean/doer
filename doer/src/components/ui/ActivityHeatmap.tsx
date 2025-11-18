@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -24,6 +24,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showMonthSelector, setShowMonthSelector] = useState(false)
   const [showYearSelector, setShowYearSelector] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -74,7 +75,16 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     if (!date) return
     setHoveredDate(date)
     const rect = e.currentTarget.getBoundingClientRect()
-    setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
+    const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
+    if (containerRect) {
+      // Position relative to container
+      const x = rect.left - containerRect.left + rect.width / 2
+      const y = rect.top - containerRect.top
+      setTooltipPosition({ x, y })
+    } else {
+      // Fallback to absolute positioning
+      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top })
+    }
   }
 
   const handleDayClick = (date: string) => {
@@ -147,7 +157,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   }, [monthData])
 
   return (
-    <div className={cn('relative', className)}>
+    <div ref={containerRef} data-heatmap-container className={cn('relative overflow-visible', className)}>
       {/* Month/Year Navigation */}
       <div className="flex items-center justify-center mb-1">
         <div className="flex items-center gap-3">
@@ -363,11 +373,12 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed z-[9999] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none"
+            className="absolute z-[100] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none"
             style={{
               left: `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y - 10}px`,
-              transform: 'translate(-50%, -100%)'
+              transform: 'translate(-50%, -100%)',
+              maxWidth: '200px'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
