@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -9,15 +9,6 @@ import { Languages, ChevronDown, Menu, X, Sun, Moon, User, LogOut } from 'lucide
 import { Button } from './Button'
 import { locales, localeNames, type Locale } from '@/i18n/config'
 import { signOutClient } from '@/lib/auth/sign-out-client'
-
-interface UserProfile {
-  id: string
-  first_name?: string
-  last_name?: string
-  username?: string
-  email?: string
-  avatar_url?: string
-}
 
 export function PublicHeader() {
   const t = useTranslations()
@@ -42,7 +33,7 @@ export function PublicHeader() {
   const [isDark, setIsDark] = useState(true)
   const [profileOpen, setProfileOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [userProfile, setUserProfile] = useState<{ first_name?: string; username?: string } | null>(null)
 
   const productRef = useRef<HTMLDivElement>(null)
   const resourcesRef = useRef<HTMLDivElement>(null)
@@ -104,6 +95,37 @@ export function PublicHeader() {
     router.refresh()
   }
 
+  // Fetch user profile from user_settings table
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!isAuthenticated || !user || !supabase) {
+        setUserProfile(null)
+        return
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('user_settings')
+          .select('first_name, username')
+          .eq('user_id', user.id)
+          .single()
+
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 means no rows found, which is fine
+          console.error('Error fetching user profile:', error)
+          setUserProfile(null)
+        } else {
+          setUserProfile(profile || null)
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+        setUserProfile(null)
+      }
+    }
+
+    fetchProfile()
+  }, [user, supabase, isAuthenticated])
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -128,62 +150,12 @@ export function PublicHeader() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Fetch user profile from database
-  const fetchProfile = useCallback(async () => {
-    if (!isAuthenticated || !user || !supabase) {
-      setProfile(null)
-      return
-    }
-
-    try {
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_settings')
-        .select('id, first_name, last_name, username, email, avatar_url')
-        .eq('user_id', user.id)
-        .single()
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('[PublicHeader] Error fetching profile:', profileError)
-        setProfile(null)
-      } else if (userProfile) {
-        console.log('[PublicHeader] Profile loaded:', {
-          id: userProfile?.id,
-          first_name: userProfile?.first_name,
-          last_name: userProfile?.last_name,
-          username: userProfile?.username,
-          email: userProfile?.email
-        })
-        setProfile(userProfile)
-      }
-    } catch (error) {
-      console.error('[PublicHeader] Error fetching profile:', error)
-      setProfile(null)
-    }
-  }, [user, supabase, isAuthenticated])
-
-  useEffect(() => {
-    fetchProfile()
-    
-    // Refresh profile when page becomes visible
-    const handleVisibilityChange = () => {
-      if (!document.hidden && isAuthenticated && user) {
-        fetchProfile()
-      }
-    }
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [fetchProfile, isAuthenticated, user])
-
-  // Determine display name: first_name -> username -> email username
-  const displayName = profile?.first_name 
-    ? profile.first_name
-    : profile?.username
-      ? profile.username
-      : user?.email?.split('@')[0] || 'User'
+  // Determine display name: prefer first_name, then username, then email prefix, then 'User'
+  const displayName = userProfile?.first_name || 
+                      userProfile?.username || 
+                      user?.user_metadata?.full_name || 
+                      user?.email?.split('@')[0] || 
+                      'User'
   const userInitial = displayName.charAt(0).toUpperCase() || 'U'
 
   const handleSignOut = async (e?: React.MouseEvent) => {
