@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,8 +25,6 @@ export function MetricCard({
   formatValue = (v) => `${Math.round(v)}%`,
   className
 }: MetricCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
-
   // Generate sparkline path
   const generateSparkline = (data: number[]) => {
     if (data.length === 0) return ''
@@ -44,13 +41,7 @@ export function MetricCard({
   const trendColor = trend && trend > 0 ? 'text-green-400' : trend && trend < 0 ? 'text-red-400' : 'text-[#d7d2cb]/60'
 
   return (
-    <motion.div
-      className={cn('relative bg-white/5 border border-white/10 rounded-lg p-4 cursor-pointer', className)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2 }}
-    >
+    <div className={cn('relative bg-white/5 border border-white/10 rounded-lg p-4', className)}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
           <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1">{title}</h3>
@@ -112,38 +103,7 @@ export function MetricCard({
         </div>
       )}
 
-      {/* Expanded view on hover */}
-      <AnimatePresence>
-        {isHovered && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute inset-0 bg-[#0a0a0a]/95 backdrop-blur-sm rounded-lg border border-white/20 p-4 z-10"
-          >
-            <div className="text-center">
-              <h4 className="text-lg font-semibold text-[#d7d2cb] mb-2">{title}</h4>
-              <div className="text-4xl font-bold mb-2" style={{ color }}>
-                {formatValue(value)}
-              </div>
-              {description && (
-                <p className="text-sm text-[#d7d2cb]/70">{description}</p>
-              )}
-              {trend !== undefined && trend !== 0 && (
-                <div className={cn('flex items-center justify-center gap-1 text-sm mt-2', trendColor)}>
-                  {trend > 0 ? (
-                    <TrendingUp className="w-4 h-4" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4" />
-                  )}
-                  <span>{trend > 0 ? 'Up' : 'Down'} {Math.abs(Math.round(trend))}% from last period</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    </div>
   )
 }
 

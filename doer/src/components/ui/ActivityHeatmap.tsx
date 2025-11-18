@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ActivityHeatmapData {
@@ -19,48 +20,48 @@ interface ActivityHeatmapProps {
 export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmapProps) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [showMonthSelector, setShowMonthSelector] = useState(false)
+  const [showYearSelector, setShowYearSelector] = useState(false)
 
-  // Generate last 12 months of dates
-  const months = useMemo(() => {
-    const today = new Date()
-    const months: Array<{ month: string; year: number; days: Array<{ date: string; count: number; tasks?: string[] }> }> = []
-    
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const monthName = date.toLocaleDateString('en-US', { month: 'short' })
-      const year = date.getFullYear()
-      
-      // Get first day of month and day of week (0 = Sunday)
-      const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
-      const firstDayOfWeek = firstDay.getDay()
-      
-      // Get number of days in month
-      const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-      const daysInMonth = lastDay.getDate()
-      
-      const days: Array<{ date: string; count: number; tasks?: string[] }> = []
-      
-      // Add empty cells for days before month starts
-      for (let j = 0; j < firstDayOfWeek; j++) {
-        days.push({ date: '', count: 0 })
-      }
-      
-      // Add days of month
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        const dayData = data.find(d => d.date === dateStr)
-        days.push({
-          date: dateStr,
-          count: dayData?.count || 0,
-          tasks: dayData?.tasks
-        })
-      }
-      
-      months.push({ month: monthName, year, days })
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+
+  const shortMonthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ]
+
+  // Generate days for selected month
+  const monthData = useMemo(() => {
+    const firstDay = new Date(selectedYear, selectedMonth, 1)
+    const lastDay = new Date(selectedYear, selectedMonth + 1, 0)
+    const firstDayOfWeek = firstDay.getDay()
+    const daysInMonth = lastDay.getDate()
+
+    const days: Array<{ date: string; count: number; tasks?: string[] }> = []
+
+    // Add empty cells for days before month starts
+    for (let j = 0; j < firstDayOfWeek; j++) {
+      days.push({ date: '', count: 0 })
     }
-    
-    return months
-  }, [data])
+
+    // Add days of month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const dayData = data.find(d => d.date === dateStr)
+      days.push({
+        date: dateStr,
+        count: dayData?.count || 0,
+        tasks: dayData?.tasks
+      })
+    }
+
+    return days
+  }, [data, selectedMonth, selectedYear])
 
   const getColor = (count: number): string => {
     if (count === 0) return 'bg-gray-800/50'
@@ -80,44 +81,196 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     onDayClick(date)
   }
 
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      if (selectedMonth === 0) {
+        setSelectedMonth(11)
+        setSelectedYear(selectedYear - 1)
+      } else {
+        setSelectedMonth(selectedMonth - 1)
+      }
+    } else {
+      if (selectedMonth === 11) {
+        setSelectedMonth(0)
+        setSelectedYear(selectedYear + 1)
+      } else {
+        setSelectedMonth(selectedMonth + 1)
+      }
+    }
+  }
+
+  const handleMonthSelect = (monthIndex: number) => {
+    setSelectedMonth(monthIndex)
+    setShowMonthSelector(false)
+  }
+
+  const handleYearSelect = (year: number) => {
+    setSelectedYear(year)
+    setShowYearSelector(false)
+  }
+
+  // Generate year options (current year ± 5 years)
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
+
   const hoveredData = hoveredDate ? data.find(d => d.date === hoveredDate) : null
 
   return (
     <div className={cn('relative', className)}>
-      <div className="space-y-4">
-        {months.map((month, monthIndex) => (
-          <div key={`${month.year}-${month.month}`} className="flex items-start gap-2">
-            <div className="w-12 text-xs text-[#d7d2cb]/60 text-right pt-1">
-              {month.month}
-            </div>
-            <div className="flex-1 grid grid-cols-7 gap-1">
-              {month.days.map((day, dayIndex) => {
-                if (!day.date) {
-                  return <div key={`empty-${dayIndex}`} className="w-3 h-3" />
-                }
-                
-                return (
+      {/* Month/Year Navigation */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigateMonth('prev')}
+            className="p-1 rounded hover:bg-white/10 transition-colors"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="w-4 h-4 text-[#d7d2cb]/70" />
+          </button>
+          
+          {/* Month Selector */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowMonthSelector(!showMonthSelector)
+                setShowYearSelector(false)
+              }}
+              className="px-3 py-1 rounded hover:bg-white/10 transition-colors text-[#d7d2cb] font-medium flex items-center gap-1"
+            >
+              <span>{monthNames[selectedMonth]}</span>
+              <ChevronDown className={cn('w-4 h-4 transition-transform', showMonthSelector && 'rotate-180')} />
+            </button>
+
+            <AnimatePresence>
+              {showMonthSelector && (
+                <>
                   <motion.div
-                    key={day.date}
-                    className={cn(
-                      'w-3 h-3 rounded-sm cursor-pointer transition-all',
-                      getColor(day.count),
-                      hoveredDate === day.date && 'ring-2 ring-white/50 scale-110'
-                    )}
-                    onMouseEnter={(e) => handleDayHover(e, day.date)}
-                    onMouseLeave={() => {
-                      setHoveredDate(null)
-                      setTooltipPosition(null)
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-40"
+                    onClick={() => {
+                      setShowMonthSelector(false)
+                      setShowYearSelector(false)
                     }}
-                    onClick={() => handleDayClick(day.date)}
-                    whileHover={{ scale: 1.2 }}
-                    transition={{ duration: 0.2 }}
                   />
-                )
-              })}
-            </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full left-0 mt-2 z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl min-w-[120px]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="grid grid-cols-3 gap-1">
+                      {monthNames.map((month, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleMonthSelect(index)}
+                          className={cn(
+                            'px-2 py-1 text-xs rounded hover:bg-white/10 transition-colors text-left',
+                            selectedMonth === index
+                              ? 'bg-orange-500/20 text-orange-500'
+                              : 'text-[#d7d2cb]/70 hover:text-[#d7d2cb]'
+                          )}
+                        >
+                          {shortMonthNames[index]}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Year Selector Toggle */}
+                    <div className="mt-2 pt-2 border-t border-white/10 relative">
+                      <button
+                        onClick={() => {
+                          setShowYearSelector(!showYearSelector)
+                        }}
+                        className="w-full px-2 py-1 rounded hover:bg-white/10 transition-colors text-xs text-[#d7d2cb]/70 hover:text-[#d7d2cb] flex items-center justify-between"
+                      >
+                        <span>{selectedYear}</span>
+                        <ChevronDown className={cn('w-3 h-3 transition-transform', showYearSelector && 'rotate-180')} />
+                      </button>
+                      
+                      {/* Year Selector */}
+                      <AnimatePresence>
+                        {showYearSelector && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            className="absolute left-full ml-2 top-0 z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl"
+                            style={{ maxHeight: '200px', overflowY: 'auto' }}
+                          >
+                            <div className="flex flex-col gap-1">
+                              {yearOptions.map((year) => (
+                                <button
+                                  key={year}
+                                  onClick={() => handleYearSelect(year)}
+                                  className={cn(
+                                    'px-3 py-1 text-sm rounded hover:bg-white/10 transition-colors text-left min-w-[80px]',
+                                    selectedYear === year
+                                      ? 'bg-orange-500/20 text-orange-500'
+                                      : 'text-[#d7d2cb]/70 hover:text-[#d7d2cb]'
+                                  )}
+                                >
+                                  {year}
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button
+            onClick={() => navigateMonth('next')}
+            className="p-1 rounded hover:bg-white/10 transition-colors"
+            aria-label="Next month"
+          >
+            <ChevronRight className="w-4 h-4 text-[#d7d2cb]/70" />
+          </button>
+        </div>
+      </div>
+
+      {/* Weekday Labels */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          <div key={day} className="text-xs text-[#d7d2cb]/50 text-center">
+            {day}
           </div>
         ))}
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {monthData.map((day, dayIndex) => {
+          if (!day.date) {
+            return <div key={`empty-${dayIndex}`} className="w-full aspect-square" />
+          }
+
+          return (
+            <motion.div
+              key={day.date}
+              className={cn(
+                'w-full aspect-square rounded-sm cursor-pointer transition-all',
+                getColor(day.count),
+                hoveredDate === day.date && 'ring-2 ring-white/50 scale-110'
+              )}
+              onMouseEnter={(e) => handleDayHover(e, day.date)}
+              onMouseLeave={() => {
+                setHoveredDate(null)
+                setTooltipPosition(null)
+              }}
+              onClick={() => handleDayClick(day.date)}
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.2 }}
+            />
+          )
+        })}
       </div>
 
       {/* Legend */}
@@ -174,4 +327,3 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     </div>
   )
 }
-
