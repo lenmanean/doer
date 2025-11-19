@@ -25,7 +25,9 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const [showMonthSelector, setShowMonthSelector] = useState(false)
   const [showYearSelector, setShowYearSelector] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
   const squareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const motionSquareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -80,21 +82,29 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   }
 
   const handleDayHover = (date: string) => {
-    if (!date || !containerRef.current) return
+    if (!date) return
     setHoveredDate(date)
     
-    // Get the square container element using the ref
-    const squareContainer = squareRefs.current.get(date)
-    if (!squareContainer) return
+    // Get the actual visible square element (motion.div)
+    const motionSquare = motionSquareRefs.current.get(date)
     
-    const containerRect = containerRef.current.getBoundingClientRect()
-    const squareRect = squareContainer.getBoundingClientRect()
+    if (!motionSquare) return
     
-    // Calculate center position of the square relative to the container
-    const x = squareRect.left - containerRect.left + squareRect.width / 2
-    const y = squareRect.top - containerRect.top
-    
-    setTooltipPosition({ x, y })
+    // Use requestAnimationFrame to ensure layout is settled
+    requestAnimationFrame(() => {
+      if (!containerRef.current || !motionSquare) return
+      
+      // Get bounding rects for accurate positioning
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const squareRect = motionSquare.getBoundingClientRect()
+      
+      // Calculate center position of the square relative to the container
+      // The container is the positioning context (position: relative)
+      const x = squareRect.left + (squareRect.width / 2) - containerRect.left
+      const y = squareRect.top - containerRect.top
+      
+      setTooltipPosition({ x, y })
+    })
   }
 
   const handleDayClick = (date: string) => {
@@ -271,7 +281,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 overflow-visible">
+        <div ref={gridRef} className="grid grid-cols-7 gap-1.5 overflow-visible">
           {monthData.map((day, dayIndex) => {
             if (!day.date) {
               return (
@@ -297,6 +307,10 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                 }}
               >
                 <motion.div
+                  ref={(el) => {
+                    if (el) motionSquareRefs.current.set(day.date, el)
+                    else motionSquareRefs.current.delete(day.date)
+                  }}
                   className={cn(
                     'w-full h-full rounded-sm cursor-pointer transition-all',
                     getColor(day.count),
@@ -332,13 +346,13 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="absolute z-[100] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none"
+            className="absolute z-[100] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none whitespace-nowrap"
             style={{
               left: `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y}px`,
               transform: 'translate(-50%, -100%)',
-              maxWidth: '200px',
-              marginTop: '-8px'
+              marginTop: '-8px',
+              maxWidth: '200px'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
