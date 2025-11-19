@@ -19,7 +19,7 @@ interface ActivityHeatmapProps {
 
 export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmapProps) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; tooltipWidth?: number } | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; tooltipWidth?: number; tooltipHeight?: number } | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showMonthSelector, setShowMonthSelector] = useState(false)
@@ -126,19 +126,20 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       const squareRect = squareContainer.getBoundingClientRect()
       const tooltipRect = tooltip.getBoundingClientRect()
       
-      // Calculate the exact center X of the square in viewport coordinates
+      // Calculate the exact center X and Y of the square in viewport coordinates
       const squareCenterX = squareRect.left + (squareRect.width / 2)
-      const squareTopY = squareRect.top
+      const squareCenterY = squareRect.top + (squareRect.height / 2)
       
-      // Get tooltip's actual width
+      // Get tooltip's actual width and height
       const tooltipWidth = tooltipRect.width
+      const tooltipHeight = tooltipRect.height
       
-      // Calculate left position: square center minus half tooltip width
+      // Calculate positions: square center minus half tooltip dimensions
       // This ensures the tooltip's center aligns with the square's center
       const x = squareCenterX - containerRect.left
-      const y = squareTopY - containerRect.top
+      const y = squareCenterY - containerRect.top
       
-      setTooltipPosition({ x, y, tooltipWidth })
+      setTooltipPosition({ x, y, tooltipWidth, tooltipHeight })
     })
   }, [hoveredDate])
 
@@ -404,8 +405,10 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
               left: tooltipPosition.tooltipWidth 
                 ? `${tooltipPosition.x - (tooltipPosition.tooltipWidth / 2)}px`
                 : `${tooltipPosition.x}px`,
-              top: `${tooltipPosition.y}px`,
-              transform: 'translateY(calc(-100% - 8px))',
+              top: tooltipPosition.tooltipHeight
+                ? `${tooltipPosition.y - (tooltipPosition.tooltipHeight / 2)}px`
+                : `${tooltipPosition.y}px`,
+              transform: 'none',
               maxWidth: '200px'
             }}
           >
