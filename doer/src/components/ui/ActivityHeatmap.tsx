@@ -401,11 +401,12 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             ref={tooltipRef}
             className="absolute z-[100] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none whitespace-nowrap"
             style={{
-              left: `${tooltipPosition.x}px`,
+              left: tooltipPosition.tooltipWidth 
+                ? `${tooltipPosition.x - (tooltipPosition.tooltipWidth / 2)}px`
+                : `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y}px`,
-              transform: 'translateX(-50%) translateY(calc(-100% - 8px))',
-              maxWidth: '200px',
-              transformOrigin: 'center bottom'
+              transform: 'translateY(calc(-100% - 8px))',
+              maxWidth: '200px'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
