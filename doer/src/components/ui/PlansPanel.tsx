@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Calendar, Target } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Calendar, Target } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from './Card'
 import { Badge } from './Badge'
@@ -25,7 +25,6 @@ interface PlansPanelProps {
 }
 
 export function PlansPanel({ className }: PlansPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -49,8 +48,6 @@ export function PlansPanel({ className }: PlansPanelProps) {
     fetchPlans()
   }, [])
 
-  const activePlans = plans.filter(p => p.status === 'active')
-  const activeCount = activePlans.length
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,120 +77,92 @@ export function PlansPanel({ className }: PlansPanelProps) {
   return (
     <Card className={cn('bg-white/5 border-white/10', className)}>
       <CardHeader>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center justify-between w-full text-left"
-        >
-          <div>
-            <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
-              Plans
-            </CardTitle>
-            <p className="text-[#d7d2cb]/70 mt-1">
-              View and manage your active plans and their progress
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-[#d7d2cb]/70">
-              {loading ? '...' : `${activeCount} active`}
-            </span>
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="w-4 h-4 text-[#d7d2cb]/60" />
-            </motion.div>
-          </div>
-        </button>
+        <div>
+          <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
+            Plans
+          </CardTitle>
+          <p className="text-[#d7d2cb]/70 mt-1">
+            View and manage your active plans and their progress
+          </p>
+        </div>
       </CardHeader>
 
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
-          >
-            <CardContent className="pt-0">
-              {loading ? (
-                <div className="text-center py-8 text-[#d7d2cb]/50">
-                  Loading plans...
-                </div>
-              ) : plans.length === 0 ? (
-                <div className="text-center py-8 text-[#d7d2cb]/50">
-                  No plans found
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {plans.map((plan) => {
-                    const progress = calculateProgress(plan)
-                    const isActive = plan.status === 'active'
+      <CardContent>
+        {loading ? (
+          <div className="text-center py-8 text-[#d7d2cb]/50">
+            Loading plans...
+          </div>
+        ) : plans.length === 0 ? (
+          <div className="text-center py-8 text-[#d7d2cb]/50">
+            No plans
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+            {plans.map((plan) => {
+              const progress = calculateProgress(plan)
+              const isActive = plan.status === 'active'
 
-                    return (
-                      <motion.div
-                        key={plan.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => {
-                          if (isActive) {
-                            router.push('/dashboard')
-                          }
-                        }}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-semibold text-[#d7d2cb] truncate mb-1">
-                              {plan.goal_text}
-                            </h4>
-                            <Badge className={cn('text-xs', getStatusColor(plan.status))}>
-                              {plan.status}
-                            </Badge>
-                          </div>
+              return (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (isActive) {
+                      router.push('/dashboard')
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-[#d7d2cb] truncate mb-1">
+                        {plan.goal_text}
+                      </h4>
+                      <Badge className={cn('text-xs', getStatusColor(plan.status))}>
+                        {plan.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-4 text-xs text-[#d7d2cb]/60">
+                      {plan.start_date && (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>
+                            {formatDateForDisplay(parseDateFromDB(plan.start_date), {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
                         </div>
-
-                        <div className="mt-3 space-y-2">
-                          <div className="flex items-center gap-4 text-xs text-[#d7d2cb]/60">
-                            {plan.start_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                <span>
-                                  {formatDateForDisplay(parseDateFromDB(plan.start_date), {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric'
-                                  })}
-                                </span>
-                              </div>
-                            )}
-                            {plan.task_count !== undefined && (
-                              <div className="flex items-center gap-1">
-                                <Target className="w-3 h-3" />
-                                <span>{plan.task_count} tasks</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {isActive && plan.end_date && (
-                            <div>
-                              <div className="flex items-center justify-between text-xs text-[#d7d2cb]/60 mb-1">
-                                <span>Progress</span>
-                                <span>{Math.round(progress)}%</span>
-                              </div>
-                              <Progress value={progress} className="h-1" />
-                            </div>
-                          )}
+                      )}
+                      {plan.task_count !== undefined && (
+                        <div className="flex items-center gap-1">
+                          <Target className="w-3 h-3" />
+                          <span>{plan.task_count} tasks</span>
                         </div>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </motion.div>
+                      )}
+                    </div>
+
+                    {isActive && plan.end_date && (
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-[#d7d2cb]/60 mb-1">
+                          <span>Progress</span>
+                          <span>{Math.round(progress)}%</span>
+                        </div>
+                        <Progress value={progress} className="h-1" />
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
         )}
-      </AnimatePresence>
+      </CardContent>
     </Card>
   )
 }

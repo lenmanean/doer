@@ -196,6 +196,12 @@ export default function DataPage() {
           </p>
         </div>
 
+        {/* Plans Panel and User Data Summary */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <PlansPanel />
+          {user?.id && <UserDataSummary userId={user.id} />}
+        </div>
+
         {/* Metric Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
           <MetricCard
@@ -251,12 +257,6 @@ export default function DataPage() {
             // TODO: Update data based on time range
           }}
         />
-
-        {/* Plans Panel and User Data Summary */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PlansPanel />
-          {user?.id && <UserDataSummary userId={user.id} />}
-        </div>
       </main>
     </div>
   )

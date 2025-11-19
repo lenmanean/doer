@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './Card'
 import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { Target, CheckCircle, TrendingUp, Calendar, Award } from 'lucide-react'
+import { Target, CheckCircle, Calendar, Award, BarChart3 } from 'lucide-react'
 
 interface UserDataSummaryProps {
   userId: string
@@ -18,6 +18,7 @@ interface UserStats {
   totalPlans: number
   activePlans: number
   longestStreak: number
+  averageTasksPerPlan: number
 }
 
 export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
@@ -27,7 +28,8 @@ export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
     averageCompletionRate: 0,
     totalPlans: 0,
     activePlans: 0,
-    longestStreak: 0
+    longestStreak: 0,
+    averageTasksPerPlan: 0
   })
   const [loading, setLoading] = useState(true)
 
@@ -64,8 +66,8 @@ export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
         const totalPlans = plansResult.count || 0
         const activePlans = activePlansResult.count || 0
 
-        // Calculate average completion rate
-        const averageCompletionRate = totalTasks > 0 ? (totalCompletions / totalTasks) * 100 : 0
+        // Calculate average tasks per plan
+        const averageTasksPerPlan = totalPlans > 0 ? Math.round(totalTasks / totalPlans) : 0
 
         // Calculate longest streak (simplified - count consecutive days with completions)
         // For now, use a mock calculation - this would need proper backend implementation
@@ -74,10 +76,11 @@ export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
         setStats({
           totalTasks,
           totalCompletions,
-          averageCompletionRate,
+          averageCompletionRate: 0, // Keep for compatibility but not used
           totalPlans,
           activePlans,
-          longestStreak
+          longestStreak,
+          averageTasksPerPlan
         })
       } catch (error) {
         console.error('Error fetching user stats:', error)
@@ -103,9 +106,9 @@ export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
       color: '#3b82f6'
     },
     {
-      title: 'Completion Rate',
-      value: `${Math.round(stats.averageCompletionRate)}%`,
-      icon: TrendingUp,
+      title: 'Avg Tasks/Plan',
+      value: stats.averageTasksPerPlan,
+      icon: BarChart3,
       color: '#f59e0b'
     },
     {
