@@ -25,7 +25,8 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const [showMonthSelector, setShowMonthSelector] = useState(false)
   const [showYearSelector, setShowYearSelector] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
+  const gridWrapperRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   const squareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const motionSquareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
@@ -85,28 +86,38 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     if (!date) return
     setHoveredDate(date)
     
-    // Get the actual visible square element (motion.div)
+    // Get both the square container and the motion square
+    const squareContainer = squareRefs.current.get(date)
     const motionSquare = motionSquareRefs.current.get(date)
     
-    if (!motionSquare) return
+    if (!squareContainer || !motionSquare || !containerRef.current) return
     
     // Use requestAnimationFrame to ensure layout is settled
     requestAnimationFrame(() => {
-      if (!containerRef.current || !motionSquare) return
+      if (!containerRef.current || !motionSquare || !squareContainer) return
       
       // Get bounding rects - these are relative to viewport
       const containerRect = containerRef.current.getBoundingClientRect()
       const squareRect = motionSquare.getBoundingClientRect()
       
-      // Calculate the exact center of the square
+      // Calculate the exact center X of the square
+      // Use the square's bounding rect directly
       const squareCenterX = squareRect.left + (squareRect.width / 2)
       const squareTopY = squareRect.top
       
-      // Convert to coordinates relative to the container (which has position: relative)
-      // containerRect.left gives us the container's position in the viewport
-      // We subtract it to get the position relative to the container
+      // Convert to container-relative coordinates
+      // The container has position: relative, so tooltip uses this as reference
       const x = squareCenterX - containerRect.left
       const y = squareTopY - containerRect.top
+      
+      // Double-check: log for debugging (can remove later)
+      console.log('Tooltip positioning:', {
+        squareCenterX,
+        containerLeft: containerRect.left,
+        calculatedX: x,
+        squareWidth: squareRect.width,
+        squareLeft: squareRect.left
+      })
       
       setTooltipPosition({ x, y })
     })
@@ -275,7 +286,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       </div>
 
       {/* Calendar Grid */}
-      <div className="w-full px-2">
+      <div ref={gridWrapperRef} className="w-full px-2">
         {/* Weekday Labels */}
         <div className="grid grid-cols-7 gap-1.5 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
@@ -286,7 +297,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         </div>
 
         {/* Calendar Grid */}
-        <div ref={gridRef} className="grid grid-cols-7 gap-1.5 overflow-visible">
+        <div className="grid grid-cols-7 gap-1.5 overflow-visible">
           {monthData.map((day, dayIndex) => {
             if (!day.date) {
               return (
@@ -351,11 +362,12 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
+            ref={tooltipRef}
             className="absolute z-[100] bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none whitespace-nowrap"
             style={{
               left: `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y}px`,
-              transform: 'translateX(-50%) translateY(calc(-100% - 8px))',
+              transform: 'translate(-50%, calc(-100% - 8px))',
               maxWidth: '200px'
             }}
           >
