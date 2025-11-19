@@ -94,14 +94,19 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     requestAnimationFrame(() => {
       if (!containerRef.current || !motionSquare) return
       
-      // Get bounding rects for accurate positioning
+      // Get bounding rects - these are relative to viewport
       const containerRect = containerRef.current.getBoundingClientRect()
       const squareRect = motionSquare.getBoundingClientRect()
       
-      // Calculate center position of the square relative to the container
-      // The container is the positioning context (position: relative)
-      const x = squareRect.left + (squareRect.width / 2) - containerRect.left
-      const y = squareRect.top - containerRect.top
+      // Calculate the exact center of the square
+      const squareCenterX = squareRect.left + (squareRect.width / 2)
+      const squareTopY = squareRect.top
+      
+      // Convert to coordinates relative to the container (which has position: relative)
+      // containerRect.left gives us the container's position in the viewport
+      // We subtract it to get the position relative to the container
+      const x = squareCenterX - containerRect.left
+      const y = squareTopY - containerRect.top
       
       setTooltipPosition({ x, y })
     })
@@ -350,8 +355,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             style={{
               left: `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y}px`,
-              transform: 'translate(-50%, -100%)',
-              marginTop: '-8px',
+              transform: 'translateX(-50%) translateY(calc(-100% - 8px))',
               maxWidth: '200px'
             }}
           >
