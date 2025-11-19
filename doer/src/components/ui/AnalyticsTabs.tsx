@@ -56,7 +56,7 @@ export function AnalyticsTabs({
     <Card className="bg-white/5 border border-white/10 mb-8">
       {/* Tabs Header */}
       <div className="border-b border-white/10">
-        <div className="flex items-center gap-1 px-6 pt-4 overflow-x-auto">
+        <div className="grid grid-cols-4">
           {tabs.map((tab) => (
             <button
               key={tab.id}

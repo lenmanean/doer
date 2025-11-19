@@ -10,8 +10,6 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { TrendChart, TrendChartData } from '@/components/ui/TrendChart'
 import { BarChart, BarChartData } from '@/components/ui/BarChart'
-import { PlansPanel } from '@/components/ui/PlansPanel'
-import { UserDataSummary } from '@/components/ui/UserDataSummary'
 import { AnalyticsTabs } from '@/components/ui/AnalyticsTabs'
 import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
@@ -194,12 +192,6 @@ export default function DataPage() {
           <p className="text-[#d7d2cb]/70">
             Track your progress, productivity patterns, and performance metrics
           </p>
-        </div>
-
-        {/* Plans Panel and User Data Summary */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <PlansPanel />
-          {user?.id && <UserDataSummary userId={user.id} />}
         </div>
 
         {/* Metric Cards Row */}
