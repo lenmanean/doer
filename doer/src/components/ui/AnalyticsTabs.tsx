@@ -55,7 +55,7 @@ export function AnalyticsTabs({
   return (
     <Card className="bg-white/5 border-white/10 mb-8">
       {/* Tabs Header */}
-      <div className="border-b border-white/10">
+      <div className="border-b border-white/10 bg-white/5">
         <div className="flex items-center gap-2 px-6 pt-4 pb-0 overflow-x-auto">
           {tabs.map((tab) => (
             <button
