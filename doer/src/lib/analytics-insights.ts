@@ -80,13 +80,44 @@ export function analyzeCompletionTrend(data: TrendChartData[]): string {
 
   // Generate insights
   if (avgCompletion < 50) {
-    return `Your completion rate is ${avgCompletion.toFixed(1)}%, which is below optimal. ${isDeclining ? `It's declining by ${trendPercent.toFixed(1)}% recently, indicating you may be taking on too much or losing motivation.` : isImproving ? `However, you're improving by ${trendPercent.toFixed(1)}% - keep this momentum!` : 'This suggests tasks may be too challenging or poorly scheduled.'} Consider breaking tasks into smaller steps, reducing your daily load, or reassessing task priorities. Consistency at a lower rate is better than sporadic high performance.`
+    const trendMsg = isDeclining
+      ? `It's declining by ${trendPercent.toFixed(1)}% recently, indicating you may be taking on too much or losing motivation.`
+      : isImproving
+      ? `However, you're improving by ${trendPercent.toFixed(1)}% - keep this momentum!`
+      : 'This suggests tasks may be too challenging or poorly scheduled.'
+    return `Your completion rate is ${avgCompletion.toFixed(1)}%, which is below optimal. ${trendMsg} Consider breaking tasks into smaller steps, reducing your daily load, or reassessing task priorities. Consistency at a lower rate is better than sporadic high performance.`
   } else if (avgCompletion < 70) {
-    return `Your completion rate is ${avgCompletion.toFixed(1)}%, showing moderate performance. ${isImproving ? `Great progress! You're improving by ${trendPercent.toFixed(1)}% recently.` : isDeclining ? `You're declining by ${trendPercent.toFixed(1)}% - this may indicate burnout or overcommitment.` : 'Your performance is stable.'} ${volatility === 'high' ? 'Your completion rate varies significantly, suggesting inconsistent planning or execution.' : volatility === 'moderate' ? 'Some variation in your completion rate suggests room for more consistent planning.' : 'Your consistent performance is a strength.'} Focus on maintaining realistic expectations and building sustainable habits.`
+    const trendMsg = isImproving
+      ? `Great progress! You're improving by ${trendPercent.toFixed(1)}% recently.`
+      : isDeclining
+      ? `You're declining by ${trendPercent.toFixed(1)}% - this may indicate burnout or overcommitment.`
+      : 'Your performance is stable.'
+    const volatilityMsg = volatility === 'high'
+      ? 'Your completion rate varies significantly, suggesting inconsistent planning or execution.'
+      : volatility === 'moderate'
+      ? 'Some variation in your completion rate suggests room for more consistent planning.'
+      : 'Your consistent performance is a strength.'
+    return `Your completion rate is ${avgCompletion.toFixed(1)}%, showing moderate performance. ${trendMsg} ${volatilityMsg} Focus on maintaining realistic expectations and building sustainable habits.`
   } else if (avgCompletion < 85) {
-    return `Strong completion rate of ${avgCompletion.toFixed(1)}%! ${isImproving ? `You're trending upward by ${trendPercent.toFixed(1)}% - excellent momentum!` : isDeclining ? `Watch out - you're declining by ${trendPercent.toFixed(1)}%. This might indicate you're pushing too hard.` : 'Your performance is steady.'} ${volatility === 'high' ? 'Your completion rate fluctuates - try to maintain more consistent daily performance.' : 'Your consistent performance shows good planning and execution.'} You're on track, but there's room to push toward 85%+ for optimal productivity.`
+    const trendMsg = isImproving 
+      ? `You're trending upward by ${trendPercent.toFixed(1)}% - excellent momentum!`
+      : isDeclining 
+      ? `Watch out - you're declining by ${trendPercent.toFixed(1)}%. This might indicate you're pushing too hard.`
+      : 'Your performance is steady.'
+    const volatilityMsg = volatility === 'high' 
+      ? 'Your completion rate fluctuates - try to maintain more consistent daily performance.'
+      : 'Your consistent performance shows good planning and execution.'
+    return `Strong completion rate of ${avgCompletion.toFixed(1)}%! ${trendMsg} ${volatilityMsg} You're on track, but there's room to push toward 85%+ for optimal productivity.`
   } else {
-    return `Outstanding completion rate of ${avgCompletion.toFixed(1)}%! ${isImproving ? `You're still improving by ${trendPercent.toFixed(1)}% - exceptional work!` : isDeclining ? `Slight decline of ${trendPercent.toFixed(1)}% - monitor for signs of overcommitment.` : 'You're maintaining excellent performance.'} ${volatility === 'low' ? 'Your consistent high performance demonstrates excellent planning and execution.' : 'Maintain this high level while ensuring sustainability.'} You're operating at peak efficiency - consider taking on more challenging goals or helping others improve their systems.`
+    const trendMsg = isImproving
+      ? `You're still improving by ${trendPercent.toFixed(1)}% - exceptional work!`
+      : isDeclining
+      ? `Slight decline of ${trendPercent.toFixed(1)}% - monitor for signs of overcommitment.`
+      : 'You're maintaining excellent performance.'
+    const volatilityMsg = volatility === 'low'
+      ? 'Your consistent high performance demonstrates excellent planning and execution.'
+      : 'Maintain this high level while ensuring sustainability.'
+    return `Outstanding completion rate of ${avgCompletion.toFixed(1)}%! ${trendMsg} ${volatilityMsg} You're operating at peak efficiency - consider taking on more challenging goals or helping others improve their systems.`
   }
 }
 
