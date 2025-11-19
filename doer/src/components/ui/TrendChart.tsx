@@ -59,9 +59,9 @@ export function TrendChart({
   const minValue = Math.min(...filteredData.map(d => d[yKey as keyof TrendChartData] as number))
   const range = maxValue - minValue || 1
 
-  const width = 100
-  const height = 60
-  const padding = 5
+  const width = 800
+  const height = 300
+  const padding = 40
 
   // Generate path for line
   const generatePath = () => {
@@ -110,8 +110,8 @@ export function TrendChart({
         </div>
       )}
 
-      <div className="relative" style={{ height: `${height + 40}px` }}>
-        <svg width="100%" height={height + 40} viewBox={`0 0 ${width} ${height + 40}`} className="overflow-visible">
+      <div className="relative w-full" style={{ height: `${height + 60}px`, minHeight: '300px' }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height + 60}`} preserveAspectRatio="xMidYMid meet" className="overflow-visible">
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
             const y = padding + (height - padding * 2) * (1 - ratio)
@@ -128,9 +128,9 @@ export function TrendChart({
                 />
                 <text
                   x={0}
-                  y={y + 3}
+                  y={y + 5}
                   fill="rgba(215, 210, 203, 0.4)"
-                  fontSize="8"
+                  fontSize="12"
                   textAnchor="start"
                 >
                   {Math.round(value)}
@@ -148,7 +148,7 @@ export function TrendChart({
               d={generatePath()}
               fill="none"
               stroke={color}
-              strokeWidth="2"
+              strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -166,11 +166,11 @@ export function TrendChart({
                 <motion.circle
                   cx={x}
                   cy={y}
-                  r={isHovered ? 4 : 2}
+                  r={isHovered ? 6 : 3}
                   fill={color}
                   onMouseEnter={() => setHoveredIndex(i)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  animate={{ r: isHovered ? 4 : 2 }}
+                  animate={{ r: isHovered ? 6 : 3 }}
                   transition={{ duration: 0.2 }}
                   style={{ cursor: 'pointer' }}
                 />
@@ -178,7 +178,7 @@ export function TrendChart({
                 <circle
                   cx={x}
                   cy={y}
-                  r={6}
+                  r={10}
                   fill="transparent"
                   onMouseEnter={() => setHoveredIndex(i)}
                   onMouseLeave={() => setHoveredIndex(null)}

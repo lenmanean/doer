@@ -48,8 +48,11 @@ export function BarChart({
     return d[yKey as keyof BarChartData] as number
   }))
 
-  const barWidth = 100 / data.length
-  const barHeight = 60
+  const chartWidth = 800
+  const chartHeight = 300
+  const padding = 40
+  const barWidth = (chartWidth - padding * 2) / data.length
+  const barHeight = chartHeight - padding * 2
 
   const hoveredData = hoveredIndex !== null ? data[hoveredIndex] : null
 
@@ -59,28 +62,28 @@ export function BarChart({
         <h3 className="text-sm font-semibold text-[#d7d2cb] mb-4">{title}</h3>
       )}
 
-      <div className="relative" style={{ height: `${barHeight + 40}px` }}>
-        <svg width="100%" height={barHeight + 40} viewBox={`0 0 100 ${barHeight + 40}`} className="overflow-visible">
+      <div className="relative w-full" style={{ height: `${chartHeight + 60}px`, minHeight: '300px' }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${chartWidth} ${chartHeight + 60}`} preserveAspectRatio="xMidYMid meet" className="overflow-visible">
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-            const y = barHeight * (1 - ratio)
+            const y = padding + barHeight * (1 - ratio)
             const value = maxValue * ratio
             return (
               <g key={ratio}>
                 <line
-                  x1={0}
+                  x1={padding}
                   y1={y}
-                  x2={100}
+                  x2={chartWidth - padding}
                   y2={y}
                   stroke="rgba(255, 255, 255, 0.05)"
-                  strokeWidth="0.5"
+                  strokeWidth="1"
                 />
                 <text
-                  x={0}
-                  y={y + 3}
+                  x={padding - 10}
+                  y={y + 5}
                   fill="rgba(215, 210, 203, 0.4)"
-                  fontSize="8"
-                  textAnchor="start"
+                  fontSize="12"
+                  textAnchor="end"
                 >
                   {Math.round(value)}
                 </text>
@@ -92,7 +95,7 @@ export function BarChart({
           {data.map((item, index) => {
             const value = item[yKey as keyof BarChartData] as number
             const height = (value / maxValue) * barHeight
-            const x = index * barWidth + barWidth * 0.1
+            const x = padding + index * barWidth + barWidth * 0.1
             const width = barWidth * 0.8
             const isHovered = hoveredIndex === index
 
@@ -117,7 +120,7 @@ export function BarChart({
                         width={width}
                         height={subHeight}
                         fill={color}
-                        rx="2"
+                        rx="4"
                         onMouseEnter={() => setHoveredIndex(index)}
                         onMouseLeave={() => setHoveredIndex(null)}
                         onClick={() => onBarClick?.(item[xKey as keyof BarChartData] as string)}
@@ -139,11 +142,11 @@ export function BarChart({
                 <g key={index}>
                   <motion.rect
                     x={x}
-                    y={barHeight - height}
+                    y={padding + barHeight - height}
                     width={width}
                     height={height}
                     fill={color}
-                    rx="2"
+                    rx="4"
                     onMouseEnter={() => setHoveredIndex(index)}
                     onMouseLeave={() => setHoveredIndex(null)}
                     onClick={() => onBarClick?.(item[xKey as keyof BarChartData] as string)}
@@ -161,16 +164,16 @@ export function BarChart({
 
           {/* Category labels */}
           {data.map((item, index) => {
-            const x = index * barWidth + barWidth / 2
+            const x = padding + index * barWidth + barWidth / 2
             return (
               <text
                 key={index}
                 x={x}
-                y={barHeight + 15}
+                y={chartHeight + 20}
                 fill="rgba(215, 210, 203, 0.6)"
-                fontSize="8"
+                fontSize="12"
                 textAnchor="middle"
-                transform={`rotate(-45 ${x} ${barHeight + 15})`}
+                transform={`rotate(-45 ${x} ${chartHeight + 20})`}
               >
                 {item[xKey as keyof BarChartData] as string}
               </text>
@@ -187,7 +190,7 @@ export function BarChart({
               exit={{ opacity: 0, y: 10 }}
               className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none z-10"
               style={{
-                left: `${(hoveredIndex * barWidth + barWidth / 2)}%`,
+                left: `${((padding + hoveredIndex * barWidth + barWidth / 2) / chartWidth) * 100}%`,
                 top: '-80px',
                 transform: 'translateX(-50%)'
               }}
