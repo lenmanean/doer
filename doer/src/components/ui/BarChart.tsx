@@ -33,41 +33,32 @@ export function BarChart({
 }: BarChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
-  if (data.length === 0) {
-    return (
-      <div className={cn('p-8 text-center text-[#d7d2cb]/50', className)}>
-        No data available
-      </div>
-    )
-  }
-
-  const maxValue = Math.max(...data.map(d => {
+  // Calculate maxValue and chart dimensions (needed for useEffect)
+  const maxValue = data.length > 0 ? Math.max(...data.map(d => {
     if (stacked && d.subValues) {
       return Object.values(d.subValues).reduce((sum, val) => sum + val, 0)
     }
     return d[yKey as keyof BarChartData] as number
-  }))
+  })) : 0
 
   const chartWidth = 800
   const chartHeight = 300
   const padding = 40
-  const barWidth = (chartWidth - padding * 2) / data.length
+  const barWidth = data.length > 0 ? (chartWidth - padding * 2) / data.length : 0
   const barHeight = chartHeight - padding * 2
-
-  const hoveredData = hoveredIndex !== null ? data[hoveredIndex] : null
-  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
   // Calculate tooltip position when hovered index changes
   useEffect(() => {
-    if (hoveredIndex === null) {
+    if (hoveredIndex === null || data.length === 0) {
       setTooltipPosition(null)
       return
     }
 
     // Use requestAnimationFrame to ensure tooltip is rendered before calculating
     requestAnimationFrame(() => {
-      if (!tooltipRef.current || hoveredIndex === null) {
+      if (!tooltipRef.current || hoveredIndex === null || data.length === 0) {
         setTooltipPosition(null)
         return
       }
@@ -98,6 +89,16 @@ export function BarChart({
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     })
   }, [hoveredIndex, data, maxValue, barHeight, barWidth, padding, chartWidth, stacked, yKey])
+
+  if (data.length === 0) {
+    return (
+      <div className={cn('p-8 text-center text-[#d7d2cb]/50', className)}>
+        No data available
+      </div>
+    )
+  }
+
+  const hoveredData = hoveredIndex !== null ? data[hoveredIndex] : null
 
   return (
     <div className={cn('relative', className)}>
