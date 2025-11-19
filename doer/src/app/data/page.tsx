@@ -214,19 +214,17 @@ export default function DataPage() {
           />
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col">
             <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1.5">On-Time Rate</h3>
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-baseline gap-2 mb-2">
               <ProgressRing
                 percentage={onTimeRate}
-                size={60}
-                strokeWidth={6}
+                size={48}
+                strokeWidth={5}
                 color="#f59e0b"
                 showBreakdown={false}
               />
-              <div>
-                <div className="text-2xl font-bold text-[#d7d2cb]" style={{ color: '#f59e0b' }}>
-                  {onTimeRate}%
-                </div>
-              </div>
+              <span className="text-2xl font-bold text-[#d7d2cb]" style={{ color: '#f59e0b' }}>
+                {onTimeRate}%
+              </span>
             </div>
             <p className="text-xs text-[#d7d2cb]/50 leading-tight">Tasks completed on schedule</p>
           </div>
