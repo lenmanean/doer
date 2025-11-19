@@ -35,19 +35,10 @@ export function BarChart({
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
-  // Calculate maxValue and chart dimensions (needed for useEffect)
-  const maxValue = data.length > 0 ? Math.max(...data.map(d => {
-    if (stacked && d.subValues) {
-      return Object.values(d.subValues).reduce((sum, val) => sum + val, 0)
-    }
-    return d[yKey as keyof BarChartData] as number
-  })) : 0
-
+  // Chart constants (don't depend on data.length)
   const chartWidth = 800
   const chartHeight = 300
   const padding = 40
-  const barWidth = data.length > 0 ? (chartWidth - padding * 2) / data.length : 0
-  const barHeight = chartHeight - padding * 2
 
   // Calculate tooltip position when hovered index changes
   useEffect(() => {
@@ -65,6 +56,17 @@ export function BarChart({
 
       const tooltip = tooltipRef.current
       const tooltipHeight = tooltip.getBoundingClientRect().height
+
+      // Calculate chart dimensions
+      const maxValue = Math.max(...data.map(d => {
+        if (stacked && d.subValues) {
+          return Object.values(d.subValues).reduce((sum, val) => sum + val, 0)
+        }
+        return d[yKey as keyof BarChartData] as number
+      }))
+
+      const barWidth = (chartWidth - padding * 2) / data.length
+      const barHeight = chartHeight - padding * 2
 
       // Calculate bar position
       const item = data[hoveredIndex]
@@ -88,8 +90,9 @@ export function BarChart({
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     })
-  }, [hoveredIndex, data, maxValue, barHeight, barWidth, padding, chartWidth, stacked, yKey])
+  }, [hoveredIndex, data, stacked, yKey, chartWidth, chartHeight, padding])
 
+  // Early return after all hooks
   if (data.length === 0) {
     return (
       <div className={cn('p-8 text-center text-[#d7d2cb]/50', className)}>
@@ -97,6 +100,19 @@ export function BarChart({
       </div>
     )
   }
+
+  const maxValue = Math.max(...data.map(d => {
+    if (stacked && d.subValues) {
+      return Object.values(d.subValues).reduce((sum, val) => sum + val, 0)
+    }
+    return d[yKey as keyof BarChartData] as number
+  }))
+
+  const chartWidth = 800
+  const chartHeight = 300
+  const padding = 40
+  const barWidth = (chartWidth - padding * 2) / data.length
+  const barHeight = chartHeight - padding * 2
 
   const hoveredData = hoveredIndex !== null ? data[hoveredIndex] : null
 
