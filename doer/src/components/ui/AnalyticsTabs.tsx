@@ -108,11 +108,14 @@ export function AnalyticsTabs({
                 </p>
               </CardHeader>
               <CardContent className="py-3 px-6 overflow-visible">
-                <ActivityHeatmap
-                  data={activityData}
-                  onDayClick={onDayClick}
-                />
-                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <ActivityHeatmap
+                    data={activityData}
+                    onDayClick={onDayClick}
+                  />
+                </div>
+                <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeActivityHeatmap(activityData)}
                   </p>
@@ -131,15 +134,18 @@ export function AnalyticsTabs({
                   {tabs.find(t => t.id === 'trend')?.description}
                 </p>
               </CardHeader>
-              <CardContent>
-                <TrendChart
-                  data={completionTrend}
-                  title=""
-                  color="#22c55e"
-                  timeRange="30d"
-                  onTimeRangeChange={onTimeRangeChange}
-                />
-                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+              <CardContent className="px-6">
+                <div>
+                  <TrendChart
+                    data={completionTrend}
+                    title=""
+                    color="#22c55e"
+                    timeRange="30d"
+                    onTimeRangeChange={onTimeRangeChange}
+                  />
+                </div>
+                <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeCompletionTrend(completionTrend)}
                   </p>
@@ -158,13 +164,16 @@ export function AnalyticsTabs({
                   {tabs.find(t => t.id === 'productivity')?.description}
                 </p>
               </CardHeader>
-              <CardContent>
-                <BarChart
-                  data={productivityPatterns}
-                  title=""
-                  colors={['#3b82f6']}
-                />
-                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+              <CardContent className="px-6">
+                <div>
+                  <BarChart
+                    data={productivityPatterns}
+                    title=""
+                    colors={['#3b82f6']}
+                  />
+                </div>
+                <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeProductivityPatterns(productivityPatterns)}
                   </p>
@@ -183,14 +192,17 @@ export function AnalyticsTabs({
                   {tabs.find(t => t.id === 'rescheduling')?.description}
                 </p>
               </CardHeader>
-              <CardContent>
-                <BarChart
-                  data={reschedulingAnalysis}
-                  title=""
-                  stacked={true}
-                  colors={['#22c55e', '#f59e0b']}
-                />
-                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+              <CardContent className="px-6">
+                <div>
+                  <BarChart
+                    data={reschedulingAnalysis}
+                    title=""
+                    stacked={true}
+                    colors={['#22c55e', '#f59e0b']}
+                  />
+                </div>
+                <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeRescheduling(reschedulingAnalysis)}
                   </p>
