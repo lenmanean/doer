@@ -25,6 +25,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const [showMonthSelector, setShowMonthSelector] = useState(false)
   const [showYearSelector, setShowYearSelector] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const squareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -78,32 +79,22 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     return 'bg-green-500'
   }
 
-  const handleDayHover = (e: React.MouseEvent<HTMLDivElement>, date: string) => {
-    if (!date) return
+  const handleDayHover = (date: string) => {
+    if (!date || !containerRef.current) return
     setHoveredDate(date)
-    // Get the square container div (the one with relative positioning)
-    const squareContainer = (e.currentTarget.parentElement as HTMLElement)
-    const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
     
-    if (squareContainer && containerRect) {
-      const squareRect = squareContainer.getBoundingClientRect()
-      // Position relative to container - center horizontally and vertically
-      const x = squareRect.left - containerRect.left + squareRect.width / 2
-      const y = squareRect.top - containerRect.top + squareRect.height / 2
-      setTooltipPosition({ x, y })
-    } else {
-      // Fallback
-      const rect = e.currentTarget.getBoundingClientRect()
-      const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
-      if (containerRect) {
-        setTooltipPosition({ 
-          x: rect.left - containerRect.left + rect.width / 2, 
-          y: rect.top - containerRect.top + rect.height / 2 
-        })
-      } else {
-        setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
-      }
-    }
+    // Get the square container element using the ref
+    const squareContainer = squareRefs.current.get(date)
+    if (!squareContainer) return
+    
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const squareRect = squareContainer.getBoundingClientRect()
+    
+    // Calculate center position of the square relative to the container
+    const x = squareRect.left - containerRect.left + squareRect.width / 2
+    const y = squareRect.top - containerRect.top
+    
+    setTooltipPosition({ x, y })
   }
 
   const handleDayClick = (date: string) => {
@@ -292,18 +283,25 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             }
 
             return (
-              <div key={day.date} className="relative aspect-square overflow-visible p-0.5">
+              <div 
+                key={day.date} 
+                ref={(el) => {
+                  if (el) squareRefs.current.set(day.date, el)
+                  else squareRefs.current.delete(day.date)
+                }}
+                className="relative aspect-square overflow-visible p-0.5"
+                onMouseEnter={() => handleDayHover(day.date)}
+                onMouseLeave={() => {
+                  setHoveredDate(null)
+                  setTooltipPosition(null)
+                }}
+              >
                 <motion.div
                   className={cn(
                     'w-full h-full rounded-sm cursor-pointer transition-all',
                     getColor(day.count),
                     hoveredDate === day.date && 'ring-2 ring-white/70 shadow-lg shadow-white/20'
                   )}
-                  onMouseEnter={(e) => handleDayHover(e, day.date)}
-                  onMouseLeave={() => {
-                    setHoveredDate(null)
-                    setTooltipPosition(null)
-                  }}
                   onClick={() => handleDayClick(day.date)}
                   whileHover={{ scale: 1.05, zIndex: 10 }}
                   transition={{ duration: 0.2 }}
@@ -340,7 +338,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
               top: `${tooltipPosition.y}px`,
               transform: 'translate(-50%, -100%)',
               maxWidth: '200px',
-              marginTop: '-12px'
+              marginTop: '-8px'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
