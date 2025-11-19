@@ -92,20 +92,24 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     
     if (!squareContainer || !containerRef.current) return
     
-    // Calculate position immediately, then update in next frame for accuracy
-    const containerRect = containerRef.current.getBoundingClientRect()
-    const squareRect = squareContainer.getBoundingClientRect()
-    
-    // Calculate the exact center X of the square
-    const squareCenterX = squareRect.left + (squareRect.width / 2)
-    const squareTopY = squareRect.top
-    
-    // Convert to container-relative coordinates
-    // The container has position: relative, so tooltip is positioned relative to it
-    const x = squareCenterX - containerRect.left
-    const y = squareTopY - containerRect.top
-    
-    setTooltipPosition({ x, y })
+    // Use requestAnimationFrame to ensure layout is settled
+    requestAnimationFrame(() => {
+      if (!containerRef.current || !squareContainer) return
+      
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const squareRect = squareContainer.getBoundingClientRect()
+      
+      // Calculate the exact center X of the square in viewport coordinates
+      const squareCenterX = squareRect.left + (squareRect.width / 2)
+      const squareTopY = squareRect.top
+      
+      // Convert to container-relative coordinates
+      // The container has position: relative, so tooltip is positioned relative to it
+      const x = squareCenterX - containerRect.left
+      const y = squareTopY - containerRect.top
+      
+      setTooltipPosition({ x, y })
+    })
   }
 
   const handleDayClick = (date: string) => {
@@ -141,6 +145,14 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     setShowYearSelector(false)
   }
 
+  const handleTodayClick = () => {
+    const today = new Date()
+    setSelectedMonth(today.getMonth())
+    setSelectedYear(today.getFullYear())
+    setShowMonthSelector(false)
+    setShowYearSelector(false)
+  }
+
   // Generate year options (current year ± 5 years)
   const currentYear = new Date().getFullYear()
   const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
@@ -158,6 +170,15 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             aria-label="Previous month"
           >
             <ChevronLeft className="w-8 h-8 text-[#d7d2cb]/70" />
+          </button>
+          
+          {/* Today Button */}
+          <button
+            onClick={handleTodayClick}
+            className="px-4 py-2 rounded hover:bg-white/10 transition-colors text-[#d7d2cb]/70 text-sm font-medium"
+            aria-label="Go to today"
+          >
+            Today
           </button>
           
           {/* Month Selector */}

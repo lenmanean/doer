@@ -55,14 +55,6 @@ export function ProgressRing({
           transition={{ duration: 1, ease: 'easeOut' }}
         />
       </svg>
-      
-      {/* Percentage text */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold text-[#d7d2cb]" style={{ color }}>
-          {Math.round(percentage)}%
-        </span>
-      </div>
-
     </div>
   )
 }
