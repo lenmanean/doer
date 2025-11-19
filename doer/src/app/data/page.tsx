@@ -239,23 +239,18 @@ export default function DataPage() {
         </div>
 
         {/* Analytics Tabs */}
-        <div className="mb-8 p-4 border-4 border-red-500">
-          <div className="text-red-500 font-bold mb-2">DEBUG: AnalyticsTabs should render here</div>
-          <AnalyticsTabs
-            activityData={activityData}
-            completionTrend={completionTrend}
-            productivityPatterns={productivityPatterns}
-            reschedulingAnalysis={reschedulingAnalysis}
-            onDayClick={(date) => {
-              console.log('Clicked date:', date)
-              // TODO: Navigate to daily detail view
-            }}
-            onTimeRangeChange={(range) => {
-              console.log('Time range changed:', range)
-              // TODO: Update data based on time range
-            }}
-          />
-        </div>
+        <AnalyticsTabs
+          activityData={activityData}
+          completionTrend={completionTrend}
+          productivityPatterns={productivityPatterns}
+          reschedulingAnalysis={reschedulingAnalysis}
+          onDayClick={(date) => {
+            // TODO: Navigate to daily detail view
+          }}
+          onTimeRangeChange={(range) => {
+            // TODO: Update data based on time range
+          }}
+        />
 
         {/* Plans Panel and User Data Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
