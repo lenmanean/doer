@@ -19,7 +19,7 @@ interface ActivityHeatmapProps {
 
 export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmapProps) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; tooltipWidth?: number } | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [showMonthSelector, setShowMonthSelector] = useState(false)
@@ -124,16 +124,21 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       
       const containerRect = container.getBoundingClientRect()
       const squareRect = squareContainer.getBoundingClientRect()
+      const tooltipRect = tooltip.getBoundingClientRect()
       
       // Calculate the exact center X of the square in viewport coordinates
       const squareCenterX = squareRect.left + (squareRect.width / 2)
       const squareTopY = squareRect.top
       
-      // Convert to container-relative coordinates
+      // Get tooltip's actual width
+      const tooltipWidth = tooltipRect.width
+      
+      // Calculate left position: square center minus half tooltip width
+      // This ensures the tooltip's center aligns with the square's center
       const x = squareCenterX - containerRect.left
       const y = squareTopY - containerRect.top
       
-      setTooltipPosition({ x, y })
+      setTooltipPosition({ x, y, tooltipWidth })
     })
   }, [hoveredDate])
 
