@@ -26,6 +26,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const [showYearSelector, setShowYearSelector] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const gridWrapperRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const squareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const motionSquareRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -86,31 +87,25 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     if (!date) return
     setHoveredDate(date)
     
-    // Get the motion square (the actual visible element)
-    const motionSquare = motionSquareRefs.current.get(date)
+    // Get the square container
     const squareContainer = squareRefs.current.get(date)
     
-    if (!motionSquare || !squareContainer || !containerRef.current) return
+    if (!squareContainer || !containerRef.current) return
     
     // Use requestAnimationFrame to ensure layout is settled
     requestAnimationFrame(() => {
-      if (!containerRef.current || !motionSquare || !squareContainer) return
+      if (!containerRef.current || !squareContainer) return
       
       // Get bounding rects - these are relative to viewport
       const containerRect = containerRef.current.getBoundingClientRect()
-      // Use the motion square's bounding rect, but we need to account for any transforms
-      // Since it might be scaled, we'll use the square container and calculate the center
-      // of the actual visible square inside it
-      const squareContainerRect = squareContainer.getBoundingClientRect()
-      const motionSquareRect = motionSquare.getBoundingClientRect()
+      const squareRect = squareContainer.getBoundingClientRect()
       
-      // The motion square is inside the container with p-0.5 padding
-      // Calculate the center of the actual visible square (motion.div)
-      const squareCenterX = motionSquareRect.left + (motionSquareRect.width / 2)
-      const squareTopY = motionSquareRect.top
+      // Calculate the exact center X of the square
+      const squareCenterX = squareRect.left + (squareRect.width / 2)
+      const squareTopY = squareRect.top
       
       // Convert to container-relative coordinates
-      // The container has position: relative, so tooltip uses this as reference
+      // The tooltip is positioned absolute relative to the container
       const x = squareCenterX - containerRect.left
       const y = squareTopY - containerRect.top
       
@@ -292,7 +287,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 overflow-visible">
+        <div ref={gridRef} className="grid grid-cols-7 gap-1.5 overflow-visible">
           {monthData.map((day, dayIndex) => {
             if (!day.date) {
               return (

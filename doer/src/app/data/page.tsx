@@ -217,8 +217,8 @@ export default function DataPage() {
             <div className="flex items-baseline gap-2 mb-2">
               <ProgressRing
                 percentage={onTimeRate}
-                size={48}
-                strokeWidth={5}
+                size={40}
+                strokeWidth={4}
                 color="#f59e0b"
                 showBreakdown={false}
               />
