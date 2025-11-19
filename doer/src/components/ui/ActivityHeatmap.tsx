@@ -86,38 +86,28 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     if (!date) return
     setHoveredDate(date)
     
-    // Get both the square container and the motion square
+    // Get the square container (not the motion.div, as it has transforms)
     const squareContainer = squareRefs.current.get(date)
-    const motionSquare = motionSquareRefs.current.get(date)
     
-    if (!squareContainer || !motionSquare || !containerRef.current) return
+    if (!squareContainer || !containerRef.current) return
     
     // Use requestAnimationFrame to ensure layout is settled
     requestAnimationFrame(() => {
-      if (!containerRef.current || !motionSquare || !squareContainer) return
+      if (!containerRef.current || !squareContainer) return
       
       // Get bounding rects - these are relative to viewport
       const containerRect = containerRef.current.getBoundingClientRect()
-      const squareRect = motionSquare.getBoundingClientRect()
+      const squareContainerRect = squareContainer.getBoundingClientRect()
       
-      // Calculate the exact center X of the square
-      // Use the square's bounding rect directly
-      const squareCenterX = squareRect.left + (squareRect.width / 2)
-      const squareTopY = squareRect.top
+      // Calculate the exact center X of the square container
+      // The container has padding (p-0.5), so we need the center of the container itself
+      const squareCenterX = squareContainerRect.left + (squareContainerRect.width / 2)
+      const squareTopY = squareContainerRect.top
       
       // Convert to container-relative coordinates
       // The container has position: relative, so tooltip uses this as reference
       const x = squareCenterX - containerRect.left
       const y = squareTopY - containerRect.top
-      
-      // Double-check: log for debugging (can remove later)
-      console.log('Tooltip positioning:', {
-        squareCenterX,
-        containerLeft: containerRect.left,
-        calculatedX: x,
-        squareWidth: squareRect.width,
-        squareLeft: squareRect.left
-      })
       
       setTooltipPosition({ x, y })
     })
