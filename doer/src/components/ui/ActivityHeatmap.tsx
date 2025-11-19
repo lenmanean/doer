@@ -398,8 +398,9 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             style={{
               left: `${tooltipPosition.x}px`,
               top: `${tooltipPosition.y}px`,
-              transform: 'translate(-50%, calc(-100% - 8px))',
-              maxWidth: '200px'
+              transform: 'translateX(-50%) translateY(calc(-100% - 8px))',
+              maxWidth: '200px',
+              transformOrigin: 'center bottom'
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
