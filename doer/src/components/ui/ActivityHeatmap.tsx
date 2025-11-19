@@ -42,6 +42,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     const lastDay = new Date(selectedYear, selectedMonth + 1, 0)
     const firstDayOfWeek = firstDay.getDay()
     const daysInMonth = lastDay.getDate()
+    const lastDayOfWeek = lastDay.getDay()
 
     const days: Array<{ date: string; count: number; tasks?: string[] }> = []
 
@@ -59,6 +60,12 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         count: dayData?.count || 0,
         tasks: dayData?.tasks
       })
+    }
+
+    // Add empty cells for days after month ends to complete the last week
+    const daysAfterMonth = 6 - lastDayOfWeek
+    for (let j = 0; j < daysAfterMonth; j++) {
+      days.push({ date: '', count: 0 })
     }
 
     return days
@@ -141,7 +148,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   return (
     <div ref={containerRef} data-heatmap-container className={cn('relative overflow-visible', className)}>
       {/* Month/Year Navigation */}
-      <div className="flex items-center justify-center mb-4">
+      <div className="flex items-center justify-center mb-6">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigateMonth('prev')}
