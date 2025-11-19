@@ -7,6 +7,12 @@ import { ActivityHeatmap, ActivityHeatmapData } from './ActivityHeatmap'
 import { TrendChart, TrendChartData } from './TrendChart'
 import { BarChart, BarChartData } from './BarChart'
 import { cn } from '@/lib/utils'
+import { 
+  analyzeActivityHeatmap, 
+  analyzeCompletionTrend, 
+  analyzeProductivityPatterns, 
+  analyzeRescheduling 
+} from '@/lib/analytics-insights'
 
 interface AnalyticsTabsProps {
   activityData: ActivityHeatmapData[]
@@ -106,6 +112,11 @@ export function AnalyticsTabs({
                   data={activityData}
                   onDayClick={onDayClick}
                 />
+                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                  <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
+                    {analyzeActivityHeatmap(activityData)}
+                  </p>
+                </div>
               </CardContent>
             </div>
           )}
@@ -128,6 +139,11 @@ export function AnalyticsTabs({
                   timeRange="30d"
                   onTimeRangeChange={onTimeRangeChange}
                 />
+                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                  <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
+                    {analyzeCompletionTrend(completionTrend)}
+                  </p>
+                </div>
               </CardContent>
             </div>
           )}
@@ -148,6 +164,11 @@ export function AnalyticsTabs({
                   title=""
                   colors={['#3b82f6']}
                 />
+                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                  <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
+                    {analyzeProductivityPatterns(productivityPatterns)}
+                  </p>
+                </div>
               </CardContent>
             </div>
           )}
@@ -169,6 +190,11 @@ export function AnalyticsTabs({
                   stacked={true}
                   colors={['#22c55e', '#f59e0b']}
                 />
+                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                  <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
+                    {analyzeRescheduling(reschedulingAnalysis)}
+                  </p>
+                </div>
               </CardContent>
             </div>
           )}
