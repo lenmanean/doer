@@ -92,25 +92,20 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     
     if (!squareContainer || !containerRef.current) return
     
-    // Use requestAnimationFrame to ensure layout is settled
-    requestAnimationFrame(() => {
-      if (!containerRef.current || !squareContainer) return
-      
-      // Get bounding rects - these are relative to viewport
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const squareRect = squareContainer.getBoundingClientRect()
-      
-      // Calculate the exact center X of the square
-      const squareCenterX = squareRect.left + (squareRect.width / 2)
-      const squareTopY = squareRect.top
-      
-      // Convert to container-relative coordinates
-      // The tooltip is positioned absolute relative to the container
-      const x = squareCenterX - containerRect.left
-      const y = squareTopY - containerRect.top
-      
-      setTooltipPosition({ x, y })
-    })
+    // Calculate position immediately, then update in next frame for accuracy
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const squareRect = squareContainer.getBoundingClientRect()
+    
+    // Calculate the exact center X of the square
+    const squareCenterX = squareRect.left + (squareRect.width / 2)
+    const squareTopY = squareRect.top
+    
+    // Convert to container-relative coordinates
+    // The container has position: relative, so tooltip is positioned relative to it
+    const x = squareCenterX - containerRect.left
+    const y = squareTopY - containerRect.top
+    
+    setTooltipPosition({ x, y })
   }
 
   const handleDayClick = (date: string) => {

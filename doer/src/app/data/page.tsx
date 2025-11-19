@@ -214,11 +214,11 @@ export default function DataPage() {
           />
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col">
             <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1.5">On-Time Rate</h3>
-            <div className="flex items-baseline gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2">
               <ProgressRing
                 percentage={onTimeRate}
-                size={40}
-                strokeWidth={4}
+                size={32}
+                strokeWidth={3}
                 color="#f59e0b"
                 showBreakdown={false}
               />

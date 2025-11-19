@@ -58,7 +58,7 @@ export function ProgressRing({
       
       {/* Percentage text */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-lg font-bold text-[#d7d2cb]" style={{ color }}>
+        <span className="text-xs font-bold text-[#d7d2cb]" style={{ color }}>
           {Math.round(percentage)}%
         </span>
       </div>
