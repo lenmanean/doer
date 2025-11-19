@@ -134,6 +134,9 @@ export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
         <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
           Your Statistics
         </CardTitle>
+        <p className="text-[#d7d2cb]/70 mt-1">
+          Comprehensive overview of your task and plan statistics
+        </p>
       </CardHeader>
       <CardContent>
         {loading ? (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +32,7 @@ export function BarChart({
   className
 }: BarChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
 
   if (data.length === 0) {
     return (
@@ -55,6 +56,48 @@ export function BarChart({
   const barHeight = chartHeight - padding * 2
 
   const hoveredData = hoveredIndex !== null ? data[hoveredIndex] : null
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
+
+  // Calculate tooltip position when hovered index changes
+  useEffect(() => {
+    if (hoveredIndex === null) {
+      setTooltipPosition(null)
+      return
+    }
+
+    // Use requestAnimationFrame to ensure tooltip is rendered before calculating
+    requestAnimationFrame(() => {
+      if (!tooltipRef.current || hoveredIndex === null) {
+        setTooltipPosition(null)
+        return
+      }
+
+      const tooltip = tooltipRef.current
+      const tooltipHeight = tooltip.getBoundingClientRect().height
+
+      // Calculate bar position
+      const item = data[hoveredIndex]
+      const value = item[yKey as keyof BarChartData] as number
+      const height = (value / maxValue) * barHeight
+      const x = padding + hoveredIndex * barWidth + barWidth / 2
+      const barTopY = padding + barHeight - height
+
+      // For stacked bars, use the top of the stack
+      let actualBarTopY = barTopY
+      let actualBarHeight = height
+      if (stacked && item.subValues) {
+        const totalHeight = (Object.values(item.subValues).reduce((sum, val) => sum + val, 0) / maxValue) * barHeight
+        actualBarTopY = padding + barHeight - totalHeight
+        actualBarHeight = totalHeight
+      }
+
+      // Center tooltip above bar: bar top - half tooltip height - half bar height
+      const tooltipTop = actualBarTopY - (tooltipHeight / 2) - (actualBarHeight / 2)
+      const tooltipLeft = (x / chartWidth) * 100
+
+      setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
+    })
+  }, [hoveredIndex, data, maxValue, barHeight, barWidth, padding, chartWidth, stacked, yKey])
 
   return (
     <div className={cn('relative', className)}>
@@ -183,15 +226,16 @@ export function BarChart({
 
         {/* Tooltip */}
         <AnimatePresence>
-          {hoveredData && hoveredIndex !== null && (
+          {hoveredData && hoveredIndex !== null && tooltipPosition && (
             <motion.div
+              ref={tooltipRef}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none z-10"
               style={{
-                left: `${((padding + hoveredIndex * barWidth + barWidth / 2) / chartWidth) * 100}%`,
-                top: '-80px',
+                left: `${tooltipPosition.left}%`,
+                top: `${tooltipPosition.top}px`,
                 transform: 'translateX(-50%)'
               }}
             >

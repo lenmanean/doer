@@ -84,9 +84,14 @@ export function PlansPanel({ className }: PlansPanelProps) {
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex items-center justify-between w-full text-left"
         >
-          <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
-            Plans
-          </CardTitle>
+          <div>
+            <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
+              Plans
+            </CardTitle>
+            <p className="text-[#d7d2cb]/70 mt-1">
+              View and manage your active plans and their progress
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-[#d7d2cb]/70">
               {loading ? '...' : `${activeCount} active`}
