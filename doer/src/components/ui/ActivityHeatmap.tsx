@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -92,25 +92,54 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     
     if (!squareContainer || !containerRef.current) return
     
-    // Use requestAnimationFrame to ensure layout is settled
+    // Calculate position
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const squareRect = squareContainer.getBoundingClientRect()
+    
+    // Calculate the exact center X of the square in viewport coordinates
+    const squareCenterX = squareRect.left + (squareRect.width / 2)
+    const squareTopY = squareRect.top
+    
+    // Convert to container-relative coordinates
+    // The container has position: relative, so tooltip is positioned relative to it
+    const x = squareCenterX - containerRect.left
+    const y = squareTopY - containerRect.top
+    
+    setTooltipPosition({ x, y })
+  }
+
+  // Recalculate tooltip position after it renders to ensure proper centering
+  useEffect(() => {
+    if (!tooltipRef.current || !tooltipPosition || !hoveredDate) return
+    
+    const tooltip = tooltipRef.current
+    const squareContainer = squareRefs.current.get(hoveredDate)
+    const container = containerRef.current
+    
+    if (!tooltip || !squareContainer || !container) return
+    
+    // Use requestAnimationFrame to ensure tooltip is fully rendered
     requestAnimationFrame(() => {
-      if (!containerRef.current || !squareContainer) return
+      if (!tooltip || !squareContainer || !container) return
       
-      const containerRect = containerRef.current.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
       const squareRect = squareContainer.getBoundingClientRect()
+      const tooltipRect = tooltip.getBoundingClientRect()
       
-      // Calculate the exact center X of the square in viewport coordinates
+      // Calculate the exact center X of the square
       const squareCenterX = squareRect.left + (squareRect.width / 2)
       const squareTopY = squareRect.top
       
       // Convert to container-relative coordinates
-      // The container has position: relative, so tooltip is positioned relative to it
       const x = squareCenterX - containerRect.left
       const y = squareTopY - containerRect.top
       
-      setTooltipPosition({ x, y })
+      // Only update if position has changed (avoid infinite loop)
+      if (Math.abs(tooltipPosition.x - x) > 0.1 || Math.abs(tooltipPosition.y - y) > 0.1) {
+        setTooltipPosition({ x, y })
+      }
     })
-  }
+  }, [hoveredDate, tooltipPosition])
 
   const handleDayClick = (date: string) => {
     if (!date || !onDayClick) return
