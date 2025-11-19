@@ -113,7 +113,7 @@ export function analyzeCompletionTrend(data: TrendChartData[]): string {
       ? `You're still improving by ${trendPercent.toFixed(1)}% - exceptional work!`
       : isDeclining
       ? `Slight decline of ${trendPercent.toFixed(1)}% - monitor for signs of overcommitment.`
-      : 'You're maintaining excellent performance.'
+      : "You're maintaining excellent performance."
     const volatilityMsg = volatility === 'low'
       ? 'Your consistent high performance demonstrates excellent planning and execution.'
       : 'Maintain this high level while ensuring sustainability.'
