@@ -108,9 +108,9 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     setTooltipPosition({ x, y })
   }
 
-  // Recalculate tooltip position after it renders to ensure proper centering
+  // Recalculate tooltip position after it renders using tooltip's actual width
   useEffect(() => {
-    if (!tooltipRef.current || !tooltipPosition || !hoveredDate) return
+    if (!tooltipRef.current || !hoveredDate) return
     
     const tooltip = tooltipRef.current
     const squareContainer = squareRefs.current.get(hoveredDate)
@@ -124,9 +124,8 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       
       const containerRect = container.getBoundingClientRect()
       const squareRect = squareContainer.getBoundingClientRect()
-      const tooltipRect = tooltip.getBoundingClientRect()
       
-      // Calculate the exact center X of the square
+      // Calculate the exact center X of the square in viewport coordinates
       const squareCenterX = squareRect.left + (squareRect.width / 2)
       const squareTopY = squareRect.top
       
@@ -134,12 +133,9 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
       const x = squareCenterX - containerRect.left
       const y = squareTopY - containerRect.top
       
-      // Only update if position has changed (avoid infinite loop)
-      if (Math.abs(tooltipPosition.x - x) > 0.1 || Math.abs(tooltipPosition.y - y) > 0.1) {
-        setTooltipPosition({ x, y })
-      }
+      setTooltipPosition({ x, y })
     })
-  }, [hoveredDate, tooltipPosition])
+  }, [hoveredDate])
 
   const handleDayClick = (date: string) => {
     if (!date || !onDayClick) return
@@ -199,15 +195,6 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             aria-label="Previous month"
           >
             <ChevronLeft className="w-8 h-8 text-[#d7d2cb]/70" />
-          </button>
-          
-          {/* Today Button */}
-          <button
-            onClick={handleTodayClick}
-            className="px-4 py-2 rounded hover:bg-white/10 transition-colors text-[#d7d2cb]/70 text-sm font-medium"
-            aria-label="Go to today"
-          >
-            Today
           </button>
           
           {/* Month Selector */}
@@ -316,6 +303,15 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             aria-label="Next month"
           >
             <ChevronRight className="w-8 h-8 text-[#d7d2cb]/70" />
+          </button>
+          
+          {/* Today Button */}
+          <button
+            onClick={handleTodayClick}
+            className="px-4 py-2 rounded hover:bg-white/10 transition-colors text-[#d7d2cb]/70 text-sm font-medium"
+            aria-label="Go to today"
+          >
+            Today
           </button>
         </div>
       </div>
