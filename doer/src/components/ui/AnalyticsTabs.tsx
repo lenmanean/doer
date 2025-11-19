@@ -56,15 +56,15 @@ export function AnalyticsTabs({
     <Card className="bg-white/5 border-white/10 mb-8">
       {/* Tabs Header */}
       <div className="border-b border-white/10">
-        <div className="flex items-center gap-1 px-6 pt-4 overflow-x-auto">
+        <div className="flex items-center gap-2 px-6 pt-4 pb-0 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'relative px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
+                'relative px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap',
                 activeTab === tab.id
-                  ? 'text-[#d7d2cb]'
+                  ? 'text-[#d7d2cb] font-semibold'
                   : 'text-[#d7d2cb]/50 hover:text-[#d7d2cb]/70'
               )}
             >
