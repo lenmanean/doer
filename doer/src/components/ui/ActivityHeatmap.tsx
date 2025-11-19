@@ -74,8 +74,8 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   const handleDayHover = (e: React.MouseEvent<HTMLDivElement>, date: string) => {
     if (!date) return
     setHoveredDate(date)
-    // Get the parent container (the div with padding)
-    const squareContainer = e.currentTarget.closest('.relative.aspect-square')
+    // Get the square container div (the one with relative positioning)
+    const squareContainer = (e.currentTarget.parentElement as HTMLElement)
     const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
     
     if (squareContainer && containerRect) {
@@ -87,7 +87,15 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
     } else {
       // Fallback
       const rect = e.currentTarget.getBoundingClientRect()
-      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+      const containerRect = e.currentTarget.closest('[data-heatmap-container]')?.getBoundingClientRect()
+      if (containerRect) {
+        setTooltipPosition({ 
+          x: rect.left - containerRect.left + rect.width / 2, 
+          y: rect.top - containerRect.top + rect.height / 2 
+        })
+      } else {
+        setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+      }
     }
   }
 
@@ -137,10 +145,10 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigateMonth('prev')}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            className="p-2 rounded hover:bg-white/10 transition-colors"
             aria-label="Previous month"
           >
-            <ChevronLeft className="w-6 h-6 text-[#d7d2cb]/70" />
+            <ChevronLeft className="w-8 h-8 text-[#d7d2cb]/70" />
           </button>
           
           {/* Month Selector */}
@@ -151,7 +159,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                 setShowYearSelector(false)
               }}
               className={cn(
-                'px-6 py-3 rounded hover:bg-white/10 transition-colors text-[#d7d2cb] font-medium text-xl',
+                'px-12 py-6 rounded hover:bg-white/10 transition-colors text-[#d7d2cb] font-medium text-2xl',
                 showMonthSelector && 'bg-white/10'
               )}
             >
@@ -175,16 +183,16 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="absolute top-full left-0 mt-2 z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl min-w-[120px]"
+                    className="absolute top-full left-0 mt-2 z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-4 shadow-xl min-w-[240px]"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="grid grid-cols-3 gap-2">
                       {monthNames.map((month, index) => (
                         <button
                           key={index}
                           onClick={() => handleMonthSelect(index)}
                           className={cn(
-                            'px-2 py-1 text-xs rounded hover:bg-white/10 transition-colors text-left',
+                            'px-4 py-2 text-sm rounded hover:bg-white/10 transition-colors text-left',
                             selectedMonth === index
                               ? 'bg-orange-500/20 text-orange-500'
                               : 'text-[#d7d2cb]/70 hover:text-[#d7d2cb]'
@@ -196,15 +204,15 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                     </div>
                     
                     {/* Year Selector Toggle */}
-                    <div className="mt-2 pt-2 border-t border-white/10 relative">
+                    <div className="mt-4 pt-4 border-t border-white/10 relative">
                       <button
                         onClick={() => {
                           setShowYearSelector(!showYearSelector)
                         }}
-                        className="w-full px-2 py-1 rounded hover:bg-white/10 transition-colors text-xs text-[#d7d2cb]/70 hover:text-[#d7d2cb] flex items-center justify-between"
+                        className="w-full px-4 py-2 rounded hover:bg-white/10 transition-colors text-sm text-[#d7d2cb]/70 hover:text-[#d7d2cb] flex items-center justify-between"
                       >
                         <span>{selectedYear}</span>
-                        <ChevronDown className={cn('w-3 h-3 transition-transform', showYearSelector && 'rotate-180')} />
+                        <ChevronDown className={cn('w-4 h-4 transition-transform', showYearSelector && 'rotate-180')} />
                       </button>
                       
                       {/* Year Selector */}
@@ -214,16 +222,16 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -10 }}
-                            className="absolute left-full ml-2 top-0 z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl"
+                            className="absolute left-full ml-2 top-0 z-50 bg-[#0a0a0a] border border-white/20 rounded-lg p-4 shadow-xl"
                             style={{ maxHeight: '200px', overflowY: 'auto' }}
                           >
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-2">
                               {yearOptions.map((year) => (
                                 <button
                                   key={year}
                                   onClick={() => handleYearSelect(year)}
                                   className={cn(
-                                    'px-3 py-1 text-sm rounded hover:bg-white/10 transition-colors text-left min-w-[80px]',
+                                    'px-6 py-2 text-base rounded hover:bg-white/10 transition-colors text-left min-w-[160px]',
                                     selectedYear === year
                                       ? 'bg-orange-500/20 text-orange-500'
                                       : 'text-[#d7d2cb]/70 hover:text-[#d7d2cb]'
@@ -245,10 +253,10 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
 
           <button
             onClick={() => navigateMonth('next')}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            className="p-2 rounded hover:bg-white/10 transition-colors"
             aria-label="Next month"
           >
-            <ChevronRight className="w-6 h-6 text-[#d7d2cb]/70" />
+            <ChevronRight className="w-8 h-8 text-[#d7d2cb]/70" />
           </button>
         </div>
       </div>

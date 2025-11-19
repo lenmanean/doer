@@ -212,7 +212,7 @@ export default function DataPage() {
             color="#3b82f6"
             formatValue={(v) => `${Math.round(v)} days`}
           />
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col h-full">
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col">
             <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1.5">On-Time Rate</h3>
             <div className="flex items-center gap-3 mb-2">
               <ProgressRing
