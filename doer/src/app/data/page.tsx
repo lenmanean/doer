@@ -12,6 +12,7 @@ import { TrendChart, TrendChartData } from '@/components/ui/TrendChart'
 import { BarChart, BarChartData } from '@/components/ui/BarChart'
 import { PlansPanel } from '@/components/ui/PlansPanel'
 import { UserDataSummary } from '@/components/ui/UserDataSummary'
+import { AnalyticsTabs } from '@/components/ui/AnalyticsTabs'
 import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { signOutClient } from '@/lib/auth/sign-out-client'
@@ -237,78 +238,24 @@ export default function DataPage() {
           />
         </div>
 
-        {/* Activity Heatmap */}
-        <Card className="bg-white/5 border-white/10 mb-8">
-          <CardHeader>
-            <CardTitle className="text-3xl font-semibold text-[#d7d2cb]">
-              Activity Heatmap
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="py-3 px-6 overflow-visible">
-            <ActivityHeatmap
-              data={activityData}
-              onDayClick={(date) => {
-                console.log('Clicked date:', date)
-                // TODO: Navigate to daily detail view
-              }}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
-                Completion Trend
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TrendChart
-                data={completionTrend}
-                title=""
-                color="#22c55e"
-                timeRange="30d"
-                onTimeRangeChange={(range) => {
-                  console.log('Time range changed:', range)
-                  // TODO: Update data based on time range
-                }}
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
-                Productivity Patterns
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BarChart
-                data={productivityPatterns}
-                title=""
-                colors={['#3b82f6']}
-              />
-            </CardContent>
-          </Card>
+        {/* Analytics Tabs */}
+        <div className="mb-8 p-4 border-4 border-red-500">
+          <div className="text-red-500 font-bold mb-2">DEBUG: AnalyticsTabs should render here</div>
+          <AnalyticsTabs
+            activityData={activityData}
+            completionTrend={completionTrend}
+            productivityPatterns={productivityPatterns}
+            reschedulingAnalysis={reschedulingAnalysis}
+            onDayClick={(date) => {
+              console.log('Clicked date:', date)
+              // TODO: Navigate to daily detail view
+            }}
+            onTimeRangeChange={(range) => {
+              console.log('Time range changed:', range)
+              // TODO: Update data based on time range
+            }}
+          />
         </div>
-
-        {/* Rescheduling Analysis */}
-        <Card className="bg-white/5 border-white/10 mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-[#d7d2cb]">
-              Rescheduling Analysis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BarChart
-              data={reschedulingAnalysis}
-              title=""
-              stacked={true}
-              colors={['#22c55e', '#f59e0b']}
-            />
-          </CardContent>
-        </Card>
 
         {/* Plans Panel and User Data Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
