@@ -52,10 +52,13 @@ export function AnalyticsTabs({
 }: AnalyticsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('heatmap')
 
+  // Debug: Log when component renders
+  console.log('AnalyticsTabs rendering with activeTab:', activeTab)
+
   return (
     <Card className="bg-white/5 border border-white/10 mb-8">
-      {/* Tabs Header */}
-      <div className="border-b border-white/20 bg-white/5">
+      {/* Tabs Header - Make it very visible */}
+      <div className="border-b-2 border-white/30 bg-white/10">
         <div className="flex items-center gap-1 px-6 pt-4 pb-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
