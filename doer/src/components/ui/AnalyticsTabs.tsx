@@ -53,19 +53,19 @@ export function AnalyticsTabs({
   const [activeTab, setActiveTab] = useState<TabType>('heatmap')
 
   return (
-    <Card className="bg-white/5 border-white/10 mb-8">
+    <Card className="bg-white/5 border border-white/10 mb-8">
       {/* Tabs Header */}
-      <div className="border-b border-white/10 bg-white/5">
-        <div className="flex items-center gap-2 px-6 pt-4 pb-0 overflow-x-auto">
+      <div className="border-b border-white/20 bg-white/5">
+        <div className="flex items-center gap-1 px-6 pt-4 pb-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'relative px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap',
+                'relative px-6 py-3 text-sm font-medium transition-all whitespace-nowrap rounded-t-lg',
                 activeTab === tab.id
-                  ? 'text-[#d7d2cb] font-semibold'
-                  : 'text-[#d7d2cb]/50 hover:text-[#d7d2cb]/70'
+                  ? 'text-[#d7d2cb] font-semibold bg-white/10'
+                  : 'text-[#d7d2cb]/50 hover:text-[#d7d2cb]/70 hover:bg-white/5'
               )}
             >
               {tab.label}
