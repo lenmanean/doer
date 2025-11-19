@@ -108,9 +108,6 @@ export function BarChart({
     return d[yKey as keyof BarChartData] as number
   }))
 
-  const chartWidth = 800
-  const chartHeight = 300
-  const padding = 40
   const barWidth = (chartWidth - padding * 2) / data.length
   const barHeight = chartHeight - padding * 2
 
