@@ -101,7 +101,7 @@ export function BarChart({
 
             if (stacked && item.subValues) {
               // Stacked bars
-              let currentY = barHeight
+              let currentY = padding + barHeight
               const subEntries = Object.entries(item.subValues)
               const totalValue = subEntries.reduce((sum, [, val]) => sum + val, 0)
 
