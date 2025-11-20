@@ -359,7 +359,7 @@ export function ActivityHeatmap({ data, className, onDayClick, showNavigation = 
               return (
                 <div 
                   key={`empty-${dayIndex}`} 
-                  className="aspect-square border-2 border-gray-400/30 dark:border-white/10 rounded-sm bg-gray-100/20 dark:bg-gray-800/30"
+                  className="aspect-square border-2 border-[var(--border)] bg-[var(--accent)] rounded-sm"
                 />
               )
             }
