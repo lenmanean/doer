@@ -116,6 +116,7 @@ export function TrendChart({
       }
 
       const svgRect = svgElement.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
       const svgWidth = svgRect.width
       const svgHeight = svgRect.height
       const viewBoxHeight = height + 60
@@ -124,11 +125,15 @@ export function TrendChart({
       const actualX = (x / width) * svgWidth
       const actualY = (y / viewBoxHeight) * svgHeight
 
+      // Get SVG position relative to container
+      const svgOffsetX = svgRect.left - containerRect.left
+      const svgOffsetY = svgRect.top - containerRect.top
+
       // Calculate tooltip position relative to container
       // Use approximate height (will be refined in next effect after tooltip renders)
       const estimatedTooltipHeight = 60
-      const tooltipLeft = actualX
-      const tooltipTop = actualY - estimatedTooltipHeight - 8
+      const tooltipLeft = svgOffsetX + actualX
+      const tooltipTop = svgOffsetY + actualY - estimatedTooltipHeight - 8
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     })
@@ -159,6 +164,7 @@ export function TrendChart({
       if (!svgElement) return
 
       const svgRect = svgElement.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
       const svgWidth = svgRect.width
       const svgHeight = svgRect.height
       const viewBoxHeight = height + 60
@@ -166,9 +172,13 @@ export function TrendChart({
       const actualX = (x / width) * svgWidth
       const actualY = (y / viewBoxHeight) * svgHeight
 
+      // Get SVG position relative to container
+      const svgOffsetX = svgRect.left - containerRect.left
+      const svgOffsetY = svgRect.top - containerRect.top
+
       // Adjust position with actual tooltip height
-      const tooltipLeft = actualX
-      const tooltipTop = actualY - tooltipRect.height - 8
+      const tooltipLeft = svgOffsetX + actualX
+      const tooltipTop = svgOffsetY + actualY - tooltipRect.height - 8
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     }, 0)
