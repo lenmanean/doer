@@ -102,8 +102,8 @@ export function AnalyticsTabs({
         >
           {activeTab === 'heatmap' && (
             <div>
-              <CardHeader className="flex items-start justify-between gap-4 pb-4">
-                <div className="flex-1">
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                <div className="flex-1 min-w-0">
                   <CardTitle className="text-3xl font-semibold text-[#d7d2cb]">
                     Activity Heatmap
                   </CardTitle>

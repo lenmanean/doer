@@ -72,7 +72,7 @@ export function ActivityHeatmapNavigation({
   const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 flex-nowrap">
       <button
         onClick={() => navigateMonth('prev')}
         className="p-2 rounded hover:bg-white/10 transition-colors"
