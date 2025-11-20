@@ -115,10 +115,12 @@ export function TrendChart({
       const containerRect = container.getBoundingClientRect()
 
       // Calculate position relative to container
+      // Use the circle's center point for accurate positioning
       const circleCenterX = circleRect.left + circleRect.width / 2 - containerRect.left
       const circleCenterY = circleRect.top + circleRect.height / 2 - containerRect.top
 
-      // Position tooltip above the circle
+      // Position tooltip above the circle, centered horizontally
+      // The transform translateX(-50%) will center the tooltip on this point
       const estimatedTooltipHeight = 60
       const tooltipLeft = circleCenterX
       const tooltipTop = circleCenterY - estimatedTooltipHeight - 8
@@ -312,7 +314,7 @@ export function TrendChart({
             style={{
               left: `${tooltipPosition.left}px`,
               top: `${tooltipPosition.top}px`,
-              transform: 'translateX(-50%)'
+              transform: 'translate(calc(-50% - 1px), 0)'
             }}
           >
             <div className="text-xs font-semibold text-[#d7d2cb]">
