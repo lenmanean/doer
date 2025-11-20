@@ -301,7 +301,7 @@ export async function POST(req: NextRequest) {
     }
 
     const actualDailyTasks = aiContent.tasks.length
-    const timelineDays = Math.max(aiContent.timeline_days, 1)
+    let timelineDays = Math.max(aiContent.timeline_days, 1)
     const lunchStartHour = 12
     const lunchEndHour = 13
     const workdayStartHour = 9
@@ -309,9 +309,16 @@ export async function POST(req: NextRequest) {
     const lunchMinutes = Math.max(0, (lunchEndHour - lunchStartHour) * 60)
     const workdayMinutes = Math.max(60, (workdayEndHour - workdayStartHour) * 60 - lunchMinutes)
     const realisticDailyCapacity = Math.max(120, Math.round(workdayMinutes * 0.65))
-    const allowedCapacity = realisticDailyCapacity * timelineDays
+    const derivedFromDuration = Math.max(1, Math.ceil(totalDuration / realisticDailyCapacity))
+    if (derivedFromDuration > timelineDays) {
+      timelineDays = derivedFromDuration
+    }
     const minTasks = Math.max(2, Math.ceil(timelineDays * 0.5))
+    let allowedCapacity = realisticDailyCapacity * timelineDays
     let totalDuration = aiContent.tasks.reduce((sum: number, task: any) => sum + (task.estimated_duration_minutes || 30), 0)
+
+    const derivedFromDuration = Math.max(1, Math.ceil(totalDuration / realisticDailyCapacity))
+    timelineDays = Math.max(timelineDays, derivedFromDuration)
 
     if (totalDuration > allowedCapacity) {
       let removed = 0
@@ -362,9 +369,10 @@ export async function POST(req: NextRequest) {
 
     // Validate that we have enough tasks
     // For a plan with N days, we typically want at least N-1 tasks (one per day minus start/end days)
-    if (aiContent.tasks.length < Math.max(1, aiContent.timeline_days - 2)) {
+    const minExpectedTasks = Math.max(1, timelineDays - 2)
+    if (aiContent.tasks.length < minExpectedTasks) {
       console.error('Insufficient tasks:', {
-        expected: Math.max(1, aiContent.timeline_days - 2),
+        expected: minExpectedTasks,
         actual: aiContent.tasks.length,
       })
       await supabase.from('onboarding_responses').delete().eq('user_id', user.id)
@@ -376,9 +384,11 @@ export async function POST(req: NextRequest) {
           redirect: '/onboarding',
         },
         'task_validation_failed',
-        { expected: Math.max(1, aiContent.timeline_days - 2), actual: aiContent.tasks.length }
+        { expected: minExpectedTasks, actual: aiContent.tasks.length }
       )
     }
+
+    aiContent.timeline_days = timelineDays
 
     const [year, month, day] = finalStartDate.split('-').map(Number)
     const startDate = new Date(year, month - 1, day, 0, 0, 0, 0)
@@ -386,7 +396,7 @@ export async function POST(req: NextRequest) {
     const calculatedEndDate = endDate.toISOString().split('T')[0]
 
     console.log('✅ AI content validated:', {
-      timeline_days: aiContent.timeline_days,
+      timeline_days: timelineDays,
       ai_end_date: aiContent.end_date,
       calculated_end_date: calculatedEndDate,
       tasks: aiContent.tasks.length,

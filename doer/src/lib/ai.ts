@@ -233,6 +233,7 @@ TIMELINE CALCULATION RULES:
   - 1 day plan = max 250 minutes of tasks
   - 2 day plan = max 500 minutes of tasks
   - 3 day plan = max 750 minutes of tasks
+• TIMELINE MUST SCALE WITH TOTAL WORKLOAD: Draw timeline_days from total duration + buffer rather than defaulting to a short span. If the sum of durations exceeds 250×timeline_days, extend the timeline until the workload fits (realistic pacing beats short timelines).
 • CRITICAL FOR SINGLE-DAY PLANS: Keep total task duration under 250 minutes
 • Examples:
   - If total tasks = 240 minutes → 1 day plan (fits)
