@@ -31,7 +31,6 @@ interface UserProfile {
   id: string
   first_name?: string
   last_name?: string
-  username?: string
   email?: string
   avatar_url?: string
 }
@@ -53,90 +52,69 @@ export default function AuthAwareLanding() {
     document.documentElement.classList.add('dark')
   }, [])
   
-  const fetchProfile = React.useCallback(async () => {
-    // Ensure we have a fully authenticated, non-null user before querying
-    if (!isAuthenticated || !user) {
-      setProfile(null)
-      return
-    }
-
-    const currentUser = user
-
-    try {
-      // Fetch user profile - explicitly select fields we need
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_settings')
-        .select('id, first_name, last_name, username, email, avatar_url, display_name')
-        .eq('user_id', currentUser.id)
-        .single()
-
-      if (profileError?.code === 'PGRST116') {
-        // Create profile if it doesn't exist with defaults
-        const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-        const defaultLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US'
-        
-        // Extract username from auth metadata
-        const username = (currentUser as any).user_metadata?.username || null
-        
-        const { data: newProfile } = await supabase
+  useEffect(() => {
+    const fetchProfile = async () => {
+      // Ensure we have a fully authenticated, non-null user before querying
+      if (!isAuthenticated || !user) {
+        setProfile(null)
+        return
+      }
+  
+      const currentUser = user
+  
+      try {
+        // Fetch user profile
+        const { data: userProfile, error: profileError } = await supabase
           .from('user_settings')
-          .insert({
-            user_id: currentUser.id,
-            username: username,
-            first_name: currentUser.email?.split('@')[0] || 'User',
-            timezone: defaultTimezone,
-            locale: defaultLocale
-          })
-          .select()
+          .select('*')
+          .eq('user_id', currentUser.id)
           .single()
-        
-        setProfile(newProfile)
-      } else if (profileError) {
-        console.error('Error fetching user profile:', profileError)
+  
+        if (profileError?.code === 'PGRST116') {
+          // Create profile if it doesn't exist with defaults
+          const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+          const defaultLocale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US'
+          
+          // Extract username from auth metadata
+          const username = (currentUser as any).user_metadata?.username || null
+          
+          const { data: newProfile } = await supabase
+            .from('user_settings')
+            .insert({
+              user_id: currentUser.id,
+              username: username,
+              first_name: currentUser.email?.split('@')[0] || 'User',
+              timezone: defaultTimezone,
+              locale: defaultLocale
+            })
+            .select()
+            .single()
+          
+          setProfile(newProfile)
+        } else if (profileError) {
+          console.error('Error fetching user profile:', profileError)
+          // Set fallback profile
+          setProfile({ 
+            id: currentUser.id,
+            first_name: currentUser.email?.split('@')[0] || 'User',
+            email: currentUser.email
+          })
+        } else {
+          setProfile(userProfile)
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
         // Set fallback profile
         setProfile({ 
           id: currentUser.id,
           first_name: currentUser.email?.split('@')[0] || 'User',
           email: currentUser.email
         })
-      } else {
-        // Log profile data for debugging
-        console.log('[AuthAwareLanding] Profile loaded:', {
-          id: userProfile?.id,
-          first_name: userProfile?.first_name,
-          last_name: userProfile?.last_name,
-          username: userProfile?.username,
-          email: userProfile?.email
-        })
-        setProfile(userProfile)
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error)
-      // Set fallback profile
-      setProfile({ 
-        id: currentUser.id,
-        first_name: currentUser.email?.split('@')[0] || 'User',
-        email: currentUser.email
-      })
     }
-  }, [user, supabase, isAuthenticated])
-
-  useEffect(() => {
+  
     fetchProfile()
-    
-    // Also refresh profile when page becomes visible (in case profile was updated in another tab)
-    const handleVisibilityChange = () => {
-      if (!document.hidden && isAuthenticated && user) {
-        fetchProfile()
-      }
-    }
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [fetchProfile, isAuthenticated, user])
+  }, [user, supabase, isAuthenticated])
   
   const handleSignOut = async () => {
     try {
@@ -301,17 +279,10 @@ export default function AuthAwareLanding() {
                       ) : (
                         <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-full flex items-center justify-center">
                           <span className="text-white text-sm font-medium">
-                            {(profile?.first_name || profile?.username || user?.email || 'U').charAt(0).toUpperCase()}
+                            {(profile?.first_name || user?.email || 'U').charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
-                      <span className="text-sm text-[#d7d2cb] hidden md:block">
-                        {profile?.first_name 
-                          ? profile.first_name
-                          : profile?.username 
-                            ? profile.username
-                            : user?.email?.split('@')[0] || 'User'}
-                      </span>
                     </button>
                     
                     {/* Dropdown Menu */}
@@ -321,9 +292,7 @@ export default function AuthAwareLanding() {
                           <div className="text-sm font-medium text-[#d7d2cb]">
                             {profile?.first_name 
                               ? `${profile.first_name}${profile?.last_name ? ` ${profile.last_name}` : ''}`.trim()
-                            : profile?.username
-                              ? profile.username
-                              : user?.email?.split('@')[0] || 'User'}
+                            : user?.email?.split('@')[0] || 'User'}
                           </div>
                           <div className="text-xs text-[#d7d2cb]/60">
                           {user?.email ?? ''}

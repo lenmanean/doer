@@ -15,15 +15,22 @@ interface ActivityHeatmapProps {
   data: ActivityHeatmapData[]
   className?: string
   onDayClick?: (date: string) => void
+  showNavigation?: boolean
+  selectedMonth?: number
+  selectedYear?: number
 }
 
-export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ data, className, onDayClick, showNavigation = true, selectedMonth: externalMonth, selectedYear: externalYear }: ActivityHeatmapProps) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; tooltipWidth?: number; tooltipHeight?: number } | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [internalMonth, setInternalMonth] = useState(new Date().getMonth())
+  const [internalYear, setInternalYear] = useState(new Date().getFullYear())
   const [showMonthSelector, setShowMonthSelector] = useState(false)
   const [showYearSelector, setShowYearSelector] = useState(false)
+  
+  // Use external state if provided, otherwise use internal state
+  const selectedMonth = externalMonth !== undefined ? externalMonth : internalMonth
+  const selectedYear = externalYear !== undefined ? externalYear : internalYear
   const containerRef = useRef<HTMLDivElement>(null)
   const gridWrapperRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -149,37 +156,47 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
   }
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      if (selectedMonth === 0) {
-        setSelectedMonth(11)
-        setSelectedYear(selectedYear - 1)
+    if (externalMonth === undefined) {
+      // Use internal state
+      if (direction === 'prev') {
+        if (internalMonth === 0) {
+          setInternalMonth(11)
+          setInternalYear(internalYear - 1)
+        } else {
+          setInternalMonth(internalMonth - 1)
+        }
       } else {
-        setSelectedMonth(selectedMonth - 1)
-      }
-    } else {
-      if (selectedMonth === 11) {
-        setSelectedMonth(0)
-        setSelectedYear(selectedYear + 1)
-      } else {
-        setSelectedMonth(selectedMonth + 1)
+        if (internalMonth === 11) {
+          setInternalMonth(0)
+          setInternalYear(internalYear + 1)
+        } else {
+          setInternalMonth(internalMonth + 1)
+        }
       }
     }
+    // If external state is provided, navigation is handled by parent
   }
 
   const handleMonthSelect = (monthIndex: number) => {
-    setSelectedMonth(monthIndex)
+    if (externalMonth === undefined) {
+      setInternalMonth(monthIndex)
+    }
     setShowMonthSelector(false)
   }
 
   const handleYearSelect = (year: number) => {
-    setSelectedYear(year)
+    if (externalYear === undefined) {
+      setInternalYear(year)
+    }
     setShowYearSelector(false)
   }
 
   const handleTodayClick = () => {
-    const today = new Date()
-    setSelectedMonth(today.getMonth())
-    setSelectedYear(today.getFullYear())
+    if (externalMonth === undefined) {
+      const today = new Date()
+      setInternalMonth(today.getMonth())
+      setInternalYear(today.getFullYear())
+    }
     setShowMonthSelector(false)
     setShowYearSelector(false)
   }
@@ -192,7 +209,8 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
 
   return (
     <div ref={containerRef} data-heatmap-container className={cn('relative overflow-visible', className)}>
-      {/* Month/Year Navigation */}
+      {/* Month/Year Navigation - only show if not using external state */}
+      {showNavigation && externalMonth === undefined && (
       <div className="flex items-center justify-center mb-6">
         <div className="flex items-center gap-4">
           <button
@@ -321,6 +339,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
           </button>
         </div>
       </div>
+      )}
 
       {/* Calendar Grid */}
       <div ref={gridWrapperRef} className="w-full px-2">

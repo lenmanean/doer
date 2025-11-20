@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from './Card'
 import { ActivityHeatmap, ActivityHeatmapData } from './ActivityHeatmap'
+import { ActivityHeatmapNavigation } from './ActivityHeatmapNavigation'
 import { TrendChart, TrendChartData } from './TrendChart'
 import { BarChart, BarChartData } from './BarChart'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,8 @@ export function AnalyticsTabs({
   onTimeRangeChange
 }: AnalyticsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('heatmap')
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   return (
     <Card className="bg-white/5 border border-white/10 mb-8">
@@ -99,19 +102,32 @@ export function AnalyticsTabs({
         >
           {activeTab === 'heatmap' && (
             <div>
-              <CardHeader>
-                <CardTitle className="text-3xl font-semibold text-[#d7d2cb]">
-                  Activity Heatmap
-                </CardTitle>
-                <p className="text-[#d7d2cb]/70 mt-2">
-                  {tabs.find(t => t.id === 'heatmap')?.description}
-                </p>
+              <CardHeader className="flex items-start justify-between gap-4 pb-4">
+                <div className="flex-1">
+                  <CardTitle className="text-3xl font-semibold text-[#d7d2cb]">
+                    Activity Heatmap
+                  </CardTitle>
+                  <p className="text-[#d7d2cb]/70 mt-2">
+                    {tabs.find(t => t.id === 'heatmap')?.description}
+                  </p>
+                </div>
+                <div className="flex-shrink-0" style={{ marginRight: 'calc((100% - 0.5rem) / 7 * 0.5)' }}>
+                  <ActivityHeatmapNavigation
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onMonthChange={setSelectedMonth}
+                    onYearChange={setSelectedYear}
+                  />
+                </div>
               </CardHeader>
               <CardContent className="py-3 px-6 overflow-visible">
                 <div>
                   <ActivityHeatmap
                     data={activityData}
                     onDayClick={onDayClick}
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    showNavigation={false}
                   />
                 </div>
                 <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
