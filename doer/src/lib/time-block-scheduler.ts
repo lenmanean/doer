@@ -764,16 +764,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       )
 
       if (initialStartTime) {
-          // Find the next available slot that doesn't overlap
-          const startTime = findNextAvailableSlot(
-            initialStartTime,
-            durationToSchedule,
-            dateStr,
-            scheduledSlots,
-            dayConfig,
-            currentTime,
-            currentDate
-          )
+        // Find the next available slot that doesn't overlap
+        const startTime = findNextAvailableSlot(
+          initialStartTime,
+          durationToSchedule,
+          dateStr,
+          scheduledSlots,
+          dayConfig,
+          currentTime
+        )
 
           if (!startTime) {
             console.log(`    No available slot found starting from ${initialStartTime}`)
@@ -966,8 +965,7 @@ function findNextAvailableSlot(
   dateStr: string,
   scheduledSlots: Map<string, Array<{start: number, end: number, taskId: string}>>,
   dayConfig: DayScheduleConfig,
-  currentTime?: Date,
-  currentDate?: Date
+  currentTime?: Date
 ): string | null {
   const [suggestedHour, suggestedMinute] = suggestedStartTime.split(':').map(Number)
   let currentStartMinutes = suggestedHour * 60 + suggestedMinute
@@ -991,15 +989,16 @@ function findNextAvailableSlot(
   let candidateEnd = candidateStart + duration
   
   // If this is today and we have current time, ensure we don't schedule in the past
-  if (currentTime && currentDate) {
-    const currentDateStr = currentDate.toISOString().split('T')[0]
-    const suggestedDateStr = dateStr
-    
-    if (currentDateStr === suggestedDateStr) {
+  if (currentTime) {
+    const currentTimeDateStr = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(
+      currentTime.getDate()
+    ).padStart(2, '0')}`
+
+    if (currentTimeDateStr === dateStr) {
       const currentHour = currentTime.getHours()
       const currentMinute = currentTime.getMinutes()
       const currentMinutes = currentHour * 60 + currentMinute
-      
+
       // If suggested time is in the past, start from current time
       if (candidateStart < currentMinutes) {
         candidateStart = currentMinutes
