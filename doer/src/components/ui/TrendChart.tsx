@@ -33,6 +33,7 @@ export function TrendChart({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const circleRefs = useRef<Map<number, SVGCircleElement>>(new Map())
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
   // Filter data based on time range
@@ -102,42 +103,29 @@ export function TrendChart({
       }
 
       const container = containerRef.current
-
-      // Calculate the x position of the data point in viewBox coordinates
-      const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
-      const value = filteredData[hoveredIndex][yKey as keyof TrendChartData] as number
-      const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
-
-      // Convert SVG coordinates to container-relative coordinates
-      const svgElement = container.querySelector('svg')
-      if (!svgElement) {
+      const circle = circleRefs.current.get(hoveredIndex)
+      
+      if (!circle) {
         setTooltipPosition(null)
         return
       }
 
-      const svgRect = svgElement.getBoundingClientRect()
+      // Get the circle's position in viewport coordinates
+      const circleRect = circle.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
-      const svgWidth = svgRect.width
-      const svgHeight = svgRect.height
-      const viewBoxHeight = height + 60
 
-      // Scale coordinates from viewBox to actual SVG size
-      const actualX = (x / width) * svgWidth
-      const actualY = (y / viewBoxHeight) * svgHeight
+      // Calculate position relative to container
+      const circleCenterX = circleRect.left + circleRect.width / 2 - containerRect.left
+      const circleCenterY = circleRect.top + circleRect.height / 2 - containerRect.top
 
-      // Get SVG position relative to container
-      const svgOffsetX = svgRect.left - containerRect.left
-      const svgOffsetY = svgRect.top - containerRect.top
-
-      // Calculate tooltip position relative to container
-      // Use approximate height (will be refined in next effect after tooltip renders)
+      // Position tooltip above the circle
       const estimatedTooltipHeight = 60
-      const tooltipLeft = svgOffsetX + actualX
-      const tooltipTop = svgOffsetY + actualY - estimatedTooltipHeight - 8
+      const tooltipLeft = circleCenterX
+      const tooltipTop = circleCenterY - estimatedTooltipHeight - 8
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     })
-  }, [hoveredIndex, filteredData, minValue, range, yKey, width, height, padding])
+  }, [hoveredIndex, filteredData])
 
   // Refine tooltip position after it renders to get exact height
   useEffect(() => {
@@ -153,32 +141,21 @@ export function TrendChart({
 
       const container = containerRef.current
       const tooltip = tooltipRef.current
+      const circle = circleRefs.current.get(hoveredIndex)
+
+      if (!circle) return
+
       const tooltipRect = tooltip.getBoundingClientRect()
-
-      // Recalculate the data point position
-      const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
-      const value = filteredData[hoveredIndex][yKey as keyof TrendChartData] as number
-      const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
-
-      const svgElement = container.querySelector('svg')
-      if (!svgElement) return
-
-      const svgRect = svgElement.getBoundingClientRect()
+      const circleRect = circle.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
-      const svgWidth = svgRect.width
-      const svgHeight = svgRect.height
-      const viewBoxHeight = height + 60
 
-      const actualX = (x / width) * svgWidth
-      const actualY = (y / viewBoxHeight) * svgHeight
-
-      // Get SVG position relative to container
-      const svgOffsetX = svgRect.left - containerRect.left
-      const svgOffsetY = svgRect.top - containerRect.top
+      // Recalculate circle center position
+      const circleCenterX = circleRect.left + circleRect.width / 2 - containerRect.left
+      const circleCenterY = circleRect.top + circleRect.height / 2 - containerRect.top
 
       // Adjust position with actual tooltip height
-      const tooltipLeft = svgOffsetX + actualX
-      const tooltipTop = svgOffsetY + actualY - tooltipRect.height - 8
+      const tooltipLeft = circleCenterX
+      const tooltipTop = circleCenterY - tooltipRect.height - 8
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     }, 0)
@@ -267,6 +244,10 @@ export function TrendChart({
             return (
               <g key={i}>
                 <motion.circle
+                  ref={(el) => {
+                    if (el) circleRefs.current.set(i, el)
+                    else circleRefs.current.delete(i)
+                  }}
                   cx={x}
                   cy={y}
                   r={isHovered ? 6 : 3}
