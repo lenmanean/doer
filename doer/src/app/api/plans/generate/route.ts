@@ -317,9 +317,6 @@ export async function POST(req: NextRequest) {
     let allowedCapacity = realisticDailyCapacity * timelineDays
     let totalDuration = aiContent.tasks.reduce((sum: number, task: any) => sum + (task.estimated_duration_minutes || 30), 0)
 
-    const derivedFromDuration = Math.max(1, Math.ceil(totalDuration / realisticDailyCapacity))
-    timelineDays = Math.max(timelineDays, derivedFromDuration)
-
     if (totalDuration > allowedCapacity) {
       let removed = 0
       while (totalDuration > allowedCapacity && aiContent.tasks.length > minTasks) {
