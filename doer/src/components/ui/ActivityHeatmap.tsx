@@ -84,10 +84,10 @@ export function ActivityHeatmap({ data, className, onDayClick, showNavigation = 
   }, [data, selectedMonth, selectedYear])
 
   const getColor = (count: number): string => {
-    if (count === 0) return 'bg-gray-800/50'
-    if (count >= 1 && count <= 2) return 'bg-green-500/40'
-    if (count >= 3 && count <= 4) return 'bg-green-500/60'
-    return 'bg-green-500'
+    if (count === 0) return 'bg-[var(--accent)] border-2 border-[var(--border)]'
+    if (count >= 1 && count <= 2) return 'bg-green-500/40 border-2 border-green-500/60'
+    if (count >= 3 && count <= 4) return 'bg-green-500/60 border-2 border-green-500/80'
+    return 'bg-green-500 border-2 border-green-600'
   }
 
   const handleDayHover = (date: string) => {
@@ -359,7 +359,7 @@ export function ActivityHeatmap({ data, className, onDayClick, showNavigation = 
               return (
                 <div 
                   key={`empty-${dayIndex}`} 
-                  className="aspect-square border-2 border-[var(--border)] bg-[var(--accent)] rounded-sm"
+                  className="aspect-square bg-gray-800/50 dark:bg-gray-800/50 rounded-sm border-2 border-dashed border-gray-400/40 dark:border-white/10"
                 />
               )
             }
@@ -386,7 +386,7 @@ export function ActivityHeatmap({ data, className, onDayClick, showNavigation = 
                   className={cn(
                     'w-full h-full rounded-sm cursor-pointer transition-all',
                     getColor(day.count),
-                    hoveredDate === day.date && 'ring-2 ring-white/70 shadow-lg shadow-white/20'
+                    hoveredDate === day.date && 'ring-2 ring-white/70 dark:ring-white/70 ring-[var(--primary)]/50 shadow-lg shadow-white/20'
                   )}
                   onClick={() => handleDayClick(day.date)}
                   whileHover={{ scale: 1.05, zIndex: 10 }}
