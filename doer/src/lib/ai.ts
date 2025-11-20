@@ -259,6 +259,12 @@ MULTI-DAY PLAN DISTRIBUTION:
 • Don't schedule all Priority 1 tasks on Day 1 if there's time on Day 2
 • Distribute work evenly to prevent burnout and maintain quality
 
+AVAILABILITY-CONSCIOUS DISTRIBUTION:
+• When assigning tasks, assume the user wants to honor their declared workday start/end times and lunch break, so spread the total duration across the available days rather than stacking everything on the final date.
+• Use the provided availability context (time off, busy slots, lunch windows) to avoid locking tasks into unavailable periods; mention the relevant window only if it changes the timeline.
+• Target a realistic per-day capacity (e.g., 250-320 minutes max) and keep tasks balanced across the active days—high durations should be broken into multiple days if they would otherwise exceed that cap.
+• Prefer to fill earlier active days first but allow higher-priority, dependency-sensitive tasks to move toward the start of the timeline while still leaving room for practice/final review on later days.
+
 PRIORITY ASSIGNMENT (1-4):
 • Keep Priority 1 (Critical) tasks to essential prerequisites ONLY (target ≤35% of total tasks)
 • Priority 1 (Critical): ONLY for foundational dependencies - tasks that MUST be done before others can start

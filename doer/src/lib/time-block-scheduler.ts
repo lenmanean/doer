@@ -529,8 +529,6 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     const targetDay = task.targetDay || 0
     console.log(`Trying to schedule: ${task.name} (${task.estimated_duration_minutes} min) - idx: ${task.idx}, priority: ${task.priority}, targetDay: ${targetDay}`)
 
-    const sequentialMinDay = task.idx ? latestSequentialDay : 0
-
     // Start from target day, but prioritize staying close to target
     // Search strategy: start at target day, then expand outward (target-1, target+1, target-2, target+2, etc.)
     // But limit how far we can deviate to ensure distribution across timeline
@@ -659,9 +657,6 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     // Try to find suitable time slots (may span multiple days if task exceeds daily capacity)
     for (const dayIndex of searchDays) {
       if (remainingDuration <= 0) break
-      if (task.idx && dayIndex < sequentialMinDay) {
-        continue
-      }
       
       // ENFORCE SINGLE-DAY PLAN: Only schedule on day 0
       if (isSingleDayPlan && dayIndex !== 0) {
