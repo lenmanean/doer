@@ -96,23 +96,19 @@ export function TrendChart({
 
     // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
-      if (!tooltipRef.current || !containerRef.current || hoveredIndex === null) {
+      if (!containerRef.current || hoveredIndex === null) {
         setTooltipPosition(null)
         return
       }
 
       const container = containerRef.current
-      const tooltip = tooltipRef.current
-      const containerRect = container.getBoundingClientRect()
-      const tooltipRect = tooltip.getBoundingClientRect()
 
-      // Calculate the x position of the data point
+      // Calculate the x position of the data point in viewBox coordinates
       const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
       const value = filteredData[hoveredIndex][yKey as keyof TrendChartData] as number
       const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
 
       // Convert SVG coordinates to container-relative coordinates
-      // The SVG is 100% width, so we need to scale the x coordinate
       const svgElement = container.querySelector('svg')
       if (!svgElement) {
         setTooltipPosition(null)
@@ -129,12 +125,56 @@ export function TrendChart({
       const actualY = (y / viewBoxHeight) * svgHeight
 
       // Calculate tooltip position relative to container
+      // Use approximate height (will be refined in next effect after tooltip renders)
+      const estimatedTooltipHeight = 60
       const tooltipLeft = actualX
-      const tooltipTop = actualY - tooltipRect.height - 8
+      const tooltipTop = actualY - estimatedTooltipHeight - 8
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     })
   }, [hoveredIndex, filteredData, minValue, range, yKey, width, height, padding])
+
+  // Refine tooltip position after it renders to get exact height
+  useEffect(() => {
+    if (!tooltipPosition || hoveredIndex === null || !containerRef.current) {
+      return
+    }
+
+    // Wait for tooltip to render
+    const timeoutId = setTimeout(() => {
+      if (!tooltipRef.current || !containerRef.current || hoveredIndex === null) {
+        return
+      }
+
+      const container = containerRef.current
+      const tooltip = tooltipRef.current
+      const tooltipRect = tooltip.getBoundingClientRect()
+
+      // Recalculate the data point position
+      const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
+      const value = filteredData[hoveredIndex][yKey as keyof TrendChartData] as number
+      const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
+
+      const svgElement = container.querySelector('svg')
+      if (!svgElement) return
+
+      const svgRect = svgElement.getBoundingClientRect()
+      const svgWidth = svgRect.width
+      const svgHeight = svgRect.height
+      const viewBoxHeight = height + 60
+
+      const actualX = (x / width) * svgWidth
+      const actualY = (y / viewBoxHeight) * svgHeight
+
+      // Adjust position with actual tooltip height
+      const tooltipLeft = actualX
+      const tooltipTop = actualY - tooltipRect.height - 8
+
+      setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [hoveredIndex])
 
   return (
     <div className={cn('relative', className)}>
