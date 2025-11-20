@@ -115,7 +115,7 @@ export function AnalyticsTabs({
                   />
                 </div>
                 <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
-                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Insights</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeActivityHeatmap(activityData)}
                   </p>
@@ -145,7 +145,7 @@ export function AnalyticsTabs({
                   />
                 </div>
                 <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
-                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Insights</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeCompletionTrend(completionTrend)}
                   </p>
@@ -173,7 +173,7 @@ export function AnalyticsTabs({
                   />
                 </div>
                 <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
-                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Insights</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeProductivityPatterns(productivityPatterns)}
                   </p>
@@ -202,7 +202,7 @@ export function AnalyticsTabs({
                   />
                 </div>
                 <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-lg">
-                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Progress Summary</h4>
+                  <h4 className="text-sm font-semibold text-[#d7d2cb] mb-2">Insights</h4>
                   <p className="text-sm text-[#d7d2cb]/80 leading-relaxed">
                     {analyzeRescheduling(reschedulingAnalysis)}
                   </p>

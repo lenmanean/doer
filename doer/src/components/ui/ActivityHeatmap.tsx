@@ -340,7 +340,7 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
               return (
                 <div 
                   key={`empty-${dayIndex}`} 
-                  className="aspect-square border border-white/5 rounded-sm"
+                  className="aspect-square border border-white/10 dark:border-white/5 rounded-sm"
                 />
               )
             }
@@ -413,11 +413,16 @@ export function ActivityHeatmap({ data, className, onDayClick }: ActivityHeatmap
             }}
           >
             <div className="text-sm font-semibold text-[#d7d2cb] mb-1">
-              {new Date(hoveredDate).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              })}
+              {(() => {
+                // Parse date string as local date to avoid UTC timezone issues
+                const [year, month, day] = hoveredDate.split('-').map(Number)
+                const date = new Date(year, month - 1, day)
+                return date.toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric'
+                })
+              })()}
             </div>
             <div className="text-xs text-[#d7d2cb]/70">
               {hoveredData.count} {hoveredData.count === 1 ? 'task' : 'tasks'} completed
