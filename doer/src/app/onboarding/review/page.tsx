@@ -27,6 +27,32 @@ export default function ReviewPage() {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
 
+  const wrapSortTasksChronologically = (items: Task[]) => {
+    return [...items].sort((a, b) => {
+      const dateA = a.scheduled_date ? new Date(a.scheduled_date) : null
+      const dateB = b.scheduled_date ? new Date(b.scheduled_date) : null
+      if (dateA && dateB) {
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA.getTime() - dateB.getTime()
+        }
+      } else if (dateA) {
+        return -1
+      } else if (dateB) {
+        return 1
+      }
+
+      const timeA = a.start_time ? parseTimeString(a.start_time) : ''
+      const timeB = b.start_time ? parseTimeString(b.start_time) : ''
+      if (timeA && timeB) {
+        const [hA, mA] = timeA.split(':').map(Number)
+        const [hB, mB] = timeB.split(':').map(Number)
+        return hA === hB ? mA - mB : hA - hB
+      }
+
+      return (a.idx || 0) - (b.idx || 0)
+    })
+  }
+
   useEffect(() => {
     if (authLoading) return
     if (!user) {
@@ -84,7 +110,7 @@ export default function ReviewPage() {
               schedules: schedules // Keep all schedules for split tasks
             }
           })
-          setTasks(tasksWithSchedule as any)
+          setTasks(wrapSortTasksChronologically(tasksWithSchedule as any))
     } else {
           const { data: dbPlan, error: dbErr } = await supabase
             .from('plans')
@@ -129,7 +155,7 @@ export default function ReviewPage() {
               schedules: schedules // Keep all schedules for split tasks
             }
           })
-          setTasks(tasksWithSchedule as any)
+          setTasks(wrapSortTasksChronologically(tasksWithSchedule as any))
         }
       } catch (error) {
         console.error('Failed to load plan for review:', error)
