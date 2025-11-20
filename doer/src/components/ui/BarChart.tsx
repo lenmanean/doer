@@ -84,8 +84,8 @@ export function BarChart({
         actualBarHeight = totalHeight
       }
 
-      // Center tooltip above bar: bar top - half tooltip height - half bar height
-      const tooltipTop = actualBarTopY - (tooltipHeight / 2) - (actualBarHeight / 2)
+      // Position tooltip above bar with gap
+      const tooltipTop = actualBarTopY - tooltipHeight - 8
       const tooltipLeft = (x / chartWidth) * 100
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
@@ -138,9 +138,10 @@ export function BarChart({
                 <text
                   x={padding - 10}
                   y={y + 5}
-                  fill="rgba(215, 210, 203, 0.4)"
+                  fill="var(--muted-foreground)"
                   fontSize="12"
                   textAnchor="end"
+                  className="text-[var(--muted-foreground)]"
                 >
                   {Math.round(value)}
                 </text>
@@ -227,10 +228,11 @@ export function BarChart({
                 key={index}
                 x={x}
                 y={chartHeight + 20}
-                fill="rgba(215, 210, 203, 0.6)"
+                fill="var(--muted-foreground)"
                 fontSize="12"
                 textAnchor="middle"
                 transform={`rotate(-45 ${x} ${chartHeight + 20})`}
+                className="text-[var(--muted-foreground)]"
               >
                 {item[xKey as keyof BarChartData] as string}
               </text>

@@ -129,9 +129,10 @@ export function TrendChart({
                 <text
                   x={0}
                   y={y + 5}
-                  fill="rgba(215, 210, 203, 0.4)"
+                  fill="var(--muted-foreground)"
                   fontSize="12"
                   textAnchor="start"
+                  className="text-[var(--muted-foreground)]"
                 >
                   {Math.round(value)}
                 </text>
@@ -187,21 +188,54 @@ export function TrendChart({
               </g>
             )
           })}
+
+          {/* X-axis labels (dates) */}
+          {filteredData.length > 0 && (() => {
+            const labelCount = Math.min(5, filteredData.length)
+            const step = Math.max(1, Math.floor(filteredData.length / labelCount))
+            return filteredData
+              .filter((_, i) => i % step === 0 || i === filteredData.length - 1)
+              .map((d, i) => {
+                const originalIndex = filteredData.findIndex(item => item === d)
+                const x = padding + ((originalIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
+                return (
+                  <text
+                    key={i}
+                    x={x}
+                    y={height + 25}
+                    fill="var(--muted-foreground)"
+                    fontSize="11"
+                    textAnchor="middle"
+                    className="text-[var(--muted-foreground)]"
+                  >
+                    {new Date(d[xKey as keyof TrendChartData] as string).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </text>
+                )
+              })
+          })()}
         </svg>
 
         {/* Tooltip */}
-        {hoveredData && hoveredIndex !== null && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl pointer-events-none z-10"
-            style={{
-              left: `${((hoveredIndex / Math.max(1, filteredData.length - 1)) * 100)}%`,
-              top: '-50px',
-              transform: 'translateX(-50%)'
-            }}
-          >
+        {hoveredData && hoveredIndex !== null && (() => {
+          const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
+          const value = hoveredData[yKey as keyof TrendChartData] as number
+          const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl pointer-events-none z-10"
+              style={{
+                left: `${(x / width) * 100}%`,
+                top: `${(y / (height + 60)) * 100}%`,
+                transform: 'translate(-50%, -100%)',
+                marginTop: '-8px'
+              }}
+            >
             <div className="text-xs font-semibold text-[#d7d2cb]">
               {new Date(hoveredData[xKey as keyof TrendChartData] as string).toLocaleDateString('en-US', {
                 month: 'short',
@@ -212,7 +246,8 @@ export function TrendChart({
               {Math.round(hoveredData[yKey as keyof TrendChartData] as number)}%
             </div>
           </motion.div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )
