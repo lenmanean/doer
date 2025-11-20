@@ -33,6 +33,8 @@ export function BarChart({
 }: BarChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const barRefs = useRef<Map<number, SVGRectElement>>(new Map())
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
   // Chart constants (don't depend on data.length)
@@ -42,55 +44,86 @@ export function BarChart({
 
   // Calculate tooltip position when hovered index changes
   useEffect(() => {
-    if (hoveredIndex === null || data.length === 0) {
+    if (hoveredIndex === null || data.length === 0 || !containerRef.current) {
       setTooltipPosition(null)
       return
     }
 
-    // Use requestAnimationFrame to ensure tooltip is rendered before calculating
+    // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
-      if (!tooltipRef.current || hoveredIndex === null || data.length === 0) {
+      if (!containerRef.current || hoveredIndex === null || data.length === 0) {
         setTooltipPosition(null)
         return
       }
 
-      const tooltip = tooltipRef.current
-      const tooltipHeight = tooltip.getBoundingClientRect().height
-
-      // Calculate chart dimensions
-      const maxValue = Math.max(...data.map(d => {
-        if (stacked && d.subValues) {
-          return Object.values(d.subValues).reduce((sum, val) => sum + val, 0)
-        }
-        return d[yKey as keyof BarChartData] as number
-      }))
-
-      const barWidth = (chartWidth - padding * 2) / data.length
-      const barHeight = chartHeight - padding * 2
-
-      // Calculate bar position
-      const item = data[hoveredIndex]
-      const value = item[yKey as keyof BarChartData] as number
-      const height = (value / maxValue) * barHeight
-      const x = padding + hoveredIndex * barWidth + barWidth / 2
-      const barTopY = padding + barHeight - height
-
-      // For stacked bars, use the top of the stack
-      let actualBarTopY = barTopY
-      let actualBarHeight = height
-      if (stacked && item.subValues) {
-        const totalHeight = (Object.values(item.subValues).reduce((sum, val) => sum + val, 0) / maxValue) * barHeight
-        actualBarTopY = padding + barHeight - totalHeight
-        actualBarHeight = totalHeight
+      const container = containerRef.current
+      const bar = barRefs.current.get(hoveredIndex)
+      
+      if (!bar) {
+        setTooltipPosition(null)
+        return
       }
 
-      // Position tooltip above bar with gap
-      const tooltipTop = actualBarTopY - tooltipHeight - 8
-      const tooltipLeft = (x / chartWidth) * 100
+      // Get the bar's bounding rect and container rect
+      const barRect = bar.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+
+      // Calculate the bar's center in viewport coordinates
+      const barCenterXViewport = (barRect.left + barRect.right) / 2
+      const barTopYViewport = barRect.top
+
+      // Convert to container-relative coordinates
+      const barCenterX = barCenterXViewport - containerRect.left
+      const barTopY = barTopYViewport - containerRect.top
+
+      // Position tooltip above the bar, centered horizontally
+      const estimatedTooltipHeight = 60
+      const tooltipLeft = barCenterX
+      const tooltipTop = barTopY - estimatedTooltipHeight - 8
 
       setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
     })
-  }, [hoveredIndex, data, stacked, yKey, chartWidth, chartHeight, padding])
+  }, [hoveredIndex, data])
+
+  // Refine tooltip position after it renders to get exact height
+  useEffect(() => {
+    if (!tooltipPosition || hoveredIndex === null || !containerRef.current) {
+      return
+    }
+
+    // Wait for tooltip to render
+    const timeoutId = setTimeout(() => {
+      if (!tooltipRef.current || !containerRef.current || hoveredIndex === null) {
+        return
+      }
+
+      const container = containerRef.current
+      const tooltip = tooltipRef.current
+      const bar = barRefs.current.get(hoveredIndex)
+
+      if (!bar) return
+
+      const tooltipRect = tooltip.getBoundingClientRect()
+      const barRect = bar.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+
+      // Recalculate bar center position
+      const barCenterXViewport = (barRect.left + barRect.right) / 2
+      const barTopYViewport = barRect.top
+
+      // Convert to container-relative coordinates
+      const barCenterX = barCenterXViewport - containerRect.left
+      const barTopY = barTopYViewport - containerRect.top
+
+      // Adjust position with actual tooltip height
+      const tooltipLeft = barCenterX
+      const tooltipTop = barTopY - tooltipRect.height - 8
+
+      setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [hoveredIndex])
 
   // Early return after all hooks
   if (data.length === 0) {
@@ -119,7 +152,7 @@ export function BarChart({
         <h3 className="text-sm font-semibold text-[#d7d2cb] mb-4">{title}</h3>
       )}
 
-      <div className="relative w-full" style={{ height: `${chartHeight + 60}px`, minHeight: '300px' }}>
+      <div ref={containerRef} className="relative w-full" style={{ height: `${chartHeight + 60}px`, minHeight: '300px' }}>
         <svg width="100%" height="100%" viewBox={`0 0 ${chartWidth} ${chartHeight + 60}`} preserveAspectRatio="xMidYMid meet" className="overflow-visible">
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -173,6 +206,15 @@ export function BarChart({
                     return (
                       <motion.rect
                         key={key}
+                        ref={(el) => {
+                          // Store ref for the top segment (last one rendered) only
+                          const isTopSegment = subIndex === subEntries.length - 1
+                          if (el && isTopSegment) {
+                            barRefs.current.set(index, el)
+                          } else if (!el && isTopSegment) {
+                            barRefs.current.delete(index)
+                          }
+                        }}
                         x={x}
                         y={currentY}
                         width={width}
@@ -199,6 +241,10 @@ export function BarChart({
               return (
                 <g key={index}>
                   <motion.rect
+                    ref={(el) => {
+                      if (el) barRefs.current.set(index, el)
+                      else barRefs.current.delete(index)
+                    }}
                     x={x}
                     y={padding + barHeight - height}
                     width={width}
@@ -250,7 +296,7 @@ export function BarChart({
               exit={{ opacity: 0, y: 10 }}
               className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none z-10"
               style={{
-                left: `${tooltipPosition.left}%`,
+                left: `${tooltipPosition.left}px`,
                 top: `${tooltipPosition.top}px`,
                 transform: 'translateX(-50%)'
               }}
