@@ -65,99 +65,71 @@ export default function DataPage() {
     }
   }, [user, router, authLoading])
 
-  // Mock data for UI development
+  // Analytics data state
   const [activityData, setActivityData] = useState<ActivityHeatmapData[]>([])
   const [completionTrend, setCompletionTrend] = useState<TrendChartData[]>([])
   const [productivityPatterns, setProductivityPatterns] = useState<BarChartData[]>([])
   const [reschedulingAnalysis, setReschedulingAnalysis] = useState<BarChartData[]>([])
+  const [metrics, setMetrics] = useState({
+    completionRate: 0,
+    currentStreak: 0,
+    onTimeRate: 0,
+    rescheduleRate: 0
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
 
+  // Fetch analytics data
   useEffect(() => {
-    // Generate mock activity data for last 12 months
-    const generateActivityData = (): ActivityHeatmapData[] => {
-      const data: ActivityHeatmapData[] = []
-      const today = new Date()
-      
-      for (let i = 365; i >= 0; i--) {
-        const date = new Date(today)
-        date.setDate(date.getDate() - i)
-        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    if (!user) return
+
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true)
+        setError(null)
         
-        // Random activity (0-6 tasks per day)
-        const count = Math.floor(Math.random() * 7)
-        data.push({
-          date: dateStr,
-          count,
-          tasks: count > 0 ? [`Task ${count}`] : undefined
-        })
-      }
-      
-      return data
-    }
-
-    // Generate mock completion trend (last 30 days)
-    const generateCompletionTrend = (): TrendChartData[] => {
-      const data: TrendChartData[] = []
-      const today = new Date()
-      
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(today)
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-        data.push({
-          date: dateStr,
-          value: Math.floor(Math.random() * 40) + 60 // 60-100%
-        })
-      }
-      
-      return data
-    }
-
-    // Generate mock productivity patterns (by day of week)
-    const generateProductivityPatterns = (): BarChartData[] => {
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-      return days.map(day => ({
-        category: day,
-        value: Math.floor(Math.random() * 30) + 10
-      }))
-    }
-
-    // Generate mock rescheduling analysis
-    const generateReschedulingAnalysis = (): BarChartData[] => {
-      return [
-        {
-          category: 'This Week',
-          value: 15,
-          subValues: {
-            'First-time': 12,
-            'Rescheduled': 3
-          }
-        },
-        {
-          category: 'Last Week',
-          value: 18,
-          subValues: {
-            'First-time': 14,
-            'Rescheduled': 4
-          }
-        },
-        {
-          category: '2 Weeks Ago',
-          value: 20,
-          subValues: {
-            'First-time': 16,
-            'Rescheduled': 4
-          }
+        const response = await fetch(`/api/analytics?timeRange=${timeRange}`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch analytics data')
         }
-      ]
+        
+        const data = await response.json()
+        
+        setActivityData(data.activityData || [])
+        setCompletionTrend(data.completionTrend || [])
+        setProductivityPatterns(data.productivityPatterns || [])
+        setReschedulingAnalysis(data.reschedulingAnalysis || [])
+        setMetrics(data.metrics || {
+          completionRate: 0,
+          currentStreak: 0,
+          onTimeRate: 0,
+          rescheduleRate: 0
+        })
+      } catch (err) {
+        console.error('Error fetching analytics:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load analytics data')
+        // Set empty data on error
+        setActivityData([])
+        setCompletionTrend([])
+        setProductivityPatterns([])
+        setReschedulingAnalysis([])
+        setMetrics({
+          completionRate: 0,
+          currentStreak: 0,
+          onTimeRate: 0,
+          rescheduleRate: 0
+        })
+      } finally {
+        setLoading(false)
+      }
     }
 
-    setActivityData(generateActivityData())
-    setCompletionTrend(generateCompletionTrend())
-    setProductivityPatterns(generateProductivityPatterns())
-    setReschedulingAnalysis(generateReschedulingAnalysis())
-  }, [])
+    fetchAnalytics()
+  }, [user, timeRange])
 
-  if (authLoading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff7f00]"></div>
@@ -168,12 +140,6 @@ export default function DataPage() {
   if (!user) {
     return null // Will redirect
   }
-
-  // Mock metric values
-  const completionRate = 85
-  const streak = 12
-  const onTimeRate = 92
-  const rescheduleRate = 8
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -194,19 +160,26 @@ export default function DataPage() {
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+
         {/* Metric Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
           <MetricCard
             title="Completion Rate"
-            value={completionRate}
-            trend={2.5}
+            value={metrics.completionRate}
+            trend={0}
             description="Overall task completion"
             color="#22c55e"
           />
           <MetricCard
             title="Current Streak"
-            value={streak}
-            trend={3}
+            value={metrics.currentStreak}
+            trend={0}
             description="Consecutive days with completions"
             color="#3b82f6"
             formatValue={(v) => `${Math.round(v)} days`}
@@ -215,22 +188,22 @@ export default function DataPage() {
             <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1.5">On-Time Rate</h3>
             <div className="flex items-center gap-2 mb-2">
               <ProgressRing
-                percentage={onTimeRate}
+                percentage={metrics.onTimeRate}
                 size={32}
                 strokeWidth={3}
                 color="#f59e0b"
                 showBreakdown={false}
               />
               <span className="text-2xl font-bold text-[#d7d2cb]" style={{ color: '#f59e0b' }}>
-                {onTimeRate}%
+                {metrics.onTimeRate}%
               </span>
             </div>
             <p className="text-xs text-[#d7d2cb]/50 leading-tight">Tasks completed on schedule</p>
           </div>
           <MetricCard
             title="Reschedule Rate"
-            value={rescheduleRate}
-            trend={-1.2}
+            value={metrics.rescheduleRate}
+            trend={0}
             description="Tasks requiring rescheduling"
             color="#ef4444"
           />
@@ -242,11 +215,12 @@ export default function DataPage() {
           completionTrend={completionTrend}
           productivityPatterns={productivityPatterns}
           reschedulingAnalysis={reschedulingAnalysis}
+          timeRange={timeRange}
           onDayClick={(date) => {
             // TODO: Navigate to daily detail view
           }}
           onTimeRangeChange={(range) => {
-            // TODO: Update data based on time range
+            setTimeRange(range)
           }}
         />
       </main>

@@ -21,6 +21,7 @@ interface AnalyticsTabsProps {
   productivityPatterns: BarChartData[]
   reschedulingAnalysis: BarChartData[]
   onDayClick?: (date: string) => void
+  timeRange?: '7d' | '30d' | '90d' | 'all'
   onTimeRangeChange?: (range: '7d' | '30d' | '90d' | 'all') => void
 }
 
@@ -55,6 +56,7 @@ export function AnalyticsTabs({
   productivityPatterns,
   reschedulingAnalysis,
   onDayClick,
+  timeRange = '30d',
   onTimeRangeChange
 }: AnalyticsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('heatmap')
@@ -156,7 +158,7 @@ export function AnalyticsTabs({
                     data={completionTrend}
                     title=""
                     color="#22c55e"
-                    timeRange="30d"
+                    timeRange={timeRange}
                     onTimeRangeChange={onTimeRangeChange}
                   />
                 </div>
