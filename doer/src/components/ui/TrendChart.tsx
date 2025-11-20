@@ -119,10 +119,16 @@ export function TrendChart({
       const svgRect = svgElement.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
       
-      // Get viewBox dimensions
-      const viewBox = svgElement.getAttribute('viewBox')?.split(' ') || [`${width}`, `${height + 60}`]
-      const viewBoxWidth = parseFloat(viewBox[0])
-      const viewBoxHeight = parseFloat(viewBox[3] || viewBox[1])
+      // Get viewBox dimensions - viewBox format is "x y width height"
+      const viewBoxAttr = svgElement.getAttribute('viewBox')
+      let viewBoxWidth = width
+      let viewBoxHeight = height + 60
+      
+      if (viewBoxAttr) {
+        const viewBox = viewBoxAttr.split(' ').map(Number)
+        viewBoxWidth = viewBox[2] || width
+        viewBoxHeight = viewBox[3] || (height + 60)
+      }
 
       // Convert SVG coordinates to container-relative pixel coordinates
       const scaleX = svgRect.width / viewBoxWidth
@@ -172,10 +178,16 @@ export function TrendChart({
       const svgRect = svgElement.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
       
-      // Get viewBox dimensions
-      const viewBox = svgElement.getAttribute('viewBox')?.split(' ') || [`${width}`, `${height + 60}`]
-      const viewBoxWidth = parseFloat(viewBox[0])
-      const viewBoxHeight = parseFloat(viewBox[3] || viewBox[1])
+      // Get viewBox dimensions - viewBox format is "x y width height"
+      const viewBoxAttr = svgElement.getAttribute('viewBox')
+      let viewBoxWidth = width
+      let viewBoxHeight = height + 60
+      
+      if (viewBoxAttr) {
+        const viewBox = viewBoxAttr.split(' ').map(Number)
+        viewBoxWidth = viewBox[2] || width
+        viewBoxHeight = viewBox[3] || (height + 60)
+      }
 
       // Convert SVG coordinates to container-relative pixel coordinates
       const scaleX = svgRect.width / viewBoxWidth
