@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +31,9 @@ export function TrendChart({
   className
 }: TrendChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
   // Filter data based on time range
   const filteredData = useMemo(() => {
@@ -84,6 +87,55 @@ export function TrendChart({
 
   const hoveredData = hoveredIndex !== null ? filteredData[hoveredIndex] : null
 
+  // Calculate tooltip position when hovered index changes
+  useEffect(() => {
+    if (hoveredIndex === null || filteredData.length === 0 || !containerRef.current) {
+      setTooltipPosition(null)
+      return
+    }
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      if (!tooltipRef.current || !containerRef.current || hoveredIndex === null) {
+        setTooltipPosition(null)
+        return
+      }
+
+      const container = containerRef.current
+      const tooltip = tooltipRef.current
+      const containerRect = container.getBoundingClientRect()
+      const tooltipRect = tooltip.getBoundingClientRect()
+
+      // Calculate the x position of the data point
+      const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
+      const value = filteredData[hoveredIndex][yKey as keyof TrendChartData] as number
+      const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
+
+      // Convert SVG coordinates to container-relative coordinates
+      // The SVG is 100% width, so we need to scale the x coordinate
+      const svgElement = container.querySelector('svg')
+      if (!svgElement) {
+        setTooltipPosition(null)
+        return
+      }
+
+      const svgRect = svgElement.getBoundingClientRect()
+      const svgWidth = svgRect.width
+      const svgHeight = svgRect.height
+      const viewBoxHeight = height + 60
+
+      // Scale coordinates from viewBox to actual SVG size
+      const actualX = (x / width) * svgWidth
+      const actualY = (y / viewBoxHeight) * svgHeight
+
+      // Calculate tooltip position relative to container
+      const tooltipLeft = actualX
+      const tooltipTop = actualY - tooltipRect.height - 8
+
+      setTooltipPosition({ top: tooltipTop, left: tooltipLeft })
+    })
+  }, [hoveredIndex, filteredData, minValue, range, yKey, width, height, padding])
+
   return (
     <div className={cn('relative', className)}>
       {title && (
@@ -110,7 +162,7 @@ export function TrendChart({
         </div>
       )}
 
-      <div className="relative w-full" style={{ height: `${height + 60}px`, minHeight: '300px' }}>
+      <div ref={containerRef} className="relative w-full" style={{ height: `${height + 60}px`, minHeight: '300px' }}>
         <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height + 60}`} preserveAspectRatio="xMidYMid meet" className="overflow-visible">
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -219,23 +271,19 @@ export function TrendChart({
         </svg>
 
         {/* Tooltip */}
-        {hoveredData && hoveredIndex !== null && (() => {
-          const x = padding + ((hoveredIndex / Math.max(1, filteredData.length - 1)) * (width - padding * 2))
-          const value = hoveredData[yKey as keyof TrendChartData] as number
-          const y = padding + (height - padding * 2) * (1 - (value - minValue) / range)
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl pointer-events-none z-10"
-              style={{
-                left: `${(x / width) * 100}%`,
-                top: `${(y / (height + 60)) * 100}%`,
-                transform: 'translate(-50%, -100%)',
-                marginTop: '-8px'
-              }}
-            >
+        {hoveredData && hoveredIndex !== null && tooltipPosition && (
+          <motion.div
+            ref={tooltipRef}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-2 shadow-xl pointer-events-none z-10"
+            style={{
+              left: `${tooltipPosition.left}px`,
+              top: `${tooltipPosition.top}px`,
+              transform: 'translateX(-50%)'
+            }}
+          >
             <div className="text-xs font-semibold text-[#d7d2cb]">
               {new Date(hoveredData[xKey as keyof TrendChartData] as string).toLocaleDateString('en-US', {
                 month: 'short',
@@ -246,8 +294,7 @@ export function TrendChart({
               {Math.round(hoveredData[yKey as keyof TrendChartData] as number)}%
             </div>
           </motion.div>
-          )
-        })()}
+        )}
       </div>
     </div>
   )
