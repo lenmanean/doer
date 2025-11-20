@@ -309,14 +309,13 @@ export async function POST(req: NextRequest) {
     const lunchMinutes = Math.max(0, (lunchEndHour - lunchStartHour) * 60)
     const workdayMinutes = Math.max(60, (workdayEndHour - workdayStartHour) * 60 - lunchMinutes)
     const realisticDailyCapacity = Math.max(120, Math.round(workdayMinutes * 0.65))
-    const totalDuration = aiContent.tasks.reduce((sum: number, task: any) => sum + (task.estimated_duration_minutes || 30), 0)
+    let totalDuration = aiContent.tasks.reduce((sum: number, task: any) => sum + (task.estimated_duration_minutes || 30), 0)
     const derivedFromDuration = Math.max(1, Math.ceil(totalDuration / realisticDailyCapacity))
     if (derivedFromDuration > timelineDays) {
       timelineDays = derivedFromDuration
     }
     const minTasks = Math.max(2, Math.ceil(timelineDays * 0.5))
     let allowedCapacity = realisticDailyCapacity * timelineDays
-    let totalDuration = aiContent.tasks.reduce((sum: number, task: any) => sum + (task.estimated_duration_minutes || 30), 0)
 
     if (totalDuration > allowedCapacity) {
       let removed = 0
