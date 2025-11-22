@@ -492,7 +492,7 @@ export async function pushTaskToCalendar(
     // Fetch task schedule details
     const { data: schedule, error: scheduleError } = await supabase
       .from('task_schedule')
-      .select('id, date, start_time, end_time, task_id, plan_id')
+      .select('id, date, start_time, end_time, task_id, plan_id, user_id')
       .eq('id', taskScheduleId)
       .single()
     
