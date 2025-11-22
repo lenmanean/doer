@@ -91,7 +91,7 @@ export default function DashboardIntegrationsPage() {
                         {integration.name}
                       </h3>
                       <p className="mt-3 text-sm text-white/80 leading-relaxed">
-                        {t(integration.descriptionKey)}
+                        {integration.description}
                       </p>
                       <div className="mt-6 flex items-center justify-between text-xs uppercase tracking-wide text-orange-400">
                         <span>AI Scheduler</span>
