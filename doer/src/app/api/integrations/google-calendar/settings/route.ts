@@ -55,6 +55,10 @@ export async function PATCH(request: NextRequest) {
       updates.auto_sync_enabled = Boolean(body.auto_sync_enabled)
     }
     
+    if (body.auto_push_enabled !== undefined) {
+      updates.auto_push_enabled = Boolean(body.auto_push_enabled)
+    }
+    
     // Update connection
     const { data: updatedConnection, error: updateError } = await supabase
       .from('calendar_connections')

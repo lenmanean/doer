@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS public.calendar_connections (
   token_expires_at timestamptz NOT NULL,
   sync_token text, -- Google Calendar incremental sync token
   selected_calendar_ids text[] NOT NULL DEFAULT ARRAY[]::text[], -- Array of calendar IDs to sync
-  auto_sync_enabled boolean NOT NULL DEFAULT false,
+  auto_sync_enabled boolean NOT NULL DEFAULT false, -- Auto-pull from Google Calendar
+  auto_push_enabled boolean NOT NULL DEFAULT false, -- Auto-push DOER tasks to Google Calendar
   last_sync_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),

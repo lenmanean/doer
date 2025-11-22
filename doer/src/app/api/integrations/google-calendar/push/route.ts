@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
         calendar_connection_id: connection.id,
         sync_type: 'push',
         status: 'in_progress',
-        started_at: new Date().toISOString(),
       })
       .select('id')
       .single()
@@ -180,6 +179,7 @@ export async function POST(request: NextRequest) {
           changes_summary: {
             results,
             errors,
+            total: schedules.length,
           },
           error_message: errors.length > 0 ? errors.join('; ') : null,
           completed_at: new Date().toISOString(),

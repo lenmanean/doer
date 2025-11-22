@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { timeBlockScheduler } from '@/lib/time-block-scheduler'
 import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
-import { getBusySlotsForUser } from '@/lib/calendar/google-calendar-sync'
+import { getBusySlotsForUser, pushTaskToCalendar } from '@/lib/calendar/google-calendar-sync'
 
 /**
  * Generate time-block schedule for all tasks in a plan.
@@ -149,13 +149,94 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
       status: 'scheduled',
     }))
 
-    const { error: insertError } = await supabase
+    const { data: insertedSchedules, error: insertError } = await supabase
       .from('task_schedule')
       .insert(scheduleRows)
+      .select('id, date, start_time, end_time, task_id')
 
     if (insertError) {
       console.error('[generateTaskSchedule] Failed inserting schedule:', insertError)
       return
+    }
+    
+    // Auto-push to Google Calendar if enabled
+    if (calendarConnection && insertedSchedules && insertedSchedules.length > 0) {
+      const { data: connection } = await supabase
+        .from('calendar_connections')
+        .select('id, auto_push_enabled, selected_calendar_ids')
+        .eq('id', calendarConnection.id)
+        .single()
+      
+      if (connection?.auto_push_enabled && connection.selected_calendar_ids?.length > 0) {
+        const targetCalendarId = connection.selected_calendar_ids[0] || 'primary'
+        
+        // Fetch plan details for metadata
+        const { data: planDetails } = await supabase
+          .from('plans')
+          .select('goal_text, summary_data')
+          .eq('id', planId)
+          .single()
+        
+        const planName = planDetails?.summary_data?.goal_title || planDetails?.goal_text || null
+        
+        // Fetch task details
+        const taskIds = [...new Set(insertedSchedules.map(s => s.task_id))]
+        const { data: taskDetails } = await supabase
+          .from('tasks')
+          .select('id, name')
+          .in('id', taskIds)
+        
+        const taskMap = new Map((taskDetails || []).map(t => [t.id, t]))
+        
+        // Push each schedule to Google Calendar
+        let pushedCount = 0
+        const pushErrors: string[] = []
+        
+        for (const schedule of insertedSchedules) {
+          const task = taskMap.get(schedule.task_id)
+          if (!task || !schedule.start_time || !schedule.end_time) {
+            continue
+          }
+          
+          // Build datetime strings
+          const startDateTime = `${schedule.date}T${schedule.start_time}:00`
+          const endDateTime = `${schedule.date}T${schedule.end_time}:00`
+          
+          try {
+            const result = await pushTaskToCalendar(
+              connection.id,
+              targetCalendarId,
+              schedule.id,
+              task.id,
+              planId,
+              task.name,
+              planName,
+              startDateTime,
+              endDateTime,
+              null, // AI confidence - not available at schedule generation time
+              'UTC' // TODO: Get from user preferences
+            )
+            
+            if (result.success) {
+              pushedCount++
+            } else {
+              pushErrors.push(`Task ${task.name}: ${result.error || 'Unknown error'}`)
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+            pushErrors.push(`Task ${task.name}: ${errorMessage}`)
+            console.warn(`[generateTaskSchedule] Failed to auto-push task ${task.name}:`, errorMessage)
+          }
+        }
+        
+        if (pushedCount > 0) {
+          console.log(`[generateTaskSchedule] Auto-pushed ${pushedCount}/${insertedSchedules.length} tasks to Google Calendar`)
+        }
+        
+        if (pushErrors.length > 0) {
+          console.warn(`[generateTaskSchedule] Auto-push errors: ${pushErrors.join('; ')}`)
+        }
+      }
     }
   }
 

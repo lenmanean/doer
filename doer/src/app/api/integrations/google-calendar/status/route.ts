@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Get user's calendar connection
     const { data: connection, error: connectionError } = await supabase
       .from('calendar_connections')
-      .select('id, provider, selected_calendar_ids, auto_sync_enabled, last_sync_at, created_at')
+      .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, last_sync_at, created_at')
       .eq('user_id', user.id)
       .eq('provider', 'google')
       .single()
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
         provider: connection.provider,
         selected_calendar_ids: connection.selected_calendar_ids,
         auto_sync_enabled: connection.auto_sync_enabled,
+        auto_push_enabled: connection.auto_push_enabled,
         last_sync_at: connection.last_sync_at,
         created_at: connection.created_at,
       },

@@ -36,7 +36,12 @@ export default function IntegrationsPage() {
   
   // Auto-sync toggle
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false)
+  const [autoPushEnabled, setAutoPushEnabled] = useState(false)
   const [updatingSettings, setUpdatingSettings] = useState(false)
+  
+  // Push state
+  const [pushing, setPushing] = useState(false)
+  const [activePlan, setActivePlan] = useState<any>(null)
   
   useEffect(() => {
     if (!user) {
@@ -62,6 +67,7 @@ export default function IntegrationsPage() {
         const data = await response.json()
         setConnection(data.connected ? data.connection : null)
         setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
+        setAutoPushEnabled(data.connection?.auto_push_enabled || false)
         setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
         setSyncLogs(data.recent_syncs || [])
         
@@ -69,6 +75,9 @@ export default function IntegrationsPage() {
         if (data.connected) {
           loadCalendars()
         }
+        
+        // Load active plan for push functionality
+        loadActivePlan()
       } catch (error) {
         console.error('Error loading connection:', error)
         addToast({
@@ -84,6 +93,26 @@ export default function IntegrationsPage() {
     
     loadConnection()
   }, [user?.id, addToast])
+  
+  // Load active plan
+  const loadActivePlan = async () => {
+    if (!user?.id) return
+    
+    try {
+      // Use the same endpoint that the dashboard uses
+      const response = await fetch('/api/plans')
+      if (response.ok) {
+        const data = await response.json()
+        // Find active plan - could be status='active' or the most recent one
+        const active = Array.isArray(data.plans) 
+          ? data.plans.find((plan: any) => plan.status === 'active') || data.plans[0]
+          : null
+        setActivePlan(active || null)
+      }
+    } catch (error) {
+      console.error('Error loading active plan:', error)
+    }
+  }
   
   // Load available calendars
   const loadCalendars = async () => {
@@ -170,7 +199,7 @@ export default function IntegrationsPage() {
     }
   }
   
-  // Manual sync
+  // Manual sync (Pull from Google Calendar)
   const handleSync = async () => {
     try {
       setSyncing(true)
@@ -192,7 +221,7 @@ export default function IntegrationsPage() {
       addToast({
         type: 'success',
         title: 'Sync completed',
-        description: `Pulled ${data.events_pulled} events. ${data.conflicts_detected > 0 ? `${data.conflicts_detected} conflicts detected.` : ''}`,
+        description: `Pulled ${data.events_pulled} events from Google Calendar. ${data.conflicts_detected > 0 ? `${data.conflicts_detected} conflicts detected.` : ''}`,
         duration: 7000,
       })
       
@@ -203,6 +232,8 @@ export default function IntegrationsPage() {
         setSyncLogs(statusData.recent_syncs || [])
         if (statusData.connection) {
           setConnection(statusData.connection)
+          setAutoSyncEnabled(statusData.connection.auto_sync_enabled || false)
+          setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
         }
       }
     } catch (error) {
@@ -218,6 +249,122 @@ export default function IntegrationsPage() {
     }
   }
   
+  // Push tasks to Google Calendar
+  const handlePush = async () => {
+    if (!activePlan?.id) {
+      addToast({
+        type: 'error',
+        title: 'No active plan',
+        description: 'Please create or activate a plan first to push tasks to Google Calendar.',
+        duration: 5000,
+      })
+      return
+    }
+    
+    try {
+      setPushing(true)
+      
+      // Calculate date range (last 30 days to next 90 days)
+      const today = new Date()
+      const startDate = new Date(today)
+      startDate.setDate(startDate.getDate() - 30)
+      const endDate = new Date(today)
+      endDate.setDate(endDate.getDate() + 90)
+      
+      const startDateStr = startDate.toISOString().split('T')[0]
+      const endDateStr = endDate.toISOString().split('T')[0]
+      
+      // Fetch scheduled tasks for the active plan
+      const tasksResponse = await fetch(`/api/tasks/time-schedule?plan_id=${activePlan.id}&start_date=${startDateStr}&end_date=${endDateStr}`)
+      if (!tasksResponse.ok) {
+        throw new Error('Failed to load tasks')
+      }
+      
+      const tasksData = await tasksResponse.json()
+      
+      // Flatten tasksByDate into an array of scheduled tasks
+      const scheduledTasks: any[] = []
+      if (tasksData.tasksByDate) {
+        Object.keys(tasksData.tasksByDate).forEach(date => {
+          const tasksForDate = tasksData.tasksByDate[date] || []
+          scheduledTasks.push(...tasksForDate.filter((t: any) => t.schedule_id && !t.schedule_id.startsWith('synthetic-')))
+        })
+      }
+      
+      if (scheduledTasks.length === 0) {
+        addToast({
+          type: 'warning',
+          title: 'No scheduled tasks',
+          description: 'There are no scheduled tasks to push to Google Calendar.',
+          duration: 5000,
+        })
+        setPushing(false)
+        return
+      }
+      
+      // Get task schedule IDs
+      const taskScheduleIds = scheduledTasks
+        .filter((task: any) => task.schedule_id && !task.schedule_id.startsWith('synthetic-'))
+        .map((task: any) => task.schedule_id)
+      
+      if (taskScheduleIds.length === 0) {
+        addToast({
+          type: 'warning',
+          title: 'No valid schedules',
+          description: 'No valid task schedules found to push.',
+          duration: 5000,
+        })
+        setPushing(false)
+        return
+      }
+      
+      // Push to Google Calendar
+      const pushResponse = await fetch('/api/integrations/google-calendar/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_schedule_ids: taskScheduleIds,
+        }),
+      })
+      
+      if (!pushResponse.ok) {
+        const errorData = await pushResponse.json()
+        throw new Error(errorData.error || 'Failed to push tasks')
+      }
+      
+      const pushData = await pushResponse.json()
+      
+      addToast({
+        type: 'success',
+        title: 'Push completed',
+        description: `Pushed ${pushData.events_pushed} task(s) to Google Calendar.`,
+        duration: 7000,
+      })
+      
+      // Reload connection status to get updated sync logs
+      const statusResponse = await fetch('/api/integrations/google-calendar/status')
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json()
+        setSyncLogs(statusData.recent_syncs || [])
+        if (statusData.connection) {
+          setConnection(statusData.connection)
+          setAutoSyncEnabled(statusData.connection.auto_sync_enabled || false)
+          setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+        }
+      }
+    } catch (error) {
+      console.error('Error pushing tasks:', error)
+      addToast({
+        type: 'error',
+        title: 'Push failed',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setPushing(false)
+    }
+  }
+  
   // Toggle calendar selection
   const toggleCalendarSelection = (calendarId: string) => {
     setSelectedCalendarIds(prev => {
@@ -226,21 +373,28 @@ export default function IntegrationsPage() {
         : [...prev, calendarId]
       
       // Save immediately
-      saveCalendarSettings(newSelection, autoSyncEnabled)
+      saveCalendarSettings(newSelection, autoSyncEnabled, autoPushEnabled)
       
       return newSelection
     })
   }
   
-  // Toggle auto-sync
+  // Toggle auto-sync (pull)
   const handleToggleAutoSync = async () => {
     const newValue = !autoSyncEnabled
     setAutoSyncEnabled(newValue)
-    saveCalendarSettings(selectedCalendarIds, newValue)
+    saveCalendarSettings(selectedCalendarIds, newValue, autoPushEnabled)
+  }
+  
+  // Toggle auto-push
+  const handleToggleAutoPush = async () => {
+    const newValue = !autoPushEnabled
+    setAutoPushEnabled(newValue)
+    saveCalendarSettings(selectedCalendarIds, autoSyncEnabled, newValue)
   }
   
   // Save calendar settings
-  const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean) => {
+  const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean, autoPush: boolean) => {
     try {
       setUpdatingSettings(true)
       const response = await fetch('/api/integrations/google-calendar/settings', {
@@ -249,6 +403,7 @@ export default function IntegrationsPage() {
         body: JSON.stringify({
           selected_calendar_ids: calendarIds,
           auto_sync_enabled: autoSync,
+          auto_push_enabled: autoPush,
         }),
       })
       
@@ -259,6 +414,7 @@ export default function IntegrationsPage() {
       console.error('Error updating settings:', error)
       // Revert on error
       setAutoSyncEnabled(!autoSync)
+      setAutoPushEnabled(!autoPush)
       setSelectedCalendarIds(selectedCalendarIds)
     } finally {
       setUpdatingSettings(false)
@@ -395,67 +551,111 @@ export default function IntegrationsPage() {
                               onChange={() => toggleCalendarSelection(calendar.id)}
                               className="w-4 h-4 rounded border-white/20"
                             />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-[var(--foreground)]">
-                                {calendar.summary}
-                                {calendar.primary && (
-                                  <Badge variant="outline" className="ml-2 text-xs">
-                                    Primary
-                                  </Badge>
-                                )}
-                              </p>
-                              <p className="text-xs text-[var(--foreground)]/60">
-                                {calendar.id}
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {selectedCalendarIds.length === 0 && calendars.length > 0 && (
-                      <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                        <AlertCircle className="w-4 h-4 text-yellow-400" />
-                        <p className="text-sm text-yellow-400">
-                          Please select at least one calendar to sync
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Auto-sync Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--foreground)]">
-                        Auto-sync
+                        {calendar.summary}
+                        {calendar.primary && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Primary
+                          </Badge>
+                        )}
                       </p>
                       <p className="text-xs text-[var(--foreground)]/60">
-                        Automatically sync calendar events (coming soon)
+                        {calendar.id}
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoSyncEnabled}
-                        onChange={handleToggleAutoSync}
-                        disabled={updatingSettings || selectedCalendarIds.length === 0}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
-                    </label>
-                  </div>
-                  
-                  {/* Sync Button */}
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleSync}
-                      disabled={syncing || selectedCalendarIds.length === 0}
-                      className="flex items-center gap-2"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                      {syncing ? 'Syncing...' : 'Sync Now'}
-                    </Button>
-                  </div>
+                  </label>
+                ))}
+              </div>
+            )}
+            
+            {selectedCalendarIds.length === 0 && calendars.length > 0 && (
+              <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-yellow-400" />
+                <p className="text-sm text-yellow-400">
+                  Please select at least one calendar to sync
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Auto-sync Toggles */}
+          <div className="space-y-3">
+            {/* Auto-pull Toggle */}
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+              <div>
+                <p className="text-sm font-medium text-[var(--foreground)]">
+                  Auto-pull from Google Calendar
+                </p>
+                <p className="text-xs text-[var(--foreground)]/60">
+                  Automatically pull calendar events to detect busy slots (coming soon)
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoSyncEnabled}
+                  onChange={handleToggleAutoSync}
+                  disabled={updatingSettings || selectedCalendarIds.length === 0}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+              </label>
+            </div>
+            
+            {/* Auto-push Toggle */}
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+              <div>
+                <p className="text-sm font-medium text-[var(--foreground)]">
+                  Auto-push to Google Calendar
+                </p>
+                <p className="text-xs text-[var(--foreground)]/60">
+                  Automatically push DOER tasks to Google Calendar when scheduled
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoPushEnabled}
+                  onChange={handleToggleAutoPush}
+                  disabled={updatingSettings || selectedCalendarIds.length === 0}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+              </label>
+            </div>
+          </div>
+          
+          {/* Sync Buttons */}
+          <div className="flex gap-3">
+            <Button
+              onClick={handleSync}
+              disabled={syncing || selectedCalendarIds.length === 0}
+              variant="outline"
+              className="flex items-center gap-2 flex-1"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Pulling...' : 'Pull from Google Calendar'}
+            </Button>
+            <Button
+              onClick={handlePush}
+              disabled={pushing || selectedCalendarIds.length === 0 || !activePlan}
+              variant="outline"
+              className="flex items-center gap-2 flex-1"
+            >
+              <ExternalLink className={`w-4 h-4 ${pushing ? 'animate-pulse' : ''}`} />
+              {pushing ? 'Pushing...' : 'Push to Google Calendar'}
+            </Button>
+          </div>
+          
+          {!activePlan && (
+            <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-blue-400" />
+              <p className="text-sm text-blue-400">
+                Create or activate a plan to push tasks to Google Calendar
+              </p>
+            </div>
+          )}
                 </div>
               )}
             </CardContent>
@@ -515,6 +715,9 @@ export default function IntegrationsPage() {
                             )}
                             {log.events_pushed > 0 && (
                               <p>Pushed: {log.events_pushed} events</p>
+                            )}
+                            {log.changes_summary?.events_pushed > 0 && !log.events_pushed && (
+                              <p>Pushed: {log.changes_summary.events_pushed} events</p>
                             )}
                             {log.conflicts_detected > 0 && (
                               <p className="text-yellow-400">
