@@ -285,7 +285,7 @@ export function ThemeProvider({
     }
 
     const hasServerPreferences = Boolean(initialPreferences?.userId)
-    const matchesServerUser = hasServerPreferences && user?.id === initialPreferences.userId
+    const matchesServerUser = hasServerPreferences && user?.id === initialPreferences?.userId
     const shouldUseServerPreferences =
       hasServerPreferences &&
       (matchesServerUser || user === null)
