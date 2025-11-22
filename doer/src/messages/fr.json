@@ -128,6 +128,27 @@
     "copyright": "2025 Doer. Tous droits réservés."
   },
   "pages": {
+    "integrations": {
+      "title": "Intégrations",
+      "description": "Connectez DOER avec vos outils et services préférés pour rationaliser votre planification et la réalisation de vos objectifs.",
+      "subtitle": "Chaque connecteur tient l’IA scheduling au courant de vos calendriers, tâches et énergie afin que chaque mise à jour soit immédiatement visible.",
+      "cards": {
+        "appleCalendar": "La synchronisation bidirectionnelle permet à DOER de consulter chaque engagement dans Apple Calendar afin d’éviter les doubles réservations.",
+        "outlook": "Outlook transmet des rendez-vous à DOER pour donner au scheduler du contexte sur le blocage du focus et renvoyer les modifications de calendrier.",
+        "googleCalendar": "Google Calendar reflète les événements planifiés par DOER afin que votre disponibilité soit conforme pour vos collaborateurs externes.",
+        "todoist": "DOER publie des tâches dans Todoist, ajuste leurs dates d’échéance et les marque comme terminées quand un jalon est bouclé.",
+        "asana": "Mappez les jalons DOER dans Asana pour que le scheduler aligne vos échéances de projet avec vos équipes existantes.",
+        "trello": "Chaque tâche DOER devient une carte Trello avec une date d’échéance, permettant au scheduler de réserver le bon créneau tandis que votre board reflète les progrès.",
+        "notion": "Stockez le contexte de votre plan dans Notion et DOER s’y réfère lorsqu’il met à jour le calendrier IA ou affiche les prochaines actions.",
+        "evernote": "Les rappels Evernote deviennent des tâches conscientes du calendrier, aidant DOER à réordonner les priorités.",
+        "slack": "Recevez des synthèses dans Slack, déclenchez des replanifications avec des slash commands et laissez le scheduler notifier les canaux.",
+        "microsoftTeams": "Les calendriers et notes Teams alimentent DOER afin que le scheduler équilibre focus et réunions tout en partageant les mises à jour avec l’équipe.",
+        "strava": "Les entraînements Strava signalent les fenêtres de récupération, évitant au scheduler d’empiler des sessions intensives les jours épuisés.",
+        "appleHealth": "Les données Apple Health (sommeil, fréquence cardiaque, activité) permettent au scheduler de respecter votre énergie lorsque des tâches exigeantes sont planifiées.",
+        "coursera": "DOER surveille vos progrès sur Coursera pour bloquer des sessions d’étude, cadrer les leçons et marquer les modules complétés.",
+        "udemy": "Les leçons Udemy deviennent des tâches faciles à suivre, permettant au scheduler de réserver du temps d’apprentissage sans conflit."
+      }
+    },
     "features": {
       "title": "Fonctionnalités",
       "description": "Découvrez toutes les fonctionnalités qui vous aident à transformer vos objectifs en réalité.",

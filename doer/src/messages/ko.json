@@ -128,6 +128,27 @@
     "copyright": "2025 Doer. 모든 권리 보유."
   },
   "pages": {
+    "integrations": {
+      "title": "통합",
+      "description": "DOER를 좋아하는 도구 및 서비스와 연결하여 계획 및 목표 달성을 간소화하세요.",
+      "subtitle": "각 통합 도구는 캘린더, 작업, 에너지를 AI 스케줄러에 전달하여 모든 업데이트를 즉시 반영합니다.",
+      "cards": {
+        "appleCalendar": "양방향 동기화로 DOER는 Apple Calendar의 약속을 확인하여 중복 예약을 방지합니다.",
+        "outlook": "Outlook 일정이 DOER로 전송되어 집중 시간을 확보하고 변경 사항을 캘린더에 반영하는 문맥을 제공합니다.",
+        "googleCalendar": "Google Calendar에는 DOER가 계획한 이벤트가 반영되어 외부 협력자의 가용성과 일치합니다.",
+        "todoist": "DOER는 Todoist에 작업을 게시하고 마감일을 조정하며 마일스톤이 완료되면 완료로 표시합니다.",
+        "asana": "DOER의 마일스톤을 Asana와 연결하여 스케줄러가 정확한 시간 확보와 진행 상황을 유지합니다.",
+        "trello": "DOER 작업은 기한이 있는 Trello 카드가 되어 스케줄러가 정확한 시간을 확보하고 보드는 실제 진행 상황을 보여줍니다.",
+        "notion": "계획 컨텍스트를 Notion에 저장하면 DOER는 AI 일정이나 다음 작업을 업데이트할 때 해당 노트를 참고합니다.",
+        "evernote": "Evernote 리마인더는 일정에 민감한 작업으로 바뀌어 DOER가 우선순위 재조정 시 이를 반영합니다.",
+        "slack": "Slack에서 요약을 받고, 슬래시 커맨드로 재일정을 요청하며, 변경 사항을 팀 채널에 알립니다.",
+        "microsoftTeams": "Teams 일정과 회의 노트가 DOER를 보완해 포커스 시간과 회의를 균형 있게 관리하고 업데이트를 공유합니다.",
+        "strava": "Strava 운동은 회복 창을 알려 주어 피로한 날에는 고강도 세션을 쌓지 않도록 도와줍니다.",
+        "appleHealth": "Apple Health 지표(수면, 심박, 활동)는 AI 스케줄러가 힘든 작업을 예약할 때 에너지를 존중하도록 합니다.",
+        "coursera": "DOER는 Coursera 진도를 추적하여 학습 세션을 차단하고 강의를 일정에 반영하며 완료된 모듈을 표시합니다.",
+        "udemy": "Udemy 강의는 따라하기 쉬운 작업으로 바뀌어 회의와 충돌 없이 학습 시간을 확보할 수 있습니다."
+      }
+    },
     "features": {
       "title": "기능",
       "description": "목표를 현실로 바꾸는 데 도움이 되는 모든 기능을 발견하세요.",
