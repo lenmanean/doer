@@ -22,8 +22,11 @@ export async function GET(request: NextRequest) {
     // Generate state parameter with user ID for security
     const state = Buffer.from(JSON.stringify({ userId: user.id })).toString('base64')
     
-    // Generate OAuth URL
-    const authUrl = await generateAuthUrl(state)
+    // Get request origin for redirect URI
+    const origin = request.headers.get('origin') || new URL(request.url).origin
+    
+    // Generate OAuth URL with request origin
+    const authUrl = await generateAuthUrl(state, origin)
     
     return NextResponse.json({
       auth_url: authUrl,

@@ -45,8 +45,11 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // Get request origin for redirect URI
+    const origin = request.headers.get('origin') || new URL(request.url).origin
+    
     // Exchange code for tokens
-    const tokens = await exchangeCodeForTokens(code)
+    const tokens = await exchangeCodeForTokens(code, origin)
     
     // Encrypt tokens
     const accessTokenEncrypted = encryptToken(tokens.access_token)

@@ -20,28 +20,55 @@ import { formatDateForDB, parseDateFromDB } from '@/lib/date-utils'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/integrations/google-calendar/connect'
+
+/**
+ * Get the redirect URI based on environment
+ * Uses GOOGLE_REDIRECT_URI env var if set, otherwise constructs from request
+ */
+function getRedirectUri(requestOrigin?: string): string {
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    return process.env.GOOGLE_REDIRECT_URI
+  }
+  
+  // In production, try to get from NEXT_PUBLIC_APP_URL or Vercel URL
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      return `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google-calendar/connect`
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}/api/integrations/google-calendar/connect`
+    }
+  }
+  
+  // Fallback to localhost for development
+  return requestOrigin 
+    ? `${requestOrigin}/api/integrations/google-calendar/connect`
+    : 'http://localhost:3000/api/integrations/google-calendar/connect'
+}
 
 /**
  * Get OAuth2 client for Google Calendar
  */
-function getOAuth2Client() {
+function getOAuth2Client(redirectUri?: string) {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set')
   }
   
+  const uri = redirectUri || getRedirectUri()
+  
   return new google.auth.OAuth2(
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
-    GOOGLE_REDIRECT_URI
+    uri
   )
 }
 
 /**
  * Generate Google OAuth authorization URL
  */
-export async function generateAuthUrl(state?: string): Promise<string> {
-  const oauth2Client = getOAuth2Client()
+export async function generateAuthUrl(state?: string, requestOrigin?: string): Promise<string> {
+  const redirectUri = getRedirectUri(requestOrigin)
+  const oauth2Client = getOAuth2Client(redirectUri)
   
   const scopes = [
     'https://www.googleapis.com/auth/calendar.readonly',
@@ -61,12 +88,13 @@ export async function generateAuthUrl(state?: string): Promise<string> {
 /**
  * Exchange authorization code for tokens
  */
-export async function exchangeCodeForTokens(code: string): Promise<{
+export async function exchangeCodeForTokens(code: string, requestOrigin?: string): Promise<{
   access_token: string
   refresh_token: string
   expiry_date: number
 }> {
-  const oauth2Client = getOAuth2Client()
+  const redirectUri = getRedirectUri(requestOrigin)
+  const oauth2Client = getOAuth2Client(redirectUri)
   
   const { tokens } = await oauth2Client.getToken(code)
   
@@ -92,6 +120,7 @@ async function refreshAccessToken(
   
   try {
     const refreshToken = decryptToken(refreshTokenEncrypted)
+    // For refresh token flow, redirect URI doesn't matter - use any valid one
     const oauth2Client = getOAuth2Client()
     oauth2Client.setCredentials({
       refresh_token: refreshToken,
