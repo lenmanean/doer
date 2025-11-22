@@ -2,7 +2,13 @@
  * Types for Google Calendar sync integration
  */
 
-import type { BusySlot, NormalizedAvailability } from '@/lib/types'
+// BusySlot represents a time slot that's blocked/busy from calendar events
+export interface BusySlot {
+  start: string // ISO date string
+  end: string // ISO date string
+  source: string // e.g., 'calendar_event'
+  metadata?: Record<string, unknown> // Additional metadata about the busy slot
+}
 
 export interface CalendarConnection {
   id: string
