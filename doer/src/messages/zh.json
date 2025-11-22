@@ -47,7 +47,24 @@
   },
   "integrations": {
     "title": "集成",
-    "description": "将 DOER 与您喜欢的工具和服务连接，简化您的规划和目标实现。"
+    "description": "将 DOER 与您喜欢的工具和服务连接，简化您的规划和目标实现。",
+    "subtitle": "每个连接器都会让 AI 调度器了解您的日历、任务和精力，从而将每次更新即时反映出来。",
+    "cards": {
+      "appleCalendar": "双向同步让 DOER 看到 Apple Calendar 中的每个承诺，从而避免 AI 调度器重复预订。",
+      "outlook": "Outlook 日程会流入 DOER，向调度器提供上下文以便安排专注时间并将更改同步回日历。",
+      "googleCalendar": "Google Calendar 映射 DOER 计划的事件，确保您对外部协作者的可用性保持一致。",
+      "todoist": "DOER 将任务发布到 Todoist，更新截止日期，并在 AI 调度器完成一个里程碑后将其标记为完成。",
+      "asana": "将 DOER 的里程碑映射到 Asana，以便调度器与您正在使用的团队保持项目时间线一致。",
+      "trello": "每个 DOER 任务都会成为带到期日的 Trello 卡片，让调度器占据正确的时间，而您的看板则展示真实进度。",
+      "notion": "将计划上下文存储在 Notion 中，DOER 更新 AI 日程或显示下一步操作时会参考这些笔记。",
+      "evernote": "Evernote 提醒会转换为考虑时间安排的任务，因此 DOER 在重新安排优先级时会考虑这些后续事项。",
+      "slack": "在 Slack 中接收计划摘要，用斜杠命令触发重新安排，并让调度器在计划变更时通知频道。",
+      "microsoftTeams": "Teams 日历和会议记录为 DOER 提供数据，让调度器平衡专注时间与会议，同时将更新发布给团队。",
+      "strava": "Strava 训练会向 DOER 提示恢复窗口，帮助调度器避免在疲惫的日子累积高强度课程。",
+      "appleHealth": "Apple Health 指标（睡眠、心率、活动）为 AI 调度器提供数据，以在安排高强度任务时尊重您的精力。",
+      "coursera": "DOER 追踪 Coursera 的进度，以阻止学习时间、安排课程并在 AI 日程中标记完成的模块。",
+      "udemy": "Udemy 课程成为易于跟进的任务，允许调度器在不冲突会议的情况下保留学习时间。"
+    }
   },
   "testimonials": {
     "title": "用户评价",
