@@ -325,7 +325,7 @@ function convertToBusySlot(event: GoogleCalendarEvent, calendarId: string): Busy
   return {
     start: new Date(startDateTime).toISOString(),
     end: new Date(endDateTime).toISOString(),
-    source: 'calendar_event',
+    source: 'calendar_event' as const,
     metadata: {
       event_id: event.id,
       calendar_id: calendarId,
