@@ -4,8 +4,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useSupabase } from './supabase-provider'
 
-type Theme = 'dark' | 'light' | 'system'
-type AccentColor = 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple'
+export type Theme = 'dark' | 'light' | 'system'
+export type AccentColor = 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple'
 
 interface ThemeContextType {
   theme: Theme
@@ -16,6 +16,12 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+
+export interface InitialThemePreferences {
+  userId: string
+  theme?: Theme
+  accentColor?: AccentColor
+}
 
 // Accent color palette - adjusted to match green's lightness (61.37%)
 const accentColors: Record<AccentColor, string> = {
@@ -28,30 +34,60 @@ const accentColors: Record<AccentColor, string> = {
   purple: '#7a44f5'    // adjusted to match green lightness
 }
 
-export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: React.ReactNode, defaultTheme?: Theme }) {
+const VALID_THEMES: Theme[] = ['dark', 'light', 'system']
+const VALID_ACCENT_COLORS = Object.keys(accentColors) as AccentColor[]
+
+const resolveThemeValue = (value: Theme): 'dark' | 'light' => {
+  if (value === 'light') return 'light'
+  if (value === 'system') {
+    if (typeof window === 'undefined') {
+      return 'dark'
+    }
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    return mediaQuery.matches ? 'dark' : 'light'
+  }
+  return 'dark'
+}
+
+export function ThemeProvider({
+  children,
+  defaultTheme = 'dark',
+  initialPreferences,
+}: {
+  children: React.ReactNode
+  defaultTheme?: Theme
+  initialPreferences?: InitialThemePreferences
+}) {
   const { user } = useSupabase()
   // Initialize from localStorage immediately to prevent flash
   const getInitialTheme = (): Theme => {
+    if (initialPreferences?.theme && VALID_THEMES.includes(initialPreferences.theme)) {
+      return initialPreferences.theme
+    }
     if (typeof window === 'undefined') return defaultTheme
     const saved = localStorage.getItem('theme') as Theme
-    return (saved && ['dark', 'light', 'system'].includes(saved)) ? saved : defaultTheme
+    return (saved && VALID_THEMES.includes(saved)) ? saved : defaultTheme
   }
   
   const getInitialResolvedTheme = (): 'dark' | 'light' => {
-    if (typeof window === 'undefined') return 'dark'
-    const saved = localStorage.getItem('theme') as Theme
-    if (saved === 'light') return 'light'
-    if (saved === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      return mediaQuery.matches ? 'dark' : 'light'
+    if (initialPreferences?.theme && VALID_THEMES.includes(initialPreferences.theme)) {
+      return resolveThemeValue(initialPreferences.theme)
     }
-    return 'dark'
+    if (typeof window === 'undefined') return resolveThemeValue(defaultTheme)
+    const saved = localStorage.getItem('theme') as Theme
+    if (saved && VALID_THEMES.includes(saved)) {
+      return resolveThemeValue(saved)
+    }
+    return resolveThemeValue(defaultTheme)
   }
   
   const getInitialAccentColor = (): AccentColor => {
+    if (initialPreferences?.accentColor && VALID_ACCENT_COLORS.includes(initialPreferences.accentColor)) {
+      return initialPreferences.accentColor
+    }
     if (typeof window === 'undefined') return 'orange'
     const saved = localStorage.getItem('accentColor') as AccentColor
-    return (saved && Object.keys(accentColors).includes(saved)) ? saved : 'orange'
+    return (saved && VALID_ACCENT_COLORS.includes(saved)) ? saved : 'orange'
   }
 
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
@@ -216,16 +252,12 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: R
     const savedTheme = localStorage.getItem('theme') as Theme
     const savedAccentColor = localStorage.getItem('accentColor') as AccentColor
     
-    if (savedTheme && ['dark', 'light', 'system'].includes(savedTheme)) {
+    if (savedTheme && VALID_THEMES.includes(savedTheme)) {
       setTheme(savedTheme)
       // Resolve theme immediately
-      let resolved: 'dark' | 'light' = 'dark'
-      if (savedTheme === 'system') {
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        resolved = mediaQuery.matches ? 'dark' : 'light'
-      } else {
-        resolved = savedTheme
-      }
+      const resolved = savedTheme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : savedTheme
       setResolvedTheme(resolved)
       
       // Apply theme classes immediately
@@ -245,11 +277,34 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: R
       }
     }
     
-    if (savedAccentColor && Object.keys(accentColors).includes(savedAccentColor)) {
+    if (savedAccentColor && VALID_ACCENT_COLORS.includes(savedAccentColor)) {
       setAccentColorState(savedAccentColor)
       applyAccentColor(savedAccentColor)
     } else {
       applyAccentColor('orange')
+    }
+
+    const hasServerPreferences = Boolean(initialPreferences?.userId)
+    const matchesServerUser = hasServerPreferences && user?.id === initialPreferences.userId
+    const shouldUseServerPreferences =
+      hasServerPreferences &&
+      (matchesServerUser || user === null)
+
+    if (shouldUseServerPreferences && initialPreferences) {
+      const serverTheme = (initialPreferences.theme && VALID_THEMES.includes(initialPreferences.theme))
+        ? initialPreferences.theme
+        : defaultTheme
+      const serverAccent = (initialPreferences.accentColor && VALID_ACCENT_COLORS.includes(initialPreferences.accentColor))
+        ? initialPreferences.accentColor
+        : 'orange'
+
+      setTheme(serverTheme)
+      setAccentColorState(serverAccent)
+      localStorage.setItem('theme', serverTheme)
+      localStorage.setItem('accentColor', serverAccent)
+      applyAccentColor(serverAccent)
+      setIsLoading(false)
+      return
     }
 
     const checkUserAndLoad = async () => {
@@ -258,7 +313,13 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: { children: R
     }
 
     checkUserAndLoad()
-  }, [user?.id])
+  }, [
+    user?.id,
+    initialPreferences?.userId,
+    initialPreferences?.theme,
+    initialPreferences?.accentColor,
+    defaultTheme,
+  ])
 
   // Update resolved theme based on current theme setting
   useEffect(() => {

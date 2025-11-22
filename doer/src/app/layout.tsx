@@ -6,7 +6,7 @@ import { validateCoreFeatures } from "@/lib/feature-flags";
 import { PageFadeIn } from "@/components/ui/FadeInWrapper";
 import { createClient, validateSession } from '@/lib/supabase/server'
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
-import { ThemeProvider } from '@/components/providers/theme-provider'
+import { ThemeProvider, type InitialThemePreferences } from '@/components/providers/theme-provider'
 import { getLocale } from '@/i18n/request'
 import { LocaleProvider } from '@/components/providers/locale-provider'
 import enMessages from '../messages/en.json'
@@ -64,6 +64,31 @@ export default async function RootLayout({
   } catch (error) {
     console.error('Error loading locale:', error)
     // Fallback to English messages (already imported)
+  }
+
+  let initialPreferences: InitialThemePreferences | undefined
+  if (initialUser) {
+    try {
+      const supabaseClient = await createClient()
+      const { data, error } = await supabaseClient
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', initialUser.id)
+        .single()
+
+      if (!error || error.code === 'PGRST116') {
+        const prefs = data?.preferences
+        initialPreferences = {
+          userId: initialUser.id,
+          theme: prefs?.theme,
+          accentColor: prefs?.accent_color,
+        }
+      } else {
+        console.error('[layout] Error loading user preferences:', error)
+      }
+    } catch (error) {
+      console.error('[layout] Error loading user preferences:', error)
+    }
   }
   
   return (
@@ -144,7 +169,7 @@ export default async function RootLayout({
       <body className="font-sans antialiased" suppressHydrationWarning>
         <LocaleProvider locale={locale} messages={messages} timeZone={timeZone}>
           <SupabaseProvider initialUser={initialUser}>
-          <ThemeProvider>
+          <ThemeProvider initialPreferences={initialPreferences}>
               <ToastProvider>
                 <PageFadeIn className="min-h-screen">
                   {children}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { generateRoadmapContent } from '@/lib/ai'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
-import { addDays, formatDateForDB } from '@/lib/date-utils'
+import { addDays, formatDateForDB, parseDateFromDB } from '@/lib/date-utils'
 import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
@@ -264,12 +264,40 @@ export async function POST(req: NextRequest) {
     console.log('Generating roadmap content with AI...')
     let aiContent: any
 
+    // Fetch busy slots from calendar if connection exists
+    let availability = undefined
+    const { data: calendarConnection } = await supabase
+      .from('calendar_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('provider', 'google')
+      .single()
+
+    if (calendarConnection) {
+      const { getBusySlotsForUser } = await import('@/lib/calendar/google-calendar-sync')
+      const startDate = parseDateFromDB(finalStartDate)
+      // Estimate end date (will be refined by AI)
+      const estimatedEndDate = new Date(startDate)
+      estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
+      
+      const busySlots = await getBusySlotsForUser(user.id, startDate, estimatedEndDate)
+      
+      if (busySlots.length > 0) {
+        availability = {
+          busySlots,
+          timeOff: [],
+        }
+        console.log(`Found ${busySlots.length} busy slots from calendar`)
+      }
+    }
+
     try {
       aiContent = await generateRoadmapContent({
         goal: finalGoalText,
         start_date: finalStartDate,
         clarifications: finalClarifications,
         clarificationQuestions: finalClarificationQuestions,
+        availability,
       })
 
       console.log('✅ AI content generated successfully')

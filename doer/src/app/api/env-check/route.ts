@@ -16,5 +16,11 @@ export async function GET() {
       service_role: process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ Loaded' : '❌ Missing',
     },
     openai: process.env.OPENAI_API_KEY ? '✅ Loaded' : '❌ Missing',
+    google_calendar: {
+      client_id: process.env.GOOGLE_CLIENT_ID ? '✅ Loaded' : '❌ Missing',
+      client_secret: process.env.GOOGLE_CLIENT_SECRET ? '✅ Loaded' : '❌ Missing',
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'Using default',
+      encryption_key: process.env.CALENDAR_TOKEN_ENCRYPTION_KEY ? '✅ Loaded' : '❌ Missing',
+    },
   })
 }

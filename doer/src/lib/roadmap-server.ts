@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { timeBlockScheduler } from '@/lib/time-block-scheduler'
 import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
+import { getBusySlotsForUser } from '@/lib/calendar/google-calendar-sync'
 
 /**
  * Generate time-block schedule for all tasks in a plan.
@@ -76,6 +77,38 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   const now = new Date()
   const currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
 
+  // Fetch busy slots from calendar if connection exists
+  let existingSchedules: Array<{ date: string; start_time: string; end_time: string }> = []
+  const { data: calendarConnection } = await supabase
+    .from('calendar_connections')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('provider', 'google')
+    .single()
+
+  if (calendarConnection) {
+    try {
+      const busySlots = await getBusySlotsForUser(userId, startDate, endDate)
+      // Convert busy slots to existing schedules format
+      existingSchedules = busySlots.map(slot => {
+        const slotStart = new Date(slot.start)
+        const slotEnd = new Date(slot.end)
+        return {
+          date: formatDateForDB(slotStart),
+          start_time: slotStart.toTimeString().slice(0, 5), // HH:MM
+          end_time: slotEnd.toTimeString().slice(0, 5), // HH:MM
+        }
+      })
+      
+      if (existingSchedules.length > 0) {
+        console.log(`[generateTaskSchedule] Found ${existingSchedules.length} busy slots from calendar`)
+      }
+    } catch (error) {
+      console.error('[generateTaskSchedule] Failed to fetch busy slots', error)
+      // Continue without busy slots if fetch fails
+    }
+  }
+
   // Run scheduler
   const { placements, totalScheduledHours, unscheduledTasks } = timeBlockScheduler({
     tasks: tasks.map(t => ({
@@ -99,8 +132,7 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     lunchEndHour,
     allowWeekends: effectiveAllowWeekends,
     currentTime,
-    // We don't pass existingSchedules because we just cleared them
-    existingSchedules: []
+    existingSchedules // Pass busy slots to avoid conflicts
   })
 
   // Persist placements
