@@ -23,33 +23,41 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 
 /**
  * Get the redirect URI based on environment
- * Prioritizes production-ready URLs from environment variables
+ * Always prioritizes production-ready URLs from environment variables
+ * This ensures Google OAuth uses the registered redirect URI even during local development
  */
 function getRedirectUri(requestOrigin?: string): string {
-  // First priority: explicit redirect URI from environment
+  // First priority: explicit redirect URI from environment (always use if set)
   if (process.env.GOOGLE_REDIRECT_URI) {
-    return process.env.GOOGLE_REDIRECT_URI
+    return process.env.GOOGLE_REDIRECT_URI.trim()
   }
   
-  // Second priority: production URL from NEXT_PUBLIC_APP_URL
+  // Second priority: production URL from NEXT_PUBLIC_APP_URL (use production domain)
   if (process.env.NEXT_PUBLIC_APP_URL) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL.trim()
     // Ensure it doesn't have trailing slash
     const baseUrl = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl
+    // Always use production URL, even in development (for OAuth registration)
     return `${baseUrl}/api/integrations/google-calendar/connect`
   }
   
-  // Third priority: Vercel production URL
-  if (process.env.VERCEL_URL && process.env.NODE_ENV === 'production') {
-    return `https://${process.env.VERCEL_URL}/api/integrations/google-calendar/connect`
+  // Third priority: Vercel production URL (if available)
+  if (process.env.VERCEL_URL) {
+    const vercelUrl = process.env.VERCEL_URL.trim()
+    // Ensure it starts with https://
+    const baseUrl = vercelUrl.startsWith('https://') 
+      ? vercelUrl 
+      : `https://${vercelUrl}`
+    return `${baseUrl}/api/integrations/google-calendar/connect`
   }
   
-  // Fourth priority: use request origin if provided
+  // Fourth priority: use request origin if provided (fallback only)
   if (requestOrigin) {
     return `${requestOrigin}/api/integrations/google-calendar/connect`
   }
   
-  // Fallback: localhost for development only
+  // Last resort: localhost for local development (should be avoided)
+  console.warn('⚠️ Using localhost redirect URI. Set GOOGLE_REDIRECT_URI or NEXT_PUBLIC_APP_URL to use production domain.')
   return 'http://localhost:3000/api/integrations/google-calendar/connect'
 }
 
@@ -73,8 +81,8 @@ function getOAuth2Client(redirectUri?: string) {
 /**
  * Generate Google OAuth authorization URL
  */
-export async function generateAuthUrl(state?: string, requestOrigin?: string): Promise<string> {
-  const redirectUri = getRedirectUri(requestOrigin)
+export async function generateAuthUrl(state?: string): Promise<string> {
+  const redirectUri = getRedirectUri()
   const oauth2Client = getOAuth2Client(redirectUri)
   
   const scopes = [
@@ -95,12 +103,12 @@ export async function generateAuthUrl(state?: string, requestOrigin?: string): P
 /**
  * Exchange authorization code for tokens
  */
-export async function exchangeCodeForTokens(code: string, requestOrigin?: string): Promise<{
+export async function exchangeCodeForTokens(code: string): Promise<{
   access_token: string
   refresh_token: string
   expiry_date: number
 }> {
-  const redirectUri = getRedirectUri(requestOrigin)
+  const redirectUri = getRedirectUri()
   const oauth2Client = getOAuth2Client(redirectUri)
   
   const { tokens } = await oauth2Client.getToken(code)
