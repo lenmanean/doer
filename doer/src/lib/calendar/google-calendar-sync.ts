@@ -41,7 +41,13 @@ function getRedirectUri(requestOrigin?: string): string {
     return `${baseUrl}/api/integrations/google-calendar/connect`
   }
   
-  // Third priority: Vercel production URL (if available)
+  // Third priority: Use production domain (usedoer.com) if in production or if no env var is set
+  // This ensures we always use the registered production redirect URI
+  if (process.env.NODE_ENV === 'production' || !process.env.NODE_ENV) {
+    return 'https://usedoer.com/api/integrations/google-calendar/connect'
+  }
+  
+  // Fourth priority: Vercel production URL (if available)
   if (process.env.VERCEL_URL) {
     const vercelUrl = process.env.VERCEL_URL.trim()
     // Ensure it starts with https://
@@ -51,8 +57,8 @@ function getRedirectUri(requestOrigin?: string): string {
     return `${baseUrl}/api/integrations/google-calendar/connect`
   }
   
-  // Fourth priority: use request origin if provided (fallback only)
-  if (requestOrigin) {
+  // Fifth priority: use request origin if provided (fallback only in development)
+  if (requestOrigin && process.env.NODE_ENV === 'development') {
     return `${requestOrigin}/api/integrations/google-calendar/connect`
   }
   
