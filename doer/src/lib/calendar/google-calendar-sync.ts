@@ -23,27 +23,34 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 
 /**
  * Get the redirect URI based on environment
- * Uses GOOGLE_REDIRECT_URI env var if set, otherwise constructs from request
+ * Prioritizes production-ready URLs from environment variables
  */
 function getRedirectUri(requestOrigin?: string): string {
+  // First priority: explicit redirect URI from environment
   if (process.env.GOOGLE_REDIRECT_URI) {
     return process.env.GOOGLE_REDIRECT_URI
   }
   
-  // In production, try to get from NEXT_PUBLIC_APP_URL or Vercel URL
-  if (process.env.NODE_ENV === 'production') {
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-      return `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google-calendar/connect`
-    }
-    if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}/api/integrations/google-calendar/connect`
-    }
+  // Second priority: production URL from NEXT_PUBLIC_APP_URL
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL.trim()
+    // Ensure it doesn't have trailing slash
+    const baseUrl = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl
+    return `${baseUrl}/api/integrations/google-calendar/connect`
   }
   
-  // Fallback to localhost for development
-  return requestOrigin 
-    ? `${requestOrigin}/api/integrations/google-calendar/connect`
-    : 'http://localhost:3000/api/integrations/google-calendar/connect'
+  // Third priority: Vercel production URL
+  if (process.env.VERCEL_URL && process.env.NODE_ENV === 'production') {
+    return `https://${process.env.VERCEL_URL}/api/integrations/google-calendar/connect`
+  }
+  
+  // Fourth priority: use request origin if provided
+  if (requestOrigin) {
+    return `${requestOrigin}/api/integrations/google-calendar/connect`
+  }
+  
+  // Fallback: localhost for development only
+  return 'http://localhost:3000/api/integrations/google-calendar/connect'
 }
 
 /**
