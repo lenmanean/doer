@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -53,7 +53,7 @@ export default function IntegrationsPage() {
   }, [user?.id])
   
   // Load active plan
-  const loadActivePlan = async () => {
+  const loadActivePlan = useCallback(async () => {
     if (!user?.id) return
     
     try {
@@ -70,10 +70,10 @@ export default function IntegrationsPage() {
     } catch (error) {
       console.error('Error loading active plan:', error)
     }
-  }
+  }, [user?.id])
   
   // Load available calendars
-  const loadCalendars = async () => {
+  const loadCalendars = useCallback(async () => {
     try {
       setLoadingCalendars(true)
       const response = await fetch('/api/integrations/google-calendar/calendars')
@@ -95,10 +95,10 @@ export default function IntegrationsPage() {
     } finally {
       setLoadingCalendars(false)
     }
-  }
+  }, [addToast])
   
   // Load connection status function (extracted to be reusable)
-  const loadConnection = async () => {
+  const loadConnection = useCallback(async (retryCount = 0) => {
     if (!user?.id) return
     
     try {
@@ -110,6 +110,15 @@ export default function IntegrationsPage() {
       }
       
       const data = await response.json()
+      console.log('Connection status loaded:', { connected: data.connected, hasConnection: !!data.connection })
+      
+      // If not connected and this is a retry after OAuth, wait a bit and retry
+      if (!data.connected && retryCount < 2) {
+        console.log(`Connection not found, retrying... (attempt ${retryCount + 1}/2)`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        return loadConnection(retryCount + 1)
+      }
+      
       setConnection(data.connected ? data.connection : null)
       setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
       setAutoPushEnabled(data.connection?.auto_push_enabled || false)
@@ -123,6 +132,8 @@ export default function IntegrationsPage() {
       
       // Load active plan for push functionality
       loadActivePlan()
+      
+      return data.connected
     } catch (error) {
       console.error('Error loading connection:', error)
       addToast({
@@ -131,40 +142,65 @@ export default function IntegrationsPage() {
         description: 'Please try again later.',
         duration: 5000,
       })
+      return false
     } finally {
       setLoadingConnection(false)
     }
-  }
+  }, [user?.id, loadCalendars, loadActivePlan, addToast])
   
   // Handle OAuth callback query parameters
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id || !loadConnection) return
     
     const connected = searchParams.get('connected')
     const error = searchParams.get('error')
     
     // Handle successful connection
     if (connected === 'google') {
-      // Load connection first, then show success message and clear query param
-      loadConnection().then(() => {
-        addToast({
-          type: 'success',
-          title: 'Successfully connected!',
-          description: 'Google Calendar has been connected. Please select calendars to sync.',
-          duration: 5000,
-        })
-        // Clear query parameter after loading
-        router.replace('/dashboard/integrations')
-      }).catch(() => {
-        // Even if load fails, clear the query param and show a message
-        router.replace('/dashboard/integrations')
-        addToast({
-          type: 'warning',
-          title: 'Connection may be in progress',
-          description: 'Please refresh the page if the connection does not appear.',
-          duration: 7000,
-        })
-      })
+      // Wait a moment for the database write to complete, then load connection
+      const handleConnection = async () => {
+        // Add a small delay to ensure the connection is saved in the database
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Try loading the connection with retries
+        let isConnected = false
+        for (let attempt = 0; attempt < 3; attempt++) {
+          isConnected = await loadConnection(attempt)
+          if (isConnected) break
+          
+          // Wait before retrying (except on last attempt)
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
+        
+        // Verify connection state was set
+        await new Promise(resolve => setTimeout(resolve, 200))
+        
+        if (isConnected) {
+          addToast({
+            type: 'success',
+            title: 'Successfully connected!',
+            description: 'Google Calendar has been connected. Please select calendars to sync.',
+            duration: 5000,
+          })
+        } else {
+          addToast({
+            type: 'warning',
+            title: 'Connection may be in progress',
+            description: 'The connection is being processed. Please refresh the page if it doesn\'t appear.',
+            duration: 7000,
+          })
+        }
+        
+        // Clear query parameter after loading and showing toast
+        // Use setTimeout to ensure state updates have propagated
+        setTimeout(() => {
+          router.replace('/dashboard/integrations')
+        }, 100)
+      }
+      
+      handleConnection()
     }
     
     // Handle errors
@@ -183,14 +219,18 @@ export default function IntegrationsPage() {
       })
       router.replace('/dashboard/integrations')
     }
-  }, [user?.id, searchParams, router, addToast])
+  }, [user?.id, searchParams, router, addToast, loadConnection])
   
   // Load connection status on mount
   useEffect(() => {
-    if (!user?.id) return
-    loadConnection()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id])
+    if (!user?.id || !loadConnection) return
+    
+    // Only load on mount if there's no OAuth callback happening
+    const connected = searchParams.get('connected')
+    if (!connected) {
+      loadConnection()
+    }
+  }, [user?.id, searchParams, loadConnection])
   
   // Connect Google Calendar
   const handleConnect = async () => {

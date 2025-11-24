@@ -23,9 +23,22 @@ export async function GET(request: NextRequest) {
       .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, last_sync_at, created_at')
       .eq('user_id', user.id)
       .eq('provider', 'google')
-      .single()
+      .maybeSingle() // Use maybeSingle() instead of single() to handle no rows gracefully
     
-    if (connectionError || !connection) {
+    // If no connection found or error (and it's not a "no rows" error), return not connected
+    if (connectionError) {
+      console.error('Error fetching calendar connection:', connectionError)
+      // Check if it's a "no rows" error (PGRST116) or a real error
+      if (connectionError.code !== 'PGRST116') {
+        // Real error, log it
+        return NextResponse.json(
+          { error: 'Failed to get connection status', details: connectionError.message },
+          { status: 500 }
+        )
+      }
+    }
+    
+    if (!connection) {
       return NextResponse.json({
         connected: false,
       })
