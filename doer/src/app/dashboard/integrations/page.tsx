@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -18,6 +18,7 @@ import { isEmailConfirmed } from '@/lib/email-confirmation'
  */
 export default function IntegrationsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { addToast } = useToast()
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
   const [emailConfirmed, setEmailConfirmed] = useState(true)
@@ -50,49 +51,6 @@ export default function IntegrationsPage() {
     }
     setEmailConfirmed(isEmailConfirmed(user))
   }, [user?.id])
-  
-  // Load connection status
-  useEffect(() => {
-    if (!user?.id) return
-    
-    const loadConnection = async () => {
-      try {
-        setLoadingConnection(true)
-        const response = await fetch('/api/integrations/google-calendar/status')
-        
-        if (!response.ok) {
-          throw new Error('Failed to load connection status')
-        }
-        
-        const data = await response.json()
-        setConnection(data.connected ? data.connection : null)
-        setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
-        setAutoPushEnabled(data.connection?.auto_push_enabled || false)
-        setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
-        setSyncLogs(data.recent_syncs || [])
-        
-        // Load calendars if connected
-        if (data.connected) {
-          loadCalendars()
-        }
-        
-        // Load active plan for push functionality
-        loadActivePlan()
-      } catch (error) {
-        console.error('Error loading connection:', error)
-        addToast({
-          type: 'error',
-          title: 'Failed to load connection',
-          description: 'Please try again later.',
-          duration: 5000,
-        })
-      } finally {
-        setLoadingConnection(false)
-      }
-    }
-    
-    loadConnection()
-  }, [user?.id, addToast])
   
   // Load active plan
   const loadActivePlan = async () => {
@@ -138,6 +96,101 @@ export default function IntegrationsPage() {
       setLoadingCalendars(false)
     }
   }
+  
+  // Load connection status function (extracted to be reusable)
+  const loadConnection = async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoadingConnection(true)
+      const response = await fetch('/api/integrations/google-calendar/status')
+      
+      if (!response.ok) {
+        throw new Error('Failed to load connection status')
+      }
+      
+      const data = await response.json()
+      setConnection(data.connected ? data.connection : null)
+      setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
+      setAutoPushEnabled(data.connection?.auto_push_enabled || false)
+      setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
+      setSyncLogs(data.recent_syncs || [])
+      
+      // Load calendars if connected
+      if (data.connected) {
+        loadCalendars()
+      }
+      
+      // Load active plan for push functionality
+      loadActivePlan()
+    } catch (error) {
+      console.error('Error loading connection:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to load connection',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingConnection(false)
+    }
+  }
+  
+  // Handle OAuth callback query parameters
+  useEffect(() => {
+    if (!user?.id) return
+    
+    const connected = searchParams.get('connected')
+    const error = searchParams.get('error')
+    
+    // Handle successful connection
+    if (connected === 'google') {
+      // Load connection first, then show success message and clear query param
+      loadConnection().then(() => {
+        addToast({
+          type: 'success',
+          title: 'Successfully connected!',
+          description: 'Google Calendar has been connected. Please select calendars to sync.',
+          duration: 5000,
+        })
+        // Clear query parameter after loading
+        router.replace('/dashboard/integrations')
+      }).catch(() => {
+        // Even if load fails, clear the query param and show a message
+        router.replace('/dashboard/integrations')
+        addToast({
+          type: 'warning',
+          title: 'Connection may be in progress',
+          description: 'Please refresh the page if the connection does not appear.',
+          duration: 7000,
+        })
+      })
+    }
+    
+    // Handle errors
+    if (error) {
+      let errorMessage = 'Failed to connect Google Calendar'
+      if (error === 'oauth_failed') {
+        errorMessage = 'OAuth authorization was cancelled or failed'
+      } else if (error === 'connection_failed') {
+        errorMessage = 'Failed to save connection. Please try again.'
+      }
+      addToast({
+        type: 'error',
+        title: 'Connection failed',
+        description: errorMessage,
+        duration: 7000,
+      })
+      router.replace('/dashboard/integrations')
+    }
+  }, [user?.id, searchParams, router, addToast])
+  
+  // Load connection status on mount
+  useEffect(() => {
+    if (!user?.id) return
+    loadConnection()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
   
   // Connect Google Calendar
   const handleConnect = async () => {
