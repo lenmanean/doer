@@ -5,6 +5,7 @@
 
 import { google } from 'googleapis'
 import type { calendar_v3 } from 'googleapis'
+import type { OAuth2Client } from 'google-auth-library'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken, decryptToken } from '../encryption'
 import { logger } from '@/lib/logger'
@@ -37,7 +38,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return getProviderRedirectUri(this.provider, requestOrigin)
   }
 
-  private getOAuth2Client(redirectUri?: string): ReturnType<typeof google.auth.OAuth2> {
+  private getOAuth2Client(redirectUri?: string): OAuth2Client {
     const config = getProviderConfig(this.provider)
     const uri = redirectUri || this.getRedirectUri()
 
