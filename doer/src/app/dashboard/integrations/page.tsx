@@ -76,7 +76,7 @@ export default function IntegrationsPage() {
   const loadCalendars = useCallback(async () => {
     try {
       setLoadingCalendars(true)
-      const response = await fetch('/api/integrations/google-calendar/calendars')
+      const response = await fetch('/api/integrations/google/calendars')
       
       if (!response.ok) {
         throw new Error('Failed to load calendars')
@@ -103,7 +103,7 @@ export default function IntegrationsPage() {
     
     try {
       setLoadingConnection(true)
-      const response = await fetch('/api/integrations/google-calendar/status')
+      const response = await fetch('/api/integrations/google/status')
       
       if (!response.ok) {
         throw new Error('Failed to load connection status')
@@ -235,7 +235,7 @@ export default function IntegrationsPage() {
   // Connect Google Calendar
   const handleConnect = async () => {
     try {
-      const response = await fetch('/api/integrations/google-calendar/authorize')
+      const response = await fetch('/api/integrations/google/authorize')
       
       if (!response.ok) {
         throw new Error('Failed to generate authorization URL')
@@ -262,7 +262,7 @@ export default function IntegrationsPage() {
     }
     
     try {
-      const response = await fetch('/api/integrations/google-calendar/disconnect', {
+      const response = await fetch('/api/integrations/google/disconnect', {
         method: 'DELETE',
       })
       
@@ -296,7 +296,7 @@ export default function IntegrationsPage() {
   const handleSync = async () => {
     try {
       setSyncing(true)
-      const response = await fetch('/api/integrations/google-calendar/sync', {
+      const response = await fetch('/api/integrations/google/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -412,7 +412,7 @@ export default function IntegrationsPage() {
       }
       
       // Push to Google Calendar
-      const pushResponse = await fetch('/api/integrations/google-calendar/push', {
+      const pushResponse = await fetch('/api/integrations/google/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -490,7 +490,7 @@ export default function IntegrationsPage() {
   const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean, autoPush: boolean) => {
     try {
       setUpdatingSettings(true)
-      const response = await fetch('/api/integrations/google-calendar/settings', {
+      const response = await fetch('/api/integrations/google/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

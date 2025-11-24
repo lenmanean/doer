@@ -1,22 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { exchangeCodeForTokens } from '@/lib/calendar/google-calendar-sync'
-import { encryptToken } from '@/lib/calendar/encryption'
-import { logger } from '@/lib/logger'
+import { getProvider, validateProvider } from '@/lib/calendar/providers/provider-factory'
+import { encryptTokens } from '@/lib/calendar/providers/shared'
+import { verifyOAuthState } from '@/lib/calendar/providers/shared'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
+import { logger } from '@/lib/logger'
 
 /**
- * OAuth callback endpoint for Google Calendar
- * GET /api/integrations/google-calendar/connect?code=...&state=...
+ * OAuth callback endpoint for calendar provider
+ * GET /api/integrations/[provider]/connect?code=...&state=...
  */
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { provider: string } }
+) {
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get('code')
   const state = searchParams.get('state')
   const error = searchParams.get('error')
-  
+
+  // Validate provider
+  let provider: 'google' | 'outlook' | 'apple'
+  try {
+    provider = validateProvider(params.provider)
+  } catch (error) {
+    return NextResponse.redirect(new URL(`/dashboard/integrations?error=invalid_provider`, request.url))
+  }
+
   if (error) {
-    logger.error('Google OAuth error', new Error(error))
+    logger.error(`${provider} OAuth error`, new Error(error))
     // Log OAuth failure event (will be done after we get user)
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -27,71 +39,67 @@ export async function GET(request: NextRequest) {
         {
           details: {
             oauth_error: error,
-            provider: 'google',
+            provider: provider,
           },
           ipAddress: getClientIp(request),
           userAgent: getUserAgent(request),
         }
       )
     }
-    return NextResponse.redirect(new URL('/dashboard/integrations?error=oauth_failed', request.url))
+    return NextResponse.redirect(new URL(`/dashboard/integrations?error=oauth_failed`, request.url))
   }
-  
+
   if (!code) {
-    return NextResponse.redirect(new URL('/dashboard/integrations?error=missing_code', request.url))
+    return NextResponse.redirect(new URL(`/dashboard/integrations?error=missing_code`, request.url))
   }
-  
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
+
     if (userError || !user) {
       return NextResponse.redirect(new URL('/login?redirect=/dashboard/integrations', request.url))
     }
-    
+
     // Verify state parameter
     if (state) {
-      try {
-        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString())
-        if (decodedState.userId !== user.id) {
-          throw new Error('Invalid state parameter')
-        }
-      } catch (stateError) {
-        logger.error('Invalid OAuth state parameter', stateError as Error)
+      if (!verifyOAuthState(state, user.id)) {
+        logger.error('Invalid OAuth state parameter', new Error('State verification failed'))
         await logConnectionEvent(
           user.id,
           'oauth_failed',
           {
             details: {
               oauth_error: 'invalid_state',
-              error_message: stateError instanceof Error ? stateError.message : 'Invalid state parameter',
-              provider: 'google',
+              error_message: 'Invalid state parameter',
+              provider: provider,
             },
             ipAddress: getClientIp(request),
             userAgent: getUserAgent(request),
           }
         )
-        return NextResponse.redirect(new URL('/dashboard/integrations?error=invalid_state', request.url))
+        return NextResponse.redirect(new URL(`/dashboard/integrations?error=invalid_state`, request.url))
       }
     }
-    
-    // Exchange code for tokens - redirect URI is determined by environment variables
-    // (production domain is prioritized via getRedirectUri function)
-    const tokens = await exchangeCodeForTokens(code)
-    
+
+    // Get provider instance
+    const calendarProvider = getProvider(provider)
+    const redirectUri = calendarProvider.getRedirectUri()
+
+    // Exchange code for tokens
+    const tokens = await calendarProvider.exchangeCodeForTokens(code, redirectUri)
+
     // Encrypt tokens
-    const accessTokenEncrypted = encryptToken(tokens.access_token)
-    const refreshTokenEncrypted = encryptToken(tokens.refresh_token)
-    const expiresAt = new Date(tokens.expiry_date).toISOString()
-    
+    const { accessTokenEncrypted, refreshTokenEncrypted, expiresAt } = encryptTokens(tokens)
+
     // Check if connection already exists
     const { data: existingConnection } = await supabase
       .from('calendar_connections')
       .select('id')
       .eq('user_id', user.id)
-      .eq('provider', 'google')
+      .eq('provider', provider)
       .single()
-    
+
     if (existingConnection) {
       // Update existing connection (reconnection)
       const { error: updateError } = await supabase
@@ -103,7 +111,7 @@ export async function GET(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingConnection.id)
-      
+
       if (updateError) {
         logger.error('Failed to update calendar connection', updateError as Error)
         await logConnectionEvent(
@@ -114,7 +122,7 @@ export async function GET(request: NextRequest) {
             details: {
               error_message: updateError.message,
               error_code: updateError.code,
-              provider: 'google',
+              provider: provider,
             },
             ipAddress: getClientIp(request),
             userAgent: getUserAgent(request),
@@ -122,7 +130,7 @@ export async function GET(request: NextRequest) {
         )
         throw updateError
       }
-      
+
       // Log reconnection event
       await logConnectionEvent(
         user.id,
@@ -130,23 +138,23 @@ export async function GET(request: NextRequest) {
         {
           connectionId: existingConnection.id,
           details: {
-            provider: 'google',
+            provider: provider,
             expires_at: expiresAt,
           },
           ipAddress: getClientIp(request),
           userAgent: getUserAgent(request),
         }
       )
-      
-      return NextResponse.redirect(new URL('/dashboard/integrations?connected=google', request.url))
+
+      return NextResponse.redirect(new URL(`/dashboard/integrations?connected=${provider}`, request.url))
     }
-    
+
     // Create new connection
     const { data: connection, error: insertError } = await supabase
       .from('calendar_connections')
       .insert({
         user_id: user.id,
-        provider: 'google',
+        provider: provider,
         access_token_encrypted: accessTokenEncrypted,
         refresh_token_encrypted: refreshTokenEncrypted,
         token_expires_at: expiresAt,
@@ -155,15 +163,13 @@ export async function GET(request: NextRequest) {
       })
       .select('id')
       .single()
-    
+
     if (insertError || !connection) {
       logger.error('Failed to create calendar connection', insertError as Error)
       const errorMsg = insertError || new Error('Failed to create connection')
-      
-      // Try to log the error (user should still be available)
+
+      // Try to log the error
       try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           await logConnectionEvent(
             user.id,
@@ -172,7 +178,7 @@ export async function GET(request: NextRequest) {
               details: {
                 error_message: errorMsg instanceof Error ? errorMsg.message : String(errorMsg),
                 error_code: insertError?.code,
-                provider: 'google',
+                provider: provider,
               },
               ipAddress: getClientIp(request),
               userAgent: getUserAgent(request),
@@ -182,10 +188,10 @@ export async function GET(request: NextRequest) {
       } catch (logError) {
         // Ignore logging errors
       }
-      
+
       throw errorMsg
     }
-    
+
     // Log successful connection event
     await logConnectionEvent(
       user.id,
@@ -193,7 +199,7 @@ export async function GET(request: NextRequest) {
       {
         connectionId: connection.id,
         details: {
-          provider: 'google',
+          provider: provider,
           expires_at: expiresAt,
           calendar_count: 0, // Will be populated when calendars are selected
         },
@@ -201,11 +207,11 @@ export async function GET(request: NextRequest) {
         userAgent: getUserAgent(request),
       }
     )
-    
-    return NextResponse.redirect(new URL('/dashboard/integrations?connected=google', request.url))
+
+    return NextResponse.redirect(new URL(`/dashboard/integrations?connected=${provider}`, request.url))
   } catch (error) {
-    logger.error('Failed to connect Google Calendar', error as Error)
-    
+    logger.error(`Failed to connect ${provider} Calendar`, error as Error)
+
     // Try to log the error
     try {
       const supabase = await createClient()
@@ -217,7 +223,7 @@ export async function GET(request: NextRequest) {
           {
             details: {
               error_message: error instanceof Error ? error.message : String(error),
-              provider: 'google',
+              provider: provider,
             },
             ipAddress: getClientIp(request),
             userAgent: getUserAgent(request),
@@ -227,9 +233,8 @@ export async function GET(request: NextRequest) {
     } catch (logError) {
       // Ignore logging errors
     }
-    
-    return NextResponse.redirect(new URL('/dashboard/integrations?error=connection_failed', request.url))
+
+    return NextResponse.redirect(new URL(`/dashboard/integrations?error=connection_failed`, request.url))
   }
 }
-
 

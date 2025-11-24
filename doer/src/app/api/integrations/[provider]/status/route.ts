@@ -1,30 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateProvider } from '@/lib/calendar/providers/provider-factory'
 
 /**
- * Get Google Calendar connection status
- * GET /api/integrations/google-calendar/status
+ * Get calendar provider connection status
+ * GET /api/integrations/[provider]/status
  */
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { provider: string } }
+) {
   try {
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
+
     if (userError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
-    
+
+    // Validate provider
+    let provider: 'google' | 'outlook' | 'apple'
+    try {
+      provider = validateProvider(params.provider)
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Invalid provider' },
+        { status: 400 }
+      )
+    }
+
     // Get user's calendar connection
     const { data: connection, error: connectionError } = await supabase
       .from('calendar_connections')
       .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, last_sync_at, created_at')
       .eq('user_id', user.id)
-      .eq('provider', 'google')
+      .eq('provider', provider)
       .maybeSingle() // Use maybeSingle() instead of single() to handle no rows gracefully
-    
+
     // If no connection found or error (and it's not a "no rows" error), return not connected
     if (connectionError) {
       console.error('Error fetching calendar connection:', connectionError)
@@ -37,13 +52,13 @@ export async function GET(request: NextRequest) {
         )
       }
     }
-    
+
     if (!connection) {
       return NextResponse.json({
         connected: false,
       })
     }
-    
+
     // Get recent sync logs
     const { data: syncLogs } = await supabase
       .from('calendar_sync_logs')
@@ -52,7 +67,7 @@ export async function GET(request: NextRequest) {
       .eq('calendar_connection_id', connection.id)
       .order('created_at', { ascending: false })
       .limit(5)
-    
+
     // Get recent connection events
     const { data: connectionEvents } = await supabase
       .from('calendar_connection_events')
@@ -61,7 +76,7 @@ export async function GET(request: NextRequest) {
       .eq('calendar_connection_id', connection.id)
       .order('created_at', { ascending: false })
       .limit(10)
-    
+
     return NextResponse.json({
       connected: true,
       connection: {
@@ -83,5 +98,4 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
 

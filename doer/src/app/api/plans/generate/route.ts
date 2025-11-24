@@ -264,17 +264,10 @@ export async function POST(req: NextRequest) {
     console.log('Generating roadmap content with AI...')
     let aiContent: any
 
-    // Fetch busy slots from calendar if connection exists
+    // Fetch busy slots from all calendar providers (provider-agnostic)
     let availability = undefined
-    const { data: calendarConnection } = await supabase
-      .from('calendar_connections')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('provider', 'google')
-      .single()
-
-    if (calendarConnection) {
-      const { getBusySlotsForUser } = await import('@/lib/calendar/google-calendar-sync')
+    try {
+      const { getBusySlotsForUser } = await import('@/lib/calendar/busy-slots')
       const startDate = parseDateFromDB(finalStartDate)
       // Estimate end date (will be refined by AI)
       const estimatedEndDate = new Date(startDate)
@@ -289,6 +282,9 @@ export async function POST(req: NextRequest) {
         }
         console.log(`Found ${busySlots.length} busy slots from calendar`)
       }
+    } catch (error) {
+      console.warn('Failed to fetch busy slots for plan generation:', error)
+      // Continue without availability if fetch fails
     }
 
     try {
