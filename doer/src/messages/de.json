@@ -271,7 +271,93 @@
     },
     "documentation": {
       "title": "Dokumentation",
-      "description": "Erfahren Sie, wie Sie Doer verwenden, um Ihre Ziele zu erreichen."
+      "description": "Erfahren Sie, wie Sie Doer verwenden, um Ihre Ziele zu erreichen.",
+      "search": {
+        "placeholder": "Search documentation...",
+        "noResults": "No results found",
+        "shortcut": "Press Cmd+K to search"
+      },
+      "sections": {
+        "gettingStarted": {
+          "title": "Getting Started",
+          "quickStart": {
+            "title": "Quick Start Guide",
+            "description": "Get up and running with DOER in 5 minutes",
+            "steps": {
+              "1": "Sign up for a free account",
+              "2": "Enter your goal in natural language",
+              "3": "Answer a few clarification questions",
+              "4": "Review and customize your AI-generated plan",
+              "5": "Start working on your tasks and track progress"
+            }
+          },
+          "firstGoal": {
+            "title": "Creating Your First Goal",
+            "description": "Learn how to create your first goal and generate a roadmap"
+          },
+          "understandingRoadmaps": {
+            "title": "Understanding Roadmaps",
+            "description": "Learn what roadmaps are and how they help you achieve goals"
+          },
+          "navigation": {
+            "title": "Navigation Basics",
+            "description": "Get familiar with the DOER interface"
+          }
+        },
+        "features": {
+          "title": "Core Features",
+          "aiPlanning": {
+            "title": "AI Plan Generation",
+            "description": "How DOER transforms goals into structured roadmaps"
+          },
+          "scheduling": {
+            "title": "Smart Scheduling",
+            "description": "Automated task scheduling and rescheduling"
+          },
+          "progress": {
+            "title": "Progress Tracking",
+            "description": "Monitor your progress with health scores and analytics"
+          },
+          "analytics": {
+            "title": "Analytics & Insights",
+            "description": "Understand your patterns and optimize your approach"
+          }
+        },
+        "integrations": {
+          "title": "Integrations",
+          "description": "Connect DOER with your favorite tools",
+          "calendar": "Calendar Integrations",
+          "taskManagement": "Task Management",
+          "knowledge": "Knowledge Tools",
+          "communication": "Communication",
+          "wellness": "Wellness & Health",
+          "learning": "Learning Platforms"
+        },
+        "api": {
+          "title": "API Reference",
+          "description": "Integrate DOER with your applications",
+          "authentication": "Authentication",
+          "endpoints": "Endpoints",
+          "examples": "Code Examples",
+          "rateLimits": "Rate Limits",
+          "errors": "Error Handling"
+        },
+        "tutorials": {
+          "title": "Tutorials & Examples",
+          "description": "Step-by-step guides and real-world examples"
+        },
+        "troubleshooting": {
+          "title": "Troubleshooting",
+          "description": "Common issues and solutions"
+        }
+      },
+      "buttons": {
+        "tryIt": "Try it out",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "expand": "Expand",
+        "collapse": "Collapse"
+      }
     },
     "blog": {
       "title": "Blog",
