@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { validateProvider } from '@/lib/calendar/providers/provider-factory'
+import { logger } from '@/lib/logger'
 
 /**
  * Get calendar provider connection status
@@ -8,9 +9,12 @@ import { validateProvider } from '@/lib/calendar/providers/provider-factory'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> | { provider: string } }
 ) {
   try {
+    // Handle both sync and async params (Next.js 14/15 compatibility)
+    const resolvedParams = params instanceof Promise ? await params : params
+    
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
@@ -21,11 +25,23 @@ export async function GET(
       )
     }
 
-    // Validate provider
+    // Validate provider (just the string, not the config - status check doesn't need provider instance)
+    if (!resolvedParams?.provider) {
+      logger.error('Missing provider parameter in status route', new Error('Provider param missing'), { 
+        params: resolvedParams,
+        url: request.url 
+      })
+      return NextResponse.json(
+        { error: 'Invalid provider parameter' },
+        { status: 400 }
+      )
+    }
+
     let provider: 'google' | 'outlook' | 'apple'
     try {
-      provider = validateProvider(params.provider)
+      provider = validateProvider(resolvedParams.provider)
     } catch (error) {
+      logger.error('Invalid provider in status route', error as Error, { provider: resolvedParams.provider })
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Invalid provider' },
         { status: 400 }
@@ -42,7 +58,11 @@ export async function GET(
 
     // If no connection found or error (and it's not a "no rows" error), return not connected
     if (connectionError) {
-      console.error('Error fetching calendar connection:', connectionError)
+      logger.error('Error fetching calendar connection', connectionError as Error, { 
+        userId: user.id, 
+        provider,
+        errorCode: connectionError.code 
+      })
       // Check if it's a "no rows" error (PGRST116) or a real error
       if (connectionError.code !== 'PGRST116') {
         // Real error, log it
@@ -92,8 +112,23 @@ export async function GET(
       recent_connection_events: connectionEvents || [],
     })
   } catch (error) {
+    let providerParam = 'unknown'
+    try {
+      const resolvedParams = params instanceof Promise ? await params : params
+      providerParam = resolvedParams?.provider || 'unknown'
+    } catch {
+      // Ignore errors resolving params
+    }
+    logger.error('Unexpected error in status route', error as Error, { 
+      provider: providerParam,
+      path: request.url,
+      errorDetails: error instanceof Error ? error.stack : String(error)
+    })
     return NextResponse.json(
-      { error: 'Failed to get connection status' },
+      { 
+        error: 'Failed to get connection status',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
