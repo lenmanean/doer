@@ -56,7 +56,7 @@ export function PublicFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/integrations" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <Link href="/features/integrations" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('header.integrations')}
                 </Link>
               </li>

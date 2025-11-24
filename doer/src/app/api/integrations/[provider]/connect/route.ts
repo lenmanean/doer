@@ -24,7 +24,7 @@ export async function GET(
   try {
     provider = validateProvider(params.provider)
   } catch (error) {
-    return NextResponse.redirect(new URL(`/dashboard/integrations?error=invalid_provider`, request.url))
+    return NextResponse.redirect(new URL(`/integrations?error=invalid_provider`, request.url))
   }
 
   if (error) {
@@ -46,11 +46,11 @@ export async function GET(
         }
       )
     }
-    return NextResponse.redirect(new URL(`/dashboard/integrations?error=oauth_failed`, request.url))
+    return NextResponse.redirect(new URL(`/integrations/${provider}?error=oauth_failed`, request.url))
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL(`/dashboard/integrations?error=missing_code`, request.url))
+    return NextResponse.redirect(new URL(`/integrations/${provider}?error=missing_code`, request.url))
   }
 
   try {
@@ -58,7 +58,7 @@ export async function GET(
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      return NextResponse.redirect(new URL('/login?redirect=/dashboard/integrations', request.url))
+      return NextResponse.redirect(new URL(`/login?redirect=/integrations/${provider}`, request.url))
     }
 
     // Verify state parameter
@@ -78,7 +78,7 @@ export async function GET(
             userAgent: getUserAgent(request),
           }
         )
-        return NextResponse.redirect(new URL(`/dashboard/integrations?error=invalid_state`, request.url))
+        return NextResponse.redirect(new URL(`/integrations/${provider}?error=invalid_state`, request.url))
       }
     }
 
@@ -146,7 +146,7 @@ export async function GET(
         }
       )
 
-      return NextResponse.redirect(new URL(`/dashboard/integrations?connected=${provider}`, request.url))
+      return NextResponse.redirect(new URL(`/integrations/${provider}?connected=${provider}`, request.url))
     }
 
     // Create new connection
@@ -234,7 +234,7 @@ export async function GET(
       // Ignore logging errors
     }
 
-    return NextResponse.redirect(new URL(`/dashboard/integrations?error=connection_failed`, request.url))
+    return NextResponse.redirect(new URL(`/integrations/${provider}?error=connection_failed`, request.url))
   }
 }
 

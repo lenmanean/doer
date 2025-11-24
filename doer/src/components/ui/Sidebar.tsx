@@ -43,13 +43,19 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Schedule', href: '/schedule', icon: Calendar },
     { name: 'Data', href: '/data', icon: BarChart3 },
-    { name: 'Integrations', href: '/dashboard/integrations', icon: Zap },
+    { name: 'Integrations', href: '/integrations', icon: Zap },
     { name: 'Community', href: '/community', icon: Users },
     { name: 'Settings', href: '/settings', icon: Cog },
     { name: 'Help', href: '/help', icon: HelpCircle },
   ]
 
-  const isActive = (href: string) => currentPath === href
+  const isActive = (href: string) => {
+    if (href === '/integrations') {
+      // Highlight integrations for both /integrations and /integrations/[provider]
+      return currentPath === '/integrations' || (currentPath?.startsWith('/integrations/') ?? false)
+    }
+    return currentPath === href
+  }
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed)

@@ -235,7 +235,7 @@ export function PublicHeader() {
                   {t('header.pricing')}
                 </Link>
                 <Link
-                  href="/integrations"
+                  href="/features/integrations"
                   className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white dark:hover:bg-gray-700 transition-colors"
                 >
                   {t('header.integrations')}
@@ -446,7 +446,7 @@ export function PublicHeader() {
               <div className="flex flex-col space-y-1 ml-4">
                 <Link href="/features" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.features')}</Link>
                 <Link href="/pricing" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.pricing')}</Link>
-                <Link href="/integrations" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.integrations')}</Link>
+                <Link href="/features/integrations" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.integrations')}</Link>
                 <Link href="/changelog" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.changelog')}</Link>
               </div>
             </div>

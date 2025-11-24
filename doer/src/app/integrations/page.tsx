@@ -1,93 +1,252 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
-import { PublicHeader } from '@/components/ui/PublicHeader'
-import { PublicFooter } from '@/components/ui/PublicFooter'
-import Link from 'next/link'
-import { integrations } from '@/data/integrations'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Sidebar } from '@/components/ui/Sidebar'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
+import { Calendar, CheckCircle, XCircle, Settings, ArrowRight, Zap } from 'lucide-react'
+import { useToast } from '@/components/ui/Toast'
+import { isEmailConfirmed } from '@/lib/email-confirmation'
 
+interface ProviderStatus {
+  provider: 'google' | 'outlook' | 'apple'
+  connected: boolean
+  connection: {
+    id: string
+    selected_calendar_ids: string[]
+    auto_sync_enabled: boolean
+    auto_push_enabled: boolean
+    last_sync_at: string | null
+    created_at: string
+  } | null
+}
+
+interface ProviderInfo {
+  provider: 'google' | 'outlook' | 'apple'
+  name: string
+  description: string
+  icon: React.ReactNode
+  color: string
+}
+
+const PROVIDER_INFO: ProviderInfo[] = [
+  {
+    provider: 'google',
+    name: 'Google Calendar',
+    description: 'Sync your Google Calendar events with DOER plans and automatically detect busy slots.',
+    icon: <Calendar className="w-8 h-8" />,
+    color: 'text-blue-500',
+  },
+  {
+    provider: 'outlook',
+    name: 'Microsoft Outlook',
+    description: 'Connect your Outlook calendar to sync events and manage your schedule. (Coming Soon)',
+    icon: <Calendar className="w-8 h-8" />,
+    color: 'text-blue-600',
+  },
+  {
+    provider: 'apple',
+    name: 'Apple Calendar',
+    description: 'Sync your iCloud Calendar with DOER for seamless scheduling. (Coming Soon)',
+    icon: <Calendar className="w-8 h-8" />,
+    color: 'text-gray-600',
+  },
+]
+
+/**
+ * Integrations Hub Page
+ * Shows all available calendar providers and their connection status
+ */
 export default function IntegrationsPage() {
-  const t = useTranslations()
+  const router = useRouter()
+  const { addToast } = useToast()
+  const { user, profile, loading, handleSignOut } = useOnboardingProtection()
+  const [emailConfirmed, setEmailConfirmed] = useState(true)
+  const [providers, setProviders] = useState<ProviderStatus[]>([])
+  const [loadingProviders, setLoadingProviders] = useState(true)
 
-  const categories = Array.from(new Set(integrations.map((integration) => integration.category)))
+  useEffect(() => {
+    if (!user) {
+      setEmailConfirmed(true)
+      return
+    }
+    setEmailConfirmed(isEmailConfirmed(user))
+  }, [user?.id])
+
+  // Load provider statuses
+  useEffect(() => {
+    if (!user?.id) return
+
+    const loadProviders = async () => {
+      try {
+        setLoadingProviders(true)
+        const response = await fetch('/api/integrations/status')
+
+        if (!response.ok) {
+          throw new Error('Failed to load provider statuses')
+        }
+
+        const data = await response.json()
+        setProviders(data.providers || [])
+      } catch (error) {
+        console.error('Error loading providers:', error)
+        addToast({
+          type: 'error',
+          title: 'Failed to load integrations',
+          description: 'Please try again later.',
+          duration: 5000,
+        })
+      } finally {
+        setLoadingProviders(false)
+      }
+    }
+
+    loadProviders()
+  }, [user?.id, addToast])
+
+  const handleProviderClick = (provider: string) => {
+    router.push(`/integrations/${provider}`)
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors">
-      <PublicHeader />
+    <div className="min-h-screen bg-[var(--background)]">
+      <Sidebar
+        user={profile || { email: user?.email || '' }}
+        onSignOut={handleSignOut}
+        currentPath="/integrations"
+        emailConfirmed={emailConfirmed}
+      />
 
-      <main className="flex-1 py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-16">
-          <section className="text-center space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-widest text-orange-500">Connected systems</p>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 transition-colors">
-              {t('pages.integrations.title')}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-4xl font-bold text-[var(--foreground)] mb-2">
+              Integrations
             </h1>
-            <p className="text-lg text-gray-600 dark:text-slate-300 max-w-3xl mx-auto transition-colors">
-              {t('pages.integrations.description')}
+            <p className="text-[var(--foreground)]/70">
+              Connect and manage your calendar integrations
             </p>
-            <p className="text-sm text-gray-500 dark:text-slate-400 max-w-2xl mx-auto">
-              {t('pages.integrations.subtitle')}
-            </p>
-          </section>
+          </div>
 
-          {categories.map((category) => (
-            <section key={category} className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{category}</h2>
-                <span className="text-sm text-gray-500 dark:text-slate-400">
-                  {integrations.filter((integration) => integration.category === category).length} tools
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {integrations
-                  .filter((integration) => integration.category === category)
-                  .map((integration) => (
-                    <article
-                      key={integration.key}
-                      className="relative overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-gradient-to-br from-white to-gray-50 dark:from-gray-950 dark:to-gray-900 p-6 shadow-lg shadow-gray-200/40 dark:shadow-black/40 transition-colors"
-                    >
+          {/* Provider Cards */}
+          {loadingProviders ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-32 bg-white/5" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-20 w-full bg-white/5" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {PROVIDER_INFO.map((providerInfo) => {
+                const status = providers.find(p => p.provider === providerInfo.provider)
+                const isConnected = status?.connected || false
+                const isComingSoon = providerInfo.provider !== 'google'
+
+                return (
+                  <Card
+                    key={providerInfo.provider}
+                    className="cursor-pointer hover:border-[var(--primary)] transition-colors"
+                    onClick={() => !isComingSoon && handleProviderClick(providerInfo.provider)}
+                  >
+                    <CardHeader>
                       <div className="flex items-center justify-between">
-                        <span className="text-3xl">{integration.icon}</span>
-                        <span className="text-xs font-semibold tracking-wide text-gray-500 dark:text-slate-400 uppercase">
-                          {category}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className={providerInfo.color}>
+                            {providerInfo.icon}
+                          </div>
+                          <div>
+                            <CardTitle>{providerInfo.name}</CardTitle>
+                          </div>
+                        </div>
+                        {isConnected && (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Connected
+                          </Badge>
+                        )}
+                        {!isConnected && !isComingSoon && (
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Not Connected
+                          </Badge>
+                        )}
+                        {isComingSoon && (
+                          <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">
+                            Coming Soon
+                          </Badge>
+                        )}
                       </div>
-                      <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-slate-50">
-                        {integration.name}
-                      </h3>
-                      <p className="mt-3 text-sm text-gray-600 dark:text-slate-300 leading-relaxed">
-                        {t(integration.descriptionKey)}
-                      </p>
-                      <div className="mt-6 flex items-center justify-between text-xs uppercase tracking-wide text-orange-500">
-                        <span>AI Scheduler</span>
-                        <Link
-                          href="/settings/integrations"
-                          className="text-xs font-semibold text-orange-600 hover:text-orange-500"
-                        >
-                          Learn how → 
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
-              </div>
-            </section>
-          ))}
-
-          <section className="text-center space-y-2">
-            <p className="text-gray-600 dark:text-slate-300">
-              Need a connector that is not listed?
-            </p>
-            <Link href="/feature-request">
-              <span className="text-orange-500 hover:text-orange-600 font-semibold transition-colors">
-                Request an integration
-              </span>
-            </Link>
-          </section>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <CardDescription>
+                        {providerInfo.description}
+                      </CardDescription>
+                      {isConnected && status?.connection && (
+                        <div className="text-xs text-[var(--foreground)]/60 space-y-1">
+                          <p>
+                            Last sync: {status.connection.last_sync_at
+                              ? new Date(status.connection.last_sync_at).toLocaleString()
+                              : 'Never'}
+                          </p>
+                          <p>
+                            Calendars: {status.connection.selected_calendar_ids.length} selected
+                          </p>
+                        </div>
+                      )}
+                      <Button
+                        variant={isConnected ? 'outline' : 'default'}
+                        className="w-full flex items-center justify-center gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (!isComingSoon) {
+                            handleProviderClick(providerInfo.provider)
+                          }
+                        }}
+                        disabled={isComingSoon}
+                      >
+                        {isConnected ? (
+                          <>
+                            <Settings className="w-4 h-4" />
+                            Configure
+                          </>
+                        ) : isComingSoon ? (
+                          'Coming Soon'
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4" />
+                            Connect
+                          </>
+                        )}
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       </main>
-
-      <PublicFooter />
     </div>
   )
 }
-
