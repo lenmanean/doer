@@ -361,7 +361,35 @@
     },
     "blog": {
       "title": "Blog",
-      "description": "Lisez nos derniers articles et idées."
+      "description": "Lisez nos derniers articles et idées.",
+      "featured": "Articles en vedette",
+      "allPosts": "Tous les articles",
+      "posts": "Articles",
+      "postsFound": "articles trouvés",
+      "noPostsFound": "Aucun article ne correspond à vos critères.",
+      "clearFilters": "Effacer les filtres",
+      "relatedPosts": "Articles connexes",
+      "share": "Partager",
+      "readMore": "Lire la suite",
+      "search": {
+        "placeholder": "Rechercher des articles..."
+      },
+      "categories": {
+        "all": "Tous",
+        "product-updates": "Mises à jour produit",
+        "productivity-tips": "Conseils de productivité",
+        "ai-technology": "IA et technologie",
+        "goal-achievement": "Réalisation d'objectifs",
+        "integrations": "Intégrations",
+        "case-studies": "Études de cas"
+      },
+      "newsletter": {
+        "title": "Restez informé",
+        "description": "Recevez les derniers articles, conseils et mises à jour dans votre boîte de réception.",
+        "emailPlaceholder": "Entrez votre e-mail",
+        "subscribe": "S'abonner",
+        "subscribed": "Abonné !"
+      }
     },
     "solutions": {
       "title": "Solutions",

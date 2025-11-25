@@ -361,7 +361,35 @@
     },
     "blog": {
       "title": "ブログ",
-      "description": "最新の記事と洞察をお読みください。"
+      "description": "最新の記事と洞察をお読みください。",
+      "featured": "注目の投稿",
+      "allPosts": "すべての投稿",
+      "posts": "投稿",
+      "postsFound": "件の投稿が見つかりました",
+      "noPostsFound": "条件に一致する投稿が見つかりませんでした。",
+      "clearFilters": "フィルターをクリア",
+      "relatedPosts": "関連投稿",
+      "share": "共有",
+      "readMore": "続きを読む",
+      "search": {
+        "placeholder": "記事を検索..."
+      },
+      "categories": {
+        "all": "すべて",
+        "product-updates": "製品アップデート",
+        "productivity-tips": "生産性のヒント",
+        "ai-technology": "AIとテクノロジー",
+        "goal-achievement": "目標達成",
+        "integrations": "統合",
+        "case-studies": "ケーススタディ"
+      },
+      "newsletter": {
+        "title": "最新情報を受け取る",
+        "description": "最新の記事、ヒント、アップデートをメールボックスに配信します。",
+        "emailPlaceholder": "メールアドレスを入力",
+        "subscribe": "購読",
+        "subscribed": "購読済み！"
+      }
     },
     "solutions": {
       "title": "ソリューション",

@@ -361,7 +361,35 @@
     },
     "blog": {
       "title": "블로그",
-      "description": "최신 기사 및 인사이트를 읽으세요."
+      "description": "최신 기사 및 인사이트를 읽으세요.",
+      "featured": "추천 게시물",
+      "allPosts": "모든 게시물",
+      "posts": "게시물",
+      "postsFound": "개의 게시물을 찾았습니다",
+      "noPostsFound": "조건에 맞는 게시물을 찾을 수 없습니다.",
+      "clearFilters": "필터 지우기",
+      "relatedPosts": "관련 게시물",
+      "share": "공유",
+      "readMore": "더 읽기",
+      "search": {
+        "placeholder": "기사 검색..."
+      },
+      "categories": {
+        "all": "전체",
+        "product-updates": "제품 업데이트",
+        "productivity-tips": "생산성 팁",
+        "ai-technology": "AI 및 기술",
+        "goal-achievement": "목표 달성",
+        "integrations": "통합",
+        "case-studies": "사례 연구"
+      },
+      "newsletter": {
+        "title": "업데이트 받기",
+        "description": "최신 기사, 팁 및 업데이트를 받은 편지함으로 받으세요.",
+        "emailPlaceholder": "이메일 입력",
+        "subscribe": "구독",
+        "subscribed": "구독 완료!"
+      }
     },
     "solutions": {
       "title": "솔루션",

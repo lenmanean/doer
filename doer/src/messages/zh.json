@@ -361,7 +361,35 @@
     },
     "blog": {
       "title": "博客",
-      "description": "阅读我们最新的文章和见解。"
+      "description": "阅读我们最新的文章和见解。",
+      "featured": "精选文章",
+      "allPosts": "所有文章",
+      "posts": "文章",
+      "postsFound": "找到的文章",
+      "noPostsFound": "没有找到符合您条件的文章。",
+      "clearFilters": "清除筛选",
+      "relatedPosts": "相关文章",
+      "share": "分享",
+      "readMore": "阅读更多",
+      "search": {
+        "placeholder": "搜索文章..."
+      },
+      "categories": {
+        "all": "全部",
+        "product-updates": "产品更新",
+        "productivity-tips": "生产力技巧",
+        "ai-technology": "AI与技术",
+        "goal-achievement": "目标达成",
+        "integrations": "集成",
+        "case-studies": "案例研究"
+      },
+      "newsletter": {
+        "title": "保持更新",
+        "description": "将最新的文章、技巧和更新发送到您的收件箱。",
+        "emailPlaceholder": "输入您的电子邮件",
+        "subscribe": "订阅",
+        "subscribed": "已订阅！"
+      }
     },
     "solutions": {
       "title": "解决方案",
