@@ -91,28 +91,6 @@ export default function CommunityPage() {
                   />
                 </CardContent>
               </Card>
-
-              {/* Release Notes Panel */}
-              <Card className="bg-white/5 backdrop-blur-md border border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-2xl font-semibold text-[#d7d2cb]">
-                    Release Notes
-                  </CardTitle>
-                  <CardDescription className="text-[#d7d2cb]/70">
-                    Latest updates and patches
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <h3 className="text-xl font-semibold text-[#d7d2cb] mb-2">
-                      Coming Soon
-                    </h3>
-                    <p className="text-sm text-[#d7d2cb]/60 text-center">
-                      Stay tuned for release updates and new features
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </FadeInWrapper>
         </StaggeredFadeIn>
