@@ -4,6 +4,9 @@ import { getProvider, validateProvider } from '@/lib/calendar/providers/provider
 import { generateOAuthState } from '@/lib/calendar/providers/shared'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Generate OAuth authorization URL for calendar provider
  * GET /api/integrations/[provider]/authorize
