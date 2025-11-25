@@ -411,7 +411,7 @@ Productivity isn't about working harder—it's about working smarter. Use these 
     id: '5',
     title: 'New Feature: Smart Scheduling Explained',
     slug: 'new-feature-smart-scheduling-explained',
-    excerpt: 'Learn about DOER's new Smart Scheduling feature that automatically optimizes your task timing based on your availability and preferences.',
+    excerpt: "Learn about DOER's new Smart Scheduling feature that automatically optimizes your task timing based on your availability and preferences.",
     content: `# New Feature: Smart Scheduling Explained
 
 We're excited to introduce Smart Scheduling—a feature that automatically optimizes when your tasks are scheduled based on your availability, preferences, and work patterns.
@@ -513,7 +513,7 @@ Smart Scheduling takes the guesswork out of planning. Try it today and experienc
     category: 'product-updates',
     tags: ['features', 'scheduling', 'AI', 'automation'],
     readingTime: 5,
-    metaDescription: 'Learn about DOER's new Smart Scheduling feature that automatically optimizes your task timing based on your availability and preferences.',
+    metaDescription: "Learn about DOER's new Smart Scheduling feature that automatically optimizes your task timing based on your availability and preferences.",
     featured: true,
   },
   {
