@@ -6,6 +6,9 @@ import { verifyOAuthState } from '@/lib/calendar/providers/shared'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * OAuth callback endpoint for calendar provider
  * GET /api/integrations/[provider]/connect?code=...&state=...

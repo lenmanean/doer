@@ -4,6 +4,9 @@ import { getProvider, validateProvider } from '@/lib/calendar/providers/provider
 import { logger } from '@/lib/logger'
 import { formatDateForDB } from '@/lib/date-utils'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Manual sync endpoint - pull events from calendar provider
  * POST /api/integrations/[provider]/sync

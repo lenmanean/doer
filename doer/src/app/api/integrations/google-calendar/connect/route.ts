@@ -5,6 +5,9 @@ import { encryptToken } from '@/lib/calendar/encryption'
 import { logger } from '@/lib/logger'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * OAuth callback endpoint for Google Calendar
  * GET /api/integrations/google-calendar/connect?code=...&state=...

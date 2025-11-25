@@ -6,6 +6,9 @@ import { validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { parseDateFromDB } from '@/lib/date-utils'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Regenerate plan schedule based on latest calendar events
  * POST /api/integrations/[provider]/regenerate

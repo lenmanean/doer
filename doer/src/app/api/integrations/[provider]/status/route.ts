@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Get calendar provider connection status
  * GET /api/integrations/[provider]/status

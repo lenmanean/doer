@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { pullCalendarEvents } from '@/lib/calendar/google-calendar-sync'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Manual sync endpoint - pull events from Google Calendar
  * POST /api/integrations/google-calendar/sync

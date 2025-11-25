@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Update Google Calendar connection settings
  * PATCH /api/integrations/google-calendar/settings

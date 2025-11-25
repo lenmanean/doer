@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { fetchCalendars } from '@/lib/calendar/google-calendar-sync'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Fetch available calendars for a user
  * GET /api/integrations/google-calendar/calendars

@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getProvider, validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * Push DOER tasks to calendar provider
  * POST /api/integrations/[provider]/push
