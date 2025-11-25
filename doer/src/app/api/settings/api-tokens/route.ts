@@ -4,6 +4,9 @@ import { generateApiToken } from '@/lib/auth/api-token-auth'
 import type { ApiTokenScope } from '@/lib/billing/plans'
 import { createClient } from '@/lib/supabase/server'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 const ALL_SCOPES: ApiTokenScope[] = [
   'plans.generate',
   'plans.read',

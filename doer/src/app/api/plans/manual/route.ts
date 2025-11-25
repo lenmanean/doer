@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()

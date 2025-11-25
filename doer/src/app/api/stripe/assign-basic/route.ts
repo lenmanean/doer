@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   const supabase = await createClient()
 

@@ -4,6 +4,9 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
 // Only initialize Stripe if secret key is available (allows build to succeed)

@@ -6,6 +6,9 @@ import { TimelineAdjustmentRequest } from '@/lib/types'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 
+// Force dynamic rendering since we use cookies for authentication (session auth fallback)
+export const dynamic = 'force-dynamic'
+
 const TIMELINE_ADJUSTMENT_CREDIT_COST = 1 // 1 OpenAI call: redistributeTasksAcrossTimeline
 
 export async function POST(request: NextRequest) {

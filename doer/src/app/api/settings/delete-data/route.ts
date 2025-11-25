@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { DEFAULT_PREFERENCES } from '@/lib/types/preferences'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/settings/delete-data
  * Deletes all user data but keeps the account intact

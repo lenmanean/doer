@@ -6,6 +6,9 @@ import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 import { subscriptionCache } from '@/lib/cache/subscription-cache'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 let stripe: Stripe | null = null
 if (stripeSecretKey) {

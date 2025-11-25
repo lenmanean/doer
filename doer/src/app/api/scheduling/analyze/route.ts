@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { analyzeAndReschedule } from '@/lib/smart-scheduler'
 import { logger } from '@/lib/logger'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()

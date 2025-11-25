@@ -8,6 +8,9 @@ import {
 import { logger } from '@/lib/logger'
 import { getRateLimitKey, rateLimiter } from '@/lib/rate-limit'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
+
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
 import { logUsernameChange } from '@/lib/audit/log-change'
 import { updateAuthUsername } from '@/lib/supabase/user-mutations'
 

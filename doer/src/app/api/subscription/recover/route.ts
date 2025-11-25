@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
 import { assignSubscription, type BillingCycle } from '@/lib/billing/plans'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 let stripe: Stripe | null = null
 if (stripeSecretKey) {

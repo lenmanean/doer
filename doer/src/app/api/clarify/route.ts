@@ -5,6 +5,9 @@ import { analyzeClarificationNeeds, evaluateGoalFeasibility } from '@/lib/ai'
 import { UsageLimitExceeded, CreditService } from '@/lib/usage/credit-service'
 import { createClient } from '@/lib/supabase/server'
 
+// Force dynamic rendering since we use cookies for authentication (session auth fallback)
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   let reserved = false
   let authContext: Awaited<ReturnType<typeof authenticateApiRequest>> | null = null

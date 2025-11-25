@@ -8,6 +8,9 @@ import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 
+// Force dynamic rendering since we use cookies for authentication (session auth fallback)
+export const dynamic = 'force-dynamic'
+
 const PLAN_GENERATION_CREDIT_COST = 1 // 1 OpenAI call: generateRoadmapContent
 
 export async function POST(req: NextRequest) {

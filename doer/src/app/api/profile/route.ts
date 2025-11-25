@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { sanitizePreferences } from '@/lib/validation/preferences'
 import { updateStripeCustomerProfile } from '@/lib/stripe/customer-profile'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/profile
  * Fetches the current user's profile

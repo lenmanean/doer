@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkTimeOverlap, calculateDuration, isValidTimeFormat } from '@/lib/task-time-utils'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 /**
  * GET: Fetch tasks with time data for a specific date range
  */

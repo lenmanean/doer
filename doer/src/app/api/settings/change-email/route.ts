@@ -8,6 +8,9 @@ import { generateOtpCode, hashOtp } from '@/lib/security/otp'
 import { sendEmail } from '@/lib/email/mailer'
 import { logger } from '@/lib/logger'
 import { logEmailChange } from '@/lib/audit/log-change'
+
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 
 const EMAIL_CHANGE_RATE_LIMIT = {

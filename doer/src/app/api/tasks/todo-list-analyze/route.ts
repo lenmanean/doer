@@ -4,6 +4,9 @@ import { openai } from '@/lib/ai'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 
+// Force dynamic rendering since we use cookies for authentication (session auth fallback)
+export const dynamic = 'force-dynamic'
+
 const TODO_LIST_ANALYZE_CREDIT_COST = 1 // 1 OpenAI call: analyze tasks
 
 export async function POST(req: NextRequest) {

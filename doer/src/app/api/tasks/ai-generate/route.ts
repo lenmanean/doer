@@ -5,6 +5,9 @@ import { formatDateForDB } from '@/lib/date-utils'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 
+// Force dynamic rendering since we use cookies for authentication (session auth fallback)
+export const dynamic = 'force-dynamic'
+
 // Utilities to resolve natural language weekdays/times in a consistent timezone
 const DEFAULT_TZ = process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || 'America/Los_Angeles'
 

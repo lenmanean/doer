@@ -8,6 +8,9 @@ import { type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
 import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 import { getActiveSubscriptionFromStripe, type StripeSubscription } from '@/lib/stripe/subscriptions'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
 // Only initialize Stripe if secret key is available (allows build to succeed)

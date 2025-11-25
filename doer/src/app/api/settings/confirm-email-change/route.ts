@@ -6,6 +6,9 @@ import { logger } from '@/lib/logger'
 import { updateAuthEmail } from '@/lib/supabase/user-mutations'
 import { logEmailChange } from '@/lib/audit/log-change'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 const MAX_OTP_ATTEMPTS = 5
 
 export async function POST(request: NextRequest) {
