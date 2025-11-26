@@ -226,20 +226,21 @@ export async function GET(request: NextRequest) {
         results.errors.push(`${connection.provider} (${connection.id}): ${errorMessage}`)
         
         // Log error for this connection
-        await supabase
-          .from('calendar_sync_logs')
-          .insert({
-            user_id: connection.user_id,
-            calendar_connection_id: connection.id,
-            sync_type: 'pull',
-            status: 'failed',
-            error_message: errorMessage,
-            started_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-          })
-          .catch((logError) => {
-            logger.error('Failed to log sync error', logError as Error)
-          })
+        try {
+          await supabase
+            .from('calendar_sync_logs')
+            .insert({
+              user_id: connection.user_id,
+              calendar_connection_id: connection.id,
+              sync_type: 'pull',
+              status: 'failed',
+              error_message: errorMessage,
+              started_at: new Date().toISOString(),
+              completed_at: new Date().toISOString(),
+            })
+        } catch (logError) {
+          logger.error('Failed to log sync error', logError as Error)
+        }
         
         logger.error(`Auto-sync failed for connection ${connection.id}`, error as Error, {
           connectionId: connection.id,
