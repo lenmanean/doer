@@ -709,7 +709,7 @@ export default function ProviderIntegrationsPage() {
                           Auto-pull from {currentProviderInfo?.name}
                         </p>
                         <p className="text-xs text-[var(--foreground)]/60">
-                          Automatically pull calendar events to detect busy slots (coming soon)
+                          Automatically pull calendar events every hour to detect busy slots
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">

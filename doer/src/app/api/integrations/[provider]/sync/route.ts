@@ -58,7 +58,20 @@ export async function POST(
     try {
       const body = await request.json().catch(() => ({}))
       if (body.calendar_ids && Array.isArray(body.calendar_ids) && body.calendar_ids.length > 0) {
-        calendarIds = body.calendar_ids
+        // Security: Validate that all requested calendar IDs are in the user's selected calendars
+        const validCalendarIds = body.calendar_ids.filter((id: string) => 
+          connection.selected_calendar_ids?.includes(id)
+        )
+        if (validCalendarIds.length > 0) {
+          calendarIds = validCalendarIds
+        } else {
+          // If none are valid, log warning but use default selected calendars
+          logger.warn('Invalid calendar_ids provided, using selected calendars', {
+            userId: user.id,
+            requested: body.calendar_ids,
+            available: connection.selected_calendar_ids,
+          })
+        }
       }
     } catch {
       // Use default selected calendars
@@ -66,7 +79,7 @@ export async function POST(
 
     if (calendarIds.length === 0) {
       return NextResponse.json(
-        { error: 'No calendars selected for sync' },
+        { error: 'No calendars selected for sync. Please select calendars in settings first.' },
         { status: 400 }
       )
     }
@@ -188,16 +201,29 @@ export async function POST(
         }
       }
 
-      // Update sync token
+      // Update sync token and last_sync_at
       if (fetchResult.nextSyncToken) {
-        const { error: tokenError } = await supabase.rpc('update_calendar_connection_sync_time', {
-          p_connection_id: connection.id,
-          p_sync_token: fetchResult.nextSyncToken,
-        })
+        const { error: tokenError } = await supabase
+          .from('calendar_connections')
+          .update({
+            sync_token: fetchResult.nextSyncToken,
+            last_sync_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', connection.id)
 
         if (tokenError) {
           logger.error('Failed to update sync token', tokenError as Error, { connectionId: connection.id })
         }
+      } else {
+        // Update last_sync_at even if no new sync token
+        await supabase
+          .from('calendar_connections')
+          .update({
+            last_sync_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', connection.id)
       }
 
       // Update sync log

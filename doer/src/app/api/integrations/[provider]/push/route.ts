@@ -64,7 +64,20 @@ export async function POST(
     }
 
     // Determine which calendar to use
-    const targetCalendarId = calendar_id || connection.selected_calendar_ids?.[0] || 'primary'
+    // Security: Validate calendar_id if provided - must be in user's selected calendars
+    let targetCalendarId = connection.selected_calendar_ids?.[0] || 'primary'
+    if (calendar_id) {
+      if (connection.selected_calendar_ids?.includes(calendar_id)) {
+        targetCalendarId = calendar_id
+      } else {
+        logger.warn('Invalid calendar_id provided, using default', {
+          userId: user.id,
+          requested: calendar_id,
+          available: connection.selected_calendar_ids,
+        })
+        // Continue with default calendar rather than failing
+      }
+    }
 
     // Fetch task schedules
     const { data: schedules, error: schedulesError } = await supabase
