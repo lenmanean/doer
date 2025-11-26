@@ -211,7 +211,7 @@ export async function GET(
       }
     )
 
-    return NextResponse.redirect(new URL(`/dashboard/integrations?connected=${provider}`, request.url))
+    return NextResponse.redirect(new URL(`/integrations/${provider}?connected=${provider}`, request.url))
   } catch (error) {
     logger.error(`Failed to connect ${provider} Calendar`, error as Error)
 
