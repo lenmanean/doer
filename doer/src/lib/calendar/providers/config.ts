@@ -74,13 +74,20 @@ export function getProviderRedirectUri(
   }
   
   // Third priority: production domain (usedoer.com) - always use https
-  if (process.env.NODE_ENV === 'production' || (!process.env.NODE_ENV && process.env.VERCEL)) {
+  // Check VERCEL_ENV first (more reliable for Vercel deployments)
+  const nodeEnv = process.env.NODE_ENV as string | undefined
+  const vercelEnv = process.env.VERCEL_ENV as string | undefined
+  const isProduction = vercelEnv === 'production' || 
+                      nodeEnv === 'production' ||
+                      (!nodeEnv && process.env.VERCEL)
+  
+  if (isProduction) {
     return `https://usedoer.com/api/integrations/${provider}/connect`
   }
   
-  // Fourth priority: Vercel production URL - but only in development/test environments
-  // In production, we want to use usedoer.com consistently
-  if (process.env.VERCEL_URL && process.env.NODE_ENV !== 'production') {
+  // Fourth priority: Vercel preview/deployment URL
+  // Use VERCEL_URL for preview deployments, but skip if we're in production
+  if (process.env.VERCEL_URL && vercelEnv !== 'production') {
     const vercelUrl = process.env.VERCEL_URL.trim()
     const baseUrl = vercelUrl.startsWith('https://') 
       ? vercelUrl 
