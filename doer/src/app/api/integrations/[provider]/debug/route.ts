@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getProvider, validateProvider } from '@/lib/calendar/providers/provider-factory'
-import { generateOAuthState } from '@/lib/calendar/providers/shared'
 import { logger } from '@/lib/logger'
 
-// Force dynamic rendering since we use cookies for authentication
+// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
 /**
- * Generate OAuth authorization URL for calendar provider
- * GET /api/integrations/[provider]/authorize
+ * Debug endpoint to show redirect URI configuration
+ * GET /api/integrations/[provider]/debug
  */
 export async function GET(
   request: NextRequest,
@@ -39,34 +38,31 @@ export async function GET(
 
     // Get provider instance
     const calendarProvider = getProvider(provider)
-
-    // Get redirect URI for logging
     const redirectUri = calendarProvider.getRedirectUri()
-    
-    // Log redirect URI for debugging
-    logger.info(`Generating OAuth URL for ${provider}`, {
-      redirectUri,
-      nodeEnv: process.env.NODE_ENV,
-      hasRedirectUriEnv: !!process.env[`${provider.toUpperCase()}_REDIRECT_URI`],
-      hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
-      vercelUrl: process.env.VERCEL_URL,
-    })
 
-    // Generate state parameter with user ID for security
-    const state = generateOAuthState(user.id)
-
-    // Generate OAuth URL
-    const authUrl = await calendarProvider.generateAuthUrl(state)
+    // Get environment info (without exposing secrets)
+    const envPrefix = provider.toUpperCase()
+    const hasRedirectUriEnv = !!process.env[`${envPrefix}_REDIRECT_URI`]
+    const hasClientId = !!process.env[`${envPrefix}_CLIENT_ID`]
+    const hasClientSecret = !!process.env[`${envPrefix}_CLIENT_SECRET`]
 
     return NextResponse.json({
-      auth_url: authUrl,
-      state,
-      redirect_uri: redirectUri, // Include in response for debugging
+      provider,
+      redirect_uri: redirectUri,
+      environment: {
+        node_env: process.env.NODE_ENV,
+        vercel_url: process.env.VERCEL_URL,
+        next_public_app_url: process.env.NEXT_PUBLIC_APP_URL,
+        has_explicit_redirect_uri: hasRedirectUriEnv,
+        has_client_id: hasClientId,
+        has_client_secret: hasClientSecret,
+      },
+      message: 'Add this redirect_uri to your OAuth client in Google Cloud Console',
     })
   } catch (error) {
-    logger.error(`Failed to generate ${params.provider} OAuth URL`, error as Error)
+    logger.error(`Failed to get debug info for ${params.provider}`, error as Error)
     return NextResponse.json(
-      { error: 'Failed to generate authorization URL' },
+      { error: 'Failed to get debug info' },
       { status: 500 }
     )
   }

@@ -89,6 +89,14 @@ export async function GET(
     const calendarProvider = getProvider(provider)
     const redirectUri = calendarProvider.getRedirectUri()
 
+    // Log redirect URI for debugging
+    logger.info(`OAuth callback for ${provider}`, {
+      redirectUri,
+      hasCode: !!code,
+      hasState: !!state,
+      nodeEnv: process.env.NODE_ENV,
+    })
+
     // Exchange code for tokens
     const tokens = await calendarProvider.exchangeCodeForTokens(code, redirectUri)
 

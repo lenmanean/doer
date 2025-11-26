@@ -61,7 +61,9 @@ export function getProviderRedirectUri(
   
   // First priority: explicit redirect URI from environment
   if (config.redirectUri) {
-    return config.redirectUri.trim()
+    const uri = config.redirectUri.trim()
+    // Ensure no trailing slash
+    return uri.endsWith('/') ? uri.slice(0, -1) : uri
   }
   
   // Second priority: production URL from NEXT_PUBLIC_APP_URL
@@ -71,13 +73,14 @@ export function getProviderRedirectUri(
     return `${baseUrl}/api/integrations/${provider}/connect`
   }
   
-  // Third priority: production domain (usedoer.com)
-  if (process.env.NODE_ENV === 'production' || !process.env.NODE_ENV) {
+  // Third priority: production domain (usedoer.com) - always use https
+  if (process.env.NODE_ENV === 'production' || (!process.env.NODE_ENV && process.env.VERCEL)) {
     return `https://usedoer.com/api/integrations/${provider}/connect`
   }
   
-  // Fourth priority: Vercel production URL
-  if (process.env.VERCEL_URL) {
+  // Fourth priority: Vercel production URL - but only in development/test environments
+  // In production, we want to use usedoer.com consistently
+  if (process.env.VERCEL_URL && process.env.NODE_ENV !== 'production') {
     const vercelUrl = process.env.VERCEL_URL.trim()
     const baseUrl = vercelUrl.startsWith('https://') 
       ? vercelUrl 
@@ -87,7 +90,9 @@ export function getProviderRedirectUri(
   
   // Fifth priority: request origin (development fallback)
   if (requestOrigin && process.env.NODE_ENV === 'development') {
-    return `${requestOrigin}/api/integrations/${provider}/connect`
+    const origin = requestOrigin.trim()
+    const baseOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin
+    return `${baseOrigin}/api/integrations/${provider}/connect`
   }
   
   // Last resort: localhost
