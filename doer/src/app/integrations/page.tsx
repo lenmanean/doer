@@ -44,7 +44,7 @@ const PROVIDER_INFO: ProviderInfo[] = [
   {
     provider: 'outlook',
     name: 'Microsoft Outlook',
-    description: 'Connect your Outlook calendar to sync events and manage your schedule. (Coming Soon)',
+    description: 'Sync your Outlook calendar events with DOER plans and automatically detect busy slots.',
     icon: <Calendar className="w-8 h-8" />,
     color: 'text-blue-600',
   },
@@ -160,7 +160,7 @@ export default function IntegrationsPage() {
               {PROVIDER_INFO.map((providerInfo) => {
                 const status = providers.find(p => p.provider === providerInfo.provider)
                 const isConnected = status?.connected || false
-                const isComingSoon = providerInfo.provider !== 'google'
+                const isComingSoon = providerInfo.provider === 'apple'
 
                 return (
                   <Card

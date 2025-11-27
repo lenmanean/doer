@@ -7,8 +7,8 @@ import type { CalendarProvider } from './base-provider'
 import type { CalendarProviderType } from './config'
 import { validateProviderConfig } from './config'
 import { GoogleCalendarProvider } from './google-provider'
+import { OutlookCalendarProvider } from './outlook-provider'
 // Future providers:
-// import { OutlookCalendarProvider } from './outlook-provider'
 // import { AppleCalendarProvider } from './apple-provider'
 
 /**
@@ -22,9 +22,10 @@ export function getProvider(provider: CalendarProviderType): CalendarProvider {
     case 'google':
       return new GoogleCalendarProvider()
     
+    case 'outlook':
+      return new OutlookCalendarProvider()
+    
     // Future providers will be added here:
-    // case 'outlook':
-    //   return new OutlookCalendarProvider()
     // case 'apple':
     //   return new AppleCalendarProvider()
     
