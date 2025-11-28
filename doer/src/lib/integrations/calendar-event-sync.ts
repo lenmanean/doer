@@ -41,7 +41,7 @@ export async function syncEventsToIntegrationPlan(
       .single()
 
     if (connError || !connection) {
-      logger.error('Connection not found or access denied', {
+      logger.error('Connection not found or access denied', connError instanceof Error ? connError : undefined, {
         connectionId,
         userId,
       })
@@ -240,7 +240,6 @@ export async function syncEventsToIntegrationPlan(
               details: event.description || null,
               estimated_duration_minutes: finalDuration,
               priority: 3, // Default to medium priority for calendar events
-              complexity_score: 5, // Default complexity
               is_calendar_event: true,
               calendar_event_id: event.id,
               is_detached: false,
@@ -299,9 +298,10 @@ export async function syncEventsToIntegrationPlan(
             })
 
           if (linkError) {
-            logger.warn('Failed to create calendar event link', linkError as Error, {
+            logger.warn('Failed to create calendar event link', {
               taskId: newTask.id,
               eventId: event.id,
+              error: linkError instanceof Error ? linkError.message : String(linkError),
             })
             // Don't fail the whole sync for this
           }
