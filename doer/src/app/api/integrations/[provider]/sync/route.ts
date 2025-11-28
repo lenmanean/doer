@@ -247,7 +247,7 @@ export async function POST(
         // Fetch calendar names for the sync
         const calendars = await calendarProvider.fetchCalendars(connection.id)
         const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
-        const calendarNames = calendarIds.map(id => calendarNameMap.get(id) || id)
+        const calendarNames = calendarIds.map((id: string) => calendarNameMap.get(id) || id)
 
         syncResult = await syncEventsToIntegrationPlan(
           connection.id,
