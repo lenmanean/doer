@@ -8,8 +8,7 @@ import type { CalendarProviderType } from './config'
 import { validateProviderConfig } from './config'
 import { GoogleCalendarProvider } from './google-provider'
 import { OutlookCalendarProvider } from './outlook-provider'
-// Future providers:
-// import { AppleCalendarProvider } from './apple-provider'
+import { AppleCalendarProvider } from './apple-provider'
 
 /**
  * Get a calendar provider instance for the specified provider type
@@ -25,9 +24,8 @@ export function getProvider(provider: CalendarProviderType): CalendarProvider {
     case 'outlook':
       return new OutlookCalendarProvider()
     
-    // Future providers will be added here:
-    // case 'apple':
-    //   return new AppleCalendarProvider()
+    case 'apple':
+      return new AppleCalendarProvider()
     
     default:
       throw new Error(`Unsupported calendar provider: ${provider}`)

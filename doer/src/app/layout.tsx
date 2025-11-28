@@ -7,6 +7,7 @@ import { PageFadeIn } from "@/components/ui/FadeInWrapper";
 import { createClient, validateSession } from '@/lib/supabase/server'
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
 import { ThemeProvider, type InitialThemePreferences } from '@/components/providers/theme-provider'
+import { TimezoneProvider } from '@/components/providers/timezone-provider'
 import { getLocale } from '@/i18n/request'
 import { LocaleProvider } from '@/components/providers/locale-provider'
 import enMessages from '../messages/en.json'
@@ -169,14 +170,16 @@ export default async function RootLayout({
       <body className="font-sans antialiased" suppressHydrationWarning>
         <LocaleProvider locale={locale} messages={messages} timeZone={timeZone}>
           <SupabaseProvider initialUser={initialUser}>
-          <ThemeProvider initialPreferences={initialPreferences}>
-              <ToastProvider>
-                <PageFadeIn className="min-h-screen">
-                  {children}
-                </PageFadeIn>
-              </ToastProvider>
+            <ThemeProvider initialPreferences={initialPreferences}>
+              <TimezoneProvider>
+                <ToastProvider>
+                  <PageFadeIn className="min-h-screen">
+                    {children}
+                  </PageFadeIn>
+                </ToastProvider>
+              </TimezoneProvider>
             </ThemeProvider>
-            </SupabaseProvider>
+          </SupabaseProvider>
         </LocaleProvider>
       </body>
     </html>

@@ -589,23 +589,23 @@ export class OutlookCalendarProvider implements CalendarProvider {
         showAs: 'busy', // Mark as busy
         singleValueExtendedProperties: [
           {
-            id: `String doer.task_id {${this.getGuid()}}`,
+            id: `String doer.task_id {${this.getGuid('doer.task_id')}}`,
             value: task.taskId,
           },
           {
-            id: `String doer.task_schedule_id {${this.getGuid()}}`,
+            id: `String doer.task_schedule_id {${this.getGuid('doer.task_schedule_id')}}`,
             value: task.taskScheduleId,
           },
           ...(task.planId ? [{
-            id: `String doer.plan_id {${this.getGuid()}}`,
+            id: `String doer.plan_id {${this.getGuid('doer.plan_id')}}`,
             value: task.planId,
           }] : []),
           ...(task.aiConfidence !== null ? [{
-            id: `String doer.ai_confidence {${this.getGuid()}}`,
+            id: `String doer.ai_confidence {${this.getGuid('doer.ai_confidence')}}`,
             value: task.aiConfidence.toString(),
           }] : []),
           ...(task.planName ? [{
-            id: `String doer.plan_name {${this.getGuid()}}`,
+            id: `String doer.plan_name {${this.getGuid('doer.plan_name')}}`,
             value: task.planName,
           }] : []),
         ],
@@ -732,15 +732,42 @@ export class OutlookCalendarProvider implements CalendarProvider {
   }
 
   /**
-   * Generate a GUID for extended properties
+   * Generate a deterministic GUID for extended properties based on property name
    * Microsoft Graph requires GUIDs for extended property IDs
+   * Using deterministic GUIDs ensures the same property name always gets the same GUID,
+   * which is important for property updates and consistency
    */
-  private getGuid(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
-      return v.toString(16)
-    })
+  private getGuid(propertyName: string): string {
+    // Create a deterministic GUID from property name using a hash
+    // This ensures the same property name always gets the same GUID
+    // Use a namespace UUID for DOER (generated once, never changes)
+    const namespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
+    
+    // Simple hash function for property name
+    let hash = 0
+    for (let i = 0; i < propertyName.length; i++) {
+      const char = propertyName.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    
+    // Combine namespace hash with property name hash for uniqueness
+    let combinedHash = hash
+    for (let i = 0; i < namespace.length; i++) {
+      const char = namespace.charCodeAt(i)
+      combinedHash = ((combinedHash << 5) - combinedHash) + char
+      combinedHash = combinedHash & combinedHash
+    }
+    
+    // Convert to GUID format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    // Version 4 UUID format (random), but deterministic based on input
+    const h1 = Math.abs(combinedHash).toString(16).padStart(8, '0').substring(0, 8)
+    const h2 = Math.abs(hash).toString(16).padStart(4, '0').substring(0, 4)
+    const h3 = '4' + Math.abs(combinedHash ^ hash).toString(16).padStart(3, '0').substring(0, 3)
+    const h4 = ((Math.abs(combinedHash) & 0x3) | 0x8).toString(16) + Math.abs(hash).toString(16).padStart(3, '0').substring(0, 3)
+    const h5 = (Math.abs(combinedHash ^ hash ^ (combinedHash << 16))).toString(16).padStart(12, '0').substring(0, 12)
+    
+    return `${h1}-${h2}-${h3}-${h4}-${h5}`
   }
 }
 

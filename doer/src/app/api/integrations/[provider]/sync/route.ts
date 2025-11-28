@@ -105,108 +105,122 @@ export async function POST(
       // Get provider instance
       const calendarProvider = getProvider(provider)
 
-      // Fetch events
-      const fetchResult = await calendarProvider.fetchEvents(
-        connection.id,
-        calendarIds,
-        connection.sync_token || undefined
-      )
-
-      // Process events and store in database
+      // Process events per calendar to maintain calendar context
       const busySlots: any[] = []
       const plansAffected = new Set<string>()
       let conflictsDetected = 0
       let eventsProcessed = 0
+      let nextSyncToken: string | null = null
 
-      // Store events in database and convert to busy slots
-      for (const event of fetchResult.events) {
-        // Skip all-day events that don't have dateTime
-        if (!event.start?.dateTime && !event.start?.date) {
-          continue
-        }
+      // Fetch events from each calendar separately to maintain calendar context
+      for (const calendarId of calendarIds) {
+        try {
+          const fetchResult = await calendarProvider.fetchEvents(
+            connection.id,
+            [calendarId], // Fetch from one calendar at a time
+            connection.sync_token || undefined
+          )
 
-        // Find which calendar this event belongs to
-        const calendarId = calendarIds[0] || 'primary'
+          // Store the latest sync token (for providers that use single token)
+          if (fetchResult.nextSyncToken) {
+            nextSyncToken = fetchResult.nextSyncToken
+          }
 
-        const busySlot = calendarProvider.convertToBusySlot(event, calendarId)
-        if (!busySlot) {
-          continue
-        }
+          // Process events from this calendar
+          for (const event of fetchResult.events) {
+            // Skip all-day events that don't have dateTime
+            if (!event.start?.dateTime && !event.start?.date) {
+              continue
+            }
 
-        // Check if DOER created this event
-        const isDoerCreated = event.extendedProperties?.private?.['doer.task_id'] !== undefined
+            const busySlot = calendarProvider.convertToBusySlot(event, calendarId)
+            if (!busySlot) {
+              continue
+            }
 
-        // Determine if event is busy
-        const isBusy = event.transparency !== 'transparent'
+            // Check if DOER created this event
+            const isDoerCreated = event.extendedProperties?.private?.['doer.task_id'] !== undefined
 
-        // Store or update calendar event
-        const startTime = new Date(event.start.dateTime || event.start.date!).toISOString()
-        const endTime = new Date(event.end.dateTime || event.end.date!).toISOString()
+            // Determine if event is busy
+            const isBusy = event.transparency !== 'transparent'
 
-        const eventData = {
-          user_id: user.id,
-          calendar_connection_id: connection.id,
-          external_event_id: event.id || '',
-          calendar_id: calendarId,
-          summary: event.summary || null,
-          description: event.description || null,
-          start_time: startTime,
-          end_time: endTime,
-          timezone: event.start.timeZone || null,
-          is_busy: isBusy,
-          is_doer_created: isDoerCreated,
-          external_etag: event.etag || null,
-          metadata: {
-            extended_properties: event.extendedProperties || {},
-          },
-        }
+            // Store or update calendar event
+            const startTime = new Date(event.start.dateTime || event.start.date!).toISOString()
+            const endTime = new Date(event.end.dateTime || event.end.date!).toISOString()
 
-        // Upsert event
-        const { error: upsertError } = await supabase
-          .from('calendar_events')
-          .upsert(eventData, {
-            onConflict: 'calendar_connection_id,external_event_id,calendar_id',
-          })
+            const eventData = {
+              user_id: user.id,
+              calendar_connection_id: connection.id,
+              external_event_id: event.id || '',
+              calendar_id: calendarId,
+              summary: event.summary || null,
+              description: event.description || null,
+              start_time: startTime,
+              end_time: endTime,
+              timezone: event.start.timeZone || null,
+              is_busy: isBusy,
+              is_doer_created: isDoerCreated,
+              external_etag: event.etag || null,
+              metadata: {
+                extended_properties: event.extendedProperties || {},
+              },
+            }
 
-        if (upsertError) {
-          logger.error('Failed to upsert calendar event', upsertError as Error, { event_id: event.id })
-          continue
-        }
+            // Upsert event
+            const { error: upsertError } = await supabase
+              .from('calendar_events')
+              .upsert(eventData, {
+                onConflict: 'calendar_connection_id,external_event_id,calendar_id',
+              })
 
-        eventsProcessed++
+            if (upsertError) {
+              logger.error('Failed to upsert calendar event', upsertError as Error, { event_id: event.id })
+              continue
+            }
 
-        // Check for conflicts with existing plans
-        if (isBusy && !isDoerCreated) {
-          const { data: conflicts } = await supabase.rpc('check_calendar_conflicts_for_plan', {
-            p_user_id: user.id,
-            p_plan_id: null, // Check all plans
-            p_start_date: formatDateForDB(new Date(startTime)),
-            p_end_date: formatDateForDB(new Date(endTime)),
-          })
+            eventsProcessed++
 
-          if (conflicts && conflicts.length > 0) {
-            conflictsDetected += conflicts.length
-            conflicts.forEach((conflict: any) => {
-              if (conflict.plans_affected) {
-                conflict.plans_affected.forEach((planId: string) => {
-                  plansAffected.add(planId)
+            // Check for conflicts with existing plans
+            if (isBusy && !isDoerCreated) {
+              const { data: conflicts } = await supabase.rpc('check_calendar_conflicts_for_plan', {
+                p_user_id: user.id,
+                p_plan_id: null, // Check all plans
+                p_start_date: formatDateForDB(new Date(startTime)),
+                p_end_date: formatDateForDB(new Date(endTime)),
+              })
+
+              if (conflicts && conflicts.length > 0) {
+                conflictsDetected += conflicts.length
+                conflicts.forEach((conflict: any) => {
+                  if (conflict.plans_affected) {
+                    conflict.plans_affected.forEach((planId: string) => {
+                      plansAffected.add(planId)
+                    })
+                  }
                 })
               }
-            })
-          }
-        }
+            }
 
-        if (isBusy) {
-          busySlots.push(busySlot)
+            if (isBusy) {
+              busySlots.push(busySlot)
+            }
+          }
+        } catch (calendarError) {
+          // Log error for this calendar but continue with others
+          logger.error(`Failed to sync calendar ${calendarId}`, calendarError as Error, {
+            connectionId: connection.id,
+            calendarId,
+          })
+          // Continue with next calendar
         }
       }
 
       // Update sync token and last_sync_at
-      if (fetchResult.nextSyncToken) {
+      if (nextSyncToken) {
         const { error: tokenError } = await supabase
           .from('calendar_connections')
           .update({
-            sync_token: fetchResult.nextSyncToken,
+            sync_token: nextSyncToken,
             last_sync_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -237,7 +251,7 @@ export async function POST(
             plans_affected: Array.from(plansAffected),
             changes_summary: {
               busy_slots_count: busySlots.length,
-              total_events: fetchResult.events.length,
+              total_events: eventsProcessed,
             },
             completed_at: new Date().toISOString(),
           })

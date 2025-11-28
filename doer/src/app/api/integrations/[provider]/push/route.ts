@@ -160,6 +160,16 @@ export async function POST(
       // Get AI confidence from task metadata (if available)
       const aiConfidence = null // TODO: Get from task or plan metadata
 
+      // Get user timezone from preferences
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      
+      const prefs = (settings?.preferences as any) ?? {}
+      const userTimezone = prefs.timezone || process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || 'UTC'
+
       try {
         const result = await calendarProvider.pushTaskToCalendar(
           connection.id,
@@ -173,7 +183,7 @@ export async function POST(
             startTime: startDateTime,
             endTime: endDateTime,
             aiConfidence,
-            timezone: 'UTC', // TODO: Get from user preferences
+            timezone: userTimezone,
           }
         )
 

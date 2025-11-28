@@ -1,11 +1,9 @@
 /**
- * Google Calendar Provider Implementation
- * Implements CalendarProvider interface for Google Calendar integration
+ * Apple Calendar Provider Implementation
+ * Implements CalendarProvider interface for Apple Calendar (iCloud) integration
+ * Uses Sign in with Apple OAuth 2.0 and CalDAV protocol
  */
 
-import { google } from 'googleapis'
-import type { calendar_v3 } from 'googleapis'
-import type { OAuth2Client } from 'google-auth-library'
 import { createClient } from '@/lib/supabase/server'
 import { encryptToken, decryptToken } from '../encryption'
 import { logger } from '@/lib/logger'
@@ -19,15 +17,17 @@ import type {
   TaskInput,
 } from './base-provider'
 import type { BusySlot } from '../types'
-import type { GoogleCalendarEvent } from '../types'
-import { formatDateForDB } from '@/lib/date-utils'
 import { getProviderConfig, getProviderRedirectUri } from './config'
+import { CalDAVClient, type CalDAVConfig } from './caldav-client'
 
 /**
- * Google Calendar Provider
+ * Apple Calendar Provider
  */
-export class GoogleCalendarProvider implements CalendarProvider {
-  private readonly provider = 'google' as const
+export class AppleCalendarProvider implements CalendarProvider {
+  private readonly provider = 'apple' as const
+  private readonly tokenEndpoint = 'https://appleid.apple.com/auth/token'
+  private readonly authEndpoint = 'https://appleid.apple.com/auth/authorize'
+  private readonly iCloudCalDAVUrl = 'https://caldav.icloud.com'
 
   validateConfig(): void {
     // Will throw if config is missing
@@ -38,49 +38,79 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return getProviderRedirectUri(this.provider, requestOrigin)
   }
 
-  private getOAuth2Client(redirectUri?: string): OAuth2Client {
-    const config = getProviderConfig(this.provider)
-    const uri = redirectUri || this.getRedirectUri()
-
-    return new google.auth.OAuth2(
-      config.clientId,
-      config.clientSecret,
-      uri
-    )
-  }
-
   async generateAuthUrl(state?: string): Promise<string> {
+    const config = getProviderConfig(this.provider)
     const redirectUri = this.getRedirectUri()
-    const oauth2Client = this.getOAuth2Client(redirectUri)
 
     const scopes = [
-      'https://www.googleapis.com/auth/calendar.readonly',
-      'https://www.googleapis.com/auth/calendar.events',
+      'name',
+      'email',
+      'calendars.read',
+      'calendars.write',
     ]
 
-    const url = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: scopes,
-      prompt: 'consent', // Force consent to get refresh token
-      state: state || undefined,
+    const params = new URLSearchParams({
+      client_id: config.clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: scopes.join(' '),
+      response_mode: 'query', // Use query for consistency with existing infrastructure (POST handler also available)
+      ...(state && { state }),
     })
 
-    return url
+    return `${this.authEndpoint}?${params.toString()}`
   }
 
   async exchangeCodeForTokens(code: string, redirectUri: string): Promise<Tokens> {
-    const oauth2Client = this.getOAuth2Client(redirectUri)
+    const config = getProviderConfig(this.provider)
 
-    const { tokens } = await oauth2Client.getToken(code)
+    // Apple requires a client secret (JWT) for token exchange
+    // For now, we'll use the client_secret from env, but in production
+    // this should be a JWT signed with Apple's private key
+    const clientSecret = config.clientSecret
 
-    if (!tokens.access_token || !tokens.refresh_token) {
-      throw new Error('Failed to obtain access and refresh tokens')
+    const params = new URLSearchParams({
+      client_id: config.clientId,
+      client_secret: clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    })
+
+    const response = await fetch(this.tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      logger.error('Failed to exchange code for tokens', new Error(errorText), {
+        status: response.status,
+      })
+      throw new Error(`Failed to exchange authorization code: ${response.status} ${errorText}`)
     }
 
+    const data = await response.json()
+
+    if (!data.access_token) {
+      throw new Error('Failed to obtain access token from Apple')
+    }
+
+    // Apple may not provide refresh_token in all cases
+    // Store the access token, and we'll handle refresh differently
+    const refreshToken = data.refresh_token || data.access_token // Fallback
+
+    // Calculate expiry date (expires_in is in seconds)
+    const expiresIn = data.expires_in || 3600 // Default 1 hour
+    const expiryDate = Date.now() + expiresIn * 1000
+
     return {
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      expiry_date: tokens.expiry_date || Date.now() + 3600000, // Default 1 hour
+      access_token: data.access_token,
+      refresh_token: refreshToken,
+      expiry_date: expiryDate,
     }
   }
 
@@ -99,26 +129,54 @@ export class GoogleCalendarProvider implements CalendarProvider {
     }
 
     try {
+      const config = getProviderConfig(this.provider)
       const refreshToken = decryptToken(connection.refresh_token_encrypted)
-      // For refresh token flow, redirect URI doesn't matter - use any valid one
-      const oauth2Client = this.getOAuth2Client()
-      oauth2Client.setCredentials({
+
+      // Apple token refresh
+      const params = new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
         refresh_token: refreshToken,
+        grant_type: 'refresh_token',
       })
 
-      const { credentials } = await oauth2Client.refreshAccessToken()
+      const response = await fetch(this.tokenEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      })
 
-      if (!credentials.access_token || !credentials.expiry_date) {
-        throw new Error('Failed to refresh access token')
+      if (!response.ok) {
+        const errorText = await response.text()
+        logger.error('Failed to refresh access token', new Error(errorText), {
+          connectionId,
+          status: response.status,
+        })
+        throw new Error(`Failed to refresh access token: ${response.status} ${errorText}`)
       }
 
+      const data = await response.json()
+
+      if (!data.access_token) {
+        throw new Error('Failed to refresh access token: no access token in response')
+      }
+
+      // Calculate expiry date
+      const expiresIn = data.expires_in || 3600
+      const expiryDate = Date.now() + expiresIn * 1000
+
       // Update connection with new access token
-      const accessTokenEncrypted = encryptToken(credentials.access_token)
+      const accessTokenEncrypted = encryptToken(data.access_token)
+      const newRefreshToken = data.refresh_token || refreshToken
+
       const { error: updateError } = await supabase
         .from('calendar_connections')
         .update({
           access_token_encrypted: accessTokenEncrypted,
-          token_expires_at: new Date(credentials.expiry_date).toISOString(),
+          refresh_token_encrypted: newRefreshToken ? encryptToken(newRefreshToken) : connection.refresh_token_encrypted,
+          token_expires_at: new Date(expiryDate).toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', connectionId)
@@ -129,9 +187,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
       }
 
       return {
-        access_token: credentials.access_token,
-        refresh_token: refreshToken, // Return existing refresh token
-        expiry_date: credentials.expiry_date,
+        access_token: data.access_token,
+        refresh_token: newRefreshToken || refreshToken,
+        expiry_date: expiryDate,
       }
     } catch (error) {
       logger.error('Failed to refresh access token', error as Error, { connectionId })
@@ -139,7 +197,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     }
   }
 
-  private async getCalendarClient(connectionId: string): Promise<calendar_v3.Calendar> {
+  private async getCalDAVClient(connectionId: string): Promise<CalDAVClient> {
     const supabase = await createClient()
 
     // Fetch connection
@@ -166,31 +224,39 @@ export class GoogleCalendarProvider implements CalendarProvider {
       accessToken = refreshed.access_token
     }
 
-    // Create authenticated client
-    const oauth2Client = this.getOAuth2Client()
-    oauth2Client.setCredentials({
-      access_token: accessToken,
-    })
+    // For iCloud, we need the user's Apple ID
+    // This should be stored in connection metadata or retrieved from token
+    // For now, we'll use a placeholder - in production, extract from token or store separately
+    const username = 'user@icloud.com' // TODO: Extract from token or store in connection
 
-    return google.calendar({ version: 'v3', auth: oauth2Client })
+    const caldavConfig: CalDAVConfig = {
+      serverUrl: this.iCloudCalDAVUrl,
+      username,
+      password: `Bearer ${accessToken}`, // Use Bearer token for OAuth
+    }
+
+    return new CalDAVClient(caldavConfig)
   }
 
   async fetchCalendars(connectionId: string): Promise<Calendar[]> {
-    const calendar = await this.getCalendarClient(connectionId)
+    try {
+      const caldav = await this.getCalDAVClient(connectionId)
+      
+      // Discover principal first
+      const principalUrl = await caldav.discoverPrincipal()
+      
+      // Fetch calendars
+      const calendars = await caldav.fetchCalendars(principalUrl)
 
-    const response = await calendar.calendarList.list({
-      minAccessRole: 'reader',
-    })
-
-    if (!response.data.items) {
-      return []
+      return calendars.map(cal => ({
+        id: cal.url, // Use URL as ID for CalDAV
+        summary: cal.displayName,
+        primary: cal.id === 'calendar' || cal.id === 'home', // Common primary calendar IDs
+      }))
+    } catch (error) {
+      logger.error('Failed to fetch calendars', error as Error, { connectionId })
+      throw error
     }
-
-    return response.data.items.map(cal => ({
-      id: cal.id || '',
-      summary: cal.summary || 'Untitled Calendar',
-      primary: cal.primary || false,
-    }))
   }
 
   async fetchEvents(
@@ -200,7 +266,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     timeMin?: string,
     timeMax?: string
   ): Promise<FetchResult> {
-    const calendar = await this.getCalendarClient(connectionId)
+    const caldav = await this.getCalDAVClient(connectionId)
     const allEvents: ExternalEvent[] = []
 
     // If no sync token, do a full sync from timeMin
@@ -215,69 +281,39 @@ export class GoogleCalendarProvider implements CalendarProvider {
     // Fetch from each selected calendar
     for (const calendarId of calendarIds) {
       try {
-        const params: calendar_v3.Params$Resource$Events$List = {
+        const { events, nextSyncToken: calendarSyncToken } = await caldav.fetchEvents(
           calendarId,
-          singleEvents: true,
-          orderBy: 'startTime',
-          maxResults: 2500,
-        }
+          defaultTimeMin,
+          defaultTimeMax,
+          syncToken || undefined
+        )
 
-        if (syncToken) {
-          // Incremental sync
-          params.syncToken = syncToken
-        } else {
-          // Full sync
-          params.timeMin = defaultTimeMin
-          params.timeMax = defaultTimeMax
-          params.showDeleted = true // Include deleted events on full sync
-        }
+        allEvents.push(...events)
 
-        const response = await calendar.events.list(params)
-        const items = response.data.items || []
-
-        allEvents.push(...(items as ExternalEvent[]))
-
-        // Store the sync token for next sync
-        if (response.data.nextSyncToken) {
-          nextSyncToken = response.data.nextSyncToken
-        }
-
-        // Handle pagination
-        let pageToken = response.data.nextPageToken
-        while (pageToken) {
-          const nextResponse = await calendar.events.list({
-            ...params,
-            pageToken,
-          })
-
-          const nextItems = nextResponse.data.items || []
-          allEvents.push(...(nextItems as ExternalEvent[]))
-
-          pageToken = nextResponse.data.nextPageToken
-          if (nextResponse.data.nextSyncToken) {
-            nextSyncToken = nextResponse.data.nextSyncToken
-          }
+        // Use the latest sync token
+        if (calendarSyncToken) {
+          nextSyncToken = calendarSyncToken
         }
       } catch (error) {
         // If sync token is invalid, need full sync
-        if (error instanceof Error && error.message.includes('Invalid sync token')) {
+        if (syncToken && error instanceof Error && error.message.includes('sync token')) {
           logger.warn('Sync token invalid, need full sync', { connectionId, calendarId })
+          
           // Retry without sync token
-          const response = await calendar.events.list({
-            calendarId,
-            timeMin: defaultTimeMin,
-            timeMax: defaultTimeMax,
-            singleEvents: true,
-            orderBy: 'startTime',
-            showDeleted: true,
-            maxResults: 2500,
-          })
+          try {
+            const { events, nextSyncToken: calendarSyncToken } = await caldav.fetchEvents(
+              calendarId,
+              defaultTimeMin,
+              defaultTimeMax
+            )
 
-          const items = response.data.items || []
-          allEvents.push(...(items as ExternalEvent[]))
-
-          if (response.data.nextSyncToken) {
-            nextSyncToken = response.data.nextSyncToken
+            allEvents.push(...events)
+            if (calendarSyncToken) {
+              nextSyncToken = calendarSyncToken
+            }
+          } catch (retryError) {
+            logger.error('Failed to fetch calendar events after retry', retryError as Error, { connectionId, calendarId })
+            throw retryError
           }
         } else {
           logger.error('Failed to fetch calendar events', error as Error, { connectionId, calendarId })
@@ -305,7 +341,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       return null
     }
 
-    // Determine if event is busy (opaque = busy, transparent = free)
+    // Determine if event is busy (transparent = free, opaque = busy)
     const isBusy = event.transparency !== 'transparent'
 
     // Check if DOER created this event
@@ -332,7 +368,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     task: TaskInput
   ): Promise<PushResult> {
     const supabase = await createClient()
-    const calendar = await this.getCalendarClient(connectionId)
+    const caldav = await this.getCalDAVClient(connectionId)
 
     try {
       // Fetch task schedule details
@@ -357,56 +393,34 @@ export class GoogleCalendarProvider implements CalendarProvider {
       const eventEnd = new Date(task.endTime)
       const timezone = task.timezone || 'UTC'
 
-      // Create event object
-      const event: calendar_v3.Schema$Event = {
-        summary: task.taskName,
-        description: task.planName ? `DOER: ${task.planName}\nTask: ${task.taskName}` : `DOER Task: ${task.taskName}`,
-        start: {
-          dateTime: eventStart.toISOString(),
-          timeZone: timezone,
+      // Generate event ID
+      const eventId = existingLink?.external_event_id || `doer-${task.taskId}-${Date.now()}`
+
+      // Build extended properties
+      const extendedProperties = {
+        private: {
+          'doer.task_id': task.taskId,
+          'doer.task_schedule_id': task.taskScheduleId,
+          ...(task.planId && { 'doer.plan_id': task.planId }),
         },
-        end: {
-          dateTime: eventEnd.toISOString(),
-          timeZone: timezone,
-        },
-        transparency: 'opaque', // Mark as busy
-        extendedProperties: {
-          private: {
-            'doer.task_id': task.taskId,
-            'doer.task_schedule_id': task.taskScheduleId,
-            ...(task.planId && { 'doer.plan_id': task.planId }),
-          },
-          shared: {
-            ...(task.aiConfidence !== null && { 'doer.ai_confidence': task.aiConfidence.toString() }),
-            ...(task.planName && { 'doer.plan_name': task.planName }),
-          },
+        shared: {
+          ...(task.aiConfidence !== null && { 'doer.ai_confidence': task.aiConfidence.toString() }),
+          ...(task.planName && { 'doer.plan_name': task.planName }),
         },
       }
 
-      let externalEventId: string
+      // Generate ICS format
+      const icsData = caldav.generateICS(
+        task.taskName,
+        task.planName ? `DOER: ${task.planName}\nTask: ${task.taskName}` : `DOER Task: ${task.taskName}`,
+        task.startTime,
+        task.endTime,
+        timezone,
+        extendedProperties
+      )
 
-      if (existingLink?.external_event_id) {
-        // Update existing event
-        const response = await calendar.events.update({
-          calendarId,
-          eventId: existingLink.external_event_id,
-          requestBody: event,
-        })
-
-        externalEventId = response.data.id || existingLink.external_event_id
-      } else {
-        // Create new event
-        const response = await calendar.events.insert({
-          calendarId,
-          requestBody: event,
-        })
-
-        externalEventId = response.data.id || ''
-      }
-
-      if (!externalEventId) {
-        throw new Error('Failed to create/update event: no event ID returned')
-      }
+      // Create or update event
+      const externalEventId = await caldav.putEvent(calendarId, eventId, icsData)
 
       // Store or update calendar event
       const { data: calendarEvent } = await supabase
@@ -417,9 +431,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
         .eq('calendar_id', calendarId)
         .single()
 
-      let eventId: string
+      let eventId_db: string
       if (calendarEvent) {
-        eventId = calendarEvent.id
+        eventId_db = calendarEvent.id
       } else {
         const { data: newEvent, error: eventError } = await supabase
           .from('calendar_events')
@@ -432,7 +446,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
             description: task.planName ? `DOER: ${task.planName}\nTask: ${task.taskName}` : null,
             start_time: eventStart.toISOString(),
             end_time: eventEnd.toISOString(),
-            timezone: task.timezone || 'UTC',
+            timezone: timezone,
             is_busy: true,
             is_doer_created: true,
             external_etag: null,
@@ -445,7 +459,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
           throw new Error(`Failed to create calendar event: ${eventError?.message}`)
         }
 
-        eventId = newEvent.id
+        eventId_db = newEvent.id
       }
 
       // Create or update link
@@ -454,7 +468,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
         .upsert({
           user_id: schedule.user_id || '',
           calendar_connection_id: connectionId,
-          calendar_event_id: eventId,
+          calendar_event_id: eventId_db,
           plan_id: task.planId,
           task_schedule_id: task.taskScheduleId,
           task_id: task.taskId,
@@ -463,7 +477,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
           plan_name: task.planName,
           task_name: task.taskName,
           metadata: {
-            timezone: task.timezone || 'UTC',
+            timezone: timezone,
           },
         }, {
           onConflict: 'calendar_event_id,task_schedule_id',
@@ -493,14 +507,12 @@ export class GoogleCalendarProvider implements CalendarProvider {
     externalEventId: string
   ): Promise<boolean> {
     try {
-      const calendar = await this.getCalendarClient(connectionId)
-
-      await calendar.events.delete({
-        calendarId,
-        eventId: externalEventId,
-      })
-
-      return true
+      const caldav = await this.getCalDAVClient(connectionId)
+      
+      // Extract event ID from external event ID (remove .ics if present)
+      const eventId = externalEventId.replace(/\.ics$/, '')
+      
+      return await caldav.deleteEvent(calendarId, eventId)
     } catch (error) {
       logger.error('Failed to delete calendar event', error as Error, { connectionId, externalEventId })
       return false

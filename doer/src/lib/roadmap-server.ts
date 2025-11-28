@@ -56,6 +56,10 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   const lunchStartHour = Number(prefs.lunch_start_hour ?? 12)
   const lunchEndHour = Number(prefs.lunch_end_hour ?? 13)
   const allowWeekends = Boolean(prefs.allow_weekends ?? false)
+  
+  // Get user timezone (default to UTC if not set)
+  // TODO: Add timezone to user_settings preferences
+  const userTimezone = prefs.timezone || process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || 'UTC'
 
   // Remove any existing schedule for this plan (full-regeneration)
   const { error: deleteError } = await supabase
@@ -218,7 +222,7 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
                     startTime: startDateTime,
                     endTime: endDateTime,
                     aiConfidence: null, // AI confidence - not available at schedule generation time
-                    timezone: 'UTC', // TODO: Get from user preferences
+                    timezone: userTimezone,
                   }
                 )
                 
