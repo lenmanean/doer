@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkTimeOverlap, calculateDuration, isValidTimeFormat } from '@/lib/task-time-utils'
+import { autoDetachIfNeeded } from '@/lib/integrations/task-detachment'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -52,7 +53,13 @@ export async function GET(request: NextRequest) {
       .order('start_time', { ascending: true, nullsFirst: false })
     
     // Filter by plan_id if provided, otherwise get free mode tasks (plan_id is null)
+    // Security: Use parameterized query to prevent SQL injection
     if (planId) {
+      // Validate planId is a valid UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(planId)) {
+        return NextResponse.json({ error: 'Invalid plan_id format' }, { status: 400 })
+      }
       // Include both current plan and free-mode rows
       query = query.or(`plan_id.is.null,plan_id.eq.${planId}`)
     } else {
@@ -92,7 +99,7 @@ export async function GET(request: NextRequest) {
       console.log('Fetching tasks for IDs:', taskIds)
       const { data: tasks, error: tasksError } = await supabase
         .from('tasks')
-        .select('id, name, details, estimated_duration_minutes, priority, is_recurring, is_indefinite, recurrence_days, recurrence_start_date, recurrence_end_date')
+        .select('id, name, details, estimated_duration_minutes, priority, is_recurring, is_indefinite, recurrence_days, recurrence_start_date, recurrence_end_date, is_calendar_event, is_detached')
         .in('id', taskIds)
       
       console.log('Tasks query result:', { tasks, tasksError })
@@ -208,7 +215,9 @@ export async function GET(request: NextRequest) {
           reschedule_count: schedule.reschedule_count || 0,
           last_rescheduled_at: schedule.last_rescheduled_at,
           reschedule_reason: schedule.reschedule_reason,
-          rescheduled_from: schedule.rescheduled_from
+          rescheduled_from: schedule.rescheduled_from,
+          is_calendar_event: task.is_calendar_event || false,
+          is_detached: task.is_detached || false,
         })
       }
     }
@@ -223,8 +232,14 @@ export async function GET(request: NextRequest) {
       .eq('is_indefinite', true)
 
     if (planId) {
-      // Include both current plan and free-mode indefinite tasks
-      indefQuery = indefQuery.or(`plan_id.is.null,plan_id.eq.${planId}`)
+      // Validate planId is a valid UUID format (already validated above, but double-check)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (uuidRegex.test(planId)) {
+        // Include both current plan and free-mode indefinite tasks
+        indefQuery = indefQuery.or(`plan_id.is.null,plan_id.eq.${planId}`)
+      } else {
+        indefQuery = indefQuery.is('plan_id', null)
+      }
     } else {
       indefQuery = indefQuery.is('plan_id', null)
     }
@@ -393,6 +408,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Time slot overlaps with another task' 
       }, { status: 409 })
+    }
+
+    // Get task_id from schedule to check if it's a calendar event
+    const { data: schedule, error: scheduleFetchError } = await supabase
+      .from('task_schedule')
+      .select('task_id')
+      .eq('id', schedule_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (scheduleFetchError || !schedule) {
+      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 })
+    }
+
+    // Auto-detach calendar event task if being edited
+    try {
+      await autoDetachIfNeeded(schedule.task_id, user.id)
+    } catch (detachError) {
+      // Log but don't fail the update
+      console.warn('Failed to auto-detach calendar task:', detachError)
     }
     
     // Update the task schedule

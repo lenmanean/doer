@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Target, Archive, Trash2, Check } from 'lucide-react'
+import { Calendar, Target, Archive, Trash2, Check, Link2 } from 'lucide-react'
 import { formatDateForDisplay, parseDateFromDB } from '@/lib/date-utils'
 
 interface PlanCardProps {
@@ -12,6 +12,11 @@ interface PlanCardProps {
     status: string
     start_date: string
     end_date?: string
+    plan_type?: 'ai' | 'manual' | 'integration'
+    integration_metadata?: {
+      provider: 'google' | 'outlook' | 'apple'
+      calendar_names: string[]
+    }
     summary_data?: {
       goal_title?: string
       goal_summary?: string
@@ -38,7 +43,18 @@ export function PlanCard({
   const goalTitle = plan.summary_data?.goal_title || plan.goal_text
   const isArchived = plan.status === 'archived'
   const isPaused = plan.status === 'paused'
+  const isIntegration = plan.plan_type === 'integration'
   const [showConfirmSwitch, setShowConfirmSwitch] = useState(false)
+
+  // Get provider name for integration plans
+  const getProviderName = () => {
+    if (!isIntegration || !plan.integration_metadata) return null
+    const provider = plan.integration_metadata.provider
+    return provider === 'google' ? 'Google Calendar'
+      : provider === 'outlook' ? 'Microsoft Outlook'
+      : provider === 'apple' ? 'Apple Calendar'
+      : 'Calendar'
+  }
   
   return (
     <motion.div
@@ -67,6 +83,12 @@ export function PlanCard({
             <h3 className="text-sm font-medium text-[var(--foreground)] truncate">
               {goalTitle}
             </h3>
+            {isIntegration && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1">
+                <Link2 className="w-3 h-3" />
+                Integration
+              </span>
+            )}
             {isPaused && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--muted)]/10 text-[var(--muted-foreground)] border border-[var(--muted)]/20">
                 Inactive
@@ -79,7 +101,17 @@ export function PlanCard({
             )}
           </div>
           
-          {plan.summary_data?.goal_summary && (
+          {isIntegration && getProviderName() && (
+            <p className="text-xs text-[var(--muted-foreground)] line-clamp-2">
+              {getProviderName()} integration plan
+              {plan.integration_metadata?.calendar_names && plan.integration_metadata.calendar_names.length > 0 && (
+                <span className="ml-1">
+                  • {plan.integration_metadata.calendar_names.length} calendar{plan.integration_metadata.calendar_names.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </p>
+          )}
+          {!isIntegration && plan.summary_data?.goal_summary && (
             <p className="text-xs text-[var(--muted-foreground)] line-clamp-2">
               {plan.summary_data.goal_summary}
             </p>

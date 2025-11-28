@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, RefreshCw } from 'lucide-react'
+import { Check, RefreshCw, Calendar, Link2 } from 'lucide-react'
 import { formatDuration } from '@/lib/task-time-utils'
 import { useState } from 'react'
 
@@ -70,6 +70,8 @@ interface TaskBlockProps {
     start_time?: string | null
     end_time?: string | null
     date?: string
+    is_calendar_event?: boolean
+    is_detached?: boolean
   }
   topPosition: number
   height: number
@@ -150,6 +152,10 @@ export function TaskBlock({
         isRejectedOverdue 
           ? 'opacity-60 ring-1 ring-gray-500/30' 
           : ''
+      } ${
+        task.is_calendar_event && !task.is_detached
+          ? 'ring-1 ring-blue-400/30'
+          : ''
       }`}
       style={{ 
         ...(isInsideMultiPanel ? {} : { top: `${topPosition}px` }), 
@@ -176,6 +182,16 @@ export function TaskBlock({
               {taskNameString}
             </span>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {task.is_calendar_event === true ? (
+                <span className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0 ${
+                  task.is_detached
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
+                    : 'bg-blue-500/30 text-blue-200 border border-blue-400/50'
+                }`} title={task.is_detached ? "Calendar event (detached)" : "Calendar event"}>
+                  <Calendar className="w-2.5 h-2.5" />
+                  {task.is_detached && <Link2 className="w-2 h-2 ml-0.5" />}
+                </span>
+              ) : null}
               {task.is_recurring === true ? (
                 <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0 bg-white/5 border border-white/20 text-[#d7d2cb]/80" title="Recurring task">
                   <RefreshCw className="w-2.5 h-2.5" />

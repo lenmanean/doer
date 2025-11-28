@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { validateProvider } from '@/lib/calendar/providers/provider-factory'
+import { validateProvider, getProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
+import {
+  getOrCreateIntegrationPlan,
+  updateIntegrationPlanMetadata,
+} from '@/lib/integrations/integration-plan-service'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -166,6 +170,36 @@ export async function PATCH(
         { error: 'Failed to update calendar settings' },
         { status: 500 }
       )
+    }
+
+    // Create or update integration plan when calendars are selected
+    if (changedFields.includes('selected_calendar_ids') && updatedConnection.selected_calendar_ids && updatedConnection.selected_calendar_ids.length > 0) {
+      try {
+        const calendarProvider = getProvider(provider)
+        const calendars = await calendarProvider.fetchCalendars(connection.id)
+        const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
+        const calendarNames = updatedConnection.selected_calendar_ids.map((id: string) => calendarNameMap.get(id) || id)
+
+        await getOrCreateIntegrationPlan(
+          user.id,
+          connection.id,
+          provider,
+          updatedConnection.selected_calendar_ids,
+          calendarNames
+        )
+
+        logger.info('Created/updated integration plan for calendar selection', {
+          connectionId: connection.id,
+          provider,
+          calendarCount: updatedConnection.selected_calendar_ids.length,
+        })
+      } catch (planError) {
+        logger.error('Failed to create/update integration plan', planError as Error, {
+          connectionId: connection.id,
+          provider,
+        })
+        // Don't fail the settings update if plan creation fails
+      }
     }
 
     // Log settings change event (for non-calendar selection changes)

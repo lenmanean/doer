@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProvider, validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { formatDateForDB } from '@/lib/date-utils'
+import { syncEventsToIntegrationPlan } from '@/lib/integrations/calendar-event-sync'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -240,6 +241,38 @@ export async function POST(
           .eq('id', connection.id)
       }
 
+      // Sync calendar events to integration plan (convert to tasks)
+      let syncResult = null
+      try {
+        // Fetch calendar names for the sync
+        const calendars = await calendarProvider.fetchCalendars(connection.id)
+        const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
+        const calendarNames = calendarIds.map(id => calendarNameMap.get(id) || id)
+
+        syncResult = await syncEventsToIntegrationPlan(
+          connection.id,
+          user.id,
+          provider,
+          calendarIds,
+          calendarNames
+        )
+
+        logger.info('Synced calendar events to integration plan', {
+          connectionId: connection.id,
+          provider,
+          tasksCreated: syncResult.tasks_created,
+          tasksUpdated: syncResult.tasks_updated,
+          tasksSkipped: syncResult.tasks_skipped,
+        })
+      } catch (syncError) {
+        logger.error('Failed to sync events to integration plan', syncError as Error, {
+          connectionId: connection.id,
+          userId: user.id,
+          provider,
+        })
+        // Don't fail the whole sync operation if task sync fails
+      }
+
       // Update sync log
       if (syncLog) {
         await supabase
@@ -252,6 +285,9 @@ export async function POST(
             changes_summary: {
               busy_slots_count: busySlots.length,
               total_events: eventsProcessed,
+              tasks_created: syncResult?.tasks_created || 0,
+              tasks_updated: syncResult?.tasks_updated || 0,
+              tasks_skipped: syncResult?.tasks_skipped || 0,
             },
             completed_at: new Date().toISOString(),
           })
@@ -264,6 +300,9 @@ export async function POST(
         conflicts_detected: conflictsDetected,
         plans_affected: Array.from(plansAffected),
         busy_slots_count: busySlots.length,
+        tasks_created: syncResult?.tasks_created || 0,
+        tasks_updated: syncResult?.tasks_updated || 0,
+        tasks_skipped: syncResult?.tasks_skipped || 0,
       })
     } catch (syncError) {
       // Update sync log with error

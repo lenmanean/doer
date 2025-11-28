@@ -17,6 +17,7 @@ import type {
   BusySlot,
 } from './types'
 import { formatDateForDB, parseDateFromDB } from '@/lib/date-utils'
+import { syncEventsToIntegrationPlan } from '@/lib/integrations/calendar-event-sync'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
@@ -503,6 +504,35 @@ export async function pullCalendarEvents(
       if (tokenError) {
         logger.error('Failed to update sync token', tokenError as Error, { connectionId })
       }
+    }
+
+    // Sync calendar events to integration plan (convert to tasks)
+    try {
+      // Fetch calendar names for the sync
+      const calendars = await fetchCalendars(connectionId)
+      const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
+      const calendarNames = calendarIds.map(id => calendarNameMap.get(id) || id)
+
+      const syncResult = await syncEventsToIntegrationPlan(
+        connectionId,
+        userId,
+        'google',
+        calendarIds,
+        calendarNames
+      )
+
+      logger.info('Synced calendar events to integration plan', {
+        connectionId,
+        tasksCreated: syncResult.tasks_created,
+        tasksUpdated: syncResult.tasks_updated,
+        tasksSkipped: syncResult.tasks_skipped,
+      })
+    } catch (syncError) {
+      logger.error('Failed to sync events to integration plan', syncError as Error, {
+        connectionId,
+        userId,
+      })
+      // Don't fail the whole pull operation if sync fails
     }
     
     return {

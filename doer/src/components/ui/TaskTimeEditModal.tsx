@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Clock, AlertCircle, Trash2, Edit3, Check, X as XIcon, RefreshCw } from 'lucide-react'
+import { X, Clock, AlertCircle, Trash2, Edit3, Check, X as XIcon, RefreshCw, Calendar, Link2 } from 'lucide-react'
 import { calculateDuration, isValidTimeFormat, formatDuration } from '@/lib/task-time-utils'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { TimePicker } from './TimePicker'
@@ -65,6 +65,8 @@ interface TaskTimeEditModalProps {
     completed?: boolean
     plan_id?: string | null
     priority?: number | null
+    is_calendar_event?: boolean
+    is_detached?: boolean
   } | null
   isOpen: boolean
   onClose: () => void
@@ -495,6 +497,48 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   )}
                 </div>
               </div>
+
+              {/* Calendar Event Warning */}
+              {task.is_calendar_event && (
+                <div className={`p-3 rounded-lg border ${
+                  task.is_detached
+                    ? theme === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
+                    : theme === 'dark' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <div className="flex items-start gap-2">
+                    <Calendar className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                      task.is_detached
+                        ? theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                        : theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                    }`} />
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium mb-1 ${
+                        task.is_detached
+                          ? theme === 'dark' ? 'text-blue-300' : 'text-blue-800'
+                          : theme === 'dark' ? 'text-yellow-300' : 'text-yellow-800'
+                      }`}>
+                        {task.is_detached ? (
+                          <>
+                            <Link2 className="w-3 h-3 inline mr-1" />
+                            Detached from Calendar
+                          </>
+                        ) : (
+                          'Calendar Event'
+                        )}
+                      </p>
+                      <p className={`text-xs ${
+                        task.is_detached
+                          ? theme === 'dark' ? 'text-blue-400/80' : 'text-blue-700'
+                          : theme === 'dark' ? 'text-yellow-400/80' : 'text-yellow-700'
+                      }`}>
+                        {task.is_detached
+                          ? 'This task has been detached from the calendar. Your changes will not be overwritten by calendar sync.'
+                          : 'This task is synced from your calendar. Editing it will detach it from the calendar to prevent sync from overwriting your changes.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Start Time */}
               <div>

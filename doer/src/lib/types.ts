@@ -8,9 +8,15 @@ export interface Plan {
   end_date?: string // date in database
   summary_data?: any // jsonb in database
   status: 'active' | 'completed' | 'paused' | 'archived' | string // text in database
-  plan_type: 'ai' | 'manual' // text in database
+  plan_type: 'ai' | 'manual' | 'integration' // text in database
   created_at: string // timestamp with time zone
   archived_at?: string // timestamp with time zone
+  integration_metadata?: {
+    connection_id: string
+    provider: 'google' | 'outlook' | 'apple'
+    calendar_ids: string[]
+    calendar_names: string[]
+  } // jsonb in database
 }
 
 // Milestone interface removed - focusing on difficulty-based task system
@@ -37,6 +43,9 @@ export interface Task {
   start_time?: string // For validation
   end_time?: string // For validation
   day_index?: number // For calendar display
+  is_calendar_event?: boolean // True if task came from calendar event
+  calendar_event_id?: string // Reference to calendar_events.id
+  is_detached?: boolean // True if user has edited this calendar event task
 }
 
 export interface OnboardingResponse {
