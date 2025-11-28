@@ -145,7 +145,6 @@ BEGIN
           details,
           estimated_duration_minutes,
           priority,
-          complexity_score,
           is_calendar_event,
           calendar_event_id,
           is_detached
@@ -157,7 +156,6 @@ BEGIN
           event_record.description,
           duration_minutes_val,
           3, -- Default to medium priority
-          5, -- Default complexity
           true,
           event_record.event_id,
           false
