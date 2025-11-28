@@ -6,13 +6,14 @@ ALTER TABLE public.plans
 ADD COLUMN IF NOT EXISTS integration_metadata jsonb;
 
 -- Add index for querying integration plans by connection_id
+-- Using btree index for text fields extracted from JSONB
 CREATE INDEX IF NOT EXISTS idx_plans_integration_connection_id 
-  ON public.plans USING gin ((integration_metadata->>'connection_id'))
+  ON public.plans ((integration_metadata->>'connection_id'))
   WHERE plan_type = 'integration' AND integration_metadata IS NOT NULL;
 
 -- Add index for querying by provider
 CREATE INDEX IF NOT EXISTS idx_plans_integration_provider 
-  ON public.plans USING gin ((integration_metadata->>'provider'))
+  ON public.plans ((integration_metadata->>'provider'))
   WHERE plan_type = 'integration' AND integration_metadata IS NOT NULL;
 
 -- Add comment for documentation
