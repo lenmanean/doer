@@ -10,6 +10,7 @@ import type { CalendarEvent } from '@/lib/calendar/types'
 import {
   getOrCreateIntegrationPlan,
   getIntegrationPlanForConnection,
+  type CalendarInfo,
 } from './integration-plan-service'
 
 export interface SyncEventsResult {
@@ -27,7 +28,8 @@ export async function syncEventsToIntegrationPlan(
   userId: string,
   provider: 'google' | 'outlook' | 'apple',
   calendarIds: string[],
-  calendarNames: string[]
+  calendarNames: string[],
+  calendarInfos?: CalendarInfo[]
 ): Promise<SyncEventsResult> {
   const supabase = await createClient()
 
@@ -54,7 +56,8 @@ export async function syncEventsToIntegrationPlan(
       connectionId,
       provider,
       calendarIds,
-      calendarNames
+      calendarNames,
+      calendarInfos
     )
 
     // Fetch all calendar events for this connection that are busy and not DOER-created
@@ -140,22 +143,57 @@ export async function syncEventsToIntegrationPlan(
         }
 
         // Calculate task properties
-        const startTime = new Date(event.start_time)
-        const endTime = new Date(event.end_time)
+        // event.start_time and event.end_time are stored as ISO strings in UTC
+        // We need to convert them to the user's timezone for display
+        const startTimeUTC = new Date(event.start_time)
+        const endTimeUTC = new Date(event.end_time)
         const durationMinutes = Math.round(
-          (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+          (endTimeUTC.getTime() - startTimeUTC.getTime()) / (1000 * 60)
         )
 
         // Ensure minimum duration
         const finalDuration = Math.max(durationMinutes, 5)
 
-        // Calculate date and day_index
-        const eventDate = formatDateForDB(startTime)
-        const dayIndex = getDayNumber(startTime, planStartDate)
+        // Convert UTC times to user's timezone using the stored timezone
+        // If timezone is not available, use the local timezone of the server
+        const timezone = event.timezone || 'UTC'
+        
+        // Format times in the user's timezone
+        const formatTimeInTimezone = (date: Date, tz: string): string => {
+          try {
+            // Use Intl.DateTimeFormat to format in the specified timezone
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: tz,
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
+            return formatter.format(date)
+          } catch (error) {
+            // Fallback to local time if timezone is invalid
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+          }
+        }
 
-        // Format times as HH:MM
-        const startTimeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`
-        const endTimeStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`
+        const startTimeStr = formatTimeInTimezone(startTimeUTC, timezone)
+        const endTimeStr = formatTimeInTimezone(endTimeUTC, timezone)
+
+        // For date calculations, we need the date in the user's timezone
+        // Get the date components in the user's timezone
+        const dateFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+        const dateParts = dateFormatter.formatToParts(startTimeUTC)
+        const year = parseInt(dateParts.find(p => p.type === 'year')?.value || '0')
+        const month = parseInt(dateParts.find(p => p.type === 'month')?.value || '0') - 1 // Month is 0-indexed
+        const day = parseInt(dateParts.find(p => p.type === 'day')?.value || '0')
+        const startTimeInTz = new Date(year, month, day)
+        
+        const eventDate = formatDateForDB(startTimeInTz)
+        const dayIndex = getDayNumber(startTimeInTz, planStartDate)
 
         if (existingTask) {
           // Update existing task

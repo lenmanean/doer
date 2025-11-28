@@ -14,6 +14,12 @@ export interface IntegrationPlanMetadata {
   calendar_names: string[]
 }
 
+export interface CalendarInfo {
+  id: string
+  name: string
+  primary?: boolean
+}
+
 /**
  * Create an integration plan for a calendar connection
  */
@@ -22,21 +28,34 @@ export async function createIntegrationPlan(
   connectionId: string,
   provider: 'google' | 'outlook' | 'apple',
   calendarIds: string[],
-  calendarNames: string[]
+  calendarNames: string[],
+  calendarInfos?: CalendarInfo[] // Optional: includes primary status
 ): Promise<string> {
   const supabase = await createClient()
 
   try {
-    // Generate plan name from provider and calendar names
+    // Generate plan name based on provider and calendar
     const providerName = provider === 'google' ? 'Google Calendar' 
       : provider === 'outlook' ? 'Microsoft Outlook'
       : 'Apple Calendar'
     
-    const calendarName = calendarNames.length > 0 
-      ? calendarNames[0] 
-      : 'Primary'
+    // Determine calendar display name
+    let calendarDisplayName = 'Primary'
+    if (calendarInfos && calendarInfos.length > 0) {
+      // Use the first calendar's info
+      const firstCalendar = calendarInfos[0]
+      if (firstCalendar.primary) {
+        calendarDisplayName = 'Primary'
+      } else {
+        calendarDisplayName = firstCalendar.name
+      }
+    } else if (calendarNames.length > 0) {
+      // Fallback: check if we can determine primary from name
+      // For now, just use the first name
+      calendarDisplayName = calendarNames[0]
+    }
     
-    const goalText = `${providerName} - ${calendarName}${calendarNames.length > 1 ? ` (+${calendarNames.length - 1} more)` : ''}`
+    const goalText = `${providerName} - ${calendarDisplayName}`
 
     // Create integration plan
     const { data: plan, error } = await supabase
@@ -155,11 +174,29 @@ export async function getOrCreateIntegrationPlan(
   connectionId: string,
   provider: 'google' | 'outlook' | 'apple',
   calendarIds: string[],
-  calendarNames: string[]
+  calendarNames: string[],
+  calendarInfos?: CalendarInfo[]
 ): Promise<string> {
   // Try to get existing plan (with user_id validation)
   const existingPlanId = await getIntegrationPlanForConnection(connectionId, userId)
   if (existingPlanId) {
+    // Update plan title if calendar info is provided
+    if (calendarInfos && calendarInfos.length > 0) {
+      const providerName = provider === 'google' ? 'Google Calendar' 
+        : provider === 'outlook' ? 'Microsoft Outlook'
+        : 'Apple Calendar'
+      
+      const firstCalendar = calendarInfos[0]
+      const calendarDisplayName = firstCalendar.primary ? 'Primary' : firstCalendar.name
+      const goalText = `${providerName} - ${calendarDisplayName}`
+      
+      const supabase = await createClient()
+      await supabase
+        .from('plans')
+        .update({ goal_text: goalText })
+        .eq('id', existingPlanId)
+        .eq('user_id', userId)
+    }
     return existingPlanId
   }
 
@@ -169,15 +206,16 @@ export async function getOrCreateIntegrationPlan(
     connectionId,
     provider,
     calendarIds,
-    calendarNames
+    calendarNames,
+    calendarInfos
   )
 }
 
 /**
- * Archive integration plan when connection is disconnected
- * Security: Verifies plan belongs to user before archiving
+ * Delete integration plan when connection is disconnected
+ * Security: Verifies plan belongs to user before deleting
  */
-export async function archiveIntegrationPlan(planId: string, userId: string): Promise<void> {
+export async function deleteIntegrationPlan(planId: string, userId: string): Promise<void> {
   const supabase = await createClient()
 
   try {
@@ -195,27 +233,25 @@ export async function archiveIntegrationPlan(planId: string, userId: string): Pr
       throw new Error('Plan not found or access denied')
     }
 
+    // Delete the plan (cascade will handle related tasks, schedules, etc.)
     const { error } = await supabase
       .from('plans')
-      .update({
-        status: 'archived',
-        archived_at: new Date().toISOString(),
-      })
+      .delete()
       .eq('id', planId)
       .eq('user_id', userId) // Explicit user_id check for security
       .eq('plan_type', 'integration')
 
     if (error) {
-      logger.error('Failed to archive integration plan', error as Error, {
+      logger.error('Failed to delete integration plan', error as Error, {
         planId,
         userId,
       })
       throw error
     }
 
-    logger.info('Archived integration plan', { planId, userId })
+    logger.info('Deleted integration plan', { planId, userId })
   } catch (error) {
-    logger.error('Error archiving integration plan', error as Error, {
+    logger.error('Error deleting integration plan', error as Error, {
       planId,
       userId,
     })
@@ -224,12 +260,12 @@ export async function archiveIntegrationPlan(planId: string, userId: string): Pr
 }
 
 /**
- * Handle disconnection - archive the integration plan
+ * Handle disconnection - delete the integration plan
  */
 export async function handleDisconnection(connectionId: string, userId: string): Promise<void> {
   const planId = await getIntegrationPlanForConnection(connectionId, userId)
   if (planId) {
-    await archiveIntegrationPlan(planId, userId)
+    await deleteIntegrationPlan(planId, userId)
   }
 }
 
@@ -266,35 +302,37 @@ export async function updateIntegrationPlanMetadata(
       ...metadata,
     }
 
-    // Update plan name if calendar names changed
-    if (metadata.calendar_names) {
-      const providerName = updatedMetadata.provider === 'google' ? 'Google Calendar'
-        : updatedMetadata.provider === 'outlook' ? 'Microsoft Outlook'
-        : 'Apple Calendar'
-      
-      const calendarName = updatedMetadata.calendar_names.length > 0
-        ? updatedMetadata.calendar_names[0]
-        : 'Primary'
-      
-      const goalText = `${providerName} - ${calendarName}${updatedMetadata.calendar_names.length > 1 ? ` (+${updatedMetadata.calendar_names.length - 1} more)` : ''}`
+      // Update plan name if calendar names changed
+      if (metadata.calendar_names) {
+        const providerName = updatedMetadata.provider === 'google' ? 'Google Calendar'
+          : updatedMetadata.provider === 'outlook' ? 'Microsoft Outlook'
+          : 'Apple Calendar'
+        
+        // For now, use the first calendar name (we'd need calendarInfos to check primary)
+        // This will be updated when callers pass calendar info
+        const calendarDisplayName = updatedMetadata.calendar_names.length > 0
+          ? updatedMetadata.calendar_names[0]
+          : 'Primary'
+        
+        const goalText = `${providerName} - ${calendarDisplayName}`
 
-      const { error: updateError } = await supabase
-        .from('plans')
-        .update({
-          integration_metadata: updatedMetadata,
-          goal_text: goalText,
-          summary_data: {
-            provider: updatedMetadata.provider,
-            calendar_count: updatedMetadata.calendar_ids.length,
-          },
-        })
-        .eq('id', planId)
-        .eq('user_id', userId) // Explicit user_id check for security
+        const { error: updateError } = await supabase
+          .from('plans')
+          .update({
+            integration_metadata: updatedMetadata,
+            goal_text: goalText,
+            summary_data: {
+              provider: updatedMetadata.provider,
+              calendar_count: updatedMetadata.calendar_ids.length,
+            },
+          })
+          .eq('id', planId)
+          .eq('user_id', userId) // Explicit user_id check for security
 
-      if (updateError) {
-        throw updateError
-      }
-    } else {
+        if (updateError) {
+          throw updateError
+        }
+      } else {
       const { error: updateError } = await supabase
         .from('plans')
         .update({

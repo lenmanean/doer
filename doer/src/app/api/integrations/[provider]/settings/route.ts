@@ -179,13 +179,24 @@ export async function PATCH(
         const calendars = await calendarProvider.fetchCalendars(connection.id)
         const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
         const calendarNames = updatedConnection.selected_calendar_ids.map((id: string) => calendarNameMap.get(id) || id)
+        
+        // Create calendar info objects with primary status
+        const calendarInfos = updatedConnection.selected_calendar_ids.map((id: string) => {
+          const calendar = calendars.find(cal => cal.id === id)
+          return {
+            id,
+            name: calendar?.summary || id,
+            primary: calendar?.primary || false,
+          }
+        })
 
         await getOrCreateIntegrationPlan(
           user.id,
           connection.id,
           provider,
           updatedConnection.selected_calendar_ids,
-          calendarNames
+          calendarNames,
+          calendarInfos
         )
 
         logger.info('Created/updated integration plan for calendar selection', {

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
+import { handleDisconnection } from '@/lib/integrations/integration-plan-service'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -68,6 +69,17 @@ export async function DELETE(
         userAgent: getUserAgent(request),
       }
     )
+
+    // Delete the integration plan associated with this connection
+    try {
+      await handleDisconnection(connectionId, user.id)
+    } catch (planError) {
+      // Log but don't fail the disconnection if plan deletion fails
+      logger.error('Failed to delete integration plan on disconnect', planError as Error, {
+        connectionId,
+        userId: user.id,
+      })
+    }
 
     // Delete connection (cascade will delete related events and links)
     const { error: deleteError } = await supabase

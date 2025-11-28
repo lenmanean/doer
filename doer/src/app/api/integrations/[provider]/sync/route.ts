@@ -249,13 +249,24 @@ export async function POST(
         const calendars = await calendarProvider.fetchCalendars(connection.id)
         const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
         const calendarNames = calendarIds.map((id: string) => calendarNameMap.get(id) || id)
+        
+        // Create calendar info objects with primary status for plan title
+        const calendarInfos = calendarIds.map((id: string) => {
+          const calendar = calendars.find(cal => cal.id === id)
+          return {
+            id,
+            name: calendar?.summary || id,
+            primary: calendar?.primary || false,
+          }
+        })
 
         syncResult = await syncEventsToIntegrationPlan(
           connection.id,
           user.id,
           provider,
           calendarIds,
-          calendarNames
+          calendarNames,
+          calendarInfos
         )
 
         logger.info('Synced calendar events to integration plan', {
