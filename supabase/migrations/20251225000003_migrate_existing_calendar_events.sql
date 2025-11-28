@@ -181,8 +181,8 @@ BEGIN
           task_id_val,
           event_date,
           day_index_val,
-          start_time_str::text,
-          end_time_str::text,
+          start_time_str::time,
+          end_time_str::time,
           duration_minutes_val,
           'scheduled'
         )
