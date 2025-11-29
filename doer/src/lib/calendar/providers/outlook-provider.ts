@@ -300,8 +300,18 @@ export class OutlookCalendarProvider implements CalendarProvider {
     // If no sync token, do a full sync from timeMin
     const isFullSync = !syncToken
 
-    // Default time range: next 30 days if not specified
-    const defaultTimeMin = timeMin || new Date().toISOString()
+    // Default time range for full sync:
+    // - Start: beginning of today (in UTC) so we include all of today's events
+    // - End: 30 days from now
+    const now = new Date()
+    const startOfTodayUtc = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ))
+
+    const defaultTimeMin = timeMin || startOfTodayUtc.toISOString()
     const defaultTimeMax = timeMax || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
     let nextSyncToken: string | null = null
