@@ -125,11 +125,10 @@ export async function POST(
       // Process events per calendar to maintain calendar context
       const busySlots: any[] = []
       const plansAffected = new Set<string>()
+      const processedEventIds = new Set<string>() // Track events processed in this sync to avoid double-counting
       let conflictsDetected = 0
       let eventsProcessed = 0
       let nextSyncToken: string | null = null
-      // Track processed event IDs to avoid double-counting
-      const processedEventIds = new Set<string>()
 
       // Fetch events from each calendar separately to maintain calendar context
       for (const calendarId of calendarIds) {
@@ -146,35 +145,14 @@ export async function POST(
           }
 
           // Process events from this calendar
-          logger.info('Processing events from calendar', {
-            calendarId,
-            eventCount: fetchResult.events.length,
-            connectionId: connection.id,
-          })
-
           for (const event of fetchResult.events) {
-            // Create unique event identifier to avoid double-counting
-            const eventKey = `${event.id || 'no-id'}-${calendarId}`
-            
-            // Skip if we've already processed this event (shouldn't happen, but safety check)
-            if (processedEventIds.has(eventKey)) {
-              logger.warn('Duplicate event detected, skipping', {
-                event_id: event.id,
-                calendarId,
-                eventKey,
-              })
-              continue
-            }
-
             // Skip all-day events that don't have dateTime
             if (!event.start?.dateTime && !event.start?.date) {
-              logger.debug('Skipping all-day event without dateTime', { event_id: event.id })
               continue
             }
 
             const busySlot = calendarProvider.convertToBusySlot(event, calendarId)
             if (!busySlot) {
-              logger.debug('Skipping event - convertToBusySlot returned null', { event_id: event.id })
               continue
             }
 
@@ -206,6 +184,31 @@ export async function POST(
               },
             }
 
+            // Create unique key for this event to track duplicates within this sync
+            const eventKey = `${connection.id}:${event.id || ''}:${calendarId}`
+            
+            // Skip if we've already processed this event in this sync
+            if (processedEventIds.has(eventKey)) {
+              logger.debug('Skipped duplicate event in same sync', {
+                eventId: event.id,
+                summary: event.summary,
+                calendarId,
+              })
+              continue
+            }
+            processedEventIds.add(eventKey)
+
+            // Check if event already exists in database (to determine if it's new or updated)
+            const { data: existingEvent } = await supabase
+              .from('calendar_events')
+              .select('id, is_doer_created')
+              .eq('calendar_connection_id', connection.id)
+              .eq('external_event_id', event.id || '')
+              .eq('calendar_id', calendarId)
+              .single()
+
+            const isNewEvent = !existingEvent
+
             // Upsert event
             const { error: upsertError } = await supabase
               .from('calendar_events')
@@ -218,16 +221,26 @@ export async function POST(
               continue
             }
 
-            // Mark as processed and increment counter
-            processedEventIds.add(eventKey)
-            eventsProcessed++
-            logger.debug('Processed calendar event', {
-              event_id: event.id,
-              summary: event.summary,
-              eventsProcessed,
-              calendarId,
-              eventKey,
-            })
+            // Only count new events that are not DOER-created
+            if (isNewEvent && !isDoerCreated) {
+              eventsProcessed++
+              logger.info('New calendar event pulled', {
+                eventId: event.id,
+                summary: event.summary,
+                calendarId,
+                connectionId: connection.id,
+              })
+            } else if (isDoerCreated) {
+              logger.debug('Skipped DOER-created event from pull count', {
+                eventId: event.id,
+                summary: event.summary,
+              })
+            } else {
+              logger.debug('Skipped existing event from pull count', {
+                eventId: event.id,
+                summary: event.summary,
+              })
+            }
 
             // Check for conflicts with existing plans
             if (isBusy && !isDoerCreated) {
@@ -263,15 +276,6 @@ export async function POST(
           // Continue with next calendar
         }
       }
-
-      // Log summary before syncing to integration plan
-      logger.info('Event processing summary', {
-        connectionId: connection.id,
-        eventsProcessed,
-        uniqueEventsProcessed: processedEventIds.size,
-        calendarsProcessed: calendarIds.length,
-        busySlotsCount: busySlots.length,
-      })
 
       // Update sync token and last_sync_at
       if (nextSyncToken) {
