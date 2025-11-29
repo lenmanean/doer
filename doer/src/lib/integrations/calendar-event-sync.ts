@@ -256,16 +256,20 @@ export async function syncEventsToIntegrationPlan(
             eventSummary: event.summary,
           })
 
-          // Update task schedule
-          const { data: existingSchedule } = await supabase
+          // Update task schedule - handle date/time changes
+          // For calendar events, there should typically be one schedule per task
+          // Find any existing schedule for this task (in case event moved dates)
+          const { data: existingSchedules } = await supabase
             .from('task_schedule')
-            .select('id')
+            .select('id, date')
             .eq('task_id', existingTask.id)
-            .eq('date', eventDate)
-            .single()
+            .order('date', { ascending: false })
 
-          if (existingSchedule) {
-            // Update existing schedule
+          const scheduleOnCurrentDate = existingSchedules?.find(s => s.date === eventDate)
+          const scheduleOnDifferentDate = existingSchedules?.find(s => s.date !== eventDate)
+
+          if (scheduleOnCurrentDate) {
+            // Update existing schedule on the same date (time or duration changed)
             const { error: scheduleUpdateError } = await supabase
               .from('task_schedule')
               .update({
@@ -274,16 +278,105 @@ export async function syncEventsToIntegrationPlan(
                 duration_minutes: finalDuration,
                 day_index: dayIndex,
               })
-              .eq('id', existingSchedule.id)
+              .eq('id', scheduleOnCurrentDate.id)
 
             if (scheduleUpdateError) {
               logger.error('Failed to update task schedule', scheduleUpdateError as Error, {
-                scheduleId: existingSchedule.id,
+                scheduleId: scheduleOnCurrentDate.id,
+                taskId: existingTask.id,
+                eventId: event.id,
+                eventDate,
+                errorCode: scheduleUpdateError.code,
+                errorMessage: scheduleUpdateError.message,
+              })
+              errors.push(`Failed to update schedule for event ${event.summary}: ${scheduleUpdateError.message}`)
+            } else {
+              logger.info('Updated task schedule (same date)', {
+                scheduleId: scheduleOnCurrentDate.id,
+                taskId: existingTask.id,
+                eventId: event.id,
+                eventDate,
+                startTime: startTimeStr,
+                endTime: endTimeStr,
               })
             }
+
+            // If there are schedules on different dates, remove them (event moved)
+            if (scheduleOnDifferentDate) {
+              const { error: deleteError } = await supabase
+                .from('task_schedule')
+                .delete()
+                .eq('task_id', existingTask.id)
+                .neq('date', eventDate)
+
+              if (deleteError) {
+                logger.warn('Failed to delete old schedules after event date change', {
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  error: deleteError.message,
+                })
+              } else {
+                logger.info('Deleted old schedules after event date change', {
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  deletedDates: existingSchedules?.filter(s => s.date !== eventDate).map(s => s.date),
+                })
+              }
+            }
+          } else if (scheduleOnDifferentDate) {
+            // Event moved to a different date - update the existing schedule to new date
+            const { error: scheduleUpdateError } = await supabase
+              .from('task_schedule')
+              .update({
+                date: eventDate,
+                start_time: startTimeStr,
+                end_time: endTimeStr,
+                duration_minutes: finalDuration,
+                day_index: dayIndex,
+              })
+              .eq('id', scheduleOnDifferentDate.id)
+
+            if (scheduleUpdateError) {
+              logger.error('Failed to update task schedule (date change)', scheduleUpdateError as Error, {
+                scheduleId: scheduleOnDifferentDate.id,
+                taskId: existingTask.id,
+                eventId: event.id,
+                oldDate: scheduleOnDifferentDate.date,
+                newDate: eventDate,
+                errorCode: scheduleUpdateError.code,
+                errorMessage: scheduleUpdateError.message,
+              })
+              errors.push(`Failed to update schedule date for event ${event.summary}: ${scheduleUpdateError.message}`)
+            } else {
+              logger.info('Updated task schedule (date changed)', {
+                scheduleId: scheduleOnDifferentDate.id,
+                taskId: existingTask.id,
+                eventId: event.id,
+                oldDate: scheduleOnDifferentDate.date,
+                newDate: eventDate,
+                startTime: startTimeStr,
+                endTime: endTimeStr,
+              })
+            }
+
+            // Remove any other schedules on different dates (in case there are multiple)
+            if (existingSchedules && existingSchedules.length > 1) {
+              const { error: deleteError } = await supabase
+                .from('task_schedule')
+                .delete()
+                .eq('task_id', existingTask.id)
+                .neq('id', scheduleOnDifferentDate.id)
+
+              if (deleteError) {
+                logger.warn('Failed to delete duplicate schedules', {
+                  taskId: existingTask.id,
+                  error: deleteError.message,
+                })
+              }
+            }
           } else {
-            // Create new schedule entry
-            const { error: scheduleInsertError } = await supabase
+            // No schedule exists - create new one
+            const { error: scheduleInsertError, data: newSchedule } = await supabase
               .from('task_schedule')
               .insert({
                 plan_id: planId,
@@ -296,10 +389,64 @@ export async function syncEventsToIntegrationPlan(
                 duration_minutes: finalDuration,
                 status: 'scheduled',
               })
+              .select('id')
+              .single()
 
             if (scheduleInsertError) {
               logger.error('Failed to create task schedule', scheduleInsertError as Error, {
                 taskId: existingTask.id,
+                eventId: event.id,
+                eventDate,
+                errorCode: scheduleInsertError.code,
+                errorMessage: scheduleInsertError.message,
+                errorDetails: scheduleInsertError.details,
+                errorHint: scheduleInsertError.hint,
+              })
+              errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError.message}`)
+            } else {
+              logger.info('Created task schedule for existing task', {
+                scheduleId: newSchedule?.id,
+                taskId: existingTask.id,
+                eventId: event.id,
+                eventDate,
+                startTime: startTimeStr,
+                endTime: endTimeStr,
+              })
+            }
+          }
+
+          // Update calendar event link if schedule changed
+          // Find the link for this event and update it with the current schedule
+          const { data: currentSchedule } = await supabase
+            .from('task_schedule')
+            .select('id')
+            .eq('task_id', existingTask.id)
+            .eq('date', eventDate)
+            .single()
+
+          if (currentSchedule) {
+            const { error: linkUpdateError } = await supabase
+              .from('calendar_event_links')
+              .upsert({
+                user_id: userId,
+                calendar_connection_id: connectionId,
+                calendar_event_id: event.id,
+                plan_id: planId,
+                task_id: existingTask.id,
+                task_schedule_id: currentSchedule.id,
+                external_event_id: event.external_event_id,
+                task_name: event.summary || 'Untitled Event',
+                metadata: {},
+              }, {
+                onConflict: 'calendar_event_id,task_schedule_id',
+              })
+
+            if (linkUpdateError) {
+              logger.warn('Failed to update calendar event link', {
+                taskId: existingTask.id,
+                scheduleId: currentSchedule.id,
+                eventId: event.id,
+                error: linkUpdateError instanceof Error ? linkUpdateError.message : String(linkUpdateError),
               })
             }
           }
