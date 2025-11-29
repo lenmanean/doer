@@ -424,7 +424,14 @@ export async function POST(request: NextRequest) {
 
     // Auto-detach calendar event task if being edited
     try {
-      await autoDetachIfNeeded(schedule.task_id, user.id)
+      const wasDetached = await autoDetachIfNeeded(schedule.task_id, user.id)
+      if (wasDetached) {
+        console.log('Auto-detached calendar event task', {
+          taskId: schedule.task_id,
+          scheduleId: schedule_id,
+          userId: user.id,
+        })
+      }
     } catch (detachError) {
       // Log but don't fail the update
       console.warn('Failed to auto-detach calendar task:', detachError)

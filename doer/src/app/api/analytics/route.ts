@@ -12,6 +12,7 @@ import {
   RawSchedule,
   RawCompletionWithSchedule
 } from '@/lib/analytics-utils'
+import { getCalendarUsageStats, getCalendarPlanStats } from '@/lib/analytics/calendar-analytics'
 
 export async function GET(request: NextRequest) {
   try {
@@ -342,12 +343,25 @@ export async function GET(request: NextRequest) {
       rescheduledTasksCount || 0
     )
     
+    // Get calendar usage statistics
+    let calendarStats = null
+    let calendarPlanStats = null
+    try {
+      calendarStats = await getCalendarUsageStats(user.id, timeRange as '7d' | '30d' | '90d' | 'all')
+      calendarPlanStats = await getCalendarPlanStats(user.id)
+    } catch (calendarError) {
+      console.warn('Failed to fetch calendar analytics:', calendarError)
+      // Don't fail the whole request if calendar analytics fail
+    }
+    
     return NextResponse.json({
       activityData,
       completionTrend,
       productivityPatterns,
       reschedulingAnalysis,
-      metrics
+      metrics,
+      calendarUsage: calendarStats,
+      calendarPlans: calendarPlanStats
     })
   } catch (error) {
     console.error('Error in analytics API:', error)
