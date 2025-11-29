@@ -48,6 +48,7 @@ import { validateUsername } from '@/lib/validation/username'
 import { validateEmail } from '@/lib/validation/email'
 import { formatDistanceToNow } from 'date-fns'
 import { useUsageSummary } from '@/hooks/useUsageSummary'
+import { CookieManagement } from '@/components/settings/CookieManagement'
 
 interface SettingsData {
   // Account
@@ -2911,6 +2912,9 @@ export default function SettingsPage() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Cookie Management */}
+                    <CookieManagement />
                   </motion.div>
                 )}
 
