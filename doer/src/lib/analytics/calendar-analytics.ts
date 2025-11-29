@@ -172,7 +172,7 @@ export async function getCalendarUsageStats(
 
     // Find busiest day and weekday
     const busiestDay = Object.entries(eventsByDay).reduce((max, [date, count]) => {
-      return count > (eventsByDay[max[0]] || 0) ? { date, count } : max
+      return count > max.count ? { date, count } : max
     }, { date: '', count: 0 })
     const busiestDayStr = busiestDay.date || null
 
