@@ -9,6 +9,7 @@ import { useSupabase } from '@/components/providers/supabase-provider'
 import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
+import { CookieConsent } from '@/components/ui/CookieConsent'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
   SiGooglecalendar, 
@@ -813,6 +814,9 @@ export default function Home() {
           <PublicFooter />
         </div>
       </div>
+      
+      {/* Cookie Consent Banner */}
+      <CookieConsent />
     </div>
   )
 }

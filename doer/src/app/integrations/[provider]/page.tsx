@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -24,11 +24,23 @@ export default function ProviderIntegrationsPage() {
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
   const [emailConfirmed, setEmailConfirmed] = useState(true)
   
+  // Track if connection success has been handled to prevent duplicate notifications
+  const connectionHandledRef = useRef(false)
+  const lastProviderRef = useRef<string | null>(null)
+  
   // Get provider from URL params
   const providerParam = params?.provider as string
   const provider = (['google', 'outlook', 'apple'].includes(providerParam || '') 
     ? providerParam 
     : 'google') as 'google' | 'outlook' | 'apple'
+  
+  // Reset connection handled ref when provider changes
+  useEffect(() => {
+    if (lastProviderRef.current !== provider) {
+      connectionHandledRef.current = false
+      lastProviderRef.current = provider
+    }
+  }, [provider])
   
   // Validate provider
   useEffect(() => {
@@ -182,14 +194,19 @@ export default function ProviderIntegrationsPage() {
   
   // Handle OAuth callback query parameters
   useEffect(() => {
-    if (!user?.id || !loadConnection || !provider) return
+    if (!user?.id || !provider) return
     
     const connected = searchParams.get('connected')
     const error = searchParams.get('error')
     
     // Handle successful connection
-    if (connected === provider) {
+    if (connected === provider && !connectionHandledRef.current) {
+      connectionHandledRef.current = true
+      
       const handleConnection = async () => {
+        // Clean up query parameter immediately to prevent re-triggering
+        router.replace(`/integrations/${provider}`)
+        
         await new Promise(resolve => setTimeout(resolve, 500))
         
         let isConnected = false
@@ -219,17 +236,15 @@ export default function ProviderIntegrationsPage() {
             duration: 7000,
           })
         }
-        
-        setTimeout(() => {
-          router.replace(`/integrations/${provider}`)
-        }, 100)
       }
       
       handleConnection()
     }
     
     // Handle errors
-    if (error) {
+    if (error && !connectionHandledRef.current) {
+      connectionHandledRef.current = true
+      
       let errorMessage = `Failed to connect ${providerInfo[provider]?.name || 'Calendar'}`
       if (error === 'oauth_failed') {
         errorMessage = 'OAuth authorization was cancelled or failed'
@@ -244,17 +259,20 @@ export default function ProviderIntegrationsPage() {
       })
       router.replace(`/integrations/${provider}`)
     }
-  }, [user?.id, provider, searchParams, router, addToast, loadConnection])
+  }, [user?.id, provider, searchParams, router, addToast])
   
-  // Load connection status on mount
+  // Load connection status on mount (only if not handling OAuth callback)
   useEffect(() => {
-    if (!user?.id || !loadConnection || !provider) return
+    if (!user?.id || !provider) return
     
     const connected = searchParams.get('connected')
-    if (!connected) {
+    const error = searchParams.get('error')
+    
+    // Don't load if we're handling an OAuth callback (to prevent duplicate loading)
+    if (!connected && !error && !connectionHandledRef.current) {
       loadConnection()
     }
-  }, [user?.id, provider, searchParams, loadConnection])
+  }, [user?.id, provider, searchParams])
   
   // Connect Calendar
   const handleConnect = async () => {

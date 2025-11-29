@@ -16,6 +16,13 @@ interface Plan {
   status: string
   start_date: string
   end_date?: string
+  plan_type?: 'ai' | 'manual' | 'integration'
+  integration_metadata?: {
+    connection_id?: string
+    provider?: 'google' | 'outlook' | 'apple'
+    calendar_ids?: string[]
+    calendar_names?: string[]
+  }
   summary_data?: {
     goal_title?: string
     goal_summary?: string
@@ -372,8 +379,37 @@ export function SwitchPlanModal({
           setPlanToDelete(null)
         }}
         onConfirm={handleDeleteConfirm}
-        title="Delete Plan"
-        description={`Are you sure you want to delete "${planToDelete?.summary_data?.goal_title || planToDelete?.goal_text}"? This will permanently remove all tasks, milestones, and progress data for this plan.`}
+        title={planToDelete?.plan_type === 'integration' ? 'Delete Integration Plan' : 'Delete Plan'}
+        description={(() => {
+          if (planToDelete?.plan_type === 'integration') {
+            // Check if there are other plans with the same connection_id
+            const connectionId = planToDelete.integration_metadata?.connection_id
+            const otherIntegrationPlans = connectionId 
+              ? plans.filter(p => 
+                  p.id !== planToDelete.id && 
+                  p.plan_type === 'integration' && 
+                  p.integration_metadata?.connection_id === connectionId
+                )
+              : []
+            
+            const providerName = planToDelete.integration_metadata?.provider === 'google' 
+              ? 'Google Calendar' 
+              : planToDelete.integration_metadata?.provider === 'outlook'
+              ? 'Microsoft Outlook'
+              : 'Apple Calendar'
+            
+            if (otherIntegrationPlans.length > 0) {
+              // Other calendars from the same integration exist
+              return `Are you sure you want to delete "${planToDelete.summary_data?.goal_title || planToDelete.goal_text}"? This will permanently remove all tasks and progress data for this calendar. Your ${providerName} integration will remain connected, and other calendars from this integration will be unaffected.`
+            } else {
+              // This is the only calendar from this integration
+              return `Are you sure you want to delete "${planToDelete.summary_data?.goal_title || planToDelete.goal_text}"? This will permanently remove all tasks and progress data, and your ${providerName} integration will be disconnected.`
+            }
+          } else {
+            // Regular plan
+            return `Are you sure you want to delete "${planToDelete?.summary_data?.goal_title || planToDelete?.goal_text}"? This will permanently remove all tasks, milestones, and progress data for this plan.`
+          }
+        })()}
         confirmText="Delete Plan"
         isDeleting={deleting}
       />
