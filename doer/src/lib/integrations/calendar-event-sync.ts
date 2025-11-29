@@ -51,17 +51,33 @@ export async function syncEventsToIntegrationPlan(
     }
 
     // Get or create integration plan
-    const planId = await getOrCreateIntegrationPlan(
-      userId,
-      connectionId,
-      provider,
-      calendarIds,
-      calendarNames,
-      calendarInfos
-    )
+    let planId: string
+    try {
+      planId = await getOrCreateIntegrationPlan(
+        userId,
+        connectionId,
+        provider,
+        calendarIds,
+        calendarNames,
+        calendarInfos
+      )
+      logger.info('Integration plan ready for sync', {
+        planId,
+        connectionId,
+        userId,
+        provider,
+      })
+    } catch (planError) {
+      logger.error('Failed to get or create integration plan', planError as Error, {
+        connectionId,
+        userId,
+        provider,
+      })
+      throw new Error(`Failed to get or create integration plan: ${planError instanceof Error ? planError.message : 'Unknown error'}`)
+    }
 
-    // Fetch all calendar events for this connection that are busy and not DOER-created
-    const { data: calendarEvents, error: eventsError } = await supabase
+    // Fetch all calendar events for this connection
+    const { data: calendarEventsData, error: eventsError } = await supabase
       .from('calendar_events')
       .select('*')
       .eq('calendar_connection_id', connectionId)
@@ -72,11 +88,21 @@ export async function syncEventsToIntegrationPlan(
     if (eventsError) {
       logger.error('Failed to fetch calendar events', eventsError as Error, {
         connectionId,
+        planId,
       })
       throw eventsError
     }
 
-    if (!calendarEvents || calendarEvents.length === 0) {
+    const calendarEvents = calendarEventsData || []
+
+    logger.info('Fetched calendar events for sync', {
+      connectionId,
+      planId,
+      eventCount: calendarEvents.length,
+      eventIds: calendarEvents.map((e: any) => e.id).slice(0, 5), // Log first 5 IDs
+    })
+
+    if (calendarEvents.length === 0) {
       logger.info('No calendar events to sync', { connectionId, planId })
       return {
         tasks_created: 0,

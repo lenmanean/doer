@@ -260,6 +260,14 @@ export async function POST(
           }
         })
 
+        logger.info('Starting sync to integration plan', {
+          connectionId: connection.id,
+          userId: user.id,
+          provider,
+          calendarIds,
+          calendarNames,
+        })
+
         syncResult = await syncEventsToIntegrationPlan(
           connection.id,
           user.id,
@@ -275,14 +283,23 @@ export async function POST(
           tasksCreated: syncResult.tasks_created,
           tasksUpdated: syncResult.tasks_updated,
           tasksSkipped: syncResult.tasks_skipped,
+          errors: syncResult.errors,
         })
       } catch (syncError) {
         logger.error('Failed to sync events to integration plan', syncError as Error, {
           connectionId: connection.id,
           userId: user.id,
           provider,
+          errorMessage: syncError instanceof Error ? syncError.message : String(syncError),
+          errorStack: syncError instanceof Error ? syncError.stack : undefined,
         })
-        // Don't fail the whole sync operation if task sync fails
+        // Don't fail the whole sync operation if task sync fails, but log the error
+        syncResult = {
+          tasks_created: 0,
+          tasks_updated: 0,
+          tasks_skipped: 0,
+          errors: [syncError instanceof Error ? syncError.message : 'Unknown error during task sync'],
+        }
       }
 
       // Update sync log
