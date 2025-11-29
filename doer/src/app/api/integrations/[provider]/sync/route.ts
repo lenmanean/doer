@@ -128,6 +128,8 @@ export async function POST(
       let conflictsDetected = 0
       let eventsProcessed = 0
       let nextSyncToken: string | null = null
+      // Track processed event IDs to avoid double-counting
+      const processedEventIds = new Set<string>()
 
       // Fetch events from each calendar separately to maintain calendar context
       for (const calendarId of calendarIds) {
@@ -144,14 +146,35 @@ export async function POST(
           }
 
           // Process events from this calendar
+          logger.info('Processing events from calendar', {
+            calendarId,
+            eventCount: fetchResult.events.length,
+            connectionId: connection.id,
+          })
+
           for (const event of fetchResult.events) {
+            // Create unique event identifier to avoid double-counting
+            const eventKey = `${event.id || 'no-id'}-${calendarId}`
+            
+            // Skip if we've already processed this event (shouldn't happen, but safety check)
+            if (processedEventIds.has(eventKey)) {
+              logger.warn('Duplicate event detected, skipping', {
+                event_id: event.id,
+                calendarId,
+                eventKey,
+              })
+              continue
+            }
+
             // Skip all-day events that don't have dateTime
             if (!event.start?.dateTime && !event.start?.date) {
+              logger.debug('Skipping all-day event without dateTime', { event_id: event.id })
               continue
             }
 
             const busySlot = calendarProvider.convertToBusySlot(event, calendarId)
             if (!busySlot) {
+              logger.debug('Skipping event - convertToBusySlot returned null', { event_id: event.id })
               continue
             }
 
@@ -195,7 +218,16 @@ export async function POST(
               continue
             }
 
+            // Mark as processed and increment counter
+            processedEventIds.add(eventKey)
             eventsProcessed++
+            logger.debug('Processed calendar event', {
+              event_id: event.id,
+              summary: event.summary,
+              eventsProcessed,
+              calendarId,
+              eventKey,
+            })
 
             // Check for conflicts with existing plans
             if (isBusy && !isDoerCreated) {
@@ -231,6 +263,15 @@ export async function POST(
           // Continue with next calendar
         }
       }
+
+      // Log summary before syncing to integration plan
+      logger.info('Event processing summary', {
+        connectionId: connection.id,
+        eventsProcessed,
+        uniqueEventsProcessed: processedEventIds.size,
+        calendarsProcessed: calendarIds.length,
+        busySlotsCount: busySlots.length,
+      })
 
       // Update sync token and last_sync_at
       if (nextSyncToken) {
