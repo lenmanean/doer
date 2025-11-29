@@ -151,12 +151,6 @@ export async function getCalendarUsageStats(
     const calendarsConnected = connections?.length || 0
 
     // Get most active calendar (by event count per calendar connection)
-    // Get calendar connections to map calendar_event_id to calendar names
-    const { data: connections, error: connectionsError } = await supabase
-      .from('calendar_connections')
-      .select('id, provider, selected_calendar_ids')
-      .eq('user_id', userId)
-
     // Get calendar events to map to calendar names
     const calendarEventIds = (calendarTasks || []).map(t => t.calendar_event_id).filter(Boolean)
     let calendarEventCounts: Record<string, number> = {}
