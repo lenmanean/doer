@@ -14,8 +14,10 @@ interface PlanCardProps {
     end_date?: string
     plan_type?: 'ai' | 'manual' | 'integration'
     integration_metadata?: {
-      provider: 'google' | 'outlook' | 'apple'
-      calendar_names: string[]
+      connection_id?: string
+      provider?: 'google' | 'outlook' | 'apple'
+      calendar_ids?: string[]
+      calendar_names?: string[]
     }
     summary_data?: {
       goal_title?: string
@@ -48,7 +50,7 @@ export function PlanCard({
 
   // Get provider name for integration plans
   const getProviderName = () => {
-    if (!isIntegration || !plan.integration_metadata) return null
+    if (!isIntegration || !plan.integration_metadata?.provider) return null
     const provider = plan.integration_metadata.provider
     return provider === 'google' ? 'Google Calendar'
       : provider === 'outlook' ? 'Microsoft Outlook'
