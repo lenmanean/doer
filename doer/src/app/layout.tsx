@@ -10,6 +10,9 @@ import { ThemeProvider, type InitialThemePreferences } from '@/components/provid
 import { TimezoneProvider } from '@/components/providers/timezone-provider'
 import { getLocale } from '@/i18n/request'
 import { LocaleProvider } from '@/components/providers/locale-provider'
+import { AnalyticsInitializer } from '@/components/analytics/AnalyticsInitializer'
+import { AnalyticsScripts } from '@/components/analytics/AnalyticsScripts'
+import { CookieConsent } from '@/components/ui/CookieConsent'
 import enMessages from '../messages/en.json'
 
 const DEFAULT_TIME_ZONE = process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || 'UTC'
@@ -168,11 +171,14 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
+        <AnalyticsScripts />
         <LocaleProvider locale={locale} messages={messages} timeZone={timeZone}>
           <SupabaseProvider initialUser={initialUser}>
             <ThemeProvider initialPreferences={initialPreferences}>
               <TimezoneProvider>
                 <ToastProvider>
+                  <AnalyticsInitializer />
+                  <CookieConsent />
                   <PageFadeIn className="min-h-screen">
                     {children}
                   </PageFadeIn>

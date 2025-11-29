@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Check, Cookie } from 'lucide-react'
 import { Button } from './Button'
 import Link from 'next/link'
+import { saveConsentPreferences, getConsentCategories } from '@/lib/cookies/cookie-utils'
+import { initializeAnalytics } from '@/lib/analytics/analytics-service'
+import { initializeMarketing } from '@/lib/analytics/marketing-service'
 
 export type CookieCategory = 'essential' | 'analytics' | 'marketing' | 'functional'
 
@@ -34,7 +37,7 @@ const COOKIE_CATEGORIES: Record<CookieCategory, { name: string; description: str
   },
   functional: {
     name: 'Functional Cookies',
-    description: 'Enable enhanced functionality and personalization, such as remembering your preferences.',
+    description: 'Store your preferences and settings (theme, language, notifications) to personalize your experience.',
     required: false,
   },
 }
@@ -58,18 +61,39 @@ export function CookieConsent() {
     }
   }, [])
 
-  const saveConsent = (categories: CookieCategory[]) => {
+  const saveConsent = async (categories: CookieCategory[]) => {
     if (typeof window === 'undefined') return
 
-    const consentData: CookieConsentData = {
-      accepted: true,
-      categories,
-      timestamp: Date.now(),
-    }
+    try {
+      // Save consent preferences using the cookie utility
+      await saveConsentPreferences(categories)
 
-    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consentData))
-    setIsVisible(false)
-    setShowCustomize(false)
+      // Initialize analytics if consent given
+      if (categories.includes('analytics')) {
+        initializeAnalytics(categories)
+      }
+
+      // Initialize marketing if consent given
+      if (categories.includes('marketing')) {
+        initializeMarketing(categories)
+      }
+
+      // Also save to localStorage for backward compatibility
+      const consentData: CookieConsentData = {
+        accepted: true,
+        categories,
+        timestamp: Date.now(),
+      }
+      localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consentData))
+
+      setIsVisible(false)
+      setShowCustomize(false)
+    } catch (error) {
+      console.error('Error saving consent preferences:', error)
+      // Still hide the banner even if save fails
+      setIsVisible(false)
+      setShowCustomize(false)
+    }
   }
 
   const handleAcceptAll = () => {
