@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProvider, validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { formatDateForDB } from '@/lib/date-utils'
-import { syncEventsToIntegrationPlan } from '@/lib/integrations/calendar-event-sync'
+import { syncCalendarEventsToTasks } from '@/lib/calendar/calendar-sync-service'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -42,7 +42,7 @@ export async function POST(
     // Get user's calendar connection
     const { data: connection, error: connectionError } = await supabase
       .from('calendar_connections')
-      .select('id, selected_calendar_ids, sync_token')
+      .select('id, selected_calendar_ids, sync_token, sync_range_days')
       .eq('user_id', user.id)
       .eq('provider', provider)
       .single()
@@ -54,8 +54,10 @@ export async function POST(
       )
     }
 
-    // Parse request body for optional calendar_ids override
+    // Parse request body for optional calendar_ids and timeRange override
     let calendarIds = connection.selected_calendar_ids || []
+    let timeRangeDays = connection.sync_range_days || 30
+    
     try {
       const body = await request.json().catch(() => ({}))
       if (body.calendar_ids && Array.isArray(body.calendar_ids) && body.calendar_ids.length > 0) {
@@ -74,8 +76,13 @@ export async function POST(
           })
         }
       }
+      
+      // Accept optional timeRange override
+      if (body.timeRange && typeof body.timeRange === 'number' && body.timeRange > 0 && body.timeRange <= 365) {
+        timeRangeDays = body.timeRange
+      }
     } catch {
-      // Use default selected calendars
+      // Use default selected calendars and time range
     }
 
     if (calendarIds.length === 0) {
@@ -302,52 +309,35 @@ export async function POST(
           .eq('id', connection.id)
       }
 
-      // Sync calendar events to integration plan (convert to tasks)
+      // Sync calendar events to tasks (plan_id = null, is_calendar_event = true)
       let syncResult = null
       try {
-        // Fetch calendar names for the sync
-        // Map calendar IDs to their display names for the integration plan
-        const calendars = await calendarProvider.fetchCalendars(connection.id)
-        const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
-        const calendarNames = calendarIds.map((id: string) => calendarNameMap.get(id) || id)
-        
-        // Create calendar info objects with primary status for plan title
-        const calendarInfos = calendarIds.map((id: string) => {
-          const calendar = calendars.find(cal => cal.id === id)
-          return {
-            id,
-            name: calendar?.summary || id,
-            primary: calendar?.primary || false,
-          }
-        })
-
-        logger.info('Starting sync to integration plan', {
+        logger.info('Starting sync calendar events to tasks', {
           connectionId: connection.id,
           userId: user.id,
           provider,
           calendarIds,
-          calendarNames,
+          timeRangeDays,
         })
 
-        syncResult = await syncEventsToIntegrationPlan(
+        syncResult = await syncCalendarEventsToTasks(
           connection.id,
           user.id,
           provider,
           calendarIds,
-          calendarNames,
-          calendarInfos
+          timeRangeDays
         )
 
-        logger.info('Synced calendar events to integration plan', {
+        logger.info('Synced calendar events to tasks', {
           connectionId: connection.id,
           provider,
           tasksCreated: syncResult.tasks_created,
           tasksUpdated: syncResult.tasks_updated,
           tasksSkipped: syncResult.tasks_skipped,
-          errors: syncResult.errors,
+          errors: syncResult.errors.length,
         })
       } catch (syncError) {
-        logger.error('Failed to sync events to integration plan', syncError as Error, {
+        logger.error('Failed to sync events to tasks', syncError as Error, {
           connectionId: connection.id,
           userId: user.id,
           provider,
@@ -408,6 +398,7 @@ export async function POST(
         tasks_created: syncResult?.tasks_created || 0,
         tasks_updated: syncResult?.tasks_updated || 0,
         tasks_skipped: syncResult?.tasks_skipped || 0,
+        sync_log_id: syncLog?.id,
       })
     } catch (syncError) {
       // Update sync log with error

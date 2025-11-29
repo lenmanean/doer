@@ -11,9 +11,10 @@ interface TimePickerProps {
   id?: string
   className?: string
   timeFormat?: '12h' | '24h'
+  disabled?: boolean
 }
 
-export function TimePicker({ value, onChange, theme, id, className = '', timeFormat = '12h' }: TimePickerProps) {
+export function TimePicker({ value, onChange, theme, id, className = '', timeFormat = '12h', disabled = false }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -161,8 +162,13 @@ export function TimePicker({ value, onChange, theme, id, className = '', timeFor
       <button
         type="button"
         id={id}
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--primary)] flex items-center gap-2 bg-[var(--input)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--primary)] flex items-center gap-2 bg-[var(--input)] border-[var(--border)] text-[var(--foreground)] transition-colors ${
+          disabled 
+            ? 'opacity-50 cursor-not-allowed' 
+            : 'hover:bg-[var(--secondary)]'
+        }`}
       >
         <Clock className="w-4 h-4 text-[var(--muted-foreground)]" />
         <span className={`flex-1 text-left ${
@@ -176,7 +182,7 @@ export function TimePicker({ value, onChange, theme, id, className = '', timeFor
 
       {/* Dropdown */}
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && !disabled && (
           <>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

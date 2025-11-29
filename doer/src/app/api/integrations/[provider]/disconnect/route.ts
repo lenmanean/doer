@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
-import { handleDisconnection } from '@/lib/integrations/integration-plan-service'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -70,15 +69,56 @@ export async function DELETE(
       }
     )
 
-    // Delete the integration plan associated with this connection
-    try {
-      await handleDisconnection(connectionId, user.id)
-    } catch (planError) {
-      // Log but don't fail the disconnection if plan deletion fails
-      logger.error('Failed to delete integration plan on disconnect', planError as Error, {
-        connectionId,
-        userId: user.id,
-      })
+    // Delete calendar event tasks associated with this connection
+    // Find all tasks linked to calendar events from this connection
+    const { data: calendarEvents, error: eventsError } = await supabase
+      .from('calendar_events')
+      .select('id')
+      .eq('calendar_connection_id', connectionId)
+
+    if (!eventsError && calendarEvents && calendarEvents.length > 0) {
+      const eventIds = calendarEvents.map(e => e.id)
+      
+      // Find tasks linked to these events
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id')
+        .in('calendar_event_id', eventIds)
+        .eq('is_calendar_event', true)
+        .is('plan_id', null)
+        .eq('user_id', user.id)
+
+      if (!tasksError && tasks && tasks.length > 0) {
+        const taskIds = tasks.map(t => t.id)
+        
+        // Delete task schedules
+        await supabase
+          .from('task_schedule')
+          .delete()
+          .in('task_id', taskIds)
+          .is('plan_id', null)
+
+        // Delete tasks
+        const { error: deleteTasksError } = await supabase
+          .from('tasks')
+          .delete()
+          .in('id', taskIds)
+          .eq('user_id', user.id)
+
+        if (deleteTasksError) {
+          logger.warn('Failed to delete calendar event tasks on disconnect', {
+            connectionId,
+            userId: user.id,
+            error: deleteTasksError.message,
+          })
+        } else {
+          logger.info('Deleted calendar event tasks on disconnect', {
+            connectionId,
+            userId: user.id,
+            taskCount: tasks.length,
+          })
+        }
+      }
     }
 
     // Delete connection (cascade will delete related events and links)

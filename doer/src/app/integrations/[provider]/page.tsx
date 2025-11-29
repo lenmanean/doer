@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
-import { Calendar, CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLink, AlertCircle, ArrowLeft } from 'lucide-react'
+import { Calendar, CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLink, AlertCircle, ArrowLeft, ChevronDown } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
+import { PushToCalendarPanel } from '@/components/integrations/PushToCalendarPanel'
 
 /**
  * Provider-Specific Integrations Page
@@ -75,6 +76,8 @@ export default function ProviderIntegrationsPage() {
   // Push state
   const [pushing, setPushing] = useState(false)
   const [activePlan, setActivePlan] = useState<any>(null)
+  const [showPushPanel, setShowPushPanel] = useState(false)
+  const [syncRangeDays, setSyncRangeDays] = useState<number>(30)
   
   // Provider display info
   const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {
@@ -105,13 +108,15 @@ export default function ProviderIntegrationsPage() {
     if (!user?.id) return
     
     try {
-      const response = await fetch('/api/plans')
+      const response = await fetch('/api/plans/list')
       if (response.ok) {
         const data = await response.json()
-        const active = Array.isArray(data.plans) 
-          ? data.plans.find((plan: any) => plan.status === 'active') || data.plans[0]
-          : null
-        setActivePlan(active || null)
+        // Filter out integration plans
+        const filteredPlans = Array.isArray(data.plans) 
+          ? data.plans.filter((plan: any) => plan.plan_type !== 'integration')
+          : []
+        const active = filteredPlans.find((plan: any) => plan.status === 'active') || filteredPlans[0] || null
+        setActivePlan(active)
       }
     } catch (error) {
       console.error('Error loading active plan:', error)
@@ -167,6 +172,7 @@ export default function ProviderIntegrationsPage() {
       setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
       setAutoPushEnabled(data.connection?.auto_push_enabled || false)
       setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
+      setSyncRangeDays(data.connection?.sync_range_days || 30)
       setSyncLogs(data.recent_syncs || [])
       
       // Load calendars if connected
@@ -342,6 +348,7 @@ export default function ProviderIntegrationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           calendar_ids: selectedCalendarIds.length > 0 ? selectedCalendarIds : undefined,
+          timeRange: syncRangeDays,
         }),
       })
       
@@ -355,7 +362,7 @@ export default function ProviderIntegrationsPage() {
       addToast({
         type: 'success',
         title: 'Sync completed',
-        description: `Pulled ${data.events_pulled} events from ${providerInfo[provider]?.name || 'calendar'}. ${data.conflicts_detected > 0 ? `${data.conflicts_detected} conflicts detected.` : ''}`,
+        description: `Pulled ${data.events_pulled} events from ${providerInfo[provider]?.name || 'calendar'}. ${data.tasks_created > 0 ? `${data.tasks_created} task(s) created. ` : ''}${data.tasks_updated > 0 ? `${data.tasks_updated} task(s) updated. ` : ''}${data.conflicts_detected > 0 ? `${data.conflicts_detected} conflicts detected.` : ''}`,
         duration: 7000,
       })
       
@@ -522,7 +529,7 @@ export default function ProviderIntegrationsPage() {
   }
   
   // Save calendar settings
-  const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean, autoPush: boolean) => {
+  const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean, autoPush: boolean, syncRange?: number) => {
     try {
       setUpdatingSettings(true)
       const response = await fetch(`/api/integrations/${provider}/settings`, {
@@ -532,6 +539,7 @@ export default function ProviderIntegrationsPage() {
           selected_calendar_ids: calendarIds,
           auto_sync_enabled: autoSync,
           auto_push_enabled: autoPush,
+          sync_range_days: syncRange,
         }),
       })
       
@@ -764,36 +772,63 @@ export default function ProviderIntegrationsPage() {
                     </div>
                   </div>
                   
-                  {/* Sync Buttons */}
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleSync}
-                      disabled={syncing || selectedCalendarIds.length === 0}
-                      variant="outline"
-                      className="flex items-center gap-2 flex-1"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                      {syncing ? 'Pulling...' : `Pull from ${currentProviderInfo?.name}`}
-                    </Button>
-                    <Button
-                      onClick={handlePush}
-                      disabled={pushing || selectedCalendarIds.length === 0 || !activePlan}
-                      variant="outline"
-                      className="flex items-center gap-2 flex-1"
-                    >
-                      <ExternalLink className={`w-4 h-4 ${pushing ? 'animate-pulse' : ''}`} />
-                      {pushing ? 'Pushing...' : `Push to ${currentProviderInfo?.name}`}
-                    </Button>
-                  </div>
-                  
-                  {!activePlan && (
-                    <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                      <AlertCircle className="w-4 h-4 text-blue-400" />
-                      <p className="text-sm text-blue-400">
-                        Create or activate a plan to push tasks to {currentProviderInfo?.name}
+                  {/* Sync Range Setting */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-[var(--foreground)]">
+                      Sync Range (days)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={syncRangeDays}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value)
+                          if (value >= 1 && value <= 365) {
+                            setSyncRangeDays(value)
+                            saveCalendarSettings(selectedCalendarIds, autoSyncEnabled, autoPushEnabled, value)
+                          }
+                        }}
+                        className="w-24 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                      />
+                      <p className="text-xs text-[var(--foreground)]/60">
+                        Days before and after current date to sync (1-365)
                       </p>
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* Sync Button with Dropdown */}
+                  <div className="relative">
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSync}
+                        disabled={syncing || selectedCalendarIds.length === 0}
+                        variant="outline"
+                        className="flex items-center gap-2 flex-1"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                        {syncing ? 'Syncing...' : 'Sync'}
+                      </Button>
+                      <div className="relative">
+                        <Button
+                          onClick={() => setShowPushPanel(true)}
+                          disabled={selectedCalendarIds.length === 0}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Push
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {connection && (
+                      <p className="text-xs text-[var(--foreground)]/60 mt-2">
+                        Syncing {syncRangeDays} days before and after current date
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -879,6 +914,17 @@ export default function ProviderIntegrationsPage() {
           )}
         </div>
       </main>
+      
+      {/* Push to Calendar Panel */}
+      {showPushPanel && (
+        <PushToCalendarPanel
+          isOpen={showPushPanel}
+          onClose={() => setShowPushPanel(false)}
+          provider={provider}
+          connectionId={connection?.id}
+          selectedCalendarIds={selectedCalendarIds}
+        />
+      )}
     </div>
   )
 }

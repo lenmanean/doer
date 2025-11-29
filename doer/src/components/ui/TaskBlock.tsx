@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, RefreshCw, Calendar, Link2 } from 'lucide-react'
+import { Check, RefreshCw, Calendar, Link2, Lock } from 'lucide-react'
 import { formatDuration } from '@/lib/task-time-utils'
 import { useState } from 'react'
 
@@ -146,15 +146,18 @@ export function TaskBlock({
   // Get task name - ensure it's a string, never render numbers
   const taskNameString = task.name ? String(task.name) : ''
   
+  // Calendar events are read-only (not detached)
+  const isReadOnly = task.is_calendar_event && !task.is_detached
+  
   return (
     <motion.div
-      className={`${isInsideMultiPanel ? 'relative' : 'absolute'} rounded-lg p-2 cursor-pointer select-none ${displayColors.background} ${displayColors.border} border-2 hover:shadow-lg transition-all duration-200 ${
+      className={`${isInsideMultiPanel ? 'relative' : 'absolute'} rounded-lg p-2 ${isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'} select-none ${displayColors.background} ${displayColors.border} border-2 ${isReadOnly ? '' : 'hover:shadow-lg'} transition-all duration-200 ${
         isRejectedOverdue 
           ? 'opacity-60 ring-1 ring-gray-500/30' 
           : ''
       } ${
-        task.is_calendar_event && !task.is_detached
-          ? 'ring-1 ring-blue-400/30'
+        isReadOnly
+          ? 'ring-1 ring-blue-400/30 opacity-90'
           : ''
       }`}
       style={{ 
@@ -163,13 +166,13 @@ export function TaskBlock({
         minHeight: `${Math.max(height, 40)}px`,
         zIndex: isHovered ? 30 : 5,
         opacity: isHovered ? 1 : 0.9,
-        backgroundColor: isHovered ? displayColors.solidBackground : undefined,
+        backgroundColor: isHovered && !isReadOnly ? displayColors.solidBackground : undefined,
         ...style
       }}
-      onClick={onClick}
+      onClick={isReadOnly ? undefined : onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ scale: 1.05, zIndex: 30 }}
+      whileHover={isReadOnly ? {} : { scale: 1.05, zIndex: 30 }}
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -187,8 +190,9 @@ export function TaskBlock({
                   task.is_detached
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
                     : 'bg-blue-500/30 text-blue-200 border border-blue-400/50'
-                }`} title={task.is_detached ? "Calendar event (detached)" : "Calendar event"}>
+                }`} title={task.is_detached ? "Calendar event (detached)" : "Calendar event (read-only)"}>
                   <Calendar className="w-2.5 h-2.5" />
+                  {isReadOnly && <Lock className="w-2 h-2 ml-0.5" />}
                   {task.is_detached && <Link2 className="w-2 h-2 ml-0.5" />}
                 </span>
               ) : null}
@@ -246,14 +250,17 @@ export function TaskBlock({
         <button
           onClick={(e) => {
             e.stopPropagation()
-            onComplete()
+            if (!isReadOnly) {
+              onComplete()
+            }
           }}
-          className="flex-shrink-0 p-1 rounded transition-colors"
+          disabled={isReadOnly}
+          className={`flex-shrink-0 p-1 rounded transition-colors ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
           style={{
-            backgroundColor: isHovered ? 'rgba(255,255,255,0.08)' : 'transparent'
+            backgroundColor: isHovered && !isReadOnly ? 'rgba(255,255,255,0.08)' : 'transparent'
           }}
-          title={task.completed ? 'Mark incomplete' : 'Mark complete'}
-          aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
+          title={isReadOnly ? 'Calendar events are read-only' : (task.completed ? 'Mark incomplete' : 'Mark complete')}
+          aria-label={isReadOnly ? 'Calendar event is read-only' : (task.completed ? 'Mark task incomplete' : 'Mark task complete')}
         >
           {task.completed ? (
             <div className="w-4 h-4 rounded bg-green-500 flex items-center justify-center shadow">

@@ -1,6 +1,6 @@
 /**
  * Calendar Integration Analytics
- * Provides analytics specific to calendar integration plans
+ * Provides analytics for calendar events (stored as tasks with plan_id = null, is_calendar_event = true)
  */
 
 import { createClient } from '@/lib/supabase/server'
@@ -74,51 +74,12 @@ export async function getCalendarUsageStats(
     const startDateStr = startDate.toISOString().split('T')[0]
     const todayStr = today.toISOString().split('T')[0]
 
-    // Get all integration plans for this user
-    const { data: integrationPlans, error: plansError } = await supabase
-      .from('plans')
-      .select('id, goal_text, integration_metadata')
-      .eq('user_id', userId)
-      .eq('plan_type', 'integration')
-      .not('integration_metadata', 'is', null)
-
-    if (plansError) {
-      logger.error('Failed to fetch integration plans', plansError as Error, { userId })
-      throw plansError
-    }
-
-    const planIds = (integrationPlans || []).map(p => p.id)
-    
-    if (planIds.length === 0) {
-      return {
-        total_events: 0,
-        total_time_minutes: 0,
-        total_time_hours: 0,
-        average_duration_minutes: 0,
-        events_by_day: {},
-        events_by_weekday: {},
-        busiest_day: null,
-        busiest_weekday: null,
-        most_active_calendar: null,
-        calendars_connected: 0,
-        sync_frequency: {
-          total_syncs: 0,
-          successful_syncs: 0,
-          failed_syncs: 0,
-          last_sync_at: null,
-        },
-        detached_tasks_count: 0,
-        active_events_count: 0,
-        upcoming_events_count: 0,
-        past_events_count: 0,
-      }
-    }
-
-    // Get all calendar event tasks
+    // Get all calendar event tasks (plan_id = null, is_calendar_event = true)
     const { data: calendarTasks, error: tasksError } = await supabase
       .from('tasks')
       .select('id, name, estimated_duration_minutes, is_detached, calendar_event_id, plan_id')
-      .in('plan_id', planIds)
+      .eq('user_id', userId)
+      .is('plan_id', null)
       .eq('is_calendar_event', true)
 
     if (tasksError) {
@@ -189,16 +150,42 @@ export async function getCalendarUsageStats(
 
     const calendarsConnected = connections?.length || 0
 
-    // Get most active calendar (by event count per calendar)
-    const calendarEventCounts: Record<string, number> = {}
-    integrationPlans?.forEach(plan => {
-      const metadata = plan.integration_metadata as any
-      const calendarNames = metadata?.calendar_names || []
-      calendarNames.forEach((name: string) => {
-        calendarEventCounts[name] = (calendarEventCounts[name] || 0) + 
-          (calendarTasks?.filter(t => t.plan_id === plan.id).length || 0)
-      })
-    })
+    // Get most active calendar (by event count per calendar connection)
+    // Get calendar connections to map calendar_event_id to calendar names
+    const { data: connections, error: connectionsError } = await supabase
+      .from('calendar_connections')
+      .select('id, provider, selected_calendar_ids')
+      .eq('user_id', userId)
+
+    // Get calendar events to map to calendar names
+    const calendarEventIds = (calendarTasks || []).map(t => t.calendar_event_id).filter(Boolean)
+    let calendarEventCounts: Record<string, number> = {}
+    
+    if (calendarEventIds.length > 0 && connections && connections.length > 0) {
+      const { data: calendarEvents, error: eventsError } = await supabase
+        .from('calendar_events')
+        .select('id, calendar_id, calendar_connection_id')
+        .in('id', calendarEventIds)
+      
+      if (!eventsError && calendarEvents) {
+        // Map calendar_id to calendar name via connections
+        const connectionMap = new Map(connections.map(c => [c.id, c]))
+        const calendarNameMap = new Map<string, string>()
+        
+        calendarEvents.forEach(event => {
+          const connection = connectionMap.get(event.calendar_connection_id)
+          if (connection && connection.selected_calendar_ids?.includes(event.calendar_id)) {
+            calendarNameMap.set(event.id, event.calendar_id)
+          }
+        })
+        
+        // Count events by calendar
+        calendarEvents.forEach(event => {
+          const calendarName = calendarNameMap.get(event.id) || 'Unknown'
+          calendarEventCounts[calendarName] = (calendarEventCounts[calendarName] || 0) + 1
+        })
+      }
+    }
     
     const mostActiveCalendar = Object.entries(calendarEventCounts).reduce((max, [name, count]) => {
       return count > (calendarEventCounts[max] || 0) ? name : max
@@ -206,7 +193,7 @@ export async function getCalendarUsageStats(
     const mostActiveCalendarStr = mostActiveCalendar || null
 
     // Get sync frequency stats
-    const connectionIds = (connections || []).map(c => c.id)
+    const connectionIds = connections?.map(c => c.id) || []
     let syncStats = {
       total_syncs: 0,
       successful_syncs: 0,
@@ -280,45 +267,61 @@ export async function getCalendarUsageStats(
 }
 
 /**
- * Get statistics for each integration plan
+ * Get statistics for each calendar connection
+ * Note: Integration plans are no longer used, so this returns stats per calendar connection
  */
 export async function getCalendarPlanStats(userId: string): Promise<CalendarPlanStats[]> {
   const supabase = await createClient()
 
   try {
-    // Get all integration plans
-    const { data: integrationPlans, error: plansError } = await supabase
-      .from('plans')
-      .select('id, goal_text, integration_metadata')
+    // Get all calendar connections
+    const { data: connections, error: connectionsError } = await supabase
+      .from('calendar_connections')
+      .select('id, provider, selected_calendar_ids')
       .eq('user_id', userId)
-      .eq('plan_type', 'integration')
-      .not('integration_metadata', 'is', null)
 
-    if (plansError) {
-      logger.error('Failed to fetch integration plans', plansError as Error, { userId })
-      throw plansError
+    if (connectionsError) {
+      logger.error('Failed to fetch calendar connections', connectionsError as Error, { userId })
+      throw connectionsError
     }
 
-    if (!integrationPlans || integrationPlans.length === 0) {
+    if (!connections || connections.length === 0) {
       return []
     }
 
     const stats: CalendarPlanStats[] = []
 
-    for (const plan of integrationPlans) {
-      const metadata = plan.integration_metadata as any
-      const provider = metadata?.provider || 'google'
-      const calendarNames = metadata?.calendar_names || []
+    for (const connection of connections) {
+      // Get calendar event tasks for this connection (plan_id = null, is_calendar_event = true)
+      // We need to find tasks linked to calendar events from this connection
+      const { data: calendarEvents, error: eventsError } = await supabase
+        .from('calendar_events')
+        .select('id')
+        .eq('calendar_connection_id', connection.id)
+        .limit(1000) // Limit to avoid performance issues
 
-      // Get tasks for this plan
+      if (eventsError) {
+        logger.warn('Failed to fetch calendar events for connection', { connectionId: connection.id, error: eventsError })
+        continue
+      }
+
+      const eventIds = (calendarEvents || []).map(e => e.id)
+      
+      if (eventIds.length === 0) {
+        continue
+      }
+
+      // Get tasks linked to these calendar events
       const { data: tasks, error: tasksError } = await supabase
         .from('tasks')
         .select('id, estimated_duration_minutes')
-        .eq('plan_id', plan.id)
+        .eq('user_id', userId)
+        .is('plan_id', null)
         .eq('is_calendar_event', true)
+        .in('calendar_event_id', eventIds)
 
       if (tasksError) {
-        logger.warn('Failed to fetch tasks for plan', { planId: plan.id, error: tasksError })
+        logger.warn('Failed to fetch tasks for connection', { connectionId: connection.id, error: tasksError })
         continue
       }
 
@@ -346,6 +349,7 @@ export async function getCalendarPlanStats(userId: string): Promise<CalendarPlan
           .from('task_schedule')
           .select('date')
           .in('task_id', taskIds)
+          .is('plan_id', null)
           .gte('date', monthAgo.toISOString().split('T')[0])
 
         if (!schedulesError && schedules) {
@@ -368,6 +372,7 @@ export async function getCalendarPlanStats(userId: string): Promise<CalendarPlan
           .from('task_schedule')
           .select('date')
           .in('task_id', taskIds)
+          .is('plan_id', null)
           .gte('date', fourWeeksAgo.toISOString().split('T')[0])
 
         if (!recentError && recentSchedules) {
@@ -375,11 +380,15 @@ export async function getCalendarPlanStats(userId: string): Promise<CalendarPlan
         }
       }
 
+      const providerName = connection.provider === 'google' ? 'Google Calendar'
+        : connection.provider === 'outlook' ? 'Microsoft Outlook'
+        : 'Apple Calendar'
+
       stats.push({
-        plan_id: plan.id,
-        plan_name: plan.goal_text,
-        provider: provider as 'google' | 'outlook' | 'apple',
-        calendar_names: calendarNames,
+        plan_id: connection.id, // Use connection ID as identifier
+        plan_name: `${providerName} - ${connection.selected_calendar_ids?.join(', ') || 'Calendar'}`,
+        provider: connection.provider as 'google' | 'outlook' | 'apple',
+        calendar_names: connection.selected_calendar_ids || [],
         total_events: totalEvents,
         total_time_minutes: totalTimeMinutes,
         events_this_week: eventsThisWeek,

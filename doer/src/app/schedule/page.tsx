@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Clock, Calendar, Plus, Settings, Move, RotateCcw, ArrowUpDown, ArrowLeftRight, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft as LeftArrow, ArrowRight as RightArrow, Expand, X, GripVertical, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Calendar, Plus, Settings, Move, RotateCcw, ArrowUpDown, ArrowLeftRight, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowLeft as LeftArrow, ArrowRight as RightArrow, Expand, X, GripVertical, UtensilsCrossed, Eye, EyeOff } from 'lucide-react'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -106,6 +106,21 @@ function ScheduleContent() {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  
+  // Calendar events toggle (default: enabled, stored in localStorage)
+  const [showCalendarEvents, setShowCalendarEvents] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('showCalendarEvents')
+      return stored !== null ? stored === 'true' : true
+    }
+    return true
+  })
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('showCalendarEvents', String(showCalendarEvents))
+    }
+  }, [showCalendarEvents])
   
   // Active plans for current week
   const [activePlansForWeek, setActivePlansForWeek] = useState<Map<string, {id: string, name: string}>>(new Map())
@@ -599,14 +614,19 @@ function ScheduleContent() {
       }
     }
     
+    // Filter out calendar events if toggle is off
+    const filteredTasks = showCalendarEvents 
+      ? deduplicatedTasks 
+      : deduplicatedTasks.filter(task => !task.is_calendar_event)
+    
     const optimisticTasksForDate = optimisticTasks.filter(task => task.date === date)
     
     // Deduplicate optimistic tasks by task_id - if a real task exists with the same task_id, don't show the optimistic one
-    const realTaskIds = new Set(deduplicatedTasks.map(task => task.task_id))
+    const realTaskIds = new Set(filteredTasks.map(task => task.task_id))
     const filteredOptimisticTasks = optimisticTasksForDate.filter(task => !realTaskIds.has(task.task_id))
     
-    return [...deduplicatedTasks, ...filteredOptimisticTasks]
-  }, [getPlanTasksForDate, getFreeTasksForDate, optimisticTasks])
+    return [...filteredTasks, ...filteredOptimisticTasks]
+  }, [getPlanTasksForDate, getFreeTasksForDate, optimisticTasks, showCalendarEvents])
   
   // Clean up optimistic tasks when real data comes in
   useEffect(() => {
@@ -1475,6 +1495,26 @@ function ScheduleContent() {
 
             {/* Divider */}
             <div className="h-8 w-px bg-white/20"></div>
+
+            {/* Show Calendar Events Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCalendarEvents(!showCalendarEvents)}
+              className={`flex items-center gap-2 ${
+                showCalendarEvents
+                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                  : 'text-[#d7d2cb] hover:text-[var(--primary)] hover:bg-white/10'
+              }`}
+              title={showCalendarEvents ? 'Hide calendar events' : 'Show calendar events'}
+            >
+              {showCalendarEvents ? (
+                <Eye className="w-4 h-4" />
+              ) : (
+                <EyeOff className="w-4 h-4" />
+              )}
+              <span className="text-xs">Calendar</span>
+            </Button>
 
             {/* Add Task Button */}
             <Button

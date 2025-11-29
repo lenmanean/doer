@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Clock, AlertCircle, Trash2, Edit3, Check, X as XIcon, RefreshCw, Calendar, Link2 } from 'lucide-react'
+import { X, Clock, AlertCircle, Trash2, Edit3, Check, X as XIcon, RefreshCw, Calendar, Link2, Lock } from 'lucide-react'
 import { calculateDuration, isValidTimeFormat, formatDuration } from '@/lib/task-time-utils'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { TimePicker } from './TimePicker'
@@ -242,6 +242,9 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
 
   if (!task) return null
 
+  // Calendar events are read-only (not detached)
+  const isReadOnly = task.is_calendar_event && !task.is_detached
+
   const priorityLabel = getPriorityLabel(task.priority ?? null)
   const priorityBadgeClass = priorityLabel ? getPriorityBadgeClasses(task.priority ?? null, theme) : ''
 
@@ -423,13 +426,15 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                       }`}>
                         {editedName}
                       </h3>
-                      <button
-                        onClick={handleNameEdit}
-                        className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300"
-                        title="Edit name"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={handleNameEdit}
+                          className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300"
+                          title="Edit name"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -486,54 +491,65 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                           </p>
                         )}
                       </div>
-                      <button
-                        onClick={handleDescriptionEdit}
-                        className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300 flex-shrink-0"
-                        title="Edit description"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={handleDescriptionEdit}
+                          className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300 flex-shrink-0"
+                          title="Edit description"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Calendar Event Warning */}
-              {task.is_calendar_event && (
+              {/* Calendar Event Read-Only Warning */}
+              {isReadOnly && (
                 <div className={`p-3 rounded-lg border ${
-                  task.is_detached
-                    ? theme === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
-                    : theme === 'dark' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'
+                  theme === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
                 }`}>
                   <div className="flex items-start gap-2">
-                    <Calendar className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                      task.is_detached
-                        ? theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                        : theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                    <Lock className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                     }`} />
                     <div className="flex-1">
                       <p className={`text-sm font-medium mb-1 ${
-                        task.is_detached
-                          ? theme === 'dark' ? 'text-blue-300' : 'text-blue-800'
-                          : theme === 'dark' ? 'text-yellow-300' : 'text-yellow-800'
+                        theme === 'dark' ? 'text-blue-300' : 'text-blue-800'
                       }`}>
-                        {task.is_detached ? (
-                          <>
-                            <Link2 className="w-3 h-3 inline mr-1" />
-                            Detached from Calendar
-                          </>
-                        ) : (
-                          'Calendar Event'
-                        )}
+                        Read-Only Calendar Event
                       </p>
                       <p className={`text-xs ${
-                        task.is_detached
-                          ? theme === 'dark' ? 'text-blue-400/80' : 'text-blue-700'
-                          : theme === 'dark' ? 'text-yellow-400/80' : 'text-yellow-700'
+                        theme === 'dark' ? 'text-blue-400/80' : 'text-blue-700'
                       }`}>
-                        {task.is_detached
-                          ? 'This task has been detached from the calendar. Your changes will not be overwritten by calendar sync.'
-                          : 'This task is synced from your calendar. Editing it will detach it from the calendar to prevent sync from overwriting your changes.'}
+                        This task is synced from your calendar and is read-only. You cannot edit calendar events in DOER. To make changes, edit the event in your calendar and sync again.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Calendar Event Detached Warning */}
+              {task.is_calendar_event && task.is_detached && (
+                <div className={`p-3 rounded-lg border ${
+                  theme === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
+                }`}>
+                  <div className="flex items-start gap-2">
+                    <Calendar className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                      theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                    }`} />
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium mb-1 ${
+                        theme === 'dark' ? 'text-blue-300' : 'text-blue-800'
+                      }`}>
+                        <Link2 className="w-3 h-3 inline mr-1" />
+                        Detached from Calendar
+                      </p>
+                      <p className={`text-xs ${
+                        theme === 'dark' ? 'text-blue-400/80' : 'text-blue-700'
+                      }`}>
+                        This task has been detached from the calendar. Your changes will not be overwritten by calendar sync.
                       </p>
                     </div>
                   </div>
@@ -551,10 +567,13 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   id="start-time"
                   value={startTime}
                   onChange={(value) => {
-                    setStartTime(value)
-                    setError(null)
+                    if (!isReadOnly) {
+                      setStartTime(value)
+                      setError(null)
+                    }
                   }}
                   theme={theme}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -569,10 +588,13 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   id="end-time"
                   value={endTime}
                   onChange={(value) => {
-                    setEndTime(value)
-                    setError(null)
+                    if (!isReadOnly) {
+                      setEndTime(value)
+                      setError(null)
+                    }
                   }}
                   theme={theme}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -596,7 +618,7 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
 
 
               {/* Recurring Task Settings */}
-              {isRecurring && (
+              {isRecurring && !isReadOnly && (
                 <div className="space-y-4">
                   {/* Day Selection */}
                   <div>
@@ -705,7 +727,7 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
               )}
 
               {/* Reschedule Button for Overdue Tasks */}
-              {isOverdue() && (
+              {isOverdue() && !isReadOnly && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -767,16 +789,19 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
             <div className={`flex items-center justify-between p-6 border-t ${
               theme === 'dark' ? 'border-white/10' : 'border-gray-200'
             }`}>
-              <button
-                onClick={handleDelete}
-                disabled={saving}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
-                  'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50'
-                } disabled:opacity-50`}
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Task
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                    'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50'
+                  } disabled:opacity-50`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Task
+                </button>
+              )}
+              {isReadOnly && <div />}
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
@@ -787,19 +812,21 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                   } disabled:opacity-50`}
                 >
-                  Cancel
+                  Close
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || calculatedDuration <= 0}
-                  className={`px-4 py-2 rounded-lg transition-colors font-medium ${
-                    calculatedDuration <= 0
-                      ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                      : 'bg-[#ff7f00] hover:bg-[#ff8c1a] text-white'
-                  } disabled:opacity-50`}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
+                {!isReadOnly && (
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || calculatedDuration <= 0}
+                    className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                      calculatedDuration <= 0
+                        ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                        : 'bg-[#ff7f00] hover:bg-[#ff8c1a] text-white'
+                    } disabled:opacity-50`}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>

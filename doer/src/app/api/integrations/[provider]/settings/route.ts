@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { validateProvider, getProvider } from '@/lib/calendar/providers/provider-factory'
+import { validateProvider } from '@/lib/calendar/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import { logConnectionEvent, getClientIp, getUserAgent } from '@/lib/calendar/connection-events'
-import {
-  getOrCreateIntegrationPlan,
-  updateIntegrationPlanMetadata,
-} from '@/lib/integrations/integration-plan-service'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -45,7 +41,7 @@ export async function PATCH(
     // Get user's calendar connection (fetch current values to track changes)
     const { data: connection, error: connectionError } = await supabase
       .from('calendar_connections')
-      .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled')
+      .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, sync_range_days')
       .eq('user_id', user.id)
       .eq('provider', provider)
       .single()
@@ -62,6 +58,7 @@ export async function PATCH(
       selected_calendar_ids: connection.selected_calendar_ids,
       auto_sync_enabled: connection.auto_sync_enabled,
       auto_push_enabled: connection.auto_push_enabled,
+      sync_range_days: connection.sync_range_days,
     }
 
     // Parse request body
@@ -147,6 +144,17 @@ export async function PATCH(
       }
     }
 
+    if (body.sync_range_days !== undefined) {
+      const newValue = typeof body.sync_range_days === 'number' && body.sync_range_days > 0 && body.sync_range_days <= 365
+        ? body.sync_range_days
+        : 30
+      if (oldValues.sync_range_days !== newValue) {
+        updates.sync_range_days = newValue
+        changedFields.push('sync_range_days')
+        newValues.sync_range_days = newValue
+      }
+    }
+
     // Only update if there are actual changes
     if (changedFields.length === 0) {
       return NextResponse.json({
@@ -172,46 +180,6 @@ export async function PATCH(
       )
     }
 
-    // Create or update integration plan when calendars are selected
-    if (changedFields.includes('selected_calendar_ids') && updatedConnection.selected_calendar_ids && updatedConnection.selected_calendar_ids.length > 0) {
-      try {
-        const calendarProvider = getProvider(provider)
-        const calendars = await calendarProvider.fetchCalendars(connection.id)
-        const calendarNameMap = new Map(calendars.map(cal => [cal.id, cal.summary]))
-        const calendarNames = updatedConnection.selected_calendar_ids.map((id: string) => calendarNameMap.get(id) || id)
-        
-        // Create calendar info objects with primary status
-        const calendarInfos = updatedConnection.selected_calendar_ids.map((id: string) => {
-          const calendar = calendars.find(cal => cal.id === id)
-          return {
-            id,
-            name: calendar?.summary || id,
-            primary: calendar?.primary || false,
-          }
-        })
-
-        await getOrCreateIntegrationPlan(
-          user.id,
-          connection.id,
-          provider,
-          updatedConnection.selected_calendar_ids,
-          calendarNames,
-          calendarInfos
-        )
-
-        logger.info('Created/updated integration plan for calendar selection', {
-          connectionId: connection.id,
-          provider,
-          calendarCount: updatedConnection.selected_calendar_ids.length,
-        })
-      } catch (planError) {
-        logger.error('Failed to create/update integration plan', planError as Error, {
-          connectionId: connection.id,
-          provider,
-        })
-        // Don't fail the settings update if plan creation fails
-      }
-    }
 
     // Log settings change event (for non-calendar selection changes)
     if (changedFields.some(f => f !== 'selected_calendar_ids')) {

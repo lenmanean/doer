@@ -54,11 +54,19 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
-    const { task_schedule_ids, calendar_id } = body
+    const { task_schedule_ids, calendar_id, date_range } = body
 
-    if (!Array.isArray(task_schedule_ids) || task_schedule_ids.length === 0) {
+    // Either task_schedule_ids or date_range must be provided
+    if (!Array.isArray(task_schedule_ids) && !date_range) {
       return NextResponse.json(
-        { error: 'task_schedule_ids must be a non-empty array' },
+        { error: 'Either task_schedule_ids array or date_range must be provided' },
+        { status: 400 }
+      )
+    }
+
+    if (Array.isArray(task_schedule_ids) && task_schedule_ids.length === 0) {
+      return NextResponse.json(
+        { error: 'task_schedule_ids must be a non-empty array if provided' },
         { status: 400 }
       )
     }
@@ -79,8 +87,8 @@ export async function POST(
       }
     }
 
-    // Fetch task schedules
-    const { data: schedules, error: schedulesError } = await supabase
+    // Build query for task schedules
+    let schedulesQuery = supabase
       .from('task_schedule')
       .select(`
         id,
@@ -92,7 +100,8 @@ export async function POST(
         tasks (
           id,
           name,
-          plan_id
+          plan_id,
+          is_calendar_event
         ),
         plans (
           id,
@@ -101,12 +110,49 @@ export async function POST(
         )
       `)
       .eq('user_id', user.id)
-      .in('id', task_schedule_ids)
 
-    if (schedulesError || !schedules || schedules.length === 0) {
+    // Filter by task_schedule_ids if provided
+    if (Array.isArray(task_schedule_ids) && task_schedule_ids.length > 0) {
+      schedulesQuery = schedulesQuery.in('id', task_schedule_ids)
+    }
+
+    // Filter by date range if provided
+    if (date_range && date_range.start_date && date_range.end_date) {
+      schedulesQuery = schedulesQuery
+        .gte('date', date_range.start_date)
+        .lte('date', date_range.end_date)
+    }
+
+    const { data: schedules, error: schedulesError } = await schedulesQuery
+
+    if (schedulesError) {
+      logger.error('Failed to fetch task schedules', schedulesError as Error, {
+        userId: user.id,
+        connectionId: connection.id,
+      })
+      return NextResponse.json(
+        { error: 'Failed to fetch task schedules' },
+        { status: 500 }
+      )
+    }
+
+    if (!schedules || schedules.length === 0) {
       return NextResponse.json(
         { error: 'No task schedules found' },
         { status: 404 }
+      )
+    }
+
+    // Filter out calendar event tasks (only push DOER-created tasks)
+    const filteredSchedules = schedules.filter(schedule => {
+      const task = Array.isArray(schedule.tasks) ? schedule.tasks[0] : schedule.tasks
+      return task && !task.is_calendar_event
+    })
+
+    if (filteredSchedules.length === 0) {
+      return NextResponse.json(
+        { error: 'No DOER-created tasks found to push (calendar events are read-only)' },
+        { status: 400 }
       )
     }
 
@@ -136,7 +182,7 @@ export async function POST(
     const errors: string[] = []
 
     // Push each task to calendar
-    for (const schedule of schedules) {
+    for (const schedule of filteredSchedules) {
       const task = Array.isArray(schedule.tasks) ? schedule.tasks[0] : schedule.tasks
       const plan = Array.isArray(schedule.plans) ? schedule.plans[0] : schedule.plans
 
@@ -223,8 +269,9 @@ export async function POST(
           events_pushed: eventsPushed,
           changes_summary: {
             results,
-            errors,
-            total: schedules.length,
+          errors,
+          total: filteredSchedules.length,
+          filtered_out: schedules.length - filteredSchedules.length,
           },
           error_message: errors.length > 0 ? errors.join('; ') : null,
           completed_at: new Date().toISOString(),
@@ -235,7 +282,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       events_pushed: eventsPushed,
-      total: schedules.length,
+      total: filteredSchedules.length,
+      filtered_out: schedules.length - filteredSchedules.length,
       results,
     })
   } catch (error) {

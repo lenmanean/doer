@@ -73,7 +73,9 @@ export function SwitchPlanModal({
         throw new Error('Failed to fetch plans')
       }
       const data = await response.json()
-      setPlans(data.plans || [])
+      // Filter out integration plans (already filtered by API, but double-check client-side)
+      const filteredPlans = (data.plans || []).filter((plan: any) => plan.plan_type !== 'integration')
+      setPlans(filteredPlans)
     } catch (error) {
       console.error('Error fetching plans:', error)
     } finally {

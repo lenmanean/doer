@@ -41,9 +41,12 @@ export async function GET(req: NextRequest) {
     }
     
     // Parse JSON response from RPC function
-    const plans = plansJson || []
+    const allPlans = plansJson || []
     
-    console.log('[api/plans/list] Returning plans for user', user.id, 'count:', plans.length)
+    // Filter out integration plans (no longer used)
+    const plans = allPlans.filter((plan: any) => plan.plan_type !== 'integration')
+    
+    console.log('[api/plans/list] Returning plans for user', user.id, 'count:', plans.length, '(filtered from', allPlans.length, 'total)')
     return NextResponse.json({
       success: true,
       plans,

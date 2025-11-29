@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkTimeOverlap, calculateDuration, isValidTimeFormat } from '@/lib/task-time-utils'
-import { autoDetachIfNeeded } from '@/lib/integrations/task-detachment'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -410,7 +409,7 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
-    // Get task_id from schedule to check if it's a calendar event
+    // Get task_id from schedule to check if it's a calendar event (read-only)
     const { data: schedule, error: scheduleFetchError } = await supabase
       .from('task_schedule')
       .select('task_id')
@@ -422,19 +421,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Schedule not found' }, { status: 404 })
     }
 
-    // Auto-detach calendar event task if being edited
-    try {
-      const wasDetached = await autoDetachIfNeeded(schedule.task_id, user.id)
-      if (wasDetached) {
-        console.log('Auto-detached calendar event task', {
-          taskId: schedule.task_id,
-          scheduleId: schedule_id,
-          userId: user.id,
-        })
-      }
-    } catch (detachError) {
-      // Log but don't fail the update
-      console.warn('Failed to auto-detach calendar task:', detachError)
+    // Check if this is a calendar event task (read-only)
+    const { data: task, error: taskError } = await supabase
+      .from('tasks')
+      .select('is_calendar_event')
+      .eq('id', schedule.task_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (taskError) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    // Prevent editing calendar event tasks (they are read-only)
+    if (task.is_calendar_event) {
+      return NextResponse.json({ 
+        error: 'Calendar event tasks are read-only and cannot be edited' 
+      }, { status: 403 })
     }
     
     // Update the task schedule
