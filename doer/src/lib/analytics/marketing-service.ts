@@ -46,14 +46,21 @@ export function initializeFacebookPixel(consentCategories: CookieCategory[]): vo
   }
 
   // Initialize Facebook Pixel
-  window.fbq = window.fbq || function fbq(...args: any[]) {
-    (window.fbq.q = window.fbq.q || []).push(args)
+  if (!window.fbq) {
+    const fbqQueue: any[] = []
+    const fbqFunction = function fbq(...args: any[]) {
+      fbqQueue.push(args)
+    } as any
+    fbqFunction.q = fbqQueue
+    window.fbq = fbqFunction
   }
-  window.fbq.l = +new Date()
-
-  // Initialize pixel
-  window.fbq('init', FACEBOOK_PIXEL_ID)
-  window.fbq('track', 'PageView')
+  const fbq = window.fbq
+  if (fbq) {
+    (fbq as any).l = +new Date()
+    // Initialize pixel
+    fbq('init', FACEBOOK_PIXEL_ID)
+    fbq('track', 'PageView')
+  }
 
   facebookPixelInitialized = true
 }
