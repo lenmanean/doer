@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/logger'
+import type { IntegrationPlanMetadata } from '@/lib/integrations/integration-plan-service'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Verify the plan belongs to the user before deletion
     const { data: plan, error: planError } = await supabase
       .from('plans')
-      .select('id, user_id, status')
+      .select('id, user_id, status, plan_type, integration_metadata')
       .eq('id', plan_id)
       .eq('user_id', user.id)
       .single()
@@ -61,6 +63,44 @@ export async function POST(request: NextRequest) {
     }
 
     const wasActive = plan.status === 'active'
+    
+    // If this is an integration plan, disconnect the calendar connection
+    if (plan.plan_type === 'integration' && plan.integration_metadata) {
+      try {
+        const metadata = plan.integration_metadata as IntegrationPlanMetadata
+        const connectionId = metadata.connection_id
+        
+        if (connectionId) {
+          // Delete the calendar connection (this will cascade delete related events)
+          const { error: connectionDeleteError } = await supabase
+            .from('calendar_connections')
+            .delete()
+            .eq('id', connectionId)
+            .eq('user_id', user.id) // Security: ensure connection belongs to user
+          
+          if (connectionDeleteError) {
+            logger.error('Failed to delete calendar connection when deleting integration plan', connectionDeleteError as Error, {
+              planId: plan_id,
+              connectionId,
+              userId: user.id,
+            })
+            // Log but don't fail the plan deletion
+          } else {
+            logger.info('Deleted calendar connection when deleting integration plan', {
+              planId: plan_id,
+              connectionId,
+              userId: user.id,
+            })
+          }
+        }
+      } catch (metadataError) {
+        logger.error('Error processing integration metadata during plan deletion', metadataError as Error, {
+          planId: plan_id,
+          userId: user.id,
+        })
+        // Continue with plan deletion even if metadata processing fails
+      }
+    }
     
     // Delete related data in order (respecting foreign key constraints)
     // 1. Delete task completions
