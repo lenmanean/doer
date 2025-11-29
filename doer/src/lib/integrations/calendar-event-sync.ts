@@ -238,10 +238,23 @@ export async function syncEventsToIntegrationPlan(
             logger.error('Failed to update task', updateError as Error, {
               taskId: existingTask.id,
               eventId: event.id,
+              eventSummary: event.summary,
+              planId,
+              userId,
+              errorCode: updateError.code,
+              errorMessage: updateError.message,
+              errorDetails: updateError.details,
+              errorHint: updateError.hint,
             })
             errors.push(`Failed to update task for event ${event.summary}: ${updateError.message}`)
             continue
           }
+
+          logger.info('Updated task from calendar event', {
+            taskId: existingTask.id,
+            eventId: event.id,
+            eventSummary: event.summary,
+          })
 
           // Update task schedule
           const { data: existingSchedule } = await supabase
@@ -314,10 +327,24 @@ export async function syncEventsToIntegrationPlan(
           if (taskInsertError || !newTask) {
             logger.error('Failed to create task', taskInsertError as Error, {
               eventId: event.id,
+              eventSummary: event.summary,
+              planId,
+              userId,
+              errorCode: taskInsertError?.code,
+              errorMessage: taskInsertError?.message,
+              errorDetails: taskInsertError?.details,
+              errorHint: taskInsertError?.hint,
             })
             errors.push(`Failed to create task for event ${event.summary}: ${taskInsertError?.message || 'Unknown error'}`)
             continue
           }
+
+          logger.info('Created task from calendar event', {
+            taskId: newTask.id,
+            eventId: event.id,
+            eventSummary: event.summary,
+            planId,
+          })
 
           // Create task schedule
           const { data: newSchedule, error: scheduleInsertError } = await supabase
@@ -339,10 +366,26 @@ export async function syncEventsToIntegrationPlan(
           if (scheduleInsertError || !newSchedule) {
             logger.error('Failed to create task schedule', scheduleInsertError as Error, {
               taskId: newTask.id,
+              eventId: event.id,
+              eventSummary: event.summary,
+              planId,
+              userId,
+              eventDate,
+              errorCode: scheduleInsertError?.code,
+              errorMessage: scheduleInsertError?.message,
+              errorDetails: scheduleInsertError?.details,
+              errorHint: scheduleInsertError?.hint,
             })
             errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError?.message || 'Unknown error'}`)
             continue
           }
+
+          logger.info('Created task schedule from calendar event', {
+            scheduleId: newSchedule.id,
+            taskId: newTask.id,
+            eventId: event.id,
+            eventDate,
+          })
 
           // Create calendar event link
           const { error: linkError } = await supabase
@@ -364,13 +407,31 @@ export async function syncEventsToIntegrationPlan(
           if (linkError) {
             logger.warn('Failed to create calendar event link', {
               taskId: newTask.id,
+              scheduleId: newSchedule.id,
               eventId: event.id,
-              error: linkError instanceof Error ? linkError.message : String(linkError),
+              planId,
+              userId,
+              errorCode: linkError instanceof Error ? (linkError as any).code : undefined,
+              errorMessage: linkError instanceof Error ? linkError.message : String(linkError),
+              errorDetails: linkError instanceof Error ? (linkError as any).details : undefined,
             })
             // Don't fail the whole sync for this
+          } else {
+            logger.info('Created calendar event link', {
+              taskId: newTask.id,
+              scheduleId: newSchedule.id,
+              eventId: event.id,
+            })
           }
 
           tasksCreated++
+          logger.info('Successfully created task and schedule from calendar event', {
+            taskId: newTask.id,
+            scheduleId: newSchedule.id,
+            eventId: event.id,
+            eventSummary: event.summary,
+            eventDate,
+          })
         }
       } catch (error) {
         logger.error('Error processing calendar event', error as Error, {

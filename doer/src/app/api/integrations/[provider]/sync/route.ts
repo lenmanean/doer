@@ -86,7 +86,8 @@ export async function POST(
     }
 
     // Create sync log entry
-    const { data: syncLog, error: logError } = await supabase
+    let syncLog: { id: string } | null = null
+    const { data: syncLogData, error: logError } = await supabase
       .from('calendar_sync_logs')
       .insert({
         user_id: user.id,
@@ -99,7 +100,22 @@ export async function POST(
       .single()
 
     if (logError) {
-      logger.error('Failed to create sync log', logError as Error)
+      logger.error('Failed to create sync log', logError as Error, {
+        connectionId: connection.id,
+        userId: user.id,
+        errorCode: logError.code,
+        errorMessage: logError.message,
+        errorDetails: logError.details,
+        errorHint: logError.hint,
+      })
+      // Continue without sync log - don't fail the entire sync
+    } else {
+      syncLog = syncLogData
+      logger.info('Created sync log entry', {
+        syncLogId: syncLog.id,
+        connectionId: connection.id,
+        userId: user.id,
+      })
     }
 
     try {
@@ -304,7 +320,7 @@ export async function POST(
 
       // Update sync log
       if (syncLog) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('calendar_sync_logs')
           .update({
             status: 'completed',
@@ -321,6 +337,21 @@ export async function POST(
             completed_at: new Date().toISOString(),
           })
           .eq('id', syncLog.id)
+
+        if (updateError) {
+          logger.error('Failed to update sync log', updateError as Error, {
+            syncLogId: syncLog.id,
+            connectionId: connection.id,
+            errorCode: updateError.code,
+            errorMessage: updateError.message,
+          })
+        } else {
+          logger.info('Updated sync log successfully', {
+            syncLogId: syncLog.id,
+            eventsPulled: eventsProcessed,
+            tasksCreated: syncResult?.tasks_created || 0,
+          })
+        }
       }
 
       return NextResponse.json({
@@ -336,7 +367,7 @@ export async function POST(
     } catch (syncError) {
       // Update sync log with error
       if (syncLog) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('calendar_sync_logs')
           .update({
             status: 'failed',
@@ -344,9 +375,22 @@ export async function POST(
             completed_at: new Date().toISOString(),
           })
           .eq('id', syncLog.id)
+
+        if (updateError) {
+          logger.error('Failed to update sync log with error status', updateError as Error, {
+            syncLogId: syncLog.id,
+            connectionId: connection.id,
+          })
+        }
       }
 
-      logger.error('Sync failed', syncError as Error, { connectionId: connection.id })
+      logger.error('Sync failed', syncError as Error, {
+        connectionId: connection.id,
+        userId: user.id,
+        provider,
+        errorMessage: syncError instanceof Error ? syncError.message : String(syncError),
+        errorStack: syncError instanceof Error ? syncError.stack : undefined,
+      })
       throw syncError
     }
   } catch (error) {
