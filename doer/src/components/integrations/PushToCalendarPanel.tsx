@@ -256,7 +256,7 @@ export function PushToCalendarPanel({
 
   const handlePush = async () => {
     if (selectedTaskScheduleIds.size === 0) {
-      toast.addToast({
+      addToast({
         type: 'warning',
         title: 'No tasks selected',
         description: 'Please select at least one task to push.',
@@ -266,7 +266,7 @@ export function PushToCalendarPanel({
     }
 
     if (!connectionId) {
-      toast.addToast({
+      addToast({
         type: 'error',
         title: 'No connection',
         description: 'Please connect your calendar first.',
@@ -295,7 +295,7 @@ export function PushToCalendarPanel({
 
       const data = await response.json()
 
-      toast.addToast({
+      addToast({
         type: 'success',
         title: 'Push completed',
         description: `Pushed ${data.events_pushed} task(s) to ${provider === 'google' ? 'Google Calendar' : provider === 'outlook' ? 'Microsoft Outlook' : 'Apple Calendar'}.`,
@@ -305,7 +305,7 @@ export function PushToCalendarPanel({
       onClose()
     } catch (error) {
       console.error('Error pushing tasks:', error)
-      toast.addToast({
+      addToast({
         type: 'error',
         title: 'Push failed',
         description: error instanceof Error ? error.message : 'Please try again later.',
