@@ -83,7 +83,7 @@ export async function getCalendarUsageStats(
       .eq('is_calendar_event', true)
 
     if (tasksError) {
-      logger.error('Failed to fetch calendar tasks', tasksError as Error, { userId, planIds })
+      logger.error('Failed to fetch calendar tasks', tasksError as Error, { userId })
       throw tasksError
     }
 
