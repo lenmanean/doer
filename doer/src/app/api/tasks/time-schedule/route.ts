@@ -235,8 +235,8 @@ export async function GET(request: NextRequest) {
       // Validate planId is a valid UUID format (already validated above, but double-check)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       if (uuidRegex.test(planId)) {
-        // Include both current plan and free-mode indefinite tasks
-        indefQuery = indefQuery.or(`plan_id.is.null,plan_id.eq.${planId}`)
+      // Include both current plan and free-mode indefinite tasks
+      indefQuery = indefQuery.or(`plan_id.is.null,plan_id.eq.${planId}`)
       } else {
         indefQuery = indefQuery.is('plan_id', null)
       }
