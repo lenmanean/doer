@@ -77,8 +77,9 @@ export function initializeGoogleAds(consentCategories: CookieCategory[]): void {
 
   // Initialize dataLayer if not already initialized
   window.dataLayer = window.dataLayer || []
+  const dataLayer = window.dataLayer
   window.gtag = window.gtag || function gtag(...args: any[]) {
-    window.dataLayer.push(args)
+    dataLayer.push(args)
   }
 
   // Set initial timestamp

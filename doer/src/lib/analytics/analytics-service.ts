@@ -40,8 +40,9 @@ export function initializeAnalytics(consentCategories: CookieCategory[]): void {
 
   // Initialize dataLayer
   window.dataLayer = window.dataLayer || []
+  const dataLayer = window.dataLayer
   window.gtag = function gtag(...args: any[]) {
-    window.dataLayer.push(args)
+    dataLayer.push(args)
   }
 
   // Set initial timestamp
