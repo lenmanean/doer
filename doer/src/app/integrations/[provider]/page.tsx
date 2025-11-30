@@ -634,12 +634,71 @@ export default function ProviderIntegrationsPage() {
                     </CardDescription>
                   </div>
                 </div>
-                {connection && (
-                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Connected
-                  </Badge>
-                )}
+                <div className="flex items-center gap-3">
+                  {connection && (
+                    <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Connected
+                    </Badge>
+                  )}
+                  {connection && (
+                    <div className="flex gap-2">
+                      <div className="relative z-50">
+                        <Button
+                          ref={syncButtonRef}
+                          onClick={() => setShowSyncDropdown(!showSyncDropdown)}
+                          disabled={syncing || selectedCalendarIds.length === 0}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                          {syncing ? 'Syncing...' : 'Sync'}
+                          <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
+                        </Button>
+                        {showSyncDropdown && (
+                          <div
+                            ref={syncDropdownRef}
+                            className="absolute top-full right-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-xl z-[9999] min-w-[200px]"
+                          >
+                            <button
+                              onClick={() => {
+                                setShowSyncDropdown(false)
+                                handleSync('basic')
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
+                            >
+                              Sync Present & Future
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowSyncDropdown(false)
+                                handleSync('full')
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
+                            >
+                              Full Sync (All Events)
+                              <span className="block text-xs text-[var(--foreground)]/60 mt-1">
+                                May take longer depending on number of events
+                              </span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => setShowPushPanel(true)}
+                        disabled={selectedCalendarIds.length === 0}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Push
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -792,65 +851,6 @@ export default function ProviderIntegrationsPage() {
                         />
                         <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
                       </label>
-                    </div>
-                  </div>
-                  
-                  {/* Sync Button with Dropdown */}
-                  <div className="relative z-50">
-                    <div className="flex gap-2">
-                      <div className="relative">
-                        <Button
-                          ref={syncButtonRef}
-                          onClick={() => setShowSyncDropdown(!showSyncDropdown)}
-                          disabled={syncing || selectedCalendarIds.length === 0}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                          {syncing ? 'Syncing...' : 'Sync'}
-                          <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
-                        </Button>
-                        {showSyncDropdown && (
-                          <div
-                            ref={syncDropdownRef}
-                            className="absolute top-full left-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-xl z-[9999] min-w-[200px]"
-                          >
-                            <button
-                              onClick={() => {
-                                setShowSyncDropdown(false)
-                                handleSync('basic')
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
-                            >
-                              Sync Present & Future
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowSyncDropdown(false)
-                                handleSync('full')
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
-                            >
-                              Full Sync (All Events)
-                              <span className="block text-xs text-[var(--foreground)]/60 mt-1">
-                                May take longer depending on number of events
-                              </span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <Button
-                          onClick={() => setShowPushPanel(true)}
-                          disabled={selectedCalendarIds.length === 0}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          Push
-                          <ChevronDown className="w-4 h-4" />
-                        </Button>
-                      </div>
                     </div>
                   </div>
                 </div>
