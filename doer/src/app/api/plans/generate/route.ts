@@ -994,7 +994,9 @@ export async function POST(req: NextRequest) {
       // Pass userLocalTime to scheduler for accurate timezone handling
       // userLocalTime is always calculated (line 309) even if not used in timeConstraints
       const schedulerUserLocalTime = timeConstraints?.userLocalTime || userLocalTime
-      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime)
+      // Pass requireStartDate flag if user explicitly required today
+      const requireStartDate = timeConstraints?.requiresToday && timeConstraints?.urgencyLevel === 'high'
+      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate)
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
     } catch (scheduleError) {
       console.error('Error generating task schedule:', scheduleError)

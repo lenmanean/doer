@@ -41,7 +41,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     currentTime,
     existingSchedules = [],
     forceStartDate = false,
-    taskDependencies = new Map<number, number[]>()
+    taskDependencies = new Map<number, number[]>(),
+    requireStartDate = false
   } = options
 
   // COMPREHENSIVE VALIDATION
@@ -823,7 +824,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         durationToSchedule,
         dayConfig,
         currentTime,
-        currentDate
+        currentDate,
+        requireStartDate
       )
 
       if (initialStartTime) {
@@ -845,7 +847,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           const endTime = addMinutesToTime(startTime, durationToSchedule)
           
           // Check if this time slot is in the past (only for current day)
-          if (currentTime && currentDate && dayIndex === 0) {
+          // Skip this check if requireStartDate is true - user explicitly required start date
+          if (currentTime && currentDate && dayIndex === 0 && !requireStartDate) {
             const [startHour, startMinute] = startTime.split(':').map(Number)
             // Create task start time using UTC methods for consistency
             // currentTime is timezone-adjusted, so we use UTC methods
@@ -948,13 +951,15 @@ function findBestTimeSlot(
   duration: number,
   dayConfig: DayScheduleConfig,
   currentTime?: Date,
-  currentDate?: Date
+  currentDate?: Date,
+  requireStartDate?: boolean
 ): string | null {
   // For day 0 (today), respect the earliest start time from currentTime if provided
+  // UNLESS requireStartDate is true - in that case, use workday start time
   let effectiveStartHour = dayConfig.startHour
   let effectiveStartMinute = dayConfig.startMinute
   
-  if (dayIndex === 0 && currentTime && currentDate) {
+  if (dayIndex === 0 && currentTime && currentDate && !requireStartDate) {
     // currentTime is timezone-adjusted (represents user's local time)
     // Use UTC methods to extract user's local time components
     const earliestHour = currentTime.getUTCHours()
@@ -1034,8 +1039,9 @@ function findNextAvailableSlot(
   
   // Determine the earliest we can start (workday start or current time for today)
   // We cannot schedule tasks in the past, so if it's today, we must start from current time
+  // UNLESS requireStartDate is true - in that case, respect user's explicit requirement and schedule from workday start
   let earliestStartMinutes = workdayStartMinutes
-  if (currentTime) {
+  if (currentTime && !requireStartDate) {
     // currentTime is timezone-adjusted - use UTC methods for date comparison
     const currentTimeDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(
       currentTime.getUTCDate()
@@ -1049,6 +1055,17 @@ function findNextAvailableSlot(
       // Use the later of workday start or current time (cannot schedule in past)
       earliestStartMinutes = Math.max(workdayStartMinutes, currentMinutes)
       console.log(`    ⏰ Today's plan - earliest start: ${formatTime(currentHour, currentMinute)} (current time)`)
+    }
+  } else if (requireStartDate && currentTime) {
+    // User explicitly required start date - schedule from workday start even if current time is after workday end
+    const currentTimeDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(
+      currentTime.getUTCDate()
+    ).padStart(2, '0')}`
+    
+    if (currentTimeDateStr === dateStr) {
+      // It's day 0 and user requires start date - use workday start time
+      earliestStartMinutes = workdayStartMinutes
+      console.log(`    ⏰ User required start date - scheduling from workday start: ${formatTime(dayConfig.startHour, dayConfig.startMinute)}`)
     }
   }
   

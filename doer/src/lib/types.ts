@@ -282,6 +282,7 @@ export interface TimeBlockSchedulerOptions {
   availability?: NormalizedAvailability
   forceStartDate?: boolean // If true, prioritize scheduling on start date even if it's a weekend
   taskDependencies?: Map<number, number[]> // Map of task idx -> array of dependent task idxs
+  requireStartDate?: boolean // If true, schedule tasks on day 0 starting from workday start, even if current time is after workday end
 }
 
 // AI-specific types

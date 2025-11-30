@@ -9,7 +9,7 @@ import { detectTaskDependencies } from '@/lib/goal-analysis'
  * Generate time-block schedule for all tasks in a plan.
  * Persists entries into task_schedule.
  */
-export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date, timezoneOffset?: number, userLocalTime?: Date) {
+export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date, timezoneOffset?: number, userLocalTime?: Date, requireStartDate?: boolean) {
   const supabase = await createClient()
 
   // Fetch plan (to get user_id and canonical dates)
@@ -111,7 +111,7 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     currentTime = new Date(Date.UTC(userLocalYear, userLocalMonth, userLocalDate, userLocalHour, userLocalMinute, 0, 0))
   } else {
     // No timezone offset - use server's local time
-    const now = new Date()
+  const now = new Date()
     currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
   }
   
@@ -220,7 +220,8 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     currentTime,
     existingSchedules, // Pass busy slots to avoid conflicts
     forceStartDate, // Force using start date when appropriate
-    taskDependencies // Pass detected dependencies to enforce ordering
+    taskDependencies, // Pass detected dependencies to enforce ordering
+    requireStartDate // If true, schedule tasks on day 0 starting from workday start, even if current time is after workday end
   })
 
   // Persist placements
