@@ -557,30 +557,29 @@ export async function POST(req: NextRequest) {
         
         // Update timeline
         aiContent.timeline_days = adjustedTimelineDays
-      }
-      
-      // Additional deadline validation: check if calculated end date exceeds deadline
-      if (timeConstraints && timeConstraints.deadlineDate && timeConstraints.deadlineType !== 'none') {
-        const calculatedEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-        if (calculatedEndDate > timeConstraints.deadlineDate) {
-          // Recalculate to fit within deadline
-          const daysUntilDeadline = Math.ceil((timeConstraints.deadlineDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24))
-          const maxDays = timeConstraints.deadlineType === 'tomorrow' ? 2 : Math.max(1, daysUntilDeadline + 1)
-          
-          if (adjustedTimelineDays > maxDays) {
-            adjustedTimelineDays = maxDays
-            aiContent.timeline_days = adjustedTimelineDays
+        
+        // Additional deadline validation: check if calculated end date exceeds deadline
+        if (timeConstraints.deadlineDate && timeConstraints.deadlineType !== 'none') {
+          const calculatedEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
+          if (calculatedEndDate > timeConstraints.deadlineDate) {
+            // Recalculate to fit within deadline
+            const daysUntilDeadline = Math.ceil((timeConstraints.deadlineDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24))
+            const maxDays = timeConstraints.deadlineType === 'tomorrow' ? 2 : Math.max(1, daysUntilDeadline + 1)
             
-            if (!timeAdjustmentWarning) {
-              const deadlineStr = formatDateForDB(timeConstraints.deadlineDate)
-              timeAdjustmentWarning = `Plan adjusted to fit within deadline of ${deadlineStr}. Consider reducing scope or starting earlier.`
+            if (adjustedTimelineDays > maxDays) {
+              adjustedTimelineDays = maxDays
+              aiContent.timeline_days = adjustedTimelineDays
+              
+              if (!timeAdjustmentWarning) {
+                const deadlineStr = formatDateForDB(timeConstraints.deadlineDate)
+                timeAdjustmentWarning = `Plan adjusted to fit within deadline of ${deadlineStr}. Consider reducing scope or starting earlier.`
+              }
+              
+              console.log(`⚠️ Timeline capped at ${maxDays} days due to deadline: ${formatDateForDB(timeConstraints.deadlineDate)}`)
             }
-            
-            console.log(`⚠️ Timeline capped at ${maxDays} days due to deadline: ${formatDateForDB(timeConstraints.deadlineDate)}`)
           }
         }
-      }
-    } else {
+      } else {
         console.log('✅ Tasks fit in remaining time:', {
           totalDuration,
           remainingMinutes,
