@@ -387,10 +387,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       }
     }
     
-    if (adjustedTargetDay !== task.targetDay) {
+          if (adjustedTargetDay !== task.targetDay) {
       const reason = taskDependencies.has(task.idx || -1) ? 'dependency constraint' : 'sequence'
       console.log(`  🔗 Adjusting target day for task ${task.idx} (${task.name}): ${task.targetDay} -> ${adjustedTargetDay} (${reason})`)
-      return { ...task, targetDay: adjustedTargetDay }
+            return { ...task, targetDay: adjustedTargetDay }
     }
     
     return task
@@ -580,7 +580,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     if (forceStartDate && task.priority <= 2 && targetDay === 0) {
       searchDaysSet.add(0) // Start date gets highest priority
     } else {
-      searchDaysSet.add(targetDay) // Start with target day
+    searchDaysSet.add(targetDay) // Start with target day
     }
     
     // Calculate max deviation based on priority - lower priority can deviate more
@@ -713,8 +713,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       if (dayConfig.isWeekend) {
         // If weekends are disabled, skip
         if (!allowWeekends) {
-          console.log(`  Skipping weekend (disabled): ${dateStr}`)
-          continue
+        console.log(`  Skipping weekend (disabled): ${dateStr}`)
+        continue
         }
         
         // If this is the start date and forceStartDate is true, prioritize it
@@ -769,10 +769,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           // Don't skip
         } else if (prefersWeekday) {
           // Only skip weekend if there are weekday alternatives available
-          const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
-          if (hasWeekdayCandidate) {
+        const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
+        if (hasWeekdayCandidate) {
             console.log(`    Prefers weekday: skipping weekend ${dateStr} (weekday alternative available)`)
-            continue
+          continue
           }
         }
       }
@@ -847,15 +847,26 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           // Check if this time slot is in the past (only for current day)
           if (currentTime && currentDate && dayIndex === 0) {
             const [startHour, startMinute] = startTime.split(':').map(Number)
-            const taskStartTime = new Date(currentDate)
-            taskStartTime.setHours(startHour, startMinute, 0, 0)
+            // Create task start time using UTC methods for consistency
+            // currentTime is timezone-adjusted, so we use UTC methods
+            const taskStartTime = new Date(Date.UTC(
+              currentDate.getUTCFullYear(),
+              currentDate.getUTCMonth(),
+              currentDate.getUTCDate(),
+              startHour,
+              startMinute,
+              0,
+              0
+            ))
             
-            // Compare dates properly - if same date, compare times
-            const currentDateStr = currentDate.toISOString().split('T')[0]
-            const taskDateStr = taskStartTime.toISOString().split('T')[0]
+            // Compare dates using UTC components
+            const currentDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(currentTime.getUTCDate()).padStart(2, '0')}`
+            const taskDateStr = `${taskStartTime.getUTCFullYear()}-${String(taskStartTime.getUTCMonth() + 1).padStart(2, '0')}-${String(taskStartTime.getUTCDate()).padStart(2, '0')}`
             
             if (currentDateStr === taskDateStr && taskStartTime < currentTime) {
-              console.log(`    Skipping past time slot: ${startTime} (current time: ${currentTime.toTimeString().split(' ')[0]})`)
+              const currentHour = currentTime.getUTCHours()
+              const currentMinute = currentTime.getUTCMinutes()
+              console.log(`    Skipping past time slot: ${startTime} (current time: ${formatTime(currentHour, currentMinute)})`)
               continue
             }
           }
@@ -944,8 +955,10 @@ function findBestTimeSlot(
   let effectiveStartMinute = dayConfig.startMinute
   
   if (dayIndex === 0 && currentTime && currentDate) {
-    const earliestHour = currentTime.getHours()
-    const earliestMinute = currentTime.getMinutes()
+    // currentTime is timezone-adjusted (represents user's local time)
+    // Use UTC methods to extract user's local time components
+    const earliestHour = currentTime.getUTCHours()
+    const earliestMinute = currentTime.getUTCMinutes()
     const earliestMinutes = earliestHour * 60 + earliestMinute
     const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
     
@@ -1023,13 +1036,15 @@ function findNextAvailableSlot(
   // We cannot schedule tasks in the past, so if it's today, we must start from current time
   let earliestStartMinutes = workdayStartMinutes
   if (currentTime) {
-    const currentTimeDateStr = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(
-      currentTime.getDate()
+    // currentTime is timezone-adjusted - use UTC methods for date comparison
+    const currentTimeDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(
+      currentTime.getUTCDate()
     ).padStart(2, '0')}`
 
     if (currentTimeDateStr === dateStr) {
-      const currentHour = currentTime.getHours()
-      const currentMinute = currentTime.getMinutes()
+      // Use UTC methods to get user's local time
+      const currentHour = currentTime.getUTCHours()
+      const currentMinute = currentTime.getUTCMinutes()
       const currentMinutes = currentHour * 60 + currentMinute
       // Use the later of workday start or current time (cannot schedule in past)
       earliestStartMinutes = Math.max(workdayStartMinutes, currentMinutes)
@@ -1093,18 +1108,18 @@ function findNextAvailableSlot(
     }
     
     // There's an overlap, move to after the overlapping slot
-    candidateStart = overlappingSlot.end
-    candidateEnd = candidateStart + duration
-    
-    // Check if we need to skip lunch
-    if (lunchOverlapStart < lunchOverlapEnd && 
-        candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes) {
-      candidateStart = lunchOverlapEndMinutes
+      candidateStart = overlappingSlot.end
       candidateEnd = candidateStart + duration
-    }
-    
-    // Check if still within workday
-    if (candidateEnd > workdayEndMinutes) {
+      
+      // Check if we need to skip lunch
+      if (lunchOverlapStart < lunchOverlapEnd && 
+          candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes) {
+        candidateStart = lunchOverlapEndMinutes
+        candidateEnd = candidateStart + duration
+      }
+      
+      // Check if still within workday
+      if (candidateEnd > workdayEndMinutes) {
       // No more room in workday
       console.log(`    ❌ No available gap found - workday full or task too long`)
       return null

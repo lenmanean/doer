@@ -42,8 +42,16 @@ export function calculateRemainingTime(
   const lunchEndMinutes = lunchEndHour * 60
 
   // Get current time in minutes
-  const currentHour = currentTime.getHours()
-  const currentMinute = currentTime.getMinutes()
+  // IMPORTANT: currentTime should be a Date object created by adjusting UTC time with timezone offset
+  // When we do: new Date(UTC_timestamp - timezoneOffset), the Date object's UTC representation
+  // actually represents the user's local time. So we use getUTCHours() and getUTCMinutes()
+  // to extract the user's local hours and minutes.
+  // Example: Server time 18:56 UTC, user in EST (UTC-5, offset=300)
+  //   userLocalTime = new Date(18:56 UTC - 300 min) = Date representing 13:56 UTC
+  //   userLocalTime.getUTCHours() = 13 (user's local hour) ✓
+  //   userLocalTime.getUTCMinutes() = 56 (user's local minute) ✓
+  const currentHour = currentTime.getUTCHours()
+  const currentMinute = currentTime.getUTCMinutes()
   const currentMinutes = currentHour * 60 + currentMinute
 
   // Check if start date is today

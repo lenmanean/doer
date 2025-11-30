@@ -300,12 +300,19 @@ export async function POST(req: NextRequest) {
     // Calculate time constraints if start date is today
     // Use user's local timezone for accurate time calculations
     const now = new Date()
-    // Adjust server time to user's local timezone
-    const userLocalTime = new Date(now.getTime() - (timezoneOffset * 60 * 1000))
-    const todayUTC = new Date(Date.UTC(userLocalTime.getFullYear(), userLocalTime.getMonth(), userLocalTime.getDate()))
+    // getTimezoneOffset() returns offset in minutes (positive for timezones behind UTC)
+    // To convert UTC to local: UTC time - offset = local time
+    // Example: 18:56 UTC - 300 minutes (EST) = 13:56 EST
+    // Create a Date object representing user's local time
+    // Note: JavaScript Date objects store UTC internally, so we need to be careful
+    const userLocalTimeMs = now.getTime() - (timezoneOffset * 60 * 1000)
+    const userLocalTime = new Date(userLocalTimeMs)
+    
+    // For date comparison, use UTC dates to avoid timezone issues
+    const todayUTC = new Date(Date.UTC(userLocalTime.getUTCFullYear(), userLocalTime.getUTCMonth(), userLocalTime.getUTCDate()))
     const startDateUTC = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()))
     const isStartDateToday = startDateUTC.getTime() === todayUTC.getTime()
-    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean; deadlineDate?: Date; deadlineType?: 'tomorrow' | 'specific_date' | 'none'; timeFormat?: '12h' | '24h'; userLocalTime?: Date } | undefined
+    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean; deadlineDate?: Date; deadlineType?: 'tomorrow' | 'specific_date' | 'none'; timeFormat?: '12h' | '24h'; userLocalTime?: Date; isAfterWorkday?: boolean } | undefined
 
     if (isStartDateToday) {
       // Fetch user's workday settings and time format preference
@@ -322,23 +329,29 @@ export async function POST(req: NextRequest) {
       // Use user's local time for remaining time calculation
       const remainingTime = calculateRemainingTime(startDate, workdaySettings, userLocalTime)
       
+      // Validate: if workday has ended, remainingMinutes must be 0
+      const validatedRemainingMinutes = remainingTime.isAfterWorkday ? 0 : remainingTime.remainingMinutes
+      
       timeConstraints = {
         isStartDateToday: true,
-        remainingMinutes: remainingTime.remainingMinutes,
+        remainingMinutes: validatedRemainingMinutes,
         urgencyLevel: urgencyAnalysis.urgencyLevel,
         requiresToday: urgencyAnalysis.requiresToday,
         deadlineDate: urgencyAnalysis.deadlineDate,
         deadlineType: urgencyAnalysis.deadlineType,
         timeFormat: timeFormat as '12h' | '24h',
         userLocalTime: userLocalTime,
+        isAfterWorkday: remainingTime.isAfterWorkday,
       }
       
       console.log('⏰ Time constraints detected:', {
-        remainingMinutes: remainingTime.remainingMinutes,
+        remainingMinutes: validatedRemainingMinutes,
+        isAfterWorkday: remainingTime.isAfterWorkday,
         urgencyLevel: urgencyAnalysis.urgencyLevel,
         requiresToday: urgencyAnalysis.requiresToday,
         deadlineDate: urgencyAnalysis.deadlineDate,
         deadlineType: urgencyAnalysis.deadlineType,
+        userLocalTime: userLocalTime.toISOString(),
       })
     }
 
@@ -475,7 +488,7 @@ export async function POST(req: NextRequest) {
     let adjustedTimelineDays = timelineDays
     
     if (timeConstraints && timeConstraints.isStartDateToday) {
-      const { remainingMinutes, urgencyLevel, requiresToday, deadlineDate, deadlineType } = timeConstraints
+      const { remainingMinutes, urgencyLevel, requiresToday, deadlineDate, deadlineType, isAfterWorkday } = timeConstraints
       const dailyCapacity = 250 // Realistic daily capacity in minutes
       
       // Calculate maximum allowed days based on deadline
@@ -490,10 +503,17 @@ export async function POST(req: NextRequest) {
         }
       }
       
-      // Check if tasks fit in remaining time
-      if (totalDuration > remainingMinutes) {
+      // If workday has ended, always extend timeline (remainingMinutes should be 0, but check explicitly)
+      const needsExtension = isAfterWorkday || totalDuration > remainingMinutes
+      
+      // Check if tasks fit in remaining time OR if workday has ended
+      if (needsExtension) {
         // Calculate how many additional days are needed
-        const additionalDays = calculateDaysNeeded(totalDuration, remainingMinutes, dailyCapacity)
+        // If workday has ended, we need at least 1 additional day (tomorrow)
+        const effectiveRemainingMinutes = isAfterWorkday ? 0 : remainingMinutes
+        const additionalDays = isAfterWorkday 
+          ? Math.max(1, calculateDaysNeeded(totalDuration, 0, dailyCapacity))
+          : calculateDaysNeeded(totalDuration, remainingMinutes, dailyCapacity)
         let proposedTimelineDays = timelineDays + additionalDays
         
         // Cap timeline at deadline if one exists
@@ -511,7 +531,14 @@ export async function POST(req: NextRequest) {
         const totalHours = Math.ceil(totalDuration / 60)
         const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
         
-        if (deadlineType === 'tomorrow' && adjustedTimelineDays > 2) {
+        // Generate contextual warning based on urgency, deadline, and workday status
+        if (isAfterWorkday && deadlineType === 'tomorrow') {
+          // Workday ended, deadline is tomorrow
+          timeAdjustmentWarning = `The workday has ended (current time: ${formattedCurrentTime}). This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work and will be scheduled for tomorrow to meet your deadline.`
+        } else if (isAfterWorkday) {
+          // Workday ended, no specific deadline
+          timeAdjustmentWarning = `The workday has ended (current time: ${formattedCurrentTime}). This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work and will start tomorrow.`
+        } else if (deadlineType === 'tomorrow' && adjustedTimelineDays > 2) {
           // Deadline is tomorrow but plan needs more days
           timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but your deadline is tomorrow morning. The plan has been adjusted to fit within the deadline. Consider starting earlier or reducing the scope.`
         } else if (deadlineDate && adjustedTimelineDays > maxAllowedDays!) {
@@ -547,6 +574,7 @@ export async function POST(req: NextRequest) {
           adjustedTimeline: adjustedTimelineDays,
           totalDuration,
           remainingMinutes,
+          isAfterWorkday,
           urgencyLevel,
           requiresToday,
           deadlineDate: deadlineDate?.toISOString(),
@@ -580,11 +608,28 @@ export async function POST(req: NextRequest) {
           }
         }
       } else {
-        console.log('✅ Tasks fit in remaining time:', {
-          totalDuration,
-          remainingMinutes,
-          canFit: true,
-        })
+        // Tasks fit in remaining time, but check if workday has ended
+        if (isAfterWorkday) {
+          // Workday ended but tasks fit - this shouldn't happen, but handle it
+          console.log('⚠️ Workday has ended but tasks fit - extending to tomorrow:', {
+            totalDuration,
+            remainingMinutes,
+            isAfterWorkday,
+          })
+          adjustedTimelineDays = Math.max(2, timelineDays) // At least 2 days (today + tomorrow)
+          aiContent.timeline_days = adjustedTimelineDays
+          
+          const timeFormat = timeConstraints.timeFormat || '12h'
+          const userLocalTime = timeConstraints.userLocalTime || new Date()
+          const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+          timeAdjustmentWarning = `The workday has ended (current time: ${formattedCurrentTime}). Plan will start tomorrow.`
+        } else {
+          console.log('✅ Tasks fit in remaining time:', {
+            totalDuration,
+            remainingMinutes,
+            canFit: true,
+          })
+        }
       }
     }
     
@@ -825,7 +870,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await generateTaskSchedule(plan.id, parsedStartDate, endDate)
+      // Pass userLocalTime to scheduler for accurate timezone handling
+      // userLocalTime is always calculated (line 309) even if not used in timeConstraints
+      const schedulerUserLocalTime = timeConstraints?.userLocalTime || userLocalTime
+      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime)
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
     } catch (scheduleError) {
       console.error('Error generating task schedule:', scheduleError)

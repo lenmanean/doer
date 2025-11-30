@@ -9,7 +9,7 @@ import { detectTaskDependencies } from '@/lib/goal-analysis'
  * Generate time-block schedule for all tasks in a plan.
  * Persists entries into task_schedule.
  */
-export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date) {
+export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date, timezoneOffset?: number, userLocalTime?: Date) {
   const supabase = await createClient()
 
   // Fetch plan (to get user_id and canonical dates)
@@ -86,8 +86,44 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   const forceStartDate = singleDay && startIsWeekend
 
   // Get current time to avoid scheduling tasks in the past
-  const now = new Date()
-  const currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
+  // Use passed userLocalTime if provided (timezone-adjusted), otherwise use server time
+  let currentTime: Date
+  if (userLocalTime) {
+    // Use the timezone-adjusted Date directly - it represents user's local time
+    // Extract components using UTC methods since it's timezone-adjusted
+    const userLocalYear = userLocalTime.getUTCFullYear()
+    const userLocalMonth = userLocalTime.getUTCMonth()
+    const userLocalDate = userLocalTime.getUTCDate()
+    const userLocalHour = userLocalTime.getUTCHours()
+    const userLocalMinute = userLocalTime.getUTCMinutes()
+    // Create Date using UTC constructor to preserve the timezone-adjusted representation
+    currentTime = new Date(Date.UTC(userLocalYear, userLocalMonth, userLocalDate, userLocalHour, userLocalMinute, 0, 0))
+  } else if (timezoneOffset !== undefined && timezoneOffset !== 0) {
+    // Fallback: calculate userLocalTime if not provided
+    const now = new Date()
+    const userLocalTimeMs = now.getTime() - (timezoneOffset * 60 * 1000)
+    const calculatedUserLocalTime = new Date(userLocalTimeMs)
+    const userLocalYear = calculatedUserLocalTime.getUTCFullYear()
+    const userLocalMonth = calculatedUserLocalTime.getUTCMonth()
+    const userLocalDate = calculatedUserLocalTime.getUTCDate()
+    const userLocalHour = calculatedUserLocalTime.getUTCHours()
+    const userLocalMinute = calculatedUserLocalTime.getUTCMinutes()
+    currentTime = new Date(Date.UTC(userLocalYear, userLocalMonth, userLocalDate, userLocalHour, userLocalMinute, 0, 0))
+  } else {
+    // No timezone offset - use server's local time
+    const now = new Date()
+    currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
+  }
+  
+  // Add validation and logging
+  console.log('🕐 Current time for scheduler:', {
+    userLocalTime: userLocalTime?.toISOString(),
+    currentTime: currentTime.toISOString(),
+    currentHour: currentTime.getUTCHours(),
+    currentMinute: currentTime.getUTCMinutes(),
+    timezoneOffset: timezoneOffset,
+    isTimezoneAdjusted: !!userLocalTime
+  })
   
   // Detect task dependencies
   const taskDependencies = detectTaskDependencies(
