@@ -407,6 +407,29 @@ export async function POST(req: NextRequest) {
         deadlineType: urgencyAnalysis.deadlineType,
         userLocalTime: userLocalTime.toISOString(),
       })
+      
+      // EARLY FEASIBILITY CHECK: If user explicitly requires "today" and workday has ended, reject before AI generation
+      if (urgencyAnalysis.requiresToday && urgencyAnalysis.urgencyLevel === 'high' && remainingTime.isAfterWorkday) {
+        const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+        
+        console.log('❌ Plan rejected early: User requires completion today, but workday has ended:', {
+          currentTime: formattedCurrentTime,
+          isAfterWorkday: true,
+        })
+        
+        return fail(
+          400,
+          {
+            error: 'INFEASIBLE_GOAL',
+            message: `You requested to complete everything today, but the workday has ended (current time: ${formattedCurrentTime}). It is not possible to complete any tasks today. Please adjust your goal or start date.`,
+          },
+          'infeasible_goal_today_workday_ended_early',
+          {
+            requiresToday: true,
+            isAfterWorkday: true,
+          }
+        )
+      }
     }
 
     try {
@@ -560,6 +583,74 @@ export async function POST(req: NextRequest) {
       
       // If workday has ended, always extend timeline (remainingMinutes should be 0, but check explicitly)
       const needsExtension = isAfterWorkday || totalDuration > remainingMinutes
+      
+      // FEASIBILITY CHECK: If user explicitly requires "today" and it's clearly infeasible, reject the plan
+      if (requiresToday && urgencyLevel === 'high') {
+        // If workday has ended, it's impossible to complete today
+        if (isAfterWorkday) {
+          const timeFormat = timeConstraints.timeFormat || '12h'
+          const userLocalTime = timeConstraints.userLocalTime || new Date()
+          const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+          const totalHours = Math.ceil(totalDuration / 60)
+          
+          console.log('❌ Plan rejected: User requires completion today, but workday has ended:', {
+            currentTime: formattedCurrentTime,
+            totalDuration,
+            totalHours,
+            isAfterWorkday: true,
+          })
+          
+          return fail(
+            400,
+            {
+              error: 'INFEASIBLE_GOAL',
+              message: `You requested to complete everything today, but the workday has ended (current time: ${formattedCurrentTime}). This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work and cannot be completed today. Please adjust your goal or start date.`,
+            },
+            'infeasible_goal_today_workday_ended',
+            {
+              requiresToday: true,
+              isAfterWorkday: true,
+              totalDuration,
+              totalHours,
+            }
+          )
+        }
+        
+        // If there's insufficient time today and it can't be completed in remaining time, reject
+        // Allow some buffer: if remaining time is less than 30 minutes, consider it infeasible
+        if (!isAfterWorkday && totalDuration > remainingMinutes && remainingMinutes < 30) {
+          const timeFormat = timeConstraints.timeFormat || '12h'
+          const userLocalTime = timeConstraints.userLocalTime || new Date()
+          const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+          const totalHours = Math.ceil(totalDuration / 60)
+          const hoursRemaining = Math.floor(remainingMinutes / 60)
+          const minutesRemaining = remainingMinutes % 60
+          
+          console.log('❌ Plan rejected: User requires completion today, but insufficient time remaining:', {
+            currentTime: formattedCurrentTime,
+            remainingMinutes,
+            totalDuration,
+            totalHours,
+            hoursRemaining,
+            minutesRemaining,
+          })
+          
+          return fail(
+            400,
+            {
+              error: 'INFEASIBLE_GOAL',
+              message: `You requested to complete everything today, but this plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work and only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). This cannot be completed today. Please adjust your goal or start date.`,
+            },
+            'infeasible_goal_today_insufficient_time',
+            {
+              requiresToday: true,
+              remainingMinutes,
+              totalDuration,
+              totalHours,
+            }
+          )
+        }
+      }
       
       // Check if tasks fit in remaining time OR if workday has ended
       if (needsExtension) {

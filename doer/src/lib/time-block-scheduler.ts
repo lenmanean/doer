@@ -1059,15 +1059,21 @@ function findNextAvailableSlot(
       console.log(`    ⏰ Today's plan - earliest start: ${formatTime(currentHour, currentMinute)} (current time)`)
     }
   } else if (requireStartDate && currentTime) {
-    // User explicitly required start date - schedule from workday start even if current time is after workday end
+    // User explicitly required start date - but we still cannot schedule in the past
+    // Use the later of workday start or current time to respect both requirements
     const currentTimeDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(
       currentTime.getUTCDate()
     ).padStart(2, '0')}`
     
     if (currentTimeDateStr === dateStr) {
-      // It's day 0 and user requires start date - use workday start time
-      earliestStartMinutes = workdayStartMinutes
-      console.log(`    ⏰ User required start date - scheduling from workday start: ${formatTime(dayConfig.startHour, dayConfig.startMinute)}`)
+      // It's day 0 and user requires start date - but respect current time (cannot schedule in past)
+      // Use UTC methods to get user's local time
+      const currentHour = currentTime.getUTCHours()
+      const currentMinute = currentTime.getUTCMinutes()
+      const currentMinutes = currentHour * 60 + currentMinute
+      // Use the later of workday start or current time (cannot schedule in past, even if user required start date)
+      earliestStartMinutes = Math.max(workdayStartMinutes, currentMinutes)
+      console.log(`    ⏰ User required start date - earliest start: ${formatTime(Math.floor(earliestStartMinutes/60), earliestStartMinutes%60)} (max of workday start ${formatTime(dayConfig.startHour, dayConfig.startMinute)} and current time ${formatTime(currentHour, currentMinute)})`)
     }
   }
   
