@@ -154,22 +154,36 @@ export async function syncCalendarEventsToTasks(
         }
 
         const startTimeStr = formatTimeInTimezone(startTimeUTC, timezone)
-        const endTimeStr = formatTimeInTimezone(endTimeUTC, timezone)
+        const endTimeStrRaw = formatTimeInTimezone(endTimeUTC, timezone)
 
-        // Get date in event's timezone
+        // Get date in event's timezone for start and end
         const dateFormatter = new Intl.DateTimeFormat('en-US', {
           timeZone: timezone,
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
         })
-        const dateParts = dateFormatter.formatToParts(startTimeUTC)
-        const year = parseInt(dateParts.find(p => p.type === 'year')?.value || '0')
-        const month = parseInt(dateParts.find(p => p.type === 'month')?.value || '0') - 1
-        const day = parseInt(dateParts.find(p => p.type === 'day')?.value || '0')
-        const startTimeInTz = new Date(year, month, day)
+        const startDateParts = dateFormatter.formatToParts(startTimeUTC)
+        const endDateParts = dateFormatter.formatToParts(endTimeUTC)
+        
+        const startYear = parseInt(startDateParts.find(p => p.type === 'year')?.value || '0')
+        const startMonth = parseInt(startDateParts.find(p => p.type === 'month')?.value || '0') - 1
+        const startDay = parseInt(startDateParts.find(p => p.type === 'day')?.value || '0')
+        const startTimeInTz = new Date(startYear, startMonth, startDay)
+        
+        const endYear = parseInt(endDateParts.find(p => p.type === 'year')?.value || '0')
+        const endMonth = parseInt(endDateParts.find(p => p.type === 'month')?.value || '0') - 1
+        const endDay = parseInt(endDateParts.find(p => p.type === 'day')?.value || '0')
+        const endTimeInTz = new Date(endYear, endMonth, endDay)
         
         const eventDate = formatDateForDB(startTimeInTz)
+        
+        // Check if event spans multiple days (cross-day event)
+        const isCrossDay = startTimeInTz.getTime() !== endTimeInTz.getTime()
+        
+        // For cross-day events, set end_time to null to avoid constraint violation
+        // The duration_minutes will still be accurate
+        const endTimeStr: string | null = isCrossDay ? null : endTimeStrRaw
 
         // Check if this event or task was previously deleted and restore it
         const wasDeleted = existingTask?.is_deleted_in_calendar
