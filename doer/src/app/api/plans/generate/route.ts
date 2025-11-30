@@ -272,10 +272,10 @@ export async function POST(req: NextRequest) {
     let aiContent: any
 
     // Fetch user availability (existing task schedules + calendar busy slots)
-    const startDate = parseDateFromDB(finalStartDate)
-    const estimatedEndDate = new Date(startDate)
-    estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
-    
+      const startDate = parseDateFromDB(finalStartDate)
+      const estimatedEndDate = new Date(startDate)
+      estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
+      
     let availability: NormalizedAvailability | undefined = undefined
     try {
       // Fetch existing task schedules from task_schedule table
@@ -586,38 +586,78 @@ export async function POST(req: NextRequest) {
         const totalHours = Math.ceil(totalDuration / 60)
         
         // Track if start date will be moved to tomorrow (before we move it)
-        const willMoveStartDate = (needsExtension && !isAfterWorkday && totalDuration > remainingMinutes) || isAfterWorkday
+        // Don't move if user explicitly required today - respect their requirement
+        const shouldRespectTodayRequirement = requiresToday && urgencyLevel === 'high'
+        const willMoveStartDate = !shouldRespectTodayRequirement && ((needsExtension && !isAfterWorkday && totalDuration > remainingMinutes) || isAfterWorkday)
         
         // If there's not enough time today and timeline was extended, move start date to tomorrow
-        // This ensures the plan starts on the day when tasks can actually be scheduled
+        // UNLESS user explicitly required today - in that case, keep today as start date
         if (needsExtension && !isAfterWorkday && totalDuration > remainingMinutes) {
-          // Check if we should move start date to tomorrow
-          // Only move if the current time + buffer would push tasks to tomorrow anyway
-          const tomorrow = addDays(parsedStartDate, 1)
-          adjustedStartDate = formatDateForDB(tomorrow)
-          parsedStartDate = tomorrow
-          console.log('📅 Start date moved to tomorrow due to insufficient time today:', {
-            originalStartDate: finalStartDate,
-            adjustedStartDate: adjustedStartDate,
-            remainingMinutes,
-            totalDuration,
-          })
+          if (shouldRespectTodayRequirement) {
+            // User explicitly required today - keep start date as today
+            // Tasks will be scheduled starting from current time today, and may spill to tomorrow
+            console.log('📅 User explicitly required today - keeping start date as today, tasks may spill to tomorrow:', {
+              originalStartDate: finalStartDate,
+              adjustedStartDate: finalStartDate,
+              remainingMinutes,
+              totalDuration,
+              adjustedTimelineDays,
+            })
+          } else {
+            // Check if we should move start date to tomorrow
+            // Only move if the current time + buffer would push tasks to tomorrow anyway
+            const tomorrow = addDays(parsedStartDate, 1)
+            adjustedStartDate = formatDateForDB(tomorrow)
+            parsedStartDate = tomorrow
+            console.log('📅 Start date moved to tomorrow due to insufficient time today:', {
+              originalStartDate: finalStartDate,
+              adjustedStartDate: adjustedStartDate,
+              remainingMinutes,
+              totalDuration,
+            })
+          }
         } else if (isAfterWorkday) {
-          // Workday has ended - always move start date to tomorrow
-          const tomorrow = addDays(parsedStartDate, 1)
-          adjustedStartDate = formatDateForDB(tomorrow)
-          parsedStartDate = tomorrow
-          console.log('📅 Start date moved to tomorrow (workday has ended):', {
-            originalStartDate: finalStartDate,
-            adjustedStartDate: adjustedStartDate,
-          })
+          // Workday has ended - move start date to tomorrow unless user explicitly required today
+          if (shouldRespectTodayRequirement) {
+            // User explicitly required today, but workday has ended
+            // Keep start date as today, but tasks will start tomorrow
+            // This is a special case - we'll schedule tasks starting tomorrow but keep today as the plan start date
+            console.log('📅 User explicitly required today, but workday has ended - keeping start date as today, tasks will start tomorrow:', {
+              originalStartDate: finalStartDate,
+              adjustedStartDate: finalStartDate,
+            })
+          } else {
+            // Workday has ended - always move start date to tomorrow
+            const tomorrow = addDays(parsedStartDate, 1)
+            adjustedStartDate = formatDateForDB(tomorrow)
+            parsedStartDate = tomorrow
+            console.log('📅 Start date moved to tomorrow (workday has ended):', {
+              originalStartDate: finalStartDate,
+              adjustedStartDate: adjustedStartDate,
+            })
+          }
         }
         
         // Calculate end date after potentially adjusting start date
         const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
         
         // Generate contextual warning based on urgency, deadline, and workday status
-        if (isAfterWorkday && deadlineType === 'tomorrow') {
+        // Check for explicit "today" requirement first to give it priority
+        if (requiresToday && urgencyLevel === 'high') {
+          // User explicitly wanted today - warn about extension but keep start date as today
+          const hoursRemaining = Math.floor(remainingMinutes / 60)
+          const minutesRemaining = remainingMinutes % 60
+          if (isAfterWorkday) {
+            // Workday has ended but user required today - tasks will start tomorrow
+            timeAdjustmentWarning = `You requested to complete everything today, but the workday has ended (current time: ${formattedCurrentTime}). This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work. Tasks will start tomorrow to meet your deadline.`
+          } else if (adjustedTimelineDays === 1) {
+            // Shouldn't happen if requiresToday and insufficient time, but handle it
+            timeAdjustmentWarning = `You requested to complete everything today, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Tasks will start today and may extend to tomorrow.`
+          } else {
+            // Tasks will start today but spill to tomorrow
+            timeAdjustmentWarning = `You requested to complete everything today, but this plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work and only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Tasks will start today and extend to ${formatDateForDB(newEndDate)} to ensure completion.`
+          }
+        } else if (isAfterWorkday && deadlineType === 'tomorrow') {
           // Workday ended, deadline is tomorrow
           timeAdjustmentWarning = `The workday has ended (current time: ${formattedCurrentTime}). This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work and will be scheduled for tomorrow to meet your deadline.`
         } else if (isAfterWorkday) {
@@ -630,17 +670,6 @@ export async function POST(req: NextRequest) {
           // Specific deadline exceeded
           const deadlineStr = formatDateForDB(deadlineDate)
           timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but your deadline is ${deadlineStr}. The plan has been adjusted to fit within the deadline. Consider starting earlier or reducing the scope.`
-        } else if (requiresToday && urgencyLevel === 'high') {
-          // User explicitly wanted today - warn about extension
-          const hoursRemaining = Math.floor(remainingMinutes / 60)
-          const minutesRemaining = remainingMinutes % 60
-          if (adjustedTimelineDays === 1) {
-            timeAdjustmentWarning = `Not enough time remains today (current time: ${formattedCurrentTime}). Plan will start tomorrow.`
-          } else if (willMoveStartDate) {
-            timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan will start tomorrow and extend to ${formatDateForDB(newEndDate)}.`
-          } else {
-            timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)}.`
-          }
         } else if (urgencyLevel === 'medium' && deadlineType === 'tomorrow') {
           // Time-sensitive with tomorrow deadline
           const hoursRemaining = Math.floor(remainingMinutes / 60)
