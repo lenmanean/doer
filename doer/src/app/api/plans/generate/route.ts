@@ -697,23 +697,24 @@ export async function POST(req: NextRequest) {
       
       // Check if tasks fit in remaining time OR if workday has ended
       if (needsExtension) {
-        // Calculate how many additional days are needed
-        // IMPORTANT: If start date was moved to tomorrow, use full-day capacity instead of remaining minutes
-        let effectiveRemainingMinutes: number
+        // Calculate how many days are needed
+        // IMPORTANT: If start date was moved to tomorrow, calculate TOTAL days needed, not additional days
+        let proposedTimelineDays: number
         if (willMoveStartDate) {
-          // Start date moved to tomorrow - use full-day capacity for calculation
-          effectiveRemainingMinutes = dailyCapacity
-          console.log('📅 Start date moved to tomorrow - using full-day capacity for timeline calculation:', {
+          // Start date moved to tomorrow - calculate total days needed from scratch
+          // Total days = ceil(totalDuration / dailyCapacity)
+          proposedTimelineDays = Math.ceil(totalDuration / dailyCapacity)
+          console.log('📅 Start date moved to tomorrow - calculating total days needed:', {
             dailyCapacity,
             totalDuration,
+            totalDaysNeeded: proposedTimelineDays,
           })
         } else {
-          // Still starting today - use remaining minutes
-          effectiveRemainingMinutes = isAfterWorkday ? 0 : remainingMinutes
+          // Still starting today - calculate additional days needed
+          const effectiveRemainingMinutes = isAfterWorkday ? 0 : remainingMinutes
+          const additionalDays = calculateDaysNeeded(totalDuration, effectiveRemainingMinutes, dailyCapacity)
+          proposedTimelineDays = timelineDays + additionalDays
         }
-        
-        const additionalDays = calculateDaysNeeded(totalDuration, effectiveRemainingMinutes, dailyCapacity)
-        let proposedTimelineDays = timelineDays + additionalDays
         
         // Cap timeline at deadline if one exists
         if (maxAllowedDays !== null && proposedTimelineDays > maxAllowedDays) {
