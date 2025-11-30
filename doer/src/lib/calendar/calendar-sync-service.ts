@@ -143,8 +143,8 @@ export async function syncCalendarEventsToTasks(
           (endTimeUTC.getTime() - startTimeUTC.getTime()) / (1000 * 60)
         )
 
-        // Ensure duration is within valid range (5-360 minutes per database constraint)
-        const finalDuration = Math.max(5, Math.min(durationMinutes, 360))
+        // Ensure minimum duration (calendar events can be any length, including all-day/multi-day)
+        const finalDuration = Math.max(durationMinutes, 5)
 
         // Convert UTC times to event's timezone
         const timezone = event.timezone || 'UTC'
