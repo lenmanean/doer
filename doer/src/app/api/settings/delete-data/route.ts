@@ -163,6 +163,128 @@ export async function POST(request: NextRequest) {
       // Continue anyway
     }
 
+    // Delete pending reschedules
+    const { error: pendingReschedulesError } = await supabase
+      .from('pending_reschedules')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (pendingReschedulesError) {
+      console.error('Error deleting pending reschedules:', pendingReschedulesError)
+      // Continue anyway
+    }
+
+    // Delete calendar-related data
+    // Note: calendar_connections cascades to calendar_events, calendar_event_links, etc.
+    const { error: calendarConnectionsError } = await supabase
+      .from('calendar_connections')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (calendarConnectionsError) {
+      console.error('Error deleting calendar connections:', calendarConnectionsError)
+      // Continue anyway
+    }
+
+    // Delete calendar sync logs (in case cascade didn't work)
+    const { error: calendarSyncLogsError } = await supabase
+      .from('calendar_sync_logs')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (calendarSyncLogsError) {
+      console.error('Error deleting calendar sync logs:', calendarSyncLogsError)
+      // Continue anyway
+    }
+
+    // Delete calendar connection events
+    const { error: calendarConnectionEventsError } = await supabase
+      .from('calendar_connection_events')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (calendarConnectionEventsError) {
+      console.error('Error deleting calendar connection events:', calendarConnectionEventsError)
+      // Continue anyway
+    }
+
+    // Delete API tokens
+    const { error: apiTokensError } = await supabase
+      .from('api_tokens')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (apiTokensError) {
+      console.error('Error deleting API tokens:', apiTokensError)
+      // Continue anyway
+    }
+
+    // Delete usage balances
+    const { error: usageBalancesError } = await supabase
+      .from('plan_usage_balances')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (usageBalancesError) {
+      console.error('Error deleting usage balances:', usageBalancesError)
+      // Continue anyway
+    }
+
+    // Delete usage ledger entries
+    const { error: usageLedgerError } = await supabase
+      .from('usage_ledger')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (usageLedgerError) {
+      console.error('Error deleting usage ledger:', usageLedgerError)
+      // Continue anyway
+    }
+
+    // Delete user plan subscriptions (billing data)
+    const { error: subscriptionsError } = await supabase
+      .from('user_plan_subscriptions')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (subscriptionsError) {
+      console.error('Error deleting user plan subscriptions:', subscriptionsError)
+      // Continue anyway
+    }
+
+    // Delete username change audit
+    const { error: usernameAuditError } = await supabase
+      .from('username_change_audit')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (usernameAuditError) {
+      console.error('Error deleting username change audit:', usernameAuditError)
+      // Continue anyway
+    }
+
+    // Delete email change requests
+    const { error: emailChangeRequestsError } = await supabase
+      .from('email_change_requests')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (emailChangeRequestsError) {
+      console.error('Error deleting email change requests:', emailChangeRequestsError)
+      // Continue anyway
+    }
+
+    // Delete email change audit
+    const { error: emailAuditError } = await supabase
+      .from('email_change_audit')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (emailAuditError) {
+      console.error('Error deleting email change audit:', emailAuditError)
+      // Continue anyway
+    }
+
     // Reset user settings to defaults (keep the profile but reset settings)
     const { error: settingsError } = await supabase
       .from('user_settings')
