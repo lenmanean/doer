@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     reserved = true
 
     const body = await req.json()
-    const { goal } = body
+    const { goal, clarifications } = body
 
     if (!goal || !goal.trim()) {
       await creditService!.release('api_credits', CLARIFY_CREDIT_COST, {
@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
 
     const trimmedGoal = goal.trim()
 
-    const feasibility = await evaluateGoalFeasibility(trimmedGoal)
+    // Pass clarifications to AI functions for full contextual awareness
+    const feasibility = await evaluateGoalFeasibility(trimmedGoal, clarifications)
     console.log('🧠 Clarify route feasibility evaluation:', feasibility)
     if (!feasibility.isFeasible) {
       await creditService!.release('api_credits', CLARIFY_CREDIT_COST, {
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    const clarificationNeeds = await analyzeClarificationNeeds(trimmedGoal)
+    const clarificationNeeds = await analyzeClarificationNeeds(trimmedGoal, clarifications)
 
     await creditService!.commit('api_credits', CLARIFY_CREDIT_COST, {
       route: 'clarify',

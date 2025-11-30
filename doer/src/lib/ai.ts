@@ -13,14 +13,22 @@ export const openai = new OpenAI({
 })
 
 import { AIModelRequest } from './types'
+import { combineGoalWithClarifications } from './goal-analysis'
 
 /**
  * Evaluates whether a goal is realistically achievable within the 21-day cap
+ * Includes clarifications for full contextual awareness
  */
-export async function evaluateGoalFeasibility(goal: string): Promise<{
+export async function evaluateGoalFeasibility(
+  goal: string,
+  clarifications?: Record<string, any> | string[]
+): Promise<{
   isFeasible: boolean
   reasoning: string
 }> {
+  // Combine goal with clarifications for full context
+  const contextualGoal = combineGoalWithClarifications(goal, clarifications)
+  
   const prompt = `
 You are a feasibility reviewer. Determine if the following goal can realistically be achieved WITHIN 21 DAYS and provide a short reason.
 
@@ -33,9 +41,11 @@ RULES:
   * Legally/ethically impossible (e.g., "become a licensed doctor in 21 days")
   * Logically contradictory (e.g., "complete a 6-month course in 1 day")
 - For tight timelines or ambitious goals, return isFeasible = true and note the challenge in reasoning.
+- Consider ALL provided context, including any clarifications or additional details.
 - Respond in JSON ONLY: { "isFeasible": boolean, "reasoning": "string" }
 
-Goal: "${goal}"
+Goal and Context:
+"${contextualGoal}"
 `
 
   try {
@@ -63,14 +73,21 @@ Goal: "${goal}"
 
 /**
  * Analyzes a goal to determine if clarification questions are needed
+ * Includes clarifications for full contextual awareness
  */
-export async function analyzeClarificationNeeds(goal: string): Promise<{
+export async function analyzeClarificationNeeds(
+  goal: string,
+  clarifications?: Record<string, any> | string[]
+): Promise<{
   needsClarification: boolean
   questions: string[]
 }> {
+  // Combine goal with clarifications for full context
+  const contextualGoal = combineGoalWithClarifications(goal, clarifications)
+  
   const prompt = `Analyze this goal to determine if clarification questions are needed before creating a plan.
 
-GOAL: "${goal}"
+GOAL AND CONTEXT: "${contextualGoal}"
 
 ANALYSIS CRITERIA:
 - Ambiguity: Is the goal vague or unclear? (e.g., "learn programming" vs "learn Python")
@@ -80,11 +97,12 @@ ANALYSIS CRITERIA:
 - Timeline ambiguity: Can't determine realistic timeline from goal alone? (e.g., "learn programming" - quick intro vs deep mastery?)
 
 DECISION RULES:
-- If goal is SPECIFIC and CLEAR → return empty questions array
+- Consider ALL provided context, including clarifications - if context already answers questions, don't ask them again
+- If goal WITH context is SPECIFIC and CLEAR → return empty questions array
 - If goal needs clarification → generate 1-3 focused questions maximum
 - Questions should be essential for creating a quality plan
-- Avoid obvious questions that don't impact planning
-- Try to infer timeline from goal description first
+- Avoid asking questions that are already answered in the provided context
+- Try to infer timeline from goal description and context first
 
 EXAMPLES:
 - "Run a 5K in under 30 minutes" → CLEAR, no questions needed
@@ -179,9 +197,32 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
       ? `\nAVAILABILITY CONTEXT:\n${availabilityContextLines.join('\n')}\n\n`
       : ''
 
-  const prompt = `Create a structured plan with realistic duration estimates for: "${request.goal}"
+  // Build time constraint context if applicable
+  let timeConstraintContext = ''
+  if (request.timeConstraints && request.timeConstraints.isStartDateToday) {
+    const { remainingMinutes, urgencyLevel, requiresToday } = request.timeConstraints
+    const remainingHours = Math.floor(remainingMinutes / 60)
+    const remainingMins = remainingMinutes % 60
+    
+    timeConstraintContext = `\nTIME CONSTRAINT AWARENESS:
+• Start date is TODAY - only ${remainingHours} hour${remainingHours !== 1 ? 's' : ''} and ${remainingMins} minute${remainingMins !== 1 ? 's' : ''} remain in today's workday
+• User urgency level: ${urgencyLevel.toUpperCase()}${requiresToday ? ' (explicitly requires completion today)' : ''}
+• IMPORTANT: If total task duration exceeds remaining time (${remainingMinutes} minutes):
+  - If user expressed urgency ("today", "by end of day"): Extend timeline_days to include tomorrow and note this adjustment in plan_summary
+  - If no urgency expressed: Extend timeline_days naturally to ensure all tasks can be completed
+• Always ensure timeline_days accounts for available time on start day
+• If extending timeline, distribute tasks across days - don't pack everything into day 1
+• Example: If ${remainingMinutes} min remain but tasks total 300 min → extend to 2 days, start some tasks tomorrow
 
-${request.clarifications && request.clarificationQuestions ? `
+`
+
+  }
+
+  // Combine goal with clarifications for full contextual awareness
+  const contextualGoal = combineGoalWithClarifications(request.goal, request.clarifications)
+  
+  // Build clarifications section for additional context (if structured Q&A format exists)
+  const clarificationsSection = request.clarifications && request.clarificationQuestions ? `
 CLARIFICATIONS PROVIDED:
 ${request.clarificationQuestions.map((q: string, i: number) => {
   const answer = Array.isArray(request.clarifications) 
@@ -190,9 +231,15 @@ ${request.clarificationQuestions.map((q: string, i: number) => {
   return `Q${i + 1}: ${q}\nA${i + 1}: ${answer}`
 }).join('\n\n')}
 
-IMPORTANT: Use these clarifications to tailor the plan. Adjust timeline and task complexity based on user's experience level and specific requirements.` : ''}
+IMPORTANT: Use these clarifications to tailor the plan. Adjust timeline and task complexity based on user's experience level and specific requirements.` : ''
 
-${availabilityContext}DURATION ESTIMATION:
+  const prompt = `Create a structured plan with realistic duration estimates for:
+
+"${contextualGoal}"
+
+${clarificationsSection}
+
+${availabilityContext}${timeConstraintContext}DURATION ESTIMATION:
 • AI determines EXACT duration for each task based on complexity
 • NO hardcoded durations - analyze the specific task context
 • Consider user's goal and realistic completion time
