@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -81,19 +80,8 @@ export default function ProviderIntegrationsPage() {
   const [showSyncDropdown, setShowSyncDropdown] = useState(false)
   const syncDropdownRef = useRef<HTMLDivElement>(null)
   const syncButtonRef = useRef<HTMLButtonElement>(null)
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
   
-  // Calculate dropdown position and close when clicking outside
-  useEffect(() => {
-    if (showSyncDropdown && syncButtonRef.current) {
-      const rect = syncButtonRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-      })
-    }
-  }, [showSyncDropdown])
-
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -807,36 +795,6 @@ export default function ProviderIntegrationsPage() {
                     </div>
                   </div>
                   
-                  {/* Sync Button with Dropdown */}
-                  <div className="relative">
-                    <div className="flex gap-2">
-                      <div className="relative">
-                        <Button
-                          ref={syncButtonRef}
-                          onClick={() => setShowSyncDropdown(!showSyncDropdown)}
-                          disabled={syncing || selectedCalendarIds.length === 0}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                          {syncing ? 'Syncing...' : 'Sync'}
-                          <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
-                        </Button>
-                      </div>
-                      <div className="relative">
-                        <Button
-                          onClick={() => setShowPushPanel(true)}
-                          disabled={selectedCalendarIds.length === 0}
-                          variant="outline"
-                          className="flex items-center gap-2"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          Push
-                          <ChevronDown className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
             </CardContent>
@@ -920,6 +878,75 @@ export default function ProviderIntegrationsPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Sync Controls - Moved here to appear above Recent Sync Activity in stacking order */}
+          {connection && (
+            <Card className="relative z-10">
+              <CardHeader>
+                <CardTitle>Sync Controls</CardTitle>
+                <CardDescription>
+                  Manually sync or push tasks to your calendar
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Button
+                      ref={syncButtonRef}
+                      onClick={() => setShowSyncDropdown(!showSyncDropdown)}
+                      disabled={syncing || selectedCalendarIds.length === 0}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                      {syncing ? 'Syncing...' : 'Sync'}
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
+                    </Button>
+                    {showSyncDropdown && (
+                      <div
+                        ref={syncDropdownRef}
+                        className="absolute top-full left-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-xl z-[100] min-w-[200px]"
+                      >
+                        <button
+                          onClick={() => {
+                            setShowSyncDropdown(false)
+                            handleSync('basic')
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
+                        >
+                          Sync Present & Future
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowSyncDropdown(false)
+                            handleSync('full')
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
+                        >
+                          Full Sync (All Events)
+                          <span className="block text-xs text-[var(--foreground)]/60 mt-1">
+                            May take longer depending on number of events
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Button
+                      onClick={() => setShowPushPanel(true)}
+                      disabled={selectedCalendarIds.length === 0}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Push
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
       
@@ -932,41 +959,6 @@ export default function ProviderIntegrationsPage() {
           connectionId={connection?.id}
           selectedCalendarIds={selectedCalendarIds}
         />
-      )}
-
-      {/* Sync Dropdown Portal */}
-      {showSyncDropdown && typeof window !== 'undefined' && createPortal(
-        <div
-          ref={syncDropdownRef}
-          className="fixed bg-[var(--background)] border border-white/10 rounded-lg shadow-xl z-[9999] min-w-[200px]"
-          style={{
-            top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`,
-          }}
-        >
-          <button
-            onClick={() => {
-              setShowSyncDropdown(false)
-              handleSync('basic')
-            }}
-            className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
-          >
-            Sync Present & Future
-          </button>
-          <button
-            onClick={() => {
-              setShowSyncDropdown(false)
-              handleSync('full')
-            }}
-            className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
-          >
-            Full Sync (All Events)
-            <span className="block text-xs text-[var(--foreground)]/60 mt-1">
-              May take longer depending on number of events
-            </span>
-          </button>
-        </div>,
-        document.body
       )}
     </div>
   )
