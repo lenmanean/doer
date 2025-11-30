@@ -543,30 +543,70 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     return false
   }
 
+  // Calculate existing workload per day from existing schedules
+  const existingWorkloadPerDay = new Map<number, number>()
+  for (const existing of existingSchedules) {
+    if (!existing.date || !existing.start_time || !existing.end_time) continue
+    
+    // Calculate which day index this existing schedule falls on
+    const existingDate = new Date(existing.date + 'T00:00:00')
+    const dayDiff = Math.floor((existingDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (dayDiff >= 0 && dayDiff < totalDays) {
+      // Calculate duration in minutes
+      const [startHour, startMinute] = existing.start_time.split(':').map(Number)
+      const [endHour, endMinute] = existing.end_time.split(':').map(Number)
+      const startMinutes = startHour * 60 + startMinute
+      const endMinutes = endHour * 60 + endMinute
+      const duration = endMinutes - startMinutes
+      
+      if (duration > 0) {
+        const current = existingWorkloadPerDay.get(dayDiff) || 0
+        existingWorkloadPerDay.set(dayDiff, current + duration)
+      }
+    }
+  }
+
   // Workload balancing function
   const balanceWorkloadAcrossDays = (
     tasks: typeof tasksWithTargetDays,
     totalDuration: number,
     totalDays: number,
     getTargetDayRangeFn: (priority: number) => { start: number; end: number },
-    dependencies: Map<number, number[]>
+    dependencies: Map<number, number[]>,
+    existingWorkload: Map<number, number>
   ): typeof tasksWithTargetDays => {
-    // Calculate current workload per day
+    // Calculate current workload per day (new tasks + existing tasks)
     const workloadPerDay = new Map<number, number>()
+    
+    // Start with existing workload
+    existingWorkload.forEach((minutes, day) => {
+      workloadPerDay.set(day, minutes)
+    })
+    
+    // Add new task workload
     tasks.forEach(task => {
       const current = workloadPerDay.get(task.targetDay) || 0
       workloadPerDay.set(task.targetDay, current + (task.estimated_duration_minutes || 0))
     })
     
-    // Calculate ideal workload per day
-    const idealWorkload = totalDuration / totalDays
+    // Calculate ideal workload per day (total new tasks / total days)
+    // Note: We balance only the new tasks, but account for existing workload when deciding where to place them
+    const idealNewTaskWorkload = totalDuration / totalDays
     
     // Log initial workload distribution
-    console.log('⚖️ Workload before balancing:', Array.from(workloadPerDay.entries())
+    const existingWorkloadStr = Array.from(existingWorkload.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([day, workload]) => `Day ${day}: ${workload} min existing`)
+      .join(', ')
+    if (existingWorkloadStr) {
+      console.log('⚖️ Existing workload:', existingWorkloadStr)
+    }
+    console.log('⚖️ Total workload before balancing (existing + new tasks):', Array.from(workloadPerDay.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([day, workload]) => `Day ${day}: ${workload} min`)
       .join(', '))
-    console.log(`⚖️ Ideal workload per day: ${idealWorkload.toFixed(1)} min`)
+    console.log(`⚖️ Ideal new task workload per day: ${idealNewTaskWorkload.toFixed(1)} min`)
     
     // Identify tasks that can be moved (not enforced)
     const flexibleTasks = tasks.filter(t => !t.enforceTargetDay)
@@ -579,8 +619,12 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     
     // Redistribute tasks from heavy days to light days
     for (const [heavyDay, heavyWorkload] of daysByWorkload) {
-      // Skip if day is already balanced (within 10% of ideal)
-      if (heavyWorkload <= idealWorkload * 1.1) continue
+      // Calculate how much of this workload is from existing tasks
+      const existingOnHeavyDay = existingWorkload.get(heavyDay) || 0
+      const newTasksOnHeavyDay = heavyWorkload - existingOnHeavyDay
+      
+      // Skip if new task workload is already balanced (within 10% of ideal)
+      if (newTasksOnHeavyDay <= idealNewTaskWorkload * 1.1) continue
       
       // Find tasks on this day that can be moved
       const tasksToMove = flexibleTasks.filter(t => 
@@ -594,15 +638,22 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         const taskDuration = task.estimated_duration_minutes || 0
         
         // Find lighter days within priority range
+        // Consider both existing workload and new task workload
         const lighterDays = Array.from(workloadPerDay.entries())
-          .filter(([day, workload]) => 
-            day !== heavyDay &&
-            day >= range.start &&
-            day <= range.end &&
-            workload < idealWorkload * 0.9 &&
-            !violatesDependencies(task, day, tasks, dependencies)
-          )
-          .sort((a, b) => a[1] - b[1]) // Lightest first
+          .filter(([day, totalWorkload]) => {
+            const existingOnDay = existingWorkload.get(day) || 0
+            const newTasksOnDay = totalWorkload - existingOnDay
+            
+            return day !== heavyDay &&
+              day >= range.start &&
+              day <= range.end &&
+              newTasksOnDay < idealNewTaskWorkload * 0.9 && // New task workload is light
+              !violatesDependencies(task, day, tasks, dependencies)
+          })
+          .sort((a, b) => {
+            // Sort by total workload (existing + new tasks) - lightest first
+            return a[1] - b[1]
+          })
         
         if (lighterDays.length > 0) {
           const [newDay] = lighterDays[0]
@@ -638,13 +689,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   // Calculate total task duration before balancing
   const totalTaskDuration = tasks.reduce((sum, task) => sum + task.estimated_duration_minutes, 0)
 
-  // Apply workload balancing
+  // Apply workload balancing (accounting for existing schedules)
   tasksWithTargetDays = balanceWorkloadAcrossDays(
     tasksWithTargetDays,
     totalTaskDuration,
     totalActiveDays,
     getTargetDayRange,
-    taskDependencies
+    taskDependencies,
+    existingWorkloadPerDay
   )
   const totalAvailableCapacity = dayConfigs.reduce((sum, config) => {
     if (config.isWeekend && !allowWeekends) {
