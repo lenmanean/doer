@@ -263,18 +263,39 @@ export class AppleCalendarProvider implements CalendarProvider {
     connectionId: string,
     calendarIds: string[],
     syncToken?: string | null,
-    timeMin?: string,
-    timeMax?: string
+    syncType: 'full' | 'basic' = 'basic'
   ): Promise<FetchResult> {
     const caldav = await this.getCalDAVClient(connectionId)
     const allEvents: ExternalEvent[] = []
+    const deletedEventIds: string[] = []
 
-    // If no sync token, do a full sync from timeMin
+    // If no sync token, do a full sync
     const isFullSync = !syncToken
 
-    // Default time range: next 30 days if not specified
-    const defaultTimeMin = timeMin || new Date().toISOString()
-    const defaultTimeMax = timeMax || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    // For basic sync, set timeMin to current date/time (present and future only)
+    // For full sync, don't set timeMin/timeMax (fetch all events)
+    // Note: CalDAV may require date ranges, so for full sync we'll use a very wide range
+    const now = new Date()
+    const startOfTodayUtc = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ))
+
+    let timeMin: string | undefined
+    let timeMax: string | undefined
+
+    if (syncType === 'basic') {
+      // Basic sync: present and future only
+      timeMin = startOfTodayUtc.toISOString()
+      timeMax = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ahead
+    } else {
+      // Full sync: use a very wide range (CalDAV typically requires date ranges)
+      // Use a 10-year range to effectively get all events
+      timeMin = new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString() // 5 years ago
+      timeMax = new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString() // 5 years ahead
+    }
 
     let nextSyncToken: string | null = null
 
@@ -283,8 +304,8 @@ export class AppleCalendarProvider implements CalendarProvider {
       try {
         const { events, nextSyncToken: calendarSyncToken } = await caldav.fetchEvents(
           calendarId,
-          defaultTimeMin,
-          defaultTimeMax,
+          timeMin,
+          timeMax,
           syncToken || undefined
         )
 
@@ -303,8 +324,8 @@ export class AppleCalendarProvider implements CalendarProvider {
           try {
             const { events, nextSyncToken: calendarSyncToken } = await caldav.fetchEvents(
               calendarId,
-              defaultTimeMin,
-              defaultTimeMax
+              timeMin,
+              timeMax
             )
 
             allEvents.push(...events)
@@ -322,8 +343,14 @@ export class AppleCalendarProvider implements CalendarProvider {
       }
     }
 
+    // Note: CalDAV doesn't have a standard way to detect deleted events in a single query
+    // Deleted events would typically be detected via sync-token based incremental syncs
+    // For now, we return an empty array for deletedEventIds
+    // In the future, we could implement CalDAV REPORT queries with sync-token to detect deletions
+
     return {
       events: allEvents,
+      deletedEventIds,
       nextSyncToken,
       isFullSync: isFullSync || !syncToken,
     }
