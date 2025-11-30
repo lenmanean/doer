@@ -419,6 +419,103 @@ export async function POST(req: NextRequest) {
     const endDate = addDays(startDate, aiContent.timeline_days - 1)
     const calculatedEndDate = endDate.toISOString().split('T')[0]
 
+    // Check if start date is today and validate remaining time
+    const today = new Date()
+    const isStartDateToday = startDate.toDateString() === today.toDateString()
+    
+    if (isStartDateToday && timelineDays === 1) {
+      // Single-day plan starting today - check if there's enough time remaining
+      const currentHour = today.getHours()
+      const currentMinute = today.getMinutes()
+      const currentMinutes = currentHour * 60 + currentMinute
+      
+      // Fetch user's workday settings
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      
+      const prefs = (settings?.preferences as any) ?? {}
+      const workdaySettings = prefs.workday || {}
+      
+      // Use user's workday settings or defaults
+      const workdayStartHour = Number(workdaySettings.workday_start_hour ?? 9)
+      const workdayEndHour = Number(workdaySettings.workday_end_hour ?? 17)
+      const lunchStartHour = Number(workdaySettings.lunch_start_hour ?? 12)
+      const lunchEndHour = Number(workdaySettings.lunch_end_hour ?? 13)
+      
+      // Calculate remaining time in workday
+      const workdayStartMinutes = workdayStartHour * 60
+      const workdayEndMinutes = workdayEndHour * 60
+      const lunchStartMinutes = lunchStartHour * 60
+      const lunchEndMinutes = lunchEndHour * 60
+      
+      // Calculate available time remaining
+      let remainingMinutes = 0
+      if (currentMinutes < workdayStartMinutes) {
+        // Before workday starts - full day available
+        remainingMinutes = workdayEndMinutes - workdayStartMinutes - (lunchEndMinutes - lunchStartMinutes)
+      } else if (currentMinutes >= workdayEndMinutes) {
+        // After workday ends - no time remaining
+        remainingMinutes = 0
+      } else {
+        // During workday - calculate remaining time
+        if (currentMinutes < lunchStartMinutes) {
+          // Before lunch - time until lunch + time after lunch
+          remainingMinutes = (lunchStartMinutes - currentMinutes) + (workdayEndMinutes - lunchEndMinutes)
+        } else if (currentMinutes >= lunchEndMinutes) {
+          // After lunch - time until end of workday
+          remainingMinutes = workdayEndMinutes - currentMinutes
+        } else {
+          // During lunch - time after lunch
+          remainingMinutes = workdayEndMinutes - lunchEndMinutes
+        }
+      }
+      
+      // Check if all tasks can fit in remaining time
+      if (totalDuration > remainingMinutes) {
+        const hoursNeeded = Math.ceil(totalDuration / 60)
+        const hoursRemaining = Math.floor(remainingMinutes / 60)
+        const minutesRemaining = remainingMinutes % 60
+        
+        console.error('❌ Insufficient time remaining in today for single-day plan:', {
+          totalDuration,
+          remainingMinutes,
+          currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
+          hoursNeeded,
+          hoursRemaining,
+          minutesRemaining
+        })
+        
+        await supabase.from('onboarding_responses').delete().eq('user_id', user.id)
+        return fail(
+          400,
+          {
+            error: 'INSUFFICIENT_TIME_REMAINING',
+            message: `This single-day plan requires ${hoursNeeded} hour${hoursNeeded !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}). Please start this plan tomorrow or adjust your goal scope.`,
+            redirect: '/onboarding',
+          },
+          'insufficient_time_remaining_today',
+          { 
+            totalDuration, 
+            remainingMinutes, 
+            currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
+            hoursNeeded,
+            hoursRemaining,
+            minutesRemaining
+          }
+        )
+      }
+      
+      console.log('✅ Time validation passed for single-day plan:', {
+        totalDuration,
+        remainingMinutes,
+        currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
+        canFit: totalDuration <= remainingMinutes
+      })
+    }
+
     console.log('✅ AI content validated:', {
       timeline_days: timelineDays,
       ai_end_date: aiContent.end_date,
