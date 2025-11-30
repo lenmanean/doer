@@ -58,13 +58,19 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Enforce route gating
+  // Enforce admin-only site access
   const url = new URL(req.url)
   const pathname = url.pathname
 
-  const PROTECTED_PREFIXES = ['/dashboard', '/schedule', '/roadmap', '/settings', '/community', '/data']
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  // Allow access to login and auth routes for everyone
+  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/')
+  const isAuthRoute = pathname.startsWith('/auth/')
+  
+  if (isLoginRoute || isAuthRoute) {
+    return res
+  }
 
+  // For all other routes, check if user is admin
   let user = null as any
   try {
     const { data, error } = await supabase.auth.getUser()
@@ -73,19 +79,36 @@ export async function middleware(req: NextRequest) {
     user = null
   }
 
-  // Redirect signed-out users away from protected routes
-  if (isProtected && !user) {
+  // If not authenticated, redirect to login
+  if (!user) {
     const redirectUrl = new URL('/login', req.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Prevent visiting login when already authenticated
-  if ((pathname === '/login' || pathname.startsWith('/login')) && user) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+  // If authenticated, check if username is "admin"
+  try {
+    const { data: userSettings, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('username')
+      .eq('user_id', user.id)
+      .single()
+
+    // If no user_settings found or username is not "admin", redirect to login
+    if (settingsError || !userSettings || userSettings.username !== 'admin') {
+      const redirectUrl = new URL('/login', req.url)
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    // User is admin, allow access
+    return res
+  } catch (error) {
+    // On error, redirect to login for safety
+    const redirectUrl = new URL('/login', req.url)
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
   }
-  
-  return res
 }
 
 export const config = {
