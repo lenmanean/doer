@@ -69,6 +69,7 @@ export interface TaskInput {
  */
 export interface FetchResult {
   events: ExternalEvent[]
+  deletedEventIds: string[]
   nextSyncToken: string | null
   isFullSync: boolean
 }
@@ -112,15 +113,13 @@ export interface CalendarProvider {
    * @param connectionId - Connection ID
    * @param calendarIds - Array of calendar IDs to fetch from
    * @param syncToken - Optional sync token for incremental sync
-   * @param timeMin - Optional minimum time for full sync
-   * @param timeMax - Optional maximum time for full sync
+   * @param syncType - 'full' to fetch all events, 'basic' to fetch present and future only
    */
   fetchEvents(
     connectionId: string,
     calendarIds: string[],
     syncToken?: string | null,
-    timeMin?: string,
-    timeMax?: string
+    syncType?: 'full' | 'basic'
   ): Promise<FetchResult>
 
   /**

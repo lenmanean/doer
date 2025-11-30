@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, RefreshCw, Calendar, Link2, Lock } from 'lucide-react'
+import { Check, RefreshCw, Calendar, Link2, Lock, Trash2 } from 'lucide-react'
 import { formatDuration } from '@/lib/task-time-utils'
 import { useState } from 'react'
 
@@ -72,6 +72,7 @@ interface TaskBlockProps {
     date?: string
     is_calendar_event?: boolean
     is_detached?: boolean
+    is_deleted_in_calendar?: boolean
   }
   topPosition: number
   height: number
@@ -148,10 +149,21 @@ export function TaskBlock({
   
   // Calendar events are read-only (not detached)
   const isReadOnly = task.is_calendar_event && !task.is_detached
+  const isDeleted = task.is_deleted_in_calendar === true
+  
+  // Deleted events get special styling
+  const deletedColors = {
+    background: 'bg-gray-500/10',
+    border: 'border-gray-500/20',
+    text: 'text-gray-400',
+    solidBackground: 'rgb(75, 85, 99)'
+  }
+  
+  const finalColors = isDeleted ? deletedColors : displayColors
   
   return (
     <motion.div
-      className={`${isInsideMultiPanel ? 'relative' : 'absolute'} rounded-lg p-2 ${isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'} select-none ${displayColors.background} ${displayColors.border} border-2 ${isReadOnly ? '' : 'hover:shadow-lg'} transition-all duration-200 ${
+      className={`${isInsideMultiPanel ? 'relative' : 'absolute'} rounded-lg p-2 ${isReadOnly || isDeleted ? 'cursor-not-allowed' : 'cursor-pointer'} select-none ${finalColors.background} ${finalColors.border} border-2 ${isReadOnly || isDeleted ? '' : 'hover:shadow-lg'} transition-all duration-200 ${
         isRejectedOverdue 
           ? 'opacity-60 ring-1 ring-gray-500/30' 
           : ''
@@ -159,20 +171,24 @@ export function TaskBlock({
         isReadOnly
           ? 'ring-1 ring-blue-400/30 opacity-90'
           : ''
+      } ${
+        isDeleted
+          ? 'opacity-50 ring-1 ring-gray-500/20'
+          : ''
       }`}
       style={{ 
         ...(isInsideMultiPanel ? {} : { top: `${topPosition}px` }), 
         height: isHovered ? 'auto' : `${Math.max(height, 40)}px`,
         minHeight: `${Math.max(height, 40)}px`,
         zIndex: isHovered ? 30 : 5,
-        opacity: isHovered ? 1 : 0.9,
-        backgroundColor: isHovered && !isReadOnly ? displayColors.solidBackground : undefined,
+        opacity: isDeleted ? 0.5 : (isHovered ? 1 : 0.9),
+        backgroundColor: isHovered && !isReadOnly && !isDeleted ? finalColors.solidBackground : undefined,
         ...style
       }}
-      onClick={isReadOnly ? undefined : onClick}
+      onClick={isReadOnly || isDeleted ? undefined : onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      whileHover={isReadOnly ? {} : { scale: 1.05, zIndex: 30 }}
+      whileHover={isReadOnly || isDeleted ? {} : { scale: 1.05, zIndex: 30 }}
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -181,11 +197,15 @@ export function TaskBlock({
       <div className="flex items-start justify-between gap-2 min-h-full">
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-start gap-1.5 flex-nowrap">
-            <span className={`text-xs font-medium ${displayColors.text} truncate flex-1 min-w-0`} title={taskNameString}>
+            <span className={`text-xs font-medium ${finalColors.text} truncate flex-1 min-w-0`} title={taskNameString}>
               {taskNameString}
             </span>
             <div className="flex items-center gap-1 flex-shrink-0">
-              {task.is_calendar_event === true ? (
+              {isDeleted ? (
+                <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0 bg-gray-500/20 text-gray-400 border border-gray-500/30" title="Deleted in Google Calendar">
+                  <Trash2 className="w-2.5 h-2.5" />
+                </span>
+              ) : task.is_calendar_event === true ? (
                 <span className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-medium flex-shrink-0 ${
                   task.is_detached
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
@@ -251,7 +271,7 @@ export function TaskBlock({
           onClick={(e) => {
             e.stopPropagation()
             if (!isReadOnly) {
-              onComplete()
+            onComplete()
             }
           }}
           disabled={isReadOnly}

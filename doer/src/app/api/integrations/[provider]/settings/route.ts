@@ -41,7 +41,7 @@ export async function PATCH(
     // Get user's calendar connection (fetch current values to track changes)
     const { data: connection, error: connectionError } = await supabase
       .from('calendar_connections')
-      .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, sync_range_days')
+      .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled')
       .eq('user_id', user.id)
       .eq('provider', provider)
       .single()
@@ -58,7 +58,6 @@ export async function PATCH(
       selected_calendar_ids: connection.selected_calendar_ids,
       auto_sync_enabled: connection.auto_sync_enabled,
       auto_push_enabled: connection.auto_push_enabled,
-      sync_range_days: connection.sync_range_days,
     }
 
     // Parse request body
@@ -141,17 +140,6 @@ export async function PATCH(
         updates.auto_push_enabled = newValue
         changedFields.push('auto_push_enabled')
         newValues.auto_push_enabled = newValue
-      }
-    }
-
-    if (body.sync_range_days !== undefined) {
-      const newValue = typeof body.sync_range_days === 'number' && body.sync_range_days > 0 && body.sync_range_days <= 365
-        ? body.sync_range_days
-        : 30
-      if (oldValues.sync_range_days !== newValue) {
-        updates.sync_range_days = newValue
-        changedFields.push('sync_range_days')
-        newValues.sync_range_days = newValue
       }
     }
 

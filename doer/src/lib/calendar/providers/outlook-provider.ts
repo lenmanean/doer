@@ -60,7 +60,7 @@ interface MicrosoftGraphCalendar {
  * Microsoft Graph delta response
  */
 interface MicrosoftGraphDeltaResponse {
-  value: MicrosoftGraphEvent[]
+  value: (MicrosoftGraphEvent & { '@removed'?: { reason: string } })[]
   '@odata.deltaLink'?: string
   '@odata.nextLink'?: string
 }
@@ -291,18 +291,17 @@ export class OutlookCalendarProvider implements CalendarProvider {
     connectionId: string,
     calendarIds: string[],
     syncToken?: string | null,
-    timeMin?: string,
-    timeMax?: string
+    syncType: 'full' | 'basic' = 'basic'
   ): Promise<FetchResult> {
     const client = await this.getGraphClient(connectionId)
     const allEvents: ExternalEvent[] = []
+    const deletedEventIds: string[] = []
 
-    // If no sync token, do a full sync from timeMin
+    // If no sync token, do a full sync
     const isFullSync = !syncToken
 
-    // Default time range for full sync:
-    // - Start: beginning of today (in UTC) so we include all of today's events
-    // - End: 30 days from now
+    // For basic sync, set timeMin to current date/time (present and future only)
+    // For full sync, don't set timeMin/timeMax (fetch all events)
     const now = new Date()
     const startOfTodayUtc = new Date(Date.UTC(
       now.getUTCFullYear(),
@@ -310,9 +309,6 @@ export class OutlookCalendarProvider implements CalendarProvider {
       now.getUTCDate(),
       0, 0, 0, 0
     ))
-
-    const defaultTimeMin = timeMin || startOfTodayUtc.toISOString()
-    const defaultTimeMax = timeMax || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
     let nextSyncToken: string | null = null
 
@@ -341,8 +337,17 @@ export class OutlookCalendarProvider implements CalendarProvider {
             }
           } else {
             const deltaData: MicrosoftGraphDeltaResponse = await deltaResponse.json()
-            const events = this.convertGraphEventsToExternal(deltaData.value || [])
-            allEvents.push(...events)
+            // Separate deleted events from regular events
+            for (const item of deltaData.value || []) {
+              if (item['@removed']) {
+                deletedEventIds.push(item.id)
+              } else {
+                const event = this.convertGraphEventsToExternal([item])[0]
+                if (event) {
+                  allEvents.push(event)
+                }
+              }
+            }
 
             if (deltaData['@odata.deltaLink']) {
               nextSyncToken = deltaData['@odata.deltaLink']
@@ -351,9 +356,18 @@ export class OutlookCalendarProvider implements CalendarProvider {
             // Handle pagination
             let nextLink = deltaData['@odata.nextLink']
             while (nextLink) {
-              const nextResponse = await client.api(nextLink).get()
-              const nextEvents = this.convertGraphEventsToExternal(nextResponse.value || [])
-              allEvents.push(...nextEvents)
+              const nextResponse: MicrosoftGraphDeltaResponse = await client.api(nextLink).get()
+              // Separate deleted events from regular events
+              for (const item of nextResponse.value || []) {
+                if (item['@removed']) {
+                  deletedEventIds.push(item.id)
+                } else {
+                  const event = this.convertGraphEventsToExternal([item])[0]
+                  if (event) {
+                    allEvents.push(event)
+                  }
+                }
+              }
 
               if (nextResponse['@odata.deltaLink']) {
                 nextSyncToken = nextResponse['@odata.deltaLink']
@@ -368,10 +382,14 @@ export class OutlookCalendarProvider implements CalendarProvider {
 
         // Full sync or initial delta query
         const params: Record<string, string> = {
-          startDateTime: defaultTimeMin,
-          endDateTime: defaultTimeMax,
           $select: 'id,subject,body,start,end,isAllDay,showAs,singleValueExtendedProperties',
           $orderby: 'start/dateTime',
+        }
+        
+        // For basic sync, set startDateTime to current date/time (present and future only)
+        // For full sync, don't set startDateTime/endDateTime (fetch all events)
+        if (syncType === 'basic') {
+          params.startDateTime = startOfTodayUtc.toISOString()
         }
 
         const queryString = new URLSearchParams(params).toString()
@@ -380,8 +398,24 @@ export class OutlookCalendarProvider implements CalendarProvider {
           : `/me/calendars/${calendarId}/calendarView?${queryString}`
 
         let response: any = await client.api(url).get()
-        const events = this.convertGraphEventsToExternal(response.value || [])
-        allEvents.push(...events)
+        // For delta queries, check for deleted events
+        if (syncToken) {
+          // Delta query - check for @removed
+          for (const item of response.value || []) {
+            if (item['@removed']) {
+              deletedEventIds.push(item.id)
+            } else {
+              const event = this.convertGraphEventsToExternal([item])[0]
+              if (event) {
+                allEvents.push(event)
+              }
+            }
+          }
+        } else {
+          // Regular query - no deleted events
+          const events = this.convertGraphEventsToExternal(response.value || [])
+          allEvents.push(...events)
+        }
 
         // Handle pagination and delta links
         if (response['@odata.deltaLink']) {
@@ -389,10 +423,24 @@ export class OutlookCalendarProvider implements CalendarProvider {
         } else if (response['@odata.nextLink']) {
           // Handle pagination
           let nextLink = response['@odata.nextLink']
-          while (nextLink) {
-            const nextResponse = await client.api(nextLink).get()
-            const nextEvents = this.convertGraphEventsToExternal(nextResponse.value || [])
-            allEvents.push(...nextEvents)
+            while (nextLink) {
+            const nextResponse: any = await client.api(nextLink).get()
+            // For delta queries, check for deleted events
+            if (syncToken) {
+              for (const item of nextResponse.value || []) {
+                if (item['@removed']) {
+                  deletedEventIds.push(item.id)
+                } else {
+                  const event = this.convertGraphEventsToExternal([item])[0]
+                  if (event) {
+                    allEvents.push(event)
+                  }
+                }
+              }
+            } else {
+              const nextEvents = this.convertGraphEventsToExternal(nextResponse.value || [])
+              allEvents.push(...nextEvents)
+            }
 
             if (nextResponse['@odata.deltaLink']) {
               nextSyncToken = nextResponse['@odata.deltaLink']
@@ -408,13 +456,16 @@ export class OutlookCalendarProvider implements CalendarProvider {
           
           // Retry without sync token
           try {
-            const params: Record<string, string> = {
-              startDateTime: defaultTimeMin,
-              endDateTime: defaultTimeMax,
+            const retryParams: Record<string, string> = {
               $select: 'id,subject,body,start,end,isAllDay,showAs,singleValueExtendedProperties',
               $orderby: 'start/dateTime',
             }
-            const queryString = new URLSearchParams(params).toString()
+            
+            if (syncType === 'basic') {
+              retryParams.startDateTime = startOfTodayUtc.toISOString()
+            }
+            
+            const queryString = new URLSearchParams(retryParams).toString()
             const url = `/me/calendars/${calendarId}/calendarView?${queryString}`
             
             const response = await client.api(url).get()
@@ -438,6 +489,7 @@ export class OutlookCalendarProvider implements CalendarProvider {
 
     return {
       events: allEvents,
+      deletedEventIds,
       nextSyncToken,
       isFullSync: isFullSync || !syncToken,
     }

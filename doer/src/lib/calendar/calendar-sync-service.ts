@@ -18,13 +18,14 @@ export interface SyncCalendarEventsResult {
 /**
  * Sync calendar events to tasks (without integration plans)
  * Stores tasks with plan_id = null and is_calendar_event = true
+ * Fetches all events (no date filtering) and handles deleted events
  */
 export async function syncCalendarEventsToTasks(
   connectionId: string,
   userId: string,
   provider: 'google' | 'outlook' | 'apple',
   calendarIds: string[],
-  timeRangeDays: number = 30
+  deletedEventIds: string[] = []
 ): Promise<SyncCalendarEventsResult> {
   const supabase = await createClient()
 
@@ -45,23 +46,14 @@ export async function syncCalendarEventsToTasks(
       throw new Error('Connection not found or access denied')
     }
 
-    // Calculate date range for fetching events
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const startDate = new Date(today)
-    startDate.setDate(startDate.getDate() - timeRangeDays)
-    const endDate = new Date(today)
-    endDate.setDate(endDate.getDate() + timeRangeDays)
-
-    // Fetch calendar events for this connection within date range
+    // Fetch ALL calendar events for this connection (no date filtering)
     const { data: calendarEventsData, error: eventsError } = await supabase
       .from('calendar_events')
       .select('*')
       .eq('calendar_connection_id', connectionId)
       .eq('is_busy', true)
       .eq('is_doer_created', false)
-      .gte('start_time', startDate.toISOString())
-      .lte('start_time', endDate.toISOString())
+      .eq('is_deleted_in_calendar', false) // Only sync non-deleted events
       .order('start_time', { ascending: true })
 
     if (eventsError) {
@@ -78,11 +70,7 @@ export async function syncCalendarEventsToTasks(
       connectionId,
       userId,
       eventCount: calendarEvents.length,
-      timeRangeDays,
-      dateRange: {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
-      },
+      deletedEventCount: deletedEventIds.length,
       eventIds: calendarEvents.map((e: any) => e.id).slice(0, 5), // Log first 5 IDs
     })
 
@@ -183,14 +171,42 @@ export async function syncCalendarEventsToTasks(
         
         const eventDate = formatDateForDB(startTimeInTz)
 
+        // Check if this event or task was previously deleted and restore it
+        const wasDeleted = existingTask?.is_deleted_in_calendar
+        if (wasDeleted) {
+          // Restore the event - clear deletion flags
+          const { error: restoreEventError } = await supabase
+            .from('calendar_events')
+            .update({
+              is_deleted_in_calendar: false,
+              deleted_at: null,
+            })
+            .eq('id', event.id)
+          
+          if (restoreEventError) {
+            logger.warn('Failed to restore deleted calendar event', {
+              eventId: event.id,
+              error: restoreEventError.message,
+            })
+          } else {
+            logger.info('Restored previously deleted calendar event', {
+              eventId: event.id,
+              taskId: existingTask.id,
+            })
+          }
+        }
+
         if (existingTask) {
           // Update existing task (calendar events are always synced, never detached)
+          // Remove "[Deleted in Google Calendar]" suffix if present
+          const taskName = (event.summary || 'Untitled Event').replace(/\s*\[Deleted in.*?\]\s*$/, '')
           const { error: updateError } = await supabase
             .from('tasks')
             .update({
-              name: event.summary || 'Untitled Event',
+              name: taskName,
               details: event.description || null,
               estimated_duration_minutes: finalDuration,
+              is_deleted_in_calendar: false, // Clear deletion flag if it was restored
             })
             .eq('id', existingTask.id)
             .eq('user_id', userId)
@@ -463,12 +479,18 @@ export async function syncCalendarEventsToTasks(
       }
     }
 
+    // Handle deleted events
+    if (deletedEventIds.length > 0) {
+      await handleDeletedCalendarEvents(connectionId, userId, deletedEventIds)
+    }
+
     logger.info('Synced calendar events to tasks', {
       connectionId,
       userId,
       tasksCreated,
       tasksUpdated,
       tasksSkipped,
+      deletedEvents: deletedEventIds.length,
       errors: errors.length,
     })
 
@@ -488,7 +510,7 @@ export async function syncCalendarEventsToTasks(
 }
 
 /**
- * Handle deleted calendar events - remove task schedules
+ * Handle deleted calendar events - mark them as deleted but keep them in DOER
  */
 export async function handleDeletedCalendarEvents(
   connectionId: string,
@@ -514,52 +536,92 @@ export async function handleDeletedCalendarEvents(
       return
     }
 
+    if (deletedEventIds.length === 0) {
+      return
+    }
+
+    // Find calendar events by external_event_id
+    const { data: calendarEvents, error: eventsError } = await supabase
+      .from('calendar_events')
+      .select('id, external_event_id, summary')
+      .eq('calendar_connection_id', connectionId)
+      .in('external_event_id', deletedEventIds)
+
+    if (eventsError) {
+      logger.error('Failed to find calendar events for deletion', eventsError as Error)
+      return
+    }
+
+    if (!calendarEvents || calendarEvents.length === 0) {
+      return
+    }
+
+    const calendarEventIds = calendarEvents.map((e) => e.id)
+
+    // Mark calendar events as deleted
+    const { error: updateEventsError } = await supabase
+      .from('calendar_events')
+      .update({
+        is_deleted_in_calendar: true,
+        deleted_at: new Date().toISOString(),
+      })
+      .in('id', calendarEventIds)
+
+    if (updateEventsError) {
+      logger.error('Failed to mark calendar events as deleted', updateEventsError as Error)
+    }
+
     // Find tasks linked to deleted events
-    const { data: tasks, error } = await supabase
+    const { data: tasks, error: tasksError } = await supabase
       .from('tasks')
-      .select('id, user_id')
-      .in('calendar_event_id', deletedEventIds)
+      .select('id, name, user_id')
+      .in('calendar_event_id', calendarEventIds)
       .eq('is_calendar_event', true)
       .is('plan_id', null)
       .eq('user_id', userId)
 
-    if (error) {
-      logger.error('Failed to find tasks for deleted events', error as Error)
+    if (tasksError) {
+      logger.error('Failed to find tasks for deleted events', tasksError as Error)
       return
     }
 
     if (!tasks || tasks.length === 0) {
+      logger.info('No tasks found for deleted calendar events', {
+        connectionId,
+        userId,
+        deletedEventCount: deletedEventIds.length,
+      })
       return
     }
 
-    // Remove task schedules
+    // Mark tasks as deleted and update name to indicate deletion
     const taskIds = tasks.map((t) => t.id)
-    const { error: scheduleError } = await supabase
-      .from('task_schedule')
-      .delete()
-      .in('task_id', taskIds)
-      .is('plan_id', null)
+    for (const task of tasks) {
+      const deletedName = task.name?.includes('[Deleted in') 
+        ? task.name 
+        : `${task.name} [Deleted in Google Calendar]`
+      
+      const { error: updateTaskError } = await supabase
+        .from('tasks')
+        .update({
+          is_deleted_in_calendar: true,
+          name: deletedName,
+        })
+        .eq('id', task.id)
+        .eq('user_id', userId)
 
-    if (scheduleError) {
-      logger.error('Failed to delete task schedules', scheduleError as Error)
-    }
-
-    // Delete the tasks themselves (since they're read-only calendar events)
-    const { error: taskDeleteError } = await supabase
-      .from('tasks')
-      .delete()
-      .in('id', taskIds)
-      .eq('user_id', userId)
-
-    if (taskDeleteError) {
-      logger.error('Failed to delete tasks for deleted events', taskDeleteError as Error)
+      if (updateTaskError) {
+        logger.error('Failed to mark task as deleted', updateTaskError as Error, {
+          taskId: task.id,
+        })
+      }
     }
 
     logger.info('Handled deleted calendar events', {
       connectionId,
       userId,
       deletedCount: deletedEventIds.length,
-      tasksRemoved: tasks.length,
+      tasksMarked: tasks.length,
     })
   } catch (error) {
     logger.error('Error handling deleted calendar events', error as Error, {

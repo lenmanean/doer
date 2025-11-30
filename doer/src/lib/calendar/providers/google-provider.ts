@@ -197,23 +197,19 @@ export class GoogleCalendarProvider implements CalendarProvider {
     connectionId: string,
     calendarIds: string[],
     syncToken?: string | null,
-    timeMin?: string,
-    timeMax?: string
+    syncType: 'full' | 'basic' = 'basic'
   ): Promise<FetchResult> {
     const calendar = await this.getCalendarClient(connectionId)
     const allEvents: ExternalEvent[] = []
+    const deletedEventIds: string[] = []
 
-    // If no sync token, do a full sync from timeMin
+    // If no sync token, do a full sync
     const isFullSync = !syncToken
 
-    // Default time range for full sync:
-    // - Start: beginning of today (in UTC) so we include all of today's events
-    // - End: 30 days from now
+    // For basic sync, set timeMin to current date/time (present and future only)
+    // For full sync, don't set timeMin/timeMax (fetch all events)
     const now = new Date()
     const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0))
-
-    const defaultTimeMin = timeMin || startOfTodayUtc.toISOString()
-    const defaultTimeMax = timeMax || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
     let nextSyncToken: string | null = null
 
@@ -225,22 +221,33 @@ export class GoogleCalendarProvider implements CalendarProvider {
           singleEvents: true,
           orderBy: 'startTime',
           maxResults: 2500,
+          showDeleted: true, // Always show deleted events to detect deletions
         }
 
         if (syncToken) {
-          // Incremental sync
+          // Incremental sync - only fetch changes since last sync
           params.syncToken = syncToken
         } else {
-          // Full sync
-          params.timeMin = defaultTimeMin
-          params.timeMax = defaultTimeMax
-          params.showDeleted = true // Include deleted events on full sync
+          // Full sync - determine date range based on syncType
+          if (syncType === 'basic') {
+            // Basic sync: present and future only
+            params.timeMin = startOfTodayUtc.toISOString()
+          }
+          // For full sync, don't set timeMin/timeMax - fetch all events
         }
 
         const response = await calendar.events.list(params)
         const items = response.data.items || []
 
-        allEvents.push(...(items as ExternalEvent[]))
+        // Separate regular events from deleted events
+        for (const item of items) {
+          // Google Calendar marks deleted events with status: 'cancelled'
+          if (item.status === 'cancelled') {
+            deletedEventIds.push(item.id || '')
+          } else {
+            allEvents.push(item as ExternalEvent)
+          }
+        }
 
         // Store the sync token for next sync
         if (response.data.nextSyncToken) {
@@ -256,7 +263,13 @@ export class GoogleCalendarProvider implements CalendarProvider {
           })
 
           const nextItems = nextResponse.data.items || []
-          allEvents.push(...(nextItems as ExternalEvent[]))
+          for (const item of nextItems) {
+            if (item.status === 'cancelled') {
+              deletedEventIds.push(item.id || '')
+            } else {
+              allEvents.push(item as ExternalEvent)
+            }
+          }
 
           pageToken = nextResponse.data.nextPageToken
           if (nextResponse.data.nextSyncToken) {
@@ -268,18 +281,28 @@ export class GoogleCalendarProvider implements CalendarProvider {
         if (error instanceof Error && error.message.includes('Invalid sync token')) {
           logger.warn('Sync token invalid, need full sync', { connectionId, calendarId })
           // Retry without sync token
-          const response = await calendar.events.list({
+          const retryParams: calendar_v3.Params$Resource$Events$List = {
             calendarId,
-            timeMin: defaultTimeMin,
-            timeMax: defaultTimeMax,
             singleEvents: true,
             orderBy: 'startTime',
             showDeleted: true,
             maxResults: 2500,
-          })
-
+          }
+          
+          if (syncType === 'basic') {
+            retryParams.timeMin = startOfTodayUtc.toISOString()
+          }
+          
+          const response = await calendar.events.list(retryParams)
           const items = response.data.items || []
-          allEvents.push(...(items as ExternalEvent[]))
+          
+          for (const item of items) {
+            if (item.status === 'cancelled') {
+              deletedEventIds.push(item.id || '')
+            } else {
+              allEvents.push(item as ExternalEvent)
+            }
+          }
 
           if (response.data.nextSyncToken) {
             nextSyncToken = response.data.nextSyncToken
@@ -293,6 +316,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
 
     return {
       events: allEvents,
+      deletedEventIds,
       nextSyncToken,
       isFullSync: isFullSync || !syncToken,
     }

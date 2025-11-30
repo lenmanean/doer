@@ -67,6 +67,7 @@ interface TaskTimeEditModalProps {
     priority?: number | null
     is_calendar_event?: boolean
     is_detached?: boolean
+    is_deleted_in_calendar?: boolean
   } | null
   isOpen: boolean
   onClose: () => void
@@ -242,8 +243,8 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
 
   if (!task) return null
 
-  // Calendar events are read-only (not detached)
-  const isReadOnly = task.is_calendar_event && !task.is_detached
+  // Calendar events are read-only (not detached) or deleted
+  const isReadOnly = (task.is_calendar_event && !task.is_detached) || task.is_deleted_in_calendar
 
   const priorityLabel = getPriorityLabel(task.priority ?? null)
   const priorityBadgeClass = priorityLabel ? getPriorityBadgeClasses(task.priority ?? null, theme) : ''
@@ -427,13 +428,13 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                         {editedName}
                       </h3>
                       {!isReadOnly && (
-                        <button
-                          onClick={handleNameEdit}
-                          className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300"
-                          title="Edit name"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                      <button
+                        onClick={handleNameEdit}
+                        className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300"
+                        title="Edit name"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
                       )}
                     </div>
                   )}
@@ -492,13 +493,13 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                         )}
                       </div>
                       {!isReadOnly && (
-                        <button
-                          onClick={handleDescriptionEdit}
-                          className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300 flex-shrink-0"
-                          title="Edit description"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                      <button
+                        onClick={handleDescriptionEdit}
+                        className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300 flex-shrink-0"
+                        title="Edit description"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
                       )}
                     </div>
                   )}
@@ -556,6 +557,31 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                 </div>
               )}
 
+              {/* Deleted Event Warning */}
+              {task.is_deleted_in_calendar && (
+                <div className={`p-3 rounded-lg border ${
+                  theme === 'dark' ? 'bg-gray-500/10 border-gray-500/30' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-start gap-2">
+                    <Trash2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`} />
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium mb-1 ${
+                        theme === 'dark' ? 'text-gray-300' : 'text-gray-800'
+                      }`}>
+                        Deleted in Google Calendar
+                      </p>
+                      <p className={`text-xs ${
+                        theme === 'dark' ? 'text-gray-400/80' : 'text-gray-700'
+                      }`}>
+                        This event was deleted in your Google Calendar. The task is kept in DOER for reference but cannot be edited.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Start Time */}
               <div>
                 <label htmlFor="start-time" className={`text-sm font-medium block mb-2 ${
@@ -568,8 +594,8 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   value={startTime}
                   onChange={(value) => {
                     if (!isReadOnly) {
-                      setStartTime(value)
-                      setError(null)
+                    setStartTime(value)
+                    setError(null)
                     }
                   }}
                   theme={theme}
@@ -589,8 +615,8 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   value={endTime}
                   onChange={(value) => {
                     if (!isReadOnly) {
-                      setEndTime(value)
-                      setError(null)
+                    setEndTime(value)
+                    setError(null)
                     }
                   }}
                   theme={theme}
@@ -790,16 +816,16 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
               theme === 'dark' ? 'border-white/10' : 'border-gray-200'
             }`}>
               {!isReadOnly && (
-                <button
-                  onClick={handleDelete}
-                  disabled={saving}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
-                    'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50'
-                  } disabled:opacity-50`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Task
-                </button>
+              <button
+                onClick={handleDelete}
+                disabled={saving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                  'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50'
+                } disabled:opacity-50`}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Task
+              </button>
               )}
               {isReadOnly && <div />}
               <div className="flex items-center gap-3">
@@ -815,17 +841,17 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   Close
                 </button>
                 {!isReadOnly && (
-                  <button
-                    onClick={handleSave}
-                    disabled={saving || calculatedDuration <= 0}
-                    className={`px-4 py-2 rounded-lg transition-colors font-medium ${
-                      calculatedDuration <= 0
-                        ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                        : 'bg-[#ff7f00] hover:bg-[#ff8c1a] text-white'
-                    } disabled:opacity-50`}
-                  >
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || calculatedDuration <= 0}
+                  className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                    calculatedDuration <= 0
+                      ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                      : 'bg-[#ff7f00] hover:bg-[#ff8c1a] text-white'
+                  } disabled:opacity-50`}
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
                 )}
               </div>
             </div>

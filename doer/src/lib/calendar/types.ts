@@ -35,6 +35,8 @@ export interface CalendarEvent {
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
+  is_deleted_in_calendar?: boolean
+  deleted_at?: string | null
 }
 
 export interface CalendarEventLink {
@@ -70,6 +72,8 @@ export interface CalendarSyncLog {
   completed_at: string | null
   created_at: string
 }
+
+export type SyncType = 'full' | 'basic'
 
 export interface GoogleCalendarEvent {
   id: string

@@ -77,7 +77,7 @@ export default function ProviderIntegrationsPage() {
   const [pushing, setPushing] = useState(false)
   const [activePlan, setActivePlan] = useState<any>(null)
   const [showPushPanel, setShowPushPanel] = useState(false)
-  const [syncRangeDays, setSyncRangeDays] = useState<number>(30)
+  const [showSyncDropdown, setShowSyncDropdown] = useState(false)
   
   // Provider display info
   const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {
@@ -172,7 +172,6 @@ export default function ProviderIntegrationsPage() {
       setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
       setAutoPushEnabled(data.connection?.auto_push_enabled || false)
       setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
-      setSyncRangeDays(data.connection?.sync_range_days || 30)
       setSyncLogs(data.recent_syncs || [])
       
       // Load calendars if connected
@@ -340,15 +339,16 @@ export default function ProviderIntegrationsPage() {
   }
   
   // Manual sync (Pull from Calendar)
-  const handleSync = async () => {
+  const handleSync = async (syncType: 'full' | 'basic' = 'basic') => {
     try {
       setSyncing(true)
+      setShowSyncDropdown(false)
       const response = await fetch(`/api/integrations/${provider}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           calendar_ids: selectedCalendarIds.length > 0 ? selectedCalendarIds : undefined,
-          timeRange: syncRangeDays,
+          syncType,
         }),
       })
       
@@ -529,7 +529,7 @@ export default function ProviderIntegrationsPage() {
   }
   
   // Save calendar settings
-  const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean, autoPush: boolean, syncRange?: number) => {
+  const saveCalendarSettings = async (calendarIds: string[], autoSync: boolean, autoPush: boolean) => {
     try {
       setUpdatingSettings(true)
       const response = await fetch(`/api/integrations/${provider}/settings`, {
@@ -539,7 +539,6 @@ export default function ProviderIntegrationsPage() {
           selected_calendar_ids: calendarIds,
           auto_sync_enabled: autoSync,
           auto_push_enabled: autoPush,
-          sync_range_days: syncRange,
         }),
       })
       
@@ -772,44 +771,48 @@ export default function ProviderIntegrationsPage() {
                     </div>
                   </div>
                   
-                  {/* Sync Range Setting */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-[var(--foreground)]">
-                      Sync Range (days)
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={syncRangeDays}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value)
-                          if (value >= 1 && value <= 365) {
-                            setSyncRangeDays(value)
-                            saveCalendarSettings(selectedCalendarIds, autoSyncEnabled, autoPushEnabled, value)
-                          }
-                        }}
-                        className="w-24 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                      />
-                      <p className="text-xs text-[var(--foreground)]/60">
-                        Days before and after current date to sync (1-365)
-                      </p>
-                    </div>
-                  </div>
-                  
                   {/* Sync Button with Dropdown */}
                   <div className="relative">
                     <div className="flex gap-2">
-                      <Button
-                        onClick={handleSync}
-                        disabled={syncing || selectedCalendarIds.length === 0}
-                        variant="outline"
-                        className="flex items-center gap-2 flex-1"
-                      >
-                        <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                        {syncing ? 'Syncing...' : 'Sync'}
-                      </Button>
+                      <div className="relative flex-1">
+                        <Button
+                          onClick={() => handleSync('basic')}
+                          disabled={syncing || selectedCalendarIds.length === 0}
+                          variant="outline"
+                          className="flex items-center gap-2 w-full"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                          {syncing ? 'Syncing...' : 'Sync'}
+                        </Button>
+                        <Button
+                          onClick={() => setShowSyncDropdown(!showSyncDropdown)}
+                          disabled={syncing || selectedCalendarIds.length === 0}
+                          variant="outline"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-2"
+                        >
+                          <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
+                        </Button>
+                        {showSyncDropdown && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-lg z-10">
+                            <button
+                              onClick={() => handleSync('basic')}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
+                            >
+                              Sync Present & Future
+                            </button>
+                            <button
+                              onClick={() => handleSync('full')}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
+                            >
+                              Full Sync (All Events)
+                              <span className="block text-xs text-[var(--foreground)]/60 mt-1">
+                                May take longer depending on number of events
+                              </span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <div className="relative">
                         <Button
                           onClick={() => setShowPushPanel(true)}
@@ -823,11 +826,6 @@ export default function ProviderIntegrationsPage() {
                         </Button>
                       </div>
                     </div>
-                    {connection && (
-                      <p className="text-xs text-[var(--foreground)]/60 mt-2">
-                        Syncing {syncRangeDays} days before and after current date
-                      </p>
-                    )}
                   </div>
                 </div>
               )}

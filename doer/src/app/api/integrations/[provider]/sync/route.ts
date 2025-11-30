@@ -42,7 +42,7 @@ export async function POST(
     // Get user's calendar connection
     const { data: connection, error: connectionError } = await supabase
       .from('calendar_connections')
-      .select('id, selected_calendar_ids, sync_token, sync_range_days')
+      .select('id, selected_calendar_ids, sync_token')
       .eq('user_id', user.id)
       .eq('provider', provider)
       .single()
@@ -54,9 +54,9 @@ export async function POST(
       )
     }
 
-    // Parse request body for optional calendar_ids and timeRange override
+    // Parse request body for optional calendar_ids and syncType
     let calendarIds = connection.selected_calendar_ids || []
-    let timeRangeDays = connection.sync_range_days || 30
+    let syncType: 'full' | 'basic' = 'basic' // Default to basic sync
     
     try {
       const body = await request.json().catch(() => ({}))
@@ -77,12 +77,12 @@ export async function POST(
         }
       }
       
-      // Accept optional timeRange override
-      if (body.timeRange && typeof body.timeRange === 'number' && body.timeRange > 0 && body.timeRange <= 365) {
-        timeRangeDays = body.timeRange
+      // Accept syncType parameter
+      if (body.syncType === 'full' || body.syncType === 'basic') {
+        syncType = body.syncType
       }
     } catch {
-      // Use default selected calendars and time range
+      // Use default selected calendars and basic sync
     }
 
     if (calendarIds.length === 0) {
@@ -99,7 +99,7 @@ export async function POST(
       .insert({
         user_id: user.id,
         calendar_connection_id: connection.id,
-        sync_type: 'pull',
+        sync_type: syncType === 'full' ? 'full_sync' : 'pull',
         status: 'in_progress',
         started_at: new Date().toISOString(),
       })
@@ -133,6 +133,7 @@ export async function POST(
       const busySlots: any[] = []
       const plansAffected = new Set<string>()
       const processedEventIds = new Set<string>() // Track events processed in this sync to avoid double-counting
+      const allDeletedEventIds: string[] = [] // Collect deleted event IDs from all calendars
       let conflictsDetected = 0
       let eventsProcessed = 0
       let nextSyncToken: string | null = null
@@ -143,8 +144,14 @@ export async function POST(
           const fetchResult = await calendarProvider.fetchEvents(
             connection.id,
             [calendarId], // Fetch from one calendar at a time
-            connection.sync_token || undefined
+            connection.sync_token || undefined,
+            syncType
           )
+          
+          // Collect deleted event IDs
+          if (fetchResult.deletedEventIds && fetchResult.deletedEventIds.length > 0) {
+            allDeletedEventIds.push(...fetchResult.deletedEventIds)
+          }
 
           // Store the latest sync token (for providers that use single token)
           if (fetchResult.nextSyncToken) {
@@ -317,7 +324,8 @@ export async function POST(
           userId: user.id,
           provider,
           calendarIds,
-          timeRangeDays,
+          syncType,
+          deletedEventCount: allDeletedEventIds.length,
         })
 
         syncResult = await syncCalendarEventsToTasks(
@@ -325,7 +333,7 @@ export async function POST(
           user.id,
           provider,
           calendarIds,
-          timeRangeDays
+          allDeletedEventIds
         )
 
         logger.info('Synced calendar events to tasks', {

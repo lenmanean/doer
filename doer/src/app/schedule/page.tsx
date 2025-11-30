@@ -116,11 +116,26 @@ function ScheduleContent() {
     return true
   })
   
+  // Deleted events toggle (default: enabled, stored in localStorage)
+  const [showDeletedEvents, setShowDeletedEvents] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('showDeletedEvents')
+      return stored !== null ? stored === 'true' : true
+    }
+    return true
+  })
+  
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('showCalendarEvents', String(showCalendarEvents))
     }
   }, [showCalendarEvents])
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('showDeletedEvents', String(showDeletedEvents))
+    }
+  }, [showDeletedEvents])
   
   // Active plans for current week
   const [activePlansForWeek, setActivePlansForWeek] = useState<Map<string, {id: string, name: string}>>(new Map())
@@ -615,9 +630,14 @@ function ScheduleContent() {
     }
     
     // Filter out calendar events if toggle is off
-    const filteredTasks = showCalendarEvents 
+    let filteredTasks = showCalendarEvents 
       ? deduplicatedTasks 
       : deduplicatedTasks.filter(task => !task.is_calendar_event)
+    
+    // Filter out deleted events if toggle is off
+    filteredTasks = showDeletedEvents
+      ? filteredTasks
+      : filteredTasks.filter(task => !task.is_deleted_in_calendar)
     
     const optimisticTasksForDate = optimisticTasks.filter(task => task.date === date)
     
@@ -626,7 +646,7 @@ function ScheduleContent() {
     const filteredOptimisticTasks = optimisticTasksForDate.filter(task => !realTaskIds.has(task.task_id))
     
     return [...filteredTasks, ...filteredOptimisticTasks]
-  }, [getPlanTasksForDate, getFreeTasksForDate, optimisticTasks, showCalendarEvents])
+  }, [getPlanTasksForDate, getFreeTasksForDate, optimisticTasks, showCalendarEvents, showDeletedEvents])
   
   // Clean up optimistic tasks when real data comes in
   useEffect(() => {
@@ -1514,6 +1534,26 @@ function ScheduleContent() {
                 <EyeOff className="w-4 h-4" />
               )}
               <span className="text-xs">Calendar</span>
+            </Button>
+
+            {/* Show Deleted Events Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeletedEvents(!showDeletedEvents)}
+              className={`flex items-center gap-2 ${
+                showDeletedEvents
+                  ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                  : 'text-[#d7d2cb] hover:text-[var(--primary)] hover:bg-white/10'
+              }`}
+              title={showDeletedEvents ? 'Hide deleted events' : 'Show deleted events'}
+            >
+              {showDeletedEvents ? (
+                <Eye className="w-4 h-4" />
+              ) : (
+                <EyeOff className="w-4 h-4" />
+              )}
+              <span className="text-xs">Deleted</span>
             </Button>
 
             {/* Add Task Button */}

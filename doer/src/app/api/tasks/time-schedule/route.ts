@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       console.log('Fetching tasks for IDs:', taskIds)
       const { data: tasks, error: tasksError } = await supabase
         .from('tasks')
-        .select('id, name, details, estimated_duration_minutes, priority, is_recurring, is_indefinite, recurrence_days, recurrence_start_date, recurrence_end_date, is_calendar_event, is_detached')
+        .select('id, name, details, estimated_duration_minutes, priority, is_recurring, is_indefinite, recurrence_days, recurrence_start_date, recurrence_end_date, is_calendar_event, is_detached, is_deleted_in_calendar')
         .in('id', taskIds)
       
       console.log('Tasks query result:', { tasks, tasksError })
@@ -217,6 +217,7 @@ export async function GET(request: NextRequest) {
           rescheduled_from: schedule.rescheduled_from,
           is_calendar_event: task.is_calendar_event || false,
           is_detached: task.is_detached || false,
+          is_deleted_in_calendar: task.is_deleted_in_calendar || false,
         })
       }
     }

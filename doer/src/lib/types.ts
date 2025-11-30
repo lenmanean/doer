@@ -40,6 +40,7 @@ export interface Task {
   is_calendar_event?: boolean // True if task came from calendar event (read-only)
   calendar_event_id?: string // Reference to calendar_events.id
   is_detached?: boolean // True if user has edited this calendar event task (deprecated for read-only calendar events)
+  is_deleted_in_calendar?: boolean // True if the corresponding calendar event was deleted in the external calendar
 }
 
 export interface OnboardingResponse {
