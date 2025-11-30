@@ -50,13 +50,14 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     .maybeSingle()
 
   const prefs = (settings?.preferences as any) ?? {}
+  const workdayPrefs = prefs.workday || {}
 
-  const workdayStartHour = Number(prefs.workday_start_hour ?? 9)
-  const workdayStartMinute = Number(prefs.workday_start_minute ?? 0)
-  const workdayEndHour = Number(prefs.workday_end_hour ?? 17)
-  const lunchStartHour = Number(prefs.lunch_start_hour ?? 12)
-  const lunchEndHour = Number(prefs.lunch_end_hour ?? 13)
-  const allowWeekends = Boolean(prefs.allow_weekends ?? false)
+  const workdayStartHour = Number(workdayPrefs.workday_start_hour ?? prefs.workday_start_hour ?? 9)
+  const workdayStartMinute = Number(workdayPrefs.workday_start_minute ?? prefs.workday_start_minute ?? 0)
+  const workdayEndHour = Number(workdayPrefs.workday_end_hour ?? prefs.workday_end_hour ?? 17)
+  const lunchStartHour = Number(workdayPrefs.lunch_start_hour ?? prefs.lunch_start_hour ?? 12)
+  const lunchEndHour = Number(workdayPrefs.lunch_end_hour ?? prefs.lunch_end_hour ?? 13)
+  const allowWeekends = Boolean(workdayPrefs.allow_weekends ?? prefs.allow_weekends ?? false)
   
   // Get user timezone (default to UTC if not set)
   // TODO: Add timezone to user_settings preferences

@@ -34,6 +34,7 @@ export async function GET() {
       workdayEndHour: workdaySettings.workday_end_hour || 17,
       lunchStartHour: workdaySettings.lunch_start_hour || 12,
       lunchEndHour: workdaySettings.lunch_end_hour || 13,
+      allowWeekends: workdaySettings.allow_weekends ?? false,
     })
   } catch (error) {
     console.error('Error in GET /api/settings/workday:', error)
@@ -53,7 +54,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
 
     const body = await req.json()
-    const { workdayStartHour, workdayEndHour, lunchStartHour, lunchEndHour } = body
+    const { workdayStartHour, workdayEndHour, lunchStartHour, lunchEndHour, allowWeekends } = body
 
     // Validate inputs
     if (workdayStartHour < 0 || workdayStartHour > 23 ||
@@ -88,6 +89,7 @@ export async function PATCH(req: NextRequest) {
         workday_end_hour: workdayEndHour,
         lunch_start_hour: lunchStartHour,
         lunch_end_hour: lunchEndHour,
+        allow_weekends: allowWeekends ?? false,
       }
     }
 

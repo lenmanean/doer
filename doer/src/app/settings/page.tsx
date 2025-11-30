@@ -66,6 +66,7 @@ interface SettingsData {
   workdayEndHour: number
   lunchStartHour: number
   lunchEndHour: number
+  allowWeekends: boolean
   
   // Smart Scheduling
   smartSchedulingEnabled: boolean
@@ -105,6 +106,7 @@ export default function SettingsPage() {
     workdayEndHour: 17,
     lunchStartHour: 12,
     lunchEndHour: 13,
+    allowWeekends: false,
     smartSchedulingEnabled: true,
     theme: 'dark',
     accentColor: 'orange',
@@ -211,6 +213,7 @@ export default function SettingsPage() {
         workdayEndHour: prefs.workday?.workday_end_hour || savedSettings.workday?.workday_end_hour || 17,
         lunchStartHour: prefs.workday?.lunch_start_hour || savedSettings.workday?.lunch_start_hour || 12,
         lunchEndHour: prefs.workday?.lunch_end_hour || savedSettings.workday?.lunch_end_hour || 13,
+        allowWeekends: prefs.workday?.allow_weekends ?? savedSettings.workday?.allow_weekends ?? false,
         smartSchedulingEnabled: prefs.smart_scheduling?.enabled ?? true,
         theme: (prefs.theme || savedSettings.preferences?.theme || theme),
         accentColor: (prefs.accent_color || accentColor || 'orange') as 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple',
@@ -2394,6 +2397,29 @@ export default function SettingsPage() {
                             />
                           </div>
                         </div>
+                        
+                        {/* Weekend Scheduling Toggle */}
+                        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
+                          <div>
+                            <p className="text-sm font-medium text-[var(--foreground)]">Include Weekends in Scheduling</p>
+                            <p className="text-xs text-[var(--muted-foreground)]">Allow tasks to be scheduled on weekends (Saturday and Sunday)</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSettingsData({ ...settingsData, allowWeekends: !settingsData.allowWeekends })
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-transparent ${
+                              settingsData.allowWeekends ? 'bg-[var(--primary)]' : 'bg-[var(--accent)]'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                                settingsData.allowWeekends ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        
                         <div className="flex justify-end pt-4">
                           <button
                             onClick={async () => {
@@ -2406,7 +2432,8 @@ export default function SettingsPage() {
                                     workdayStartHour: settingsData.workdayStartHour,
                                     workdayEndHour: settingsData.workdayEndHour,
                                     lunchStartHour: settingsData.lunchStartHour,
-                                    lunchEndHour: settingsData.lunchEndHour
+                                    lunchEndHour: settingsData.lunchEndHour,
+                                    allowWeekends: settingsData.allowWeekends
                                   })
                                 })
 
