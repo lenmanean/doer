@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { PushToCalendarPanel } from '@/components/integrations/PushToCalendarPanel'
 import { SyncWarningModal } from '@/components/integrations/SyncWarningModal'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 /**
  * Provider-Specific Integrations Page
@@ -102,7 +102,6 @@ export default function ProviderIntegrationsPage() {
       // Fallback: query calendar events directly
       if (!user?.id || !connection?.id) return 0
       
-      const supabase = createClient()
       const { count, error } = await supabase
         .from('calendar_events')
         .select('*', { count: 'exact', head: true })
