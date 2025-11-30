@@ -292,18 +292,35 @@ export async function POST(req: NextRequest) {
       const taskBusySlots: BusySlot[] = []
       if (!taskSchedulesError && existingTaskSchedules) {
         for (const schedule of existingTaskSchedules) {
-          if (schedule.start_time && schedule.end_time) {
-            // Create ISO datetime strings from date and time
-            const startDateTime = new Date(`${schedule.date}T${schedule.start_time}:00`)
-            const endDateTime = new Date(`${schedule.date}T${schedule.end_time}:00`)
-            taskBusySlots.push({
-              start: startDateTime.toISOString(),
-              end: endDateTime.toISOString(),
-              source: 'existing_plan' as const,
-              metadata: {
-                type: 'scheduled_task',
-              },
-            })
+          if (schedule.start_time && schedule.end_time && schedule.date) {
+            try {
+              // Parse date and time components separately to avoid timezone issues
+              const [dateYear, dateMonth, dateDay] = schedule.date.split('-').map(Number)
+              const [startHour, startMinute] = schedule.start_time.split(':').map(Number)
+              const [endHour, endMinute] = schedule.end_time.split(':').map(Number)
+              
+              // Create dates in local timezone to avoid timezone conversion issues
+              const startDateTime = new Date(dateYear, dateMonth - 1, dateDay, startHour, startMinute, 0, 0)
+              const endDateTime = new Date(dateYear, dateMonth - 1, dateDay, endHour, endMinute, 0, 0)
+              
+              // Validate dates are valid
+              if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+                console.warn('Invalid date/time in task schedule:', schedule)
+                continue
+              }
+              
+              taskBusySlots.push({
+                start: startDateTime.toISOString(),
+                end: endDateTime.toISOString(),
+                source: 'existing_plan' as const,
+                metadata: {
+                  type: 'scheduled_task',
+                },
+              })
+            } catch (error) {
+              console.warn('Error parsing task schedule date/time:', schedule, error)
+              continue
+            }
           }
         }
         console.log(`Found ${taskBusySlots.length} existing task schedules`)
@@ -518,7 +535,8 @@ export async function POST(req: NextRequest) {
     aiContent.timeline_days = timelineDays
 
     const [year, month, day] = finalStartDate.split('-').map(Number)
-    const parsedStartDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+    let parsedStartDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+    let adjustedStartDate = finalStartDate // Track adjusted start date for plan insertion
     
     // Intelligent time constraint handling: extend timeline if needed, respecting deadlines
     let timeAdjustmentWarning: string | null = null
@@ -566,6 +584,36 @@ export async function POST(req: NextRequest) {
         const userLocalTime = timeConstraints.userLocalTime || new Date()
         const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
         const totalHours = Math.ceil(totalDuration / 60)
+        
+        // Track if start date will be moved to tomorrow (before we move it)
+        const willMoveStartDate = (needsExtension && !isAfterWorkday && totalDuration > remainingMinutes) || isAfterWorkday
+        
+        // If there's not enough time today and timeline was extended, move start date to tomorrow
+        // This ensures the plan starts on the day when tasks can actually be scheduled
+        if (needsExtension && !isAfterWorkday && totalDuration > remainingMinutes) {
+          // Check if we should move start date to tomorrow
+          // Only move if the current time + buffer would push tasks to tomorrow anyway
+          const tomorrow = addDays(parsedStartDate, 1)
+          adjustedStartDate = formatDateForDB(tomorrow)
+          parsedStartDate = tomorrow
+          console.log('📅 Start date moved to tomorrow due to insufficient time today:', {
+            originalStartDate: finalStartDate,
+            adjustedStartDate: adjustedStartDate,
+            remainingMinutes,
+            totalDuration,
+          })
+        } else if (isAfterWorkday) {
+          // Workday has ended - always move start date to tomorrow
+          const tomorrow = addDays(parsedStartDate, 1)
+          adjustedStartDate = formatDateForDB(tomorrow)
+          parsedStartDate = tomorrow
+          console.log('📅 Start date moved to tomorrow (workday has ended):', {
+            originalStartDate: finalStartDate,
+            adjustedStartDate: adjustedStartDate,
+          })
+        }
+        
+        // Calculate end date after potentially adjusting start date
         const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
         
         // Generate contextual warning based on urgency, deadline, and workday status
@@ -588,6 +636,8 @@ export async function POST(req: NextRequest) {
           const minutesRemaining = remainingMinutes % 60
           if (adjustedTimelineDays === 1) {
             timeAdjustmentWarning = `Not enough time remains today (current time: ${formattedCurrentTime}). Plan will start tomorrow.`
+          } else if (willMoveStartDate) {
+            timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan will start tomorrow and extend to ${formatDateForDB(newEndDate)}.`
           } else {
             timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)}.`
           }
@@ -624,13 +674,18 @@ export async function POST(req: NextRequest) {
         aiContent.timeline_days = adjustedTimelineDays
         
         // Additional deadline validation: check if calculated end date exceeds deadline
+        // Recalculate maxAllowedDays after potentially moving start date
         if (timeConstraints.deadlineDate && timeConstraints.deadlineType !== 'none') {
+          const daysUntilDeadline = Math.ceil((timeConstraints.deadlineDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24))
+          // If deadline is "tomorrow" and start date is tomorrow, max is 1 day
+          // Otherwise, if deadline is "tomorrow" and start date is today, max is 2 days
+          const maxDays = timeConstraints.deadlineType === 'tomorrow' 
+            ? (daysUntilDeadline === 0 ? 1 : 2) 
+            : Math.max(1, daysUntilDeadline + 1)
+          
           const calculatedEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          if (calculatedEndDate > timeConstraints.deadlineDate) {
+          if (calculatedEndDate > timeConstraints.deadlineDate || adjustedTimelineDays > maxDays) {
             // Recalculate to fit within deadline
-            const daysUntilDeadline = Math.ceil((timeConstraints.deadlineDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24))
-            const maxDays = timeConstraints.deadlineType === 'tomorrow' ? 2 : Math.max(1, daysUntilDeadline + 1)
-            
             if (adjustedTimelineDays > maxDays) {
               adjustedTimelineDays = maxDays
               aiContent.timeline_days = adjustedTimelineDays
@@ -818,7 +873,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         goal_text: finalGoalText,
         clarifications: finalClarifications,
-        start_date: finalStartDate,
+        start_date: adjustedStartDate,
         end_date: calculatedEndDate,
         status: 'active',
         plan_type: 'ai',
