@@ -804,7 +804,7 @@ export default function ProviderIntegrationsPage() {
                           <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
                         </Button>
                         {showSyncDropdown && (
-                          <div className="absolute top-full left-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-lg z-10 min-w-[200px]">
+                          <div className="absolute top-full left-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-lg z-50 min-w-[200px]">
                             <button
                               onClick={() => {
                                 setShowSyncDropdown(false)
