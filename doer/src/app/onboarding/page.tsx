@@ -151,6 +151,7 @@ function OnboardingContent() {
           start_date: startDate,
           clarifications: Object.keys(clarifications).length > 0 ? clarifications : undefined,
           clarification_questions: clarificationQuestions.length > 0 ? clarificationQuestions : undefined,
+          timezone_offset: new Date().getTimezoneOffset(), // Send timezone offset in minutes
         }),
       })
 

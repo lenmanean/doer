@@ -7,6 +7,8 @@ import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
+import { detectUrgencyIndicators } from '@/lib/goal-analysis'
+import { calculateRemainingTime, calculateDaysNeeded } from '@/lib/time-constraints'
 
 // Force dynamic rendering since we use cookies for authentication (session auth fallback)
 export const dynamic = 'force-dynamic'
@@ -162,6 +164,7 @@ export async function POST(req: NextRequest) {
     const requestStartDate = body.start_date
     const requestClarifications = body.clarifications || {}
     const requestClarificationQuestions = body.clarification_questions || []
+    const timezoneOffset = body.timezone_offset ?? 0 // Timezone offset in minutes (negative for ahead of UTC)
 
     let onboardingData: any = null
     let finalGoalText: string
@@ -269,9 +272,9 @@ export async function POST(req: NextRequest) {
 
     // Fetch busy slots from all calendar providers (provider-agnostic)
     let availability = undefined
+    const startDate = parseDateFromDB(finalStartDate)
     try {
       const { getBusySlotsForUser } = await import('@/lib/calendar/busy-slots')
-      const startDate = parseDateFromDB(finalStartDate)
       // Estimate end date (will be refined by AI)
       const estimatedEndDate = new Date(startDate)
       estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
@@ -290,6 +293,48 @@ export async function POST(req: NextRequest) {
       // Continue without availability if fetch fails
     }
 
+    // Detect urgency from goal text and clarifications
+    const urgencyAnalysis = detectUrgencyIndicators(finalGoalText, finalClarifications)
+    console.log('🔍 Urgency analysis:', urgencyAnalysis)
+
+    // Calculate time constraints if start date is today
+    // Use user's local timezone for accurate time calculations
+    const now = new Date()
+    // Adjust server time to user's local timezone
+    const userLocalTime = new Date(now.getTime() - (timezoneOffset * 60 * 1000))
+    const todayUTC = new Date(Date.UTC(userLocalTime.getFullYear(), userLocalTime.getMonth(), userLocalTime.getDate()))
+    const startDateUTC = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()))
+    const isStartDateToday = startDateUTC.getTime() === todayUTC.getTime()
+    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean } | undefined
+
+    if (isStartDateToday) {
+      // Fetch user's workday settings
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      
+      const prefs = (settings?.preferences as any) ?? {}
+      const workdaySettings = prefs.workday || {}
+      
+      // Use user's local time for remaining time calculation
+      const remainingTime = calculateRemainingTime(startDate, workdaySettings, userLocalTime)
+      
+      timeConstraints = {
+        isStartDateToday: true,
+        remainingMinutes: remainingTime.remainingMinutes,
+        urgencyLevel: urgencyAnalysis.urgencyLevel,
+        requiresToday: urgencyAnalysis.requiresToday,
+      }
+      
+      console.log('⏰ Time constraints detected:', {
+        remainingMinutes: remainingTime.remainingMinutes,
+        urgencyLevel: urgencyAnalysis.urgencyLevel,
+        requiresToday: urgencyAnalysis.requiresToday,
+      })
+    }
+
     try {
       aiContent = await generateRoadmapContent({
         goal: finalGoalText,
@@ -297,6 +342,7 @@ export async function POST(req: NextRequest) {
         clarifications: finalClarifications,
         clarificationQuestions: finalClarificationQuestions,
         availability,
+        timeConstraints,
       })
 
       console.log('✅ AI content generated successfully')
@@ -415,106 +461,62 @@ export async function POST(req: NextRequest) {
     aiContent.timeline_days = timelineDays
 
     const [year, month, day] = finalStartDate.split('-').map(Number)
-    const startDate = new Date(year, month - 1, day, 0, 0, 0, 0)
-    const endDate = addDays(startDate, aiContent.timeline_days - 1)
-    const calculatedEndDate = endDate.toISOString().split('T')[0]
-
-    // Check if start date is today and validate remaining time
-    const today = new Date()
-    const isStartDateToday = startDate.toDateString() === today.toDateString()
+    const parsedStartDate = new Date(year, month - 1, day, 0, 0, 0, 0)
     
-    if (isStartDateToday && timelineDays === 1) {
-      // Single-day plan starting today - check if there's enough time remaining
-      const currentHour = today.getHours()
-      const currentMinute = today.getMinutes()
-      const currentMinutes = currentHour * 60 + currentMinute
+    // Intelligent time constraint handling: extend timeline if needed
+    let timeAdjustmentWarning: string | null = null
+    let adjustedTimelineDays = timelineDays
+    
+    if (timeConstraints && timeConstraints.isStartDateToday) {
+      const { remainingMinutes, urgencyLevel, requiresToday } = timeConstraints
+      const dailyCapacity = 250 // Realistic daily capacity in minutes
       
-      // Fetch user's workday settings
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('preferences')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      
-      const prefs = (settings?.preferences as any) ?? {}
-      const workdaySettings = prefs.workday || {}
-      
-      // Use user's workday settings or defaults
-      const workdayStartHour = Number(workdaySettings.workday_start_hour ?? 9)
-      const workdayEndHour = Number(workdaySettings.workday_end_hour ?? 17)
-      const lunchStartHour = Number(workdaySettings.lunch_start_hour ?? 12)
-      const lunchEndHour = Number(workdaySettings.lunch_end_hour ?? 13)
-      
-      // Calculate remaining time in workday
-      const workdayStartMinutes = workdayStartHour * 60
-      const workdayEndMinutes = workdayEndHour * 60
-      const lunchStartMinutes = lunchStartHour * 60
-      const lunchEndMinutes = lunchEndHour * 60
-      
-      // Calculate available time remaining
-      let remainingMinutes = 0
-      if (currentMinutes < workdayStartMinutes) {
-        // Before workday starts - full day available
-        remainingMinutes = workdayEndMinutes - workdayStartMinutes - (lunchEndMinutes - lunchStartMinutes)
-      } else if (currentMinutes >= workdayEndMinutes) {
-        // After workday ends - no time remaining
-        remainingMinutes = 0
-      } else {
-        // During workday - calculate remaining time
-        if (currentMinutes < lunchStartMinutes) {
-          // Before lunch - time until lunch + time after lunch
-          remainingMinutes = (lunchStartMinutes - currentMinutes) + (workdayEndMinutes - lunchEndMinutes)
-        } else if (currentMinutes >= lunchEndMinutes) {
-          // After lunch - time until end of workday
-          remainingMinutes = workdayEndMinutes - currentMinutes
-        } else {
-          // During lunch - time after lunch
-          remainingMinutes = workdayEndMinutes - lunchEndMinutes
-        }
-      }
-      
-      // Check if all tasks can fit in remaining time
+      // Check if tasks fit in remaining time
       if (totalDuration > remainingMinutes) {
-        const hoursNeeded = Math.ceil(totalDuration / 60)
-        const hoursRemaining = Math.floor(remainingMinutes / 60)
-        const minutesRemaining = remainingMinutes % 60
+        // Calculate how many additional days are needed
+        const additionalDays = calculateDaysNeeded(totalDuration, remainingMinutes, dailyCapacity)
+        adjustedTimelineDays = timelineDays + additionalDays
         
-        console.error('❌ Insufficient time remaining in today for single-day plan:', {
+        // Generate contextual warning based on urgency
+        if (requiresToday && urgencyLevel === 'high') {
+          // User explicitly wanted today - warn about extension
+          const hoursRemaining = Math.floor(remainingMinutes / 60)
+          const minutesRemaining = remainingMinutes % 60
+          const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
+          timeAdjustmentWarning = `You requested completion today, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday. Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed.`
+        } else if (urgencyLevel === 'medium') {
+          // Time-sensitive but not necessarily today
+          const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
+          timeAdjustmentWarning = `Not enough time remaining today. Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
+        } else {
+          // No urgency - extend silently or with gentle note
+          const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
+          timeAdjustmentWarning = `Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed comfortably.`
+        }
+        
+        console.log('📅 Timeline extended due to time constraints:', {
+          originalTimeline: timelineDays,
+          adjustedTimeline: adjustedTimelineDays,
           totalDuration,
           remainingMinutes,
-          currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
-          hoursNeeded,
-          hoursRemaining,
-          minutesRemaining
+          urgencyLevel,
+          requiresToday,
+          warning: timeAdjustmentWarning,
         })
         
-        await supabase.from('onboarding_responses').delete().eq('user_id', user.id)
-        return fail(
-          400,
-          {
-            error: 'INSUFFICIENT_TIME_REMAINING',
-            message: `This single-day plan requires ${hoursNeeded} hour${hoursNeeded !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}). Please start this plan tomorrow or adjust your goal scope.`,
-            redirect: '/onboarding',
-          },
-          'insufficient_time_remaining_today',
-          { 
-            totalDuration, 
-            remainingMinutes, 
-            currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
-            hoursNeeded,
-            hoursRemaining,
-            minutesRemaining
-          }
-        )
+        // Update timeline
+        aiContent.timeline_days = adjustedTimelineDays
+      } else {
+        console.log('✅ Tasks fit in remaining time:', {
+          totalDuration,
+          remainingMinutes,
+          canFit: true,
+        })
       }
-      
-      console.log('✅ Time validation passed for single-day plan:', {
-        totalDuration,
-        remainingMinutes,
-        currentTime: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
-        canFit: totalDuration <= remainingMinutes
-      })
     }
+    
+    const endDate = addDays(parsedStartDate, aiContent.timeline_days - 1)
+    const calculatedEndDate = endDate.toISOString().split('T')[0]
 
     console.log('✅ AI content validated:', {
       timeline_days: timelineDays,
@@ -669,6 +671,7 @@ export async function POST(req: NextRequest) {
           total_duration_days: aiContent.timeline_days,
           goal_title: safeGoalTitle,
           plan_summary: safePlanSummary,
+          ...(timeAdjustmentWarning && { time_adjustment_warning: timeAdjustmentWarning }),
         },
       })
       .select()
@@ -749,7 +752,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await generateTaskSchedule(plan.id, startDate, endDate)
+      await generateTaskSchedule(plan.id, parsedStartDate, endDate)
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
     } catch (scheduleError) {
       console.error('Error generating task schedule:', scheduleError)
@@ -779,6 +782,7 @@ export async function POST(req: NextRequest) {
         tasks: {
           total: allTasks.length,
         },
+        ...(timeAdjustmentWarning && { warning: timeAdjustmentWarning }),
       },
       { status: 200 }
     )
