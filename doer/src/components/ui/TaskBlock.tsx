@@ -5,6 +5,20 @@ import { Check, RefreshCw, Calendar, Link2, Lock } from 'lucide-react'
 import { formatDuration } from '@/lib/task-time-utils'
 import { useState } from 'react'
 
+function formatTime(timeString: string | null | undefined): string {
+  if (!timeString) return ''
+  // Handle both "HH:MM:SS" and "HH:MM" formats
+  const parts = timeString.split(':')
+  if (parts.length >= 2) {
+    const hour = parseInt(parts[0], 10)
+    const minute = parts[1]
+    const period = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+    return `${displayHour}:${minute} ${period}`
+  }
+  return timeString
+}
+
 function getPriorityColors(priority?: number, completed: boolean = false) {
   if (completed) {
     return {
@@ -172,7 +186,7 @@ export function TaskBlock({
         backgroundColor: isHovered && !isReadOnly ? finalColors.solidBackground : undefined,
         ...style
       }}
-      onClick={isReadOnly ? undefined : onClick}
+      onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={isReadOnly ? {} : { scale: 1.05, zIndex: 30 }}
@@ -215,12 +229,26 @@ export function TaskBlock({
               ) : null}
             </div>
           </div>
-          {task.duration_minutes !== null && task.duration_minutes !== undefined && task.duration_minutes > 0 ? (
+          {isHovered && (task.start_time || task.end_time || task.duration_minutes) ? (
             <div 
-              className={`text-xs mt-1 ${displayColors.text} transition-opacity duration-200`}
-              style={{ opacity: isHovered ? 0.8 : 0 }}
+              className={`text-xs mt-1 ${displayColors.text} transition-opacity duration-200 space-y-0.5`}
             >
-              {formatDuration(task.duration_minutes)}
+              {task.start_time && task.end_time ? (
+                <>
+                  <div className="opacity-90">
+                    {formatTime(task.start_time)} - {formatTime(task.end_time)}
+                  </div>
+                  {task.duration_minutes !== null && task.duration_minutes !== undefined && task.duration_minutes > 0 && (
+                    <div className="opacity-70">
+                      {formatDuration(task.duration_minutes)}
+                    </div>
+                  )}
+                </>
+              ) : task.duration_minutes !== null && task.duration_minutes !== undefined && task.duration_minutes > 0 ? (
+                <div className="opacity-80">
+                  {formatDuration(task.duration_minutes)}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {task.details && task.details.trim() !== '' ? (

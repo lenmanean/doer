@@ -185,6 +185,7 @@ export async function POST(
       const plansAffected = new Set<string>()
       const processedEventIds = new Set<string>() // Track events processed in this sync to avoid double-counting
       const allDeletedEventIds: string[] = [] // Collect deleted event IDs from all calendars
+      const pulledEvents: Array<{ title: string; date: string; startTime: string; endTime: string }> = [] // Track event details for sync log
       let conflictsDetected = 0
       let eventsProcessed = 0
       let nextSyncToken: string | null = null
@@ -300,6 +301,24 @@ export async function POST(
             // Only count new events that are not DOER-created
             if (isNewEvent && !isDoerCreated) {
               eventsProcessed++
+              
+              // Store event details for sync log
+              const eventDate = new Date(startTime)
+              const dateStr = eventDate.toISOString().split('T')[0]
+              const startTimeStr = event.start.dateTime 
+                ? new Date(event.start.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                : event.start.date || ''
+              const endTimeStr = event.end.dateTime
+                ? new Date(event.end.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                : event.end.date || ''
+              
+              pulledEvents.push({
+                title: event.summary || 'Untitled Event',
+                date: dateStr,
+                startTime: startTimeStr,
+                endTime: endTimeStr,
+              })
+              
               logger.info('New calendar event pulled', {
                 eventId: event.id,
                 summary: event.summary,
@@ -438,6 +457,7 @@ export async function POST(
               tasks_created: syncResult?.tasks_created || 0,
               tasks_updated: syncResult?.tasks_updated || 0,
               tasks_skipped: syncResult?.tasks_skipped || 0,
+              pulled_events: pulledEvents, // Store event details for display
             },
             completed_at: new Date().toISOString(),
           })

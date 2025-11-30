@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -82,11 +82,12 @@ export default function ProviderIntegrationsPage() {
   const [showSyncWarning, setShowSyncWarning] = useState(false)
   const [estimatedEventCount, setEstimatedEventCount] = useState(0)
   const syncButtonRef = useRef<HTMLButtonElement>(null)
+  const [isPending, startTransition] = useTransition()
   
   // Estimate event count for warning
   const estimateEventCount = useCallback(async (): Promise<number> => {
     try {
-      // First, check recent sync logs for event count
+      // First, check recent sync logs for event count (faster path)
       const response = await fetch(`/api/integrations/${provider}/status`)
       if (response.ok) {
         const data = await response.json()
@@ -381,77 +382,96 @@ export default function ProviderIntegrationsPage() {
   
   // Manual sync (Pull from Calendar) - Always uses full sync
   const handleSync = async () => {
-    try {
+    // Mark sync as starting immediately for UI feedback
+    startTransition(() => {
       setSyncing(true)
       setShowSyncWarning(false)
-      const response = await fetch(`/api/integrations/${provider}/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          calendar_ids: selectedCalendarIds.length > 0 ? selectedCalendarIds : undefined,
-          syncType: 'full', // Always use full sync
-        }),
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to sync')
-      }
-      
-      const data = await response.json()
-      
-      addToast({
-        type: 'success',
-        title: 'Sync completed',
-        description: `Pulled ${data.events_pulled} events from ${providerInfo[provider]?.name || 'calendar'}. ${data.tasks_created > 0 ? `${data.tasks_created} task(s) created. ` : ''}${data.tasks_updated > 0 ? `${data.tasks_updated} task(s) updated. ` : ''}${data.conflicts_detected > 0 ? `${data.conflicts_detected} conflicts detected.` : ''}`,
-        duration: 7000,
-      })
-      
-      // Reload connection status
-      const statusResponse = await fetch(`/api/integrations/${provider}/status`)
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json()
-        setSyncLogs(statusData.recent_syncs || [])
-        if (statusData.connection) {
-          setConnection(statusData.connection)
-          setAutoSyncEnabled(statusData.connection.auto_sync_enabled || false)
-          setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+    })
+    
+    // Defer API calls to allow UI to update first
+    setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/integrations/${provider}/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            calendar_ids: selectedCalendarIds.length > 0 ? selectedCalendarIds : undefined,
+            syncType: 'full', // Always use full sync
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to sync')
         }
+        
+        const data = await response.json()
+        
+        addToast({
+          type: 'success',
+          title: 'Sync completed',
+          description: `Pulled ${data.events_pulled} events from ${providerInfo[provider]?.name || 'calendar'}. ${data.tasks_created > 0 ? `${data.tasks_created} task(s) created. ` : ''}${data.tasks_updated > 0 ? `${data.tasks_updated} task(s) updated. ` : ''}${data.conflicts_detected > 0 ? `${data.conflicts_detected} conflicts detected.` : ''}`,
+          duration: 7000,
+        })
+        
+        // Reload connection status
+        const statusResponse = await fetch(`/api/integrations/${provider}/status`)
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json()
+          startTransition(() => {
+            setSyncLogs(statusData.recent_syncs || [])
+            if (statusData.connection) {
+              setConnection(statusData.connection)
+              setAutoSyncEnabled(statusData.connection.auto_sync_enabled || false)
+              setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error syncing:', error)
+        addToast({
+          type: 'error',
+          title: 'Sync failed',
+          description: error instanceof Error ? error.message : 'Please try again later.',
+          duration: 5000,
+        })
+      } finally {
+        startTransition(() => {
+          setSyncing(false)
+        })
       }
-    } catch (error) {
-      console.error('Error syncing:', error)
-      addToast({
-        type: 'error',
-        title: 'Sync failed',
-        description: error instanceof Error ? error.message : 'Please try again later.',
-        duration: 5000,
-      })
-    } finally {
-      setSyncing(false)
-    }
+    }, 0)
   }
 
   // Sync with warning if many events
-  const handleSyncWithWarning = async () => {
-    const WARNING_THRESHOLD = 100
-    
-    try {
-      // Estimate event count
-      const eventCount = await estimateEventCount()
+  const handleSyncWithWarning = () => {
+    // Defer heavy work to allow browser to paint first
+    setTimeout(async () => {
+      const WARNING_THRESHOLD = 100
       
-      if (eventCount > WARNING_THRESHOLD) {
-        // Show warning modal
-        setEstimatedEventCount(eventCount)
-        setShowSyncWarning(true)
-      } else {
-        // Proceed directly with sync
-        await handleSync()
+      try {
+        // Estimate event count
+        const eventCount = await estimateEventCount()
+        
+        // Use transition for non-urgent state updates
+        startTransition(() => {
+          if (eventCount > WARNING_THRESHOLD) {
+            // Show warning modal
+            setEstimatedEventCount(eventCount)
+            setShowSyncWarning(true)
+          } else {
+            // Proceed directly with sync
+            handleSync()
+          }
+        })
+      } catch (error) {
+        console.error('Error estimating event count:', error)
+        // If estimation fails, proceed with sync anyway
+        startTransition(() => {
+          handleSync()
+        })
       }
-    } catch (error) {
-      console.error('Error estimating event count:', error)
-      // If estimation fails, proceed with sync anyway
-      await handleSync()
-    }
+    }, 0)
   }
   
   // Push tasks to Calendar
@@ -466,103 +486,117 @@ export default function ProviderIntegrationsPage() {
       return
     }
     
-    try {
+    // Mark push as starting immediately for UI feedback
+    startTransition(() => {
       setPushing(true)
-      
-      const today = new Date()
-      const startDate = new Date(today)
-      startDate.setDate(startDate.getDate() - 30)
-      const endDate = new Date(today)
-      endDate.setDate(endDate.getDate() + 90)
-      
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const endDateStr = endDate.toISOString().split('T')[0]
-      
-      const tasksResponse = await fetch(`/api/tasks/time-schedule?plan_id=${activePlan.id}&start_date=${startDateStr}&end_date=${endDateStr}`)
-      if (!tasksResponse.ok) {
-        throw new Error('Failed to load tasks')
-      }
-      
-      const tasksData = await tasksResponse.json()
-      
-      const scheduledTasks: any[] = []
-      if (tasksData.tasksByDate) {
-        Object.keys(tasksData.tasksByDate).forEach(date => {
-          const tasksForDate = tasksData.tasksByDate[date] || []
-          scheduledTasks.push(...tasksForDate.filter((t: any) => t.schedule_id && !t.schedule_id.startsWith('synthetic-')))
-        })
-      }
-      
-      if (scheduledTasks.length === 0) {
-        addToast({
-          type: 'warning',
-          title: 'No scheduled tasks',
-          description: 'There are no scheduled tasks to push to your calendar.',
-          duration: 5000,
-        })
-        setPushing(false)
-        return
-      }
-      
-      const taskScheduleIds = scheduledTasks
-        .filter((task: any) => task.schedule_id && !task.schedule_id.startsWith('synthetic-'))
-        .map((task: any) => task.schedule_id)
-      
-      if (taskScheduleIds.length === 0) {
-        addToast({
-          type: 'warning',
-          title: 'No valid schedules',
-          description: 'No valid task schedules found to push.',
-          duration: 5000,
-        })
-        setPushing(false)
-        return
-      }
-      
-      const pushResponse = await fetch(`/api/integrations/${provider}/push`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          task_schedule_ids: taskScheduleIds,
-        }),
-      })
-      
-      if (!pushResponse.ok) {
-        const errorData = await pushResponse.json()
-        throw new Error(errorData.error || 'Failed to push tasks')
-      }
-      
-      const pushData = await pushResponse.json()
-      
-      addToast({
-        type: 'success',
-        title: 'Push completed',
-        description: `Pushed ${pushData.events_pushed} task(s) to ${providerInfo[provider]?.name || 'calendar'}.`,
-        duration: 7000,
-      })
-      
-      // Reload connection status
-      const statusResponse = await fetch(`/api/integrations/${provider}/status`)
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json()
-        setSyncLogs(statusData.recent_syncs || [])
-        if (statusData.connection) {
-          setConnection(statusData.connection)
-          setAutoSyncEnabled(statusData.connection.auto_sync_enabled || false)
-          setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+    })
+    
+    // Defer heavy work to allow browser to paint first
+    setTimeout(async () => {
+      try {
+        const today = new Date()
+        const startDate = new Date(today)
+        startDate.setDate(startDate.getDate() - 30)
+        const endDate = new Date(today)
+        endDate.setDate(endDate.getDate() + 90)
+        
+        const startDateStr = startDate.toISOString().split('T')[0]
+        const endDateStr = endDate.toISOString().split('T')[0]
+        
+        const tasksResponse = await fetch(`/api/tasks/time-schedule?plan_id=${activePlan.id}&start_date=${startDateStr}&end_date=${endDateStr}`)
+        if (!tasksResponse.ok) {
+          throw new Error('Failed to load tasks')
         }
+        
+        const tasksData = await tasksResponse.json()
+        
+        const scheduledTasks: any[] = []
+        if (tasksData.tasksByDate) {
+          Object.keys(tasksData.tasksByDate).forEach(date => {
+            const tasksForDate = tasksData.tasksByDate[date] || []
+            scheduledTasks.push(...tasksForDate.filter((t: any) => t.schedule_id && !t.schedule_id.startsWith('synthetic-')))
+          })
+        }
+        
+        if (scheduledTasks.length === 0) {
+          addToast({
+            type: 'warning',
+            title: 'No scheduled tasks',
+            description: 'There are no scheduled tasks to push to your calendar.',
+            duration: 5000,
+          })
+          startTransition(() => {
+            setPushing(false)
+          })
+          return
+        }
+        
+        const taskScheduleIds = scheduledTasks
+          .filter((task: any) => task.schedule_id && !task.schedule_id.startsWith('synthetic-'))
+          .map((task: any) => task.schedule_id)
+        
+        if (taskScheduleIds.length === 0) {
+          addToast({
+            type: 'warning',
+            title: 'No valid schedules',
+            description: 'No valid task schedules found to push.',
+            duration: 5000,
+          })
+          startTransition(() => {
+            setPushing(false)
+          })
+          return
+        }
+        
+        const pushResponse = await fetch(`/api/integrations/${provider}/push`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            task_schedule_ids: taskScheduleIds,
+          }),
+        })
+        
+        if (!pushResponse.ok) {
+          const errorData = await pushResponse.json()
+          throw new Error(errorData.error || 'Failed to push tasks')
+        }
+        
+        const pushData = await pushResponse.json()
+        
+        addToast({
+          type: 'success',
+          title: 'Push completed',
+          description: `Pushed ${pushData.events_pushed} task(s) to ${providerInfo[provider]?.name || 'calendar'}.`,
+          duration: 7000,
+        })
+        
+        // Reload connection status
+        const statusResponse = await fetch(`/api/integrations/${provider}/status`)
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json()
+          startTransition(() => {
+            setSyncLogs(statusData.recent_syncs || [])
+            if (statusData.connection) {
+              setConnection(statusData.connection)
+              setAutoSyncEnabled(statusData.connection.auto_sync_enabled || false)
+              setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error pushing tasks:', error)
+        addToast({
+          type: 'error',
+          title: 'Push failed',
+          description: error instanceof Error ? error.message : 'Please try again later.',
+          duration: 5000,
+        })
+      } finally {
+        startTransition(() => {
+          setPushing(false)
+        })
       }
-    } catch (error) {
-      console.error('Error pushing tasks:', error)
-      addToast({
-        type: 'error',
-        title: 'Push failed',
-        description: error instanceof Error ? error.message : 'Please try again later.',
-        duration: 5000,
-      })
-    } finally {
-      setPushing(false)
-    }
+    }, 0)
   }
   
   // Toggle calendar selection
@@ -917,7 +951,28 @@ export default function ProviderIntegrationsPage() {
                           </div>
                           <div className="text-xs text-[var(--foreground)]/60 space-y-1">
                             {log.events_pulled > 0 && (
-                              <p>Pulled: {log.events_pulled} events</p>
+                              <div>
+                                <p className="font-medium mb-1">Pulled: {log.events_pulled} event{log.events_pulled !== 1 ? 's' : ''}</p>
+                                {log.changes_summary?.pulled_events && Array.isArray(log.changes_summary.pulled_events) && log.changes_summary.pulled_events.length > 0 && (
+                                  <div className="ml-2 mt-1 space-y-1">
+                                    {log.changes_summary.pulled_events.map((event: any, idx: number) => (
+                                      <div key={idx} className="text-[var(--foreground)]/70">
+                                        <span className="font-medium">{event.title || 'Untitled Event'}</span>
+                                        {event.date && (
+                                          <span className="ml-2">
+                                            {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {event.startTime && event.endTime && (
+                                              <span className="ml-1 opacity-80">
+                                                • {event.startTime} - {event.endTime}
+                                              </span>
+                                            )}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {log.events_pushed > 0 && (
                               <p>Pushed: {log.events_pushed} events</p>
