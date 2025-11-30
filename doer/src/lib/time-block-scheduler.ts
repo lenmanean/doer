@@ -474,7 +474,178 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     targetDay: t.targetDay 
   })))
 
+  // Helper function to check if a task is locked (has strict dependencies preventing movement)
+  const isTaskLocked = (
+    task: typeof tasksWithTargetDays[number],
+    allTasks: typeof tasksWithTargetDays,
+    taskDependencies: Map<number, number[]>
+  ): boolean => {
+    // Tasks with enforced target days cannot be moved
+    if (task.enforceTargetDay) {
+      return true
+    }
+    
+    // Check if task has dependencies that would prevent movement
+    if (task.idx && taskDependencies.has(task.idx)) {
+      const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+      // If any dependency is on a later day, this task cannot move earlier
+      for (const depIdx of dependentTaskIdxs) {
+        const depTask = allTasks.find(t => t.idx === depIdx)
+        if (depTask && depTask.targetDay > task.targetDay) {
+          return true // Locked because dependency is on a later day
+        }
+      }
+    }
+    
+    // Check reverse dependencies - if other tasks depend on this one and are on later days
+    for (const [depTaskIdx, deps] of taskDependencies.entries()) {
+      if (deps.includes(task.idx || -1)) {
+        const depTask = allTasks.find(t => t.idx === depTaskIdx)
+        if (depTask && depTask.targetDay > task.targetDay) {
+          // Another task depends on this one and is on a later day
+          // This task can move later but not earlier
+          return false // Not fully locked, but movement is restricted
+        }
+      }
+    }
+    
+    return false
+  }
+
+  // Helper function to check if moving a task to a new day would violate dependencies
+  const violatesDependencies = (
+    task: typeof tasksWithTargetDays[number],
+    newDay: number,
+    allTasks: typeof tasksWithTargetDays,
+    taskDependencies: Map<number, number[]>
+  ): boolean => {
+    // Check forward dependencies - task cannot be moved before its dependencies
+    if (task.idx && taskDependencies.has(task.idx)) {
+      const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+      for (const depIdx of dependentTaskIdxs) {
+        const depTask = allTasks.find(t => t.idx === depIdx)
+        if (depTask && depTask.targetDay > newDay) {
+          return true // Would violate: dependency is on a later day
+        }
+      }
+    }
+    
+    // Check reverse dependencies - tasks that depend on this one must be on same or later day
+    for (const [depTaskIdx, deps] of taskDependencies.entries()) {
+      if (deps.includes(task.idx || -1)) {
+        const depTask = allTasks.find(t => t.idx === depTaskIdx)
+        if (depTask && depTask.targetDay < newDay) {
+          return true // Would violate: dependent task is on an earlier day
+        }
+      }
+    }
+    
+    return false
+  }
+
+  // Workload balancing function
+  const balanceWorkloadAcrossDays = (
+    tasks: typeof tasksWithTargetDays,
+    totalDuration: number,
+    totalDays: number,
+    getTargetDayRangeFn: (priority: number) => { start: number; end: number },
+    dependencies: Map<number, number[]>
+  ): typeof tasksWithTargetDays => {
+    // Calculate current workload per day
+    const workloadPerDay = new Map<number, number>()
+    tasks.forEach(task => {
+      const current = workloadPerDay.get(task.targetDay) || 0
+      workloadPerDay.set(task.targetDay, current + (task.estimated_duration_minutes || 0))
+    })
+    
+    // Calculate ideal workload per day
+    const idealWorkload = totalDuration / totalDays
+    
+    // Log initial workload distribution
+    console.log('⚖️ Workload before balancing:', Array.from(workloadPerDay.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([day, workload]) => `Day ${day}: ${workload} min`)
+      .join(', '))
+    console.log(`⚖️ Ideal workload per day: ${idealWorkload.toFixed(1)} min`)
+    
+    // Identify tasks that can be moved (not enforced)
+    const flexibleTasks = tasks.filter(t => !t.enforceTargetDay)
+    
+    // Sort days by workload (heaviest first)
+    const daysByWorkload = Array.from(workloadPerDay.entries())
+      .sort((a, b) => b[1] - a[1])
+    
+    const movedTasks: Array<{ task: typeof tasks[number], fromDay: number, toDay: number }> = []
+    
+    // Redistribute tasks from heavy days to light days
+    for (const [heavyDay, heavyWorkload] of daysByWorkload) {
+      // Skip if day is already balanced (within 10% of ideal)
+      if (heavyWorkload <= idealWorkload * 1.1) continue
+      
+      // Find tasks on this day that can be moved
+      const tasksToMove = flexibleTasks.filter(t => 
+        t.targetDay === heavyDay &&
+        !isTaskLocked(t, tasks, dependencies)
+      )
+      
+      // Try to move tasks to lighter days
+      for (const task of tasksToMove) {
+        const range = getTargetDayRangeFn(task.priority || 4)
+        const taskDuration = task.estimated_duration_minutes || 0
+        
+        // Find lighter days within priority range
+        const lighterDays = Array.from(workloadPerDay.entries())
+          .filter(([day, workload]) => 
+            day !== heavyDay &&
+            day >= range.start &&
+            day <= range.end &&
+            workload < idealWorkload * 0.9 &&
+            !violatesDependencies(task, day, tasks, dependencies)
+          )
+          .sort((a, b) => a[1] - b[1]) // Lightest first
+        
+        if (lighterDays.length > 0) {
+          const [newDay] = lighterDays[0]
+          const oldDay = task.targetDay
+          task.targetDay = newDay
+          
+          // Update workload tracking
+          workloadPerDay.set(heavyDay, heavyWorkload - taskDuration)
+          workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
+          
+          movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+          
+          console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min)`)
+        }
+      }
+    }
+    
+    // Log final workload distribution
+    console.log('⚖️ Workload after balancing:', Array.from(workloadPerDay.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([day, workload]) => `Day ${day}: ${workload} min`)
+      .join(', '))
+    
+    if (movedTasks.length > 0) {
+      console.log(`⚖️ Balanced workload: moved ${movedTasks.length} task(s) to improve distribution`)
+    } else {
+      console.log('⚖️ Workload already balanced or no tasks could be moved')
+    }
+    
+    return tasks
+  }
+
+  // Calculate total task duration before balancing
   const totalTaskDuration = tasks.reduce((sum, task) => sum + task.estimated_duration_minutes, 0)
+
+  // Apply workload balancing
+  tasksWithTargetDays = balanceWorkloadAcrossDays(
+    tasksWithTargetDays,
+    totalTaskDuration,
+    totalActiveDays,
+    getTargetDayRange,
+    taskDependencies
+  )
   const totalAvailableCapacity = dayConfigs.reduce((sum, config) => {
     if (config.isWeekend && !allowWeekends) {
       return sum
