@@ -319,12 +319,13 @@ export class OutlookCalendarProvider implements CalendarProvider {
       try {
         // For basic sync, always use startDateTime (ignore syncToken to ensure we only get present/future events)
         // For full sync, use syncToken if available for incremental sync, otherwise fetch all events
-        const useSyncToken = syncType === 'full' && syncToken && syncToken.startsWith('https://')
+        const currentSyncToken = syncToken && syncToken.startsWith('https://') ? syncToken : null
+        const useSyncToken = syncType === 'full' && currentSyncToken !== null
         
-        if (useSyncToken) {
+        if (useSyncToken && currentSyncToken) {
           // Delta link is a full URL - use it directly (only for full sync)
           const accessToken = await this.getAccessToken(connectionId)
-          const deltaResponse = await fetch(syncToken, {
+          const deltaResponse = await fetch(currentSyncToken, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
               Accept: 'application/json',
