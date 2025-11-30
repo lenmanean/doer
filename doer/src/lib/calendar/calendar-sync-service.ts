@@ -351,12 +351,14 @@ export async function syncCalendarEventsToTasks(
             }
           } else {
             // No schedule exists - create new one
+            // For calendar events (plan_id = null), day_index is set to 0 since there's no plan start date
             const { error: scheduleInsertError, data: newSchedule } = await supabase
               .from('task_schedule')
               .insert({
                 plan_id: null,
                 user_id: userId,
                 task_id: existingTask.id,
+                day_index: 0, // Calendar events don't have a plan, so day_index is 0
                 date: eventDate,
                 start_time: startTimeStr,
                 end_time: endTimeStr,
@@ -431,12 +433,14 @@ export async function syncCalendarEventsToTasks(
           })
 
           // Create task schedule
+          // For calendar events (plan_id = null), day_index is set to 0 since there's no plan start date
           const { data: newSchedule, error: scheduleInsertError } = await supabase
             .from('task_schedule')
             .insert({
               plan_id: null,
               user_id: userId,
               task_id: newTask.id,
+              day_index: 0, // Calendar events don't have a plan, so day_index is 0
               date: eventDate,
               start_time: startTimeStr,
               end_time: endTimeStr,
