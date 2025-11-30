@@ -953,46 +953,64 @@ export default function SettingsPage() {
     }
   }
 
-  // Unified Save/Revert Button Component
-  const UnifiedSaveRevertButtons = ({ section }: { section: string }) => {
-    const hasChanges = hasUnsavedChanges[section] || false
-    const isSaving = savingSection === section
+  // Unified Save/Revert Button Component (Fixed at bottom of viewport)
+  const UnifiedSaveRevertButtons = () => {
+    // Determine which section to save/revert based on active section
+    const targetSection = activeSection === 'subscription' ? null : activeSection
     
-    if (!hasChanges) return null
+    // Check if the active section has unsaved changes
+    const hasChanges = targetSection ? hasUnsavedChanges[targetSection] || false : false
+    const isSaving = savingSection !== null
+    
+    if (!hasChanges || !targetSection) return null
     
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 100 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.2 }}
-        className="flex justify-end gap-3 pt-6 mt-6 border-t border-[var(--border)]"
+        exit={{ opacity: 0, y: 100 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)]/95 backdrop-blur-md border-t border-[var(--border)] shadow-lg"
       >
-        <button
-          onClick={() => handleUnifiedRevert(section)}
-          disabled={isSaving}
-          className="px-6 py-2 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          <X className="w-4 h-4" />
-          Revert Changes
-        </button>
-        <button
-          onClick={() => handleUnifiedSave(section)}
-          disabled={isSaving}
-          className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Save Changes
-            </>
-          )}
-        </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-[var(--foreground)]">
+                You have unsaved changes
+              </p>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Don't forget to save your changes
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleUnifiedRevert(targetSection)}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+              >
+                <X className="w-4 h-4" />
+                Revert Changes
+              </button>
+              <button
+                onClick={() => handleUnifiedSave(targetSection)}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-md"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </motion.div>
     )
   }
@@ -2501,8 +2519,6 @@ export default function SettingsPage() {
                         )}
                       </CardContent>
                     </Card>
-                    
-                    <UnifiedSaveRevertButtons section="account" />
                   </motion.div>
                 )}
 
@@ -2858,8 +2874,6 @@ export default function SettingsPage() {
                         </div>
                       </CardContent>
                     </Card>
-                    
-                    <UnifiedSaveRevertButtons section="workday" />
                   </motion.div>
                 )}
 
@@ -3262,8 +3276,6 @@ export default function SettingsPage() {
 
                     {/* Cookie Management */}
                     <CookieManagement />
-                    
-                    <UnifiedSaveRevertButtons section="privacy" />
                   </motion.div>
                 )}
 
@@ -3333,8 +3345,6 @@ export default function SettingsPage() {
                         </div>
                       </CardContent>
                     </Card>
-                    
-                    <UnifiedSaveRevertButtons section="preferences" />
                   </motion.div>
                 )}
 
@@ -3356,6 +3366,9 @@ export default function SettingsPage() {
           refetch()
         }}
       />
+      
+      {/* Fixed Save/Revert Buttons at Bottom of Viewport */}
+      <UnifiedSaveRevertButtons />
     </div>
   )
 }
