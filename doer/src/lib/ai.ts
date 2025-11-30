@@ -169,11 +169,12 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
       .map(formatSlot)
       .filter((line): line is string => Boolean(line))
     if (busyLines.length > 0) {
-      availabilityContextLines.push('BUSY SLOTS (do NOT schedule tasks during these windows):')
+      availabilityContextLines.push('EXISTING SCHEDULED COMMITMENTS (do NOT schedule tasks during these windows - these include existing scheduled tasks and calendar events):')
       busyLines.slice(0, 12).forEach(line => availabilityContextLines.push(`- ${line}`))
       if (busyLines.length > 12) {
         availabilityContextLines.push(`- ... ${busyLines.length - 12} more slots omitted for brevity`)
       }
+      availabilityContextLines.push('IMPORTANT: Adjust your task generation and timeline to work around these existing commitments. If there are many conflicts, consider extending the timeline or breaking tasks into smaller chunks that can fit between commitments.')
     }
 
     const timeOffLines = request.availability.timeOff

@@ -9,6 +9,7 @@ import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
 import { detectUrgencyIndicators } from '@/lib/goal-analysis'
 import { calculateRemainingTime, calculateDaysNeeded } from '@/lib/time-constraints'
+import { NormalizedAvailability, BusySlot } from '@/lib/types'
 
 // Force dynamic rendering since we use cookies for authentication (session auth fallback)
 export const dynamic = 'force-dynamic'
@@ -270,26 +271,62 @@ export async function POST(req: NextRequest) {
     console.log('Generating roadmap content with AI...')
     let aiContent: any
 
-    // Fetch busy slots from all calendar providers (provider-agnostic)
-    let availability = undefined
+    // Fetch user availability (existing task schedules + calendar busy slots)
     const startDate = parseDateFromDB(finalStartDate)
+    const estimatedEndDate = new Date(startDate)
+    estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
+    
+    let availability: NormalizedAvailability | undefined = undefined
     try {
+      // Fetch existing task schedules from task_schedule table
+      const { data: existingTaskSchedules, error: taskSchedulesError } = await supabase
+        .from('task_schedule')
+        .select('date, start_time, end_time')
+        .eq('user_id', user.id)
+        .gte('date', formatDateForDB(startDate))
+        .lte('date', formatDateForDB(estimatedEndDate))
+        .not('start_time', 'is', null)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+
+      const taskBusySlots: BusySlot[] = []
+      if (!taskSchedulesError && existingTaskSchedules) {
+        for (const schedule of existingTaskSchedules) {
+          if (schedule.start_time && schedule.end_time) {
+            // Create ISO datetime strings from date and time
+            const startDateTime = new Date(`${schedule.date}T${schedule.start_time}:00`)
+            const endDateTime = new Date(`${schedule.date}T${schedule.end_time}:00`)
+            taskBusySlots.push({
+              start: startDateTime.toISOString(),
+              end: endDateTime.toISOString(),
+              source: 'existing_plan' as const,
+              metadata: {
+                type: 'scheduled_task',
+              },
+            })
+          }
+        }
+        console.log(`Found ${taskBusySlots.length} existing task schedules`)
+      } else if (taskSchedulesError) {
+        console.warn('Failed to fetch existing task schedules:', taskSchedulesError)
+      }
+
+      // Fetch busy slots from all calendar providers
       const { getBusySlotsForUser } = await import('@/lib/calendar/busy-slots')
-      // Estimate end date (will be refined by AI)
-      const estimatedEndDate = new Date(startDate)
-      estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
+      const calendarBusySlots = await getBusySlotsForUser(user.id, startDate, estimatedEndDate)
       
-      const busySlots = await getBusySlotsForUser(user.id, startDate, estimatedEndDate)
+      // Combine task schedules and calendar busy slots
+      const allBusySlots = [...taskBusySlots, ...calendarBusySlots]
       
-      if (busySlots.length > 0) {
+      if (allBusySlots.length > 0) {
         availability = {
-          busySlots,
+          busySlots: allBusySlots,
           timeOff: [],
         }
-        console.log(`Found ${busySlots.length} busy slots from calendar`)
+        console.log(`Found ${allBusySlots.length} total busy slots (${taskBusySlots.length} tasks + ${calendarBusySlots.length} calendar)`)
       }
     } catch (error) {
-      console.warn('Failed to fetch busy slots for plan generation:', error)
+      console.warn('Failed to fetch user availability for plan generation:', error)
       // Continue without availability if fetch fails
     }
 

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { timeBlockScheduler } from '@/lib/time-block-scheduler'
-import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
+import { formatDateForDB, toLocalMidnight, applyTimeBuffer } from '@/lib/date-utils'
 import { getBusySlotsForUser } from '@/lib/calendar/busy-slots'
 import { getProvider } from '@/lib/calendar/providers/provider-factory'
 import { detectTaskDependencies } from '@/lib/goal-analysis'
@@ -115,27 +115,62 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
   }
   
-  // Add validation and logging
-  console.log('🕐 Current time for scheduler:', {
-    userLocalTime: userLocalTime?.toISOString(),
-    currentTime: currentTime.toISOString(),
-    currentHour: currentTime.getUTCHours(),
-    currentMinute: currentTime.getUTCMinutes(),
+  // Apply time buffer to current time
+  const bufferedCurrentTime = applyTimeBuffer(currentTime)
+  console.log('⏰ Time buffer applied:', {
+    original: currentTime.toISOString(),
+    originalHour: currentTime.getUTCHours(),
+    originalMinute: currentTime.getUTCMinutes(),
+    buffered: bufferedCurrentTime.toISOString(),
+    bufferedHour: bufferedCurrentTime.getUTCHours(),
+    bufferedMinute: bufferedCurrentTime.getUTCMinutes(),
     timezoneOffset: timezoneOffset,
     isTimezoneAdjusted: !!userLocalTime
   })
+  
+  // Use buffered time for scheduling
+  currentTime = bufferedCurrentTime
   
   // Detect task dependencies
   const taskDependencies = detectTaskDependencies(
     tasks.map(t => ({ name: t.name, idx: t.idx }))
   )
 
+  // Fetch existing task schedules from task_schedule table (excluding current plan)
+  let existingTaskSchedules: Array<{ date: string; start_time: string; end_time: string }> = []
+  try {
+    const { data: taskSchedules, error: taskSchedulesError } = await supabase
+      .from('task_schedule')
+      .select('date, start_time, end_time')
+      .eq('user_id', userId)
+      .neq('plan_id', planId) // Exclude current plan being generated
+      .gte('date', formatDateForDB(startDate))
+      .lte('date', formatDateForDB(endDate))
+      .not('start_time', 'is', null)
+      .order('date', { ascending: true })
+      .order('start_time', { ascending: true })
+
+    if (taskSchedulesError) {
+      console.error('[generateTaskSchedule] Failed to fetch existing task schedules', taskSchedulesError)
+    } else if (taskSchedules && taskSchedules.length > 0) {
+      existingTaskSchedules = taskSchedules.map(schedule => ({
+        date: schedule.date,
+        start_time: schedule.start_time || '',
+        end_time: schedule.end_time || '',
+      }))
+      console.log(`[generateTaskSchedule] Found ${existingTaskSchedules.length} existing task schedules`)
+    }
+  } catch (error) {
+    console.error('[generateTaskSchedule] Error fetching existing task schedules', error)
+    // Continue without existing task schedules if fetch fails
+  }
+
   // Fetch busy slots from all calendar providers (provider-agnostic)
-  let existingSchedules: Array<{ date: string; start_time: string; end_time: string }> = []
+  let calendarBusySlots: Array<{ date: string; start_time: string; end_time: string }> = []
   try {
     const busySlots = await getBusySlotsForUser(userId, startDate, endDate)
     // Convert busy slots to existing schedules format
-    existingSchedules = busySlots.map(slot => {
+    calendarBusySlots = busySlots.map(slot => {
       const slotStart = new Date(slot.start)
       const slotEnd = new Date(slot.end)
       return {
@@ -145,12 +180,19 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
       }
     })
     
-    if (existingSchedules.length > 0) {
-      console.log(`[generateTaskSchedule] Found ${existingSchedules.length} busy slots from calendar`)
+    if (calendarBusySlots.length > 0) {
+      console.log(`[generateTaskSchedule] Found ${calendarBusySlots.length} busy slots from calendar`)
     }
   } catch (error) {
     console.error('[generateTaskSchedule] Failed to fetch busy slots', error)
     // Continue without busy slots if fetch fails
+  }
+
+  // Combine existing task schedules with calendar busy slots
+  const existingSchedules = [...existingTaskSchedules, ...calendarBusySlots]
+  
+  if (existingSchedules.length > 0) {
+    console.log(`[generateTaskSchedule] Total existing schedules (tasks + calendar): ${existingSchedules.length}`)
   }
 
   // Run scheduler

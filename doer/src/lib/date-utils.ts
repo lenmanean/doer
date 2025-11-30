@@ -147,3 +147,48 @@ export function getToday(): Date {
   return toLocalMidnight(new Date())
 }
 
+/**
+ * Apply time buffer to round up current time to reasonable boundaries
+ * This ensures tasks aren't scheduled immediately after plan generation
+ * 
+ * Rounding rules:
+ * - Minutes 0-4: round to next 5-minute mark (e.g., 1:25 → 1:30)
+ * - Minutes 5-9: round to next 10-minute mark (e.g., 1:26 → 1:30)
+ * - Minutes 10-14: round to next 15-minute mark (e.g., 1:12 → 1:15)
+ * - Minutes 15-19: round to next 15-minute mark (e.g., 1:17 → 1:30)
+ * - Minutes 20-29: round to next 30-minute mark (e.g., 1:25 → 1:30, 1:40 → 2:00)
+ * - Minutes 30-44: round to next 30-minute mark (e.g., 1:35 → 2:00)
+ * - Minutes 45-59: round to next hour (e.g., 1:50 → 2:00)
+ */
+export function applyTimeBuffer(currentTime: Date): Date {
+  const buffered = new Date(currentTime)
+  const minutes = buffered.getMinutes()
+  const hours = buffered.getHours()
+  
+  if (minutes >= 45) {
+    // Round to next hour
+    buffered.setHours(hours + 1, 0, 0, 0)
+  } else if (minutes >= 30) {
+    // Round to next 30-minute mark
+    buffered.setMinutes(0, 0, 0)
+    buffered.setHours(hours + 1)
+  } else if (minutes >= 20) {
+    // Round to next 30-minute mark
+    buffered.setMinutes(30, 0, 0)
+  } else if (minutes >= 15) {
+    // Round to next 15-minute mark (which is 30)
+    buffered.setMinutes(30, 0, 0)
+  } else if (minutes >= 10) {
+    // Round to next 15-minute mark
+    buffered.setMinutes(15, 0, 0)
+  } else if (minutes >= 5) {
+    // Round to next 10-minute mark
+    buffered.setMinutes(10, 0, 0)
+  } else {
+    // Minutes 0-4: round to next 5-minute mark
+    buffered.setMinutes(5, 0, 0)
+  }
+  
+  return buffered
+}
+
