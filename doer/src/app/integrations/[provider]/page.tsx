@@ -12,6 +12,8 @@ import { Calendar, CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLi
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { PushToCalendarPanel } from '@/components/integrations/PushToCalendarPanel'
+import { SyncWarningModal } from '@/components/integrations/SyncWarningModal'
+import { createClient } from '@/lib/supabase/client'
 
 /**
  * Provider-Specific Integrations Page
@@ -77,31 +79,47 @@ export default function ProviderIntegrationsPage() {
   const [pushing, setPushing] = useState(false)
   const [activePlan, setActivePlan] = useState<any>(null)
   const [showPushPanel, setShowPushPanel] = useState(false)
-  const [showSyncDropdown, setShowSyncDropdown] = useState(false)
-  const syncDropdownRef = useRef<HTMLDivElement>(null)
+  const [showSyncWarning, setShowSyncWarning] = useState(false)
+  const [estimatedEventCount, setEstimatedEventCount] = useState(0)
   const syncButtonRef = useRef<HTMLButtonElement>(null)
   
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        syncDropdownRef.current && 
-        !syncDropdownRef.current.contains(event.target as Node) &&
-        syncButtonRef.current &&
-        !syncButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowSyncDropdown(false)
+  // Estimate event count for warning
+  const estimateEventCount = useCallback(async (): Promise<number> => {
+    try {
+      // First, check recent sync logs for event count
+      const response = await fetch(`/api/integrations/${provider}/status`)
+      if (response.ok) {
+        const data = await response.json()
+        // If we have recent sync data, use that as estimate
+        if (data.recent_syncs && data.recent_syncs.length > 0) {
+          const latestSync = data.recent_syncs[0]
+          if (latestSync.events_pulled && latestSync.events_pulled > 0) {
+            return latestSync.events_pulled
+          }
+        }
       }
+      
+      // Fallback: query calendar events directly
+      if (!user?.id || !connection?.id) return 0
+      
+      const supabase = createClient()
+      const { count, error } = await supabase
+        .from('calendar_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('calendar_connection_id', connection.id)
+        .eq('is_doer_created', false)
+      
+      if (error) {
+        console.error('Error estimating event count:', error)
+        return 0
+      }
+      
+      return count || 0
+    } catch (error) {
+      console.error('Error estimating event count:', error)
+      return 0
     }
-    
-    if (showSyncDropdown) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showSyncDropdown])
+  }, [provider, user?.id, connection?.id])
   
   // Provider display info
   const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {
@@ -362,17 +380,17 @@ export default function ProviderIntegrationsPage() {
     }
   }
   
-  // Manual sync (Pull from Calendar)
-  const handleSync = async (syncType: 'full' | 'basic' = 'basic') => {
+  // Manual sync (Pull from Calendar) - Always uses full sync
+  const handleSync = async () => {
     try {
       setSyncing(true)
-      setShowSyncDropdown(false)
+      setShowSyncWarning(false)
       const response = await fetch(`/api/integrations/${provider}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           calendar_ids: selectedCalendarIds.length > 0 ? selectedCalendarIds : undefined,
-          syncType,
+          syncType: 'full', // Always use full sync
         }),
       })
       
@@ -411,6 +429,29 @@ export default function ProviderIntegrationsPage() {
       })
     } finally {
       setSyncing(false)
+    }
+  }
+
+  // Sync with warning if many events
+  const handleSyncWithWarning = async () => {
+    const WARNING_THRESHOLD = 100
+    
+    try {
+      // Estimate event count
+      const eventCount = await estimateEventCount()
+      
+      if (eventCount > WARNING_THRESHOLD) {
+        // Show warning modal
+        setEstimatedEventCount(eventCount)
+        setShowSyncWarning(true)
+      } else {
+        // Proceed directly with sync
+        await handleSync()
+      }
+    } catch (error) {
+      console.error('Error estimating event count:', error)
+      // If estimation fails, proceed with sync anyway
+      await handleSync()
     }
   }
   
@@ -643,48 +684,17 @@ export default function ProviderIntegrationsPage() {
                   )}
                   {connection && (
                     <div className="flex gap-2">
-                      <div className="relative z-50">
-                        <Button
-                          ref={syncButtonRef}
-                          onClick={() => setShowSyncDropdown(!showSyncDropdown)}
-                          disabled={syncing || selectedCalendarIds.length === 0}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                          {syncing ? 'Syncing...' : 'Sync'}
-                          <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
-                        </Button>
-                        {showSyncDropdown && (
-                          <div
-                            ref={syncDropdownRef}
-                            className="absolute top-full right-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-xl z-[9999] min-w-[200px]"
-                          >
-                            <button
-                              onClick={() => {
-                                setShowSyncDropdown(false)
-                                handleSync('basic')
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
-                            >
-                              Sync Present & Future
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowSyncDropdown(false)
-                                handleSync('full')
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
-                            >
-                              Full Sync (All Events)
-                              <span className="block text-xs text-[var(--foreground)]/60 mt-1">
-                                May take longer depending on number of events
-                              </span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      <Button
+                        ref={syncButtonRef}
+                        onClick={handleSyncWithWarning}
+                        disabled={syncing || selectedCalendarIds.length === 0}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                        {syncing ? 'Syncing...' : 'Sync'}
+                      </Button>
                       <Button
                         onClick={() => setShowPushPanel(true)}
                         disabled={selectedCalendarIds.length === 0}
@@ -949,6 +959,15 @@ export default function ProviderIntegrationsPage() {
           selectedCalendarIds={selectedCalendarIds}
         />
       )}
+
+      {/* Sync Warning Modal */}
+      <SyncWarningModal
+        isOpen={showSyncWarning}
+        onClose={() => setShowSyncWarning(false)}
+        onConfirm={handleSync}
+        eventCount={estimatedEventCount}
+        isSyncing={syncing}
+      />
     </div>
   )
 }
