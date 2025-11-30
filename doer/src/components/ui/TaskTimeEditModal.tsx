@@ -243,8 +243,8 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
 
   if (!task) return null
 
-  // Calendar events are read-only (not detached) or deleted
-  const isReadOnly = (task.is_calendar_event && !task.is_detached) || task.is_deleted_in_calendar
+  // Calendar events are read-only (not detached)
+  const isReadOnly = task.is_calendar_event && !task.is_detached
 
   const priorityLabel = getPriorityLabel(task.priority ?? null)
   const priorityBadgeClass = priorityLabel ? getPriorityBadgeClasses(task.priority ?? null, theme) : ''
