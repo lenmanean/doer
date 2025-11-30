@@ -147,7 +147,9 @@ export function useTaskTimeSchedule(
           event: '*', 
           schema: 'public', 
           table: 'task_schedule',
-          filter: isFreeMode ? 'plan_id=is.null' : `plan_id=eq.${planId}`
+          // When a plan exists, listen to both plan tasks and calendar events (plan_id = null)
+          // When free-mode, only listen to calendar events (plan_id = null)
+          filter: isFreeMode ? 'plan_id=is.null' : `plan_id=eq.${planId},plan_id=is.null`
         },
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -179,7 +181,9 @@ export function useTaskTimeSchedule(
           event: '*', 
           schema: 'public', 
           table: 'tasks',
-          filter: isFreeMode ? 'plan_id=is.null' : `plan_id=eq.${planId}`
+          // When a plan exists, listen to both plan tasks and calendar events (plan_id = null)
+          // When free-mode, only listen to calendar events (plan_id = null)
+          filter: isFreeMode ? 'plan_id=is.null' : `plan_id=eq.${planId},plan_id=is.null`
         },
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)
