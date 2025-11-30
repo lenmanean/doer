@@ -737,7 +737,6 @@ export async function POST(req: NextRequest) {
             adjustedTimeline: adjustedTimelineDays,
             totalDuration,
             dailyCapacity,
-            effectiveRemainingMinutes,
           })
         } else if (shouldRespectTodayRequirement) {
           // User explicitly required today - keep start date as today
