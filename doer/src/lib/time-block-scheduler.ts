@@ -718,8 +718,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         continue
         }
         
-        // If this is the start date and forceStartDate is true, prioritize it
-        if (forceStartDate && dayIndex === 0) {
+        // If this is the start date and forceStartDate or requireStartDate is true, prioritize it
+        if ((forceStartDate || requireStartDate) && dayIndex === 0) {
           // Allow scheduling on start date even if it's a weekend
           // Don't skip
         } else if (prefersWeekday) {
@@ -764,8 +764,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           continue
         }
         
-        // If this is the start date and forceStartDate is true, prioritize it
-        if (forceStartDate && dayIndex === 0) {
+        // If this is the start date and forceStartDate or requireStartDate is true, prioritize it
+        if ((forceStartDate || requireStartDate) && dayIndex === 0) {
           // Allow scheduling on start date even if it's a weekend
           // Don't skip
         } else if (prefersWeekday) {
