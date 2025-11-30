@@ -748,10 +748,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // 🔧 FIX: Schedule the entire remaining duration (we already checked it fits above)
       const durationToSchedule = remainingDuration
       
-      // Find the best time slot for this task
+      // Find the best time slot for this task (returns earliest possible start)
       const initialStartTime = findBestTimeSlot(
         dayIndex,
-        alreadyScheduled,
         durationToSchedule,
         dayConfig,
         currentTime,
@@ -861,10 +860,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
 
 /**
  * Find the best time slot for a task
+ * Returns the earliest possible start time (workday start or current time for today)
+ * Actual gap-finding is handled by findNextAvailableSlot
  */
 function findBestTimeSlot(
   dayIndex: number,
-  alreadyScheduled: number,
   duration: number,
   dayConfig: DayScheduleConfig,
   currentTime?: Date,
@@ -888,47 +888,19 @@ function findBestTimeSlot(
   }
 
   const effectiveStartMinutes = effectiveStartHour * 60 + effectiveStartMinute
-  const dayCapacity = dayConfig.dailyCapacity
-
-  if (alreadyScheduled >= dayCapacity) {
-    return null
-  }
-
-  // FIX: alreadyScheduled tracks minutes used since workday start
-  // effectiveStartMinutes is the earliest we can start (current time if today, or workday start)
-  // We should use the LATER of these two values, not add them together
-  const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
-  const candidateStartMinutes = Math.max(effectiveStartMinutes, workdayStartMinutes + alreadyScheduled)
-  
-  // NEW: Check if candidate overlaps with lunch break
-  const lunchStartMinutes = dayConfig.lunchStartHour * 60
-  const lunchEndMinutes = dayConfig.lunchEndHour * 60
-  const candidateEndMinutes = candidateStartMinutes + duration
-  
-  let finalStartMinutes = candidateStartMinutes
-  
-  // If task would overlap with lunch, skip to after lunch
-  if (candidateStartMinutes < lunchEndMinutes && candidateEndMinutes > lunchStartMinutes) {
-    console.log(`    ⏸️  Task would overlap lunch (${formatTime(dayConfig.lunchStartHour, 0)}-${formatTime(dayConfig.lunchEndHour, 0)}), moving to after lunch`)
-    finalStartMinutes = lunchEndMinutes
-  }
-  
   const workdayEndMinutes = dayConfig.endHour * 60
-  if (finalStartMinutes + duration > workdayEndMinutes) {
+  
+  // Basic validation: check if task can fit in workday at all
+  if (effectiveStartMinutes + duration > workdayEndMinutes) {
     console.log(`    ❌ Task (${duration}min) would exceed workday end (${formatTime(dayConfig.endHour, 0)})`)
     return null
   }
 
-  const startHour = Math.floor(finalStartMinutes / 60)
-  const startMinute = finalStartMinutes % 60
+  const startHour = Math.floor(effectiveStartMinutes / 60)
+  const startMinute = effectiveStartMinutes % 60
   const timeStr = formatTime(startHour, startMinute)
   
-  // Enhanced logging: show adjustment if lunch break was skipped
-  if (finalStartMinutes !== candidateStartMinutes) {
-    console.log(`    findBestTimeSlot: ${formatTime(Math.floor(candidateStartMinutes/60), candidateStartMinutes%60)} → ${timeStr} (adjusted for lunch)`)
-  } else {
-    console.log(`    findBestTimeSlot → ${timeStr} (effectiveStart: ${effectiveStartMinutes}min, alreadyScheduled: ${alreadyScheduled}min)`)
-  }
+  console.log(`    findBestTimeSlot → ${timeStr} (earliest possible start, gap-finding will be handled by findNextAvailableSlot)`)
   
   return timeStr
 }
@@ -953,6 +925,7 @@ function formatTime(hours: number, minutes: number): string {
 
 /**
  * Find the next available time slot that doesn't overlap with existing scheduled slots
+ * Scans from workday start (or current time) to find the earliest available gap
  */
 function findNextAvailableSlot(
   suggestedStartTime: string,
@@ -963,7 +936,7 @@ function findNextAvailableSlot(
   currentTime?: Date
 ): string | null {
   const [suggestedHour, suggestedMinute] = suggestedStartTime.split(':').map(Number)
-  let currentStartMinutes = suggestedHour * 60 + suggestedMinute
+  const suggestedStartMinutes = suggestedHour * 60 + suggestedMinute
   
   // Calculate workday boundaries
   const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
@@ -972,18 +945,13 @@ function findNextAvailableSlot(
   // Calculate lunch boundaries
   const lunchStartMinutes = dayConfig.lunchStartHour * 60
   const lunchEndMinutes = dayConfig.lunchEndHour * 60
+  const lunchOverlapStart = Math.max(dayConfig.startHour, dayConfig.lunchStartHour)
+  const lunchOverlapEnd = Math.min(dayConfig.endHour, dayConfig.lunchEndHour)
+  const lunchOverlapStartMinutes = lunchOverlapStart * 60
+  const lunchOverlapEndMinutes = lunchOverlapEnd * 60
   
-  // Get existing slots for this day
-  const daySlots = scheduledSlots.get(dateStr) || []
-  
-  // Sort slots by start time
-  const sortedSlots = [...daySlots].sort((a, b) => a.start - b.start)
-  
-  // Try the suggested time first
-  let candidateStart = currentStartMinutes
-  let candidateEnd = candidateStart + duration
-  
-  // If this is today and we have current time, ensure we don't schedule in the past
+  // Determine the earliest we can start (workday start or current time for today)
+  let earliestStartMinutes = workdayStartMinutes
   if (currentTime) {
     const currentTimeDateStr = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(
       currentTime.getDate()
@@ -993,87 +961,94 @@ function findNextAvailableSlot(
       const currentHour = currentTime.getHours()
       const currentMinute = currentTime.getMinutes()
       const currentMinutes = currentHour * 60 + currentMinute
-
-      // If suggested time is in the past, start from current time
-      if (candidateStart < currentMinutes) {
-        candidateStart = currentMinutes
-        candidateEnd = candidateStart + duration
-      }
+      // Use the later of workday start or current time
+      earliestStartMinutes = Math.max(workdayStartMinutes, currentMinutes)
     }
   }
   
-  // Check if suggested time is valid (within workday, not during lunch if lunch overlaps)
-  const lunchOverlapStart = Math.max(dayConfig.startHour, dayConfig.lunchStartHour)
-  const lunchOverlapEnd = Math.min(dayConfig.endHour, dayConfig.lunchEndHour)
-  const lunchOverlapStartMinutes = lunchOverlapStart * 60
-  const lunchOverlapEndMinutes = lunchOverlapEnd * 60
+  // Get existing slots for this day (includes busy slots from calendar)
+  const daySlots = scheduledSlots.get(dateStr) || []
   
-  // Check if we need to skip lunch
-  const needsToSkipLunch = lunchOverlapStart < lunchOverlapEnd && 
-    ((candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes))
+  // Sort slots by start time
+  const sortedSlots = [...daySlots].sort((a, b) => a.start - b.start)
   
-  if (needsToSkipLunch && candidateEnd > lunchOverlapStartMinutes) {
-    // Start after lunch
+  // Log busy slots for debugging
+  if (sortedSlots.length > 0) {
+    console.log(`    📅 Found ${sortedSlots.length} busy slot(s) on ${dateStr}:`, 
+      sortedSlots.map(s => `${formatTime(Math.floor(s.start/60), s.start%60)}-${formatTime(Math.floor(s.end/60), s.end%60)}`).join(', '))
+  }
+  
+  // Strategy: Scan from earliest start to find the first gap that fits
+  // This ensures we backfill available slots between busy periods
+  let candidateStart = earliestStartMinutes
+  let candidateEnd = candidateStart + duration
+  
+  // Check if candidate would overlap with lunch
+  const wouldOverlapLunch = lunchOverlapStart < lunchOverlapEnd && 
+    candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes
+  
+  if (wouldOverlapLunch) {
+    // Skip to after lunch
     candidateStart = lunchOverlapEndMinutes
     candidateEnd = candidateStart + duration
   }
   
   // Ensure within workday bounds
-  if (candidateStart < workdayStartMinutes) {
-    candidateStart = workdayStartMinutes
-    candidateEnd = candidateStart + duration
-  }
-  
   if (candidateEnd > workdayEndMinutes) {
-    return null // Can't fit in workday
+    console.log(`    ❌ Task (${duration}min) cannot fit in remaining workday`)
+    return null
   }
   
-  // Check for overlaps with existing slots
-  let maxAttempts = 100 // Prevent infinite loops
+  // Scan forward to find the first available gap
+  let maxAttempts = 200 // Increased to handle more complex schedules
   let attempts = 0
   
   while (attempts < maxAttempts) {
-    const hasOverlap = sortedSlots.some(slot => 
-      candidateStart < slot.end && candidateEnd > slot.start
-    )
-    
-    if (!hasOverlap) {
-      // Found a valid slot
-      const startHour = Math.floor(candidateStart / 60)
-      const startMinute = candidateStart % 60
-      return formatTime(startHour, startMinute)
-    }
-    
-    // Find the next available slot after the overlapping slot
+    // Check if this candidate slot overlaps with any existing slot
     const overlappingSlot = sortedSlots.find(slot => 
       candidateStart < slot.end && candidateEnd > slot.start
     )
     
-    if (overlappingSlot) {
-      // Try starting right after this overlapping slot
-      candidateStart = overlappingSlot.end
-      candidateEnd = candidateStart + duration
-      
-      // Check if we need to skip lunch
-      if (lunchOverlapStart < lunchOverlapEnd && 
-          candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes) {
-        candidateStart = lunchOverlapEndMinutes
-        candidateEnd = candidateStart + duration
+    if (!overlappingSlot) {
+      // Found a valid gap! Check if it's before the suggested time
+      if (candidateStart <= suggestedStartMinutes) {
+        const startHour = Math.floor(candidateStart / 60)
+        const startMinute = candidateStart % 60
+        const timeStr = formatTime(startHour, startMinute)
+        console.log(`    ✅ Found available gap: ${timeStr} (${duration}min) - earlier than suggested ${formatTime(suggestedHour, suggestedMinute)}`)
+        return timeStr
+      } else {
+        // Gap is after suggested time, but we found it - use it for backfilling
+        const startHour = Math.floor(candidateStart / 60)
+        const startMinute = candidateStart % 60
+        const timeStr = formatTime(startHour, startMinute)
+        console.log(`    ✅ Found available gap: ${timeStr} (${duration}min) - using for backfilling`)
+        return timeStr
       }
-      
-      // Check if still within workday
-      if (candidateEnd > workdayEndMinutes) {
-        return null // Can't fit in workday
-      }
-    } else {
-      // No overlap found (shouldn't happen), but advance by 15 minutes to be safe
-      candidateStart += 15
+    }
+    
+    // There's an overlap, move to after the overlapping slot
+    candidateStart = overlappingSlot.end
+    candidateEnd = candidateStart + duration
+    
+    // Check if we need to skip lunch
+    if (lunchOverlapStart < lunchOverlapEnd && 
+        candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes) {
+      candidateStart = lunchOverlapEndMinutes
       candidateEnd = candidateStart + duration
+    }
+    
+    // Check if still within workday
+    if (candidateEnd > workdayEndMinutes) {
+      // No more room in workday
+      console.log(`    ❌ No available gap found - workday full or task too long`)
+      return null
     }
     
     attempts++
   }
   
-  return null // Couldn't find a slot after max attempts
+  console.log(`    ⚠️ Could not find available slot after ${maxAttempts} attempts`)
+  return null
 }
 
