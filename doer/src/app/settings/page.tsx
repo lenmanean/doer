@@ -169,6 +169,16 @@ export default function SettingsPage() {
   const [emailSubmitting, setEmailSubmitting] = useState(false)
   const [emailConfirming, setEmailConfirming] = useState(false)
   const [emailCodeExpiresAt, setEmailCodeExpiresAt] = useState<string | null>(null)
+  
+  // Change tracking for unified save/revert buttons
+  const [originalSettings, setOriginalSettings] = useState<SettingsData | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<Record<string, boolean>>({
+    account: false,
+    workday: false,
+    privacy: false,
+    preferences: false
+  })
+  const [savingSection, setSavingSection] = useState<string | null>(null)
 
   const hasPaidBillingPeriod = Boolean(
     subscription &&
@@ -199,8 +209,7 @@ export default function SettingsPage() {
       const prefs = profile.preferences || {}
       const savedSettings = profile.settings || {}
       
-      setSettingsData(prev => ({
-        ...prev,
+      const newSettingsData: SettingsData = {
         email: user.email || '',
         firstName: profile.first_name || '',
         lastName: profile.last_name || '',
@@ -215,15 +224,20 @@ export default function SettingsPage() {
         lunchEndHour: prefs.workday?.lunch_end_hour || savedSettings.workday?.lunch_end_hour || 13,
         allowWeekends: prefs.workday?.allow_weekends ?? savedSettings.workday?.allow_weekends ?? false,
         smartSchedulingEnabled: prefs.smart_scheduling?.enabled ?? true,
-        theme: (prefs.theme || savedSettings.preferences?.theme || theme),
+        theme: (prefs.theme || savedSettings.preferences?.theme || theme) as 'dark' | 'light' | 'system',
         accentColor: (prefs.accent_color || accentColor || 'orange') as 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple',
-        timeFormat: (prefs.time_format || savedSettings.preferences?.time_format || '12h'),
+        timeFormat: (prefs.time_format || savedSettings.preferences?.time_format || '12h') as '12h' | '24h',
         startOfWeek: (
           (prefs.week_start_day !== undefined
             ? (prefs.week_start_day === 1 ? 'monday' : 'sunday')
             : savedSettings.preferences?.start_of_week || 'monday')
-        ),
-      }))
+        ) as 'sunday' | 'monday',
+      }
+      
+      setSettingsData(prev => ({ ...prev, ...newSettingsData }))
+      
+      // Store original settings snapshot for change detection
+      setOriginalSettings(JSON.parse(JSON.stringify(newSettingsData)))
 
       // Set profile picture preview if avatar_url exists
       if (profile?.avatar_url) {
@@ -600,6 +614,387 @@ export default function SettingsPage() {
     } finally {
       setEmailConfirming(false)
     }
+  }
+
+  // Change detection function
+  const checkSectionChanges = (section: string): boolean => {
+    if (!originalSettings) return false
+    
+    switch (section) {
+      case 'account':
+        return (
+          settingsData.firstName !== originalSettings.firstName ||
+          settingsData.lastName !== originalSettings.lastName ||
+          settingsData.dateOfBirth !== originalSettings.dateOfBirth ||
+          settingsData.phoneNumber !== originalSettings.phoneNumber
+        )
+      case 'workday':
+        return (
+          settingsData.workdayStartHour !== originalSettings.workdayStartHour ||
+          settingsData.workdayEndHour !== originalSettings.workdayEndHour ||
+          settingsData.lunchStartHour !== originalSettings.lunchStartHour ||
+          settingsData.lunchEndHour !== originalSettings.lunchEndHour ||
+          settingsData.allowWeekends !== originalSettings.allowWeekends ||
+          settingsData.smartSchedulingEnabled !== originalSettings.smartSchedulingEnabled
+        )
+      case 'privacy':
+        // improveModelEnabled is stored separately, check it against original
+        return false // Will be handled separately since it's not in SettingsData
+      case 'preferences':
+        return (
+          settingsData.theme !== originalSettings.theme ||
+          settingsData.accentColor !== originalSettings.accentColor ||
+          settingsData.timeFormat !== originalSettings.timeFormat ||
+          settingsData.startOfWeek !== originalSettings.startOfWeek
+        )
+      default:
+        return false
+    }
+  }
+
+  // Update change detection when settings change
+  useEffect(() => {
+    if (!originalSettings) return
+    
+    const sections = ['account', 'workday', 'privacy', 'preferences']
+    const newHasUnsavedChanges: Record<string, boolean> = {}
+    
+    sections.forEach(section => {
+      newHasUnsavedChanges[section] = checkSectionChanges(section)
+    })
+    
+    setHasUnsavedChanges(newHasUnsavedChanges)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsData, originalSettings])
+
+  // Unified save handler
+  const handleUnifiedSave = async (section: string) => {
+    setSavingSection(section)
+    setSaving(true)
+    
+    try {
+      switch (section) {
+        case 'account': {
+          const response = await fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              first_name: settingsData.firstName,
+              last_name: settingsData.lastName,
+              date_of_birth: settingsData.dateOfBirth || null,
+              phone_number: settingsData.phoneNumber || null,
+            })
+          })
+          
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to save account settings')
+          }
+          
+          // Update original settings after successful save
+          setOriginalSettings(prev => prev ? {
+            ...prev,
+            firstName: settingsData.firstName,
+            lastName: settingsData.lastName,
+            dateOfBirth: settingsData.dateOfBirth,
+            phoneNumber: settingsData.phoneNumber,
+          } : null)
+          
+          addToast({
+            type: 'success',
+            title: 'Settings Saved',
+            description: 'Your account settings have been updated successfully.',
+            duration: 3000
+          })
+          break
+        }
+        
+        case 'workday': {
+          const response = await fetch('/api/settings/workday', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              workdayStartHour: settingsData.workdayStartHour,
+              workdayEndHour: settingsData.workdayEndHour,
+              lunchStartHour: settingsData.lunchStartHour,
+              lunchEndHour: settingsData.lunchEndHour,
+              allowWeekends: settingsData.allowWeekends
+            })
+          })
+          
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to save workday settings')
+          }
+          
+          // Save smart scheduling separately
+          const smartSchedulingResponse = await fetch('/api/settings/smart-scheduling', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: settingsData.smartSchedulingEnabled })
+          })
+          
+          if (!smartSchedulingResponse.ok) {
+            const errorData = await smartSchedulingResponse.json()
+            throw new Error(errorData.error || 'Failed to save smart scheduling setting')
+          }
+          
+          // Update original settings after successful save
+          setOriginalSettings(prev => prev ? {
+            ...prev,
+            workdayStartHour: settingsData.workdayStartHour,
+            workdayEndHour: settingsData.workdayEndHour,
+            lunchStartHour: settingsData.lunchStartHour,
+            lunchEndHour: settingsData.lunchEndHour,
+            allowWeekends: settingsData.allowWeekends,
+            smartSchedulingEnabled: settingsData.smartSchedulingEnabled,
+          } : null)
+          
+          addToast({
+            type: 'success',
+            title: 'Settings Saved',
+            description: 'Your workday settings have been updated successfully.',
+            duration: 3000
+          })
+          break
+        }
+        
+        case 'preferences': {
+          const settings = {
+            preferences: {
+              theme: settingsData.theme,
+              accent_color: settingsData.accentColor,
+              time_format: settingsData.timeFormat,
+              start_of_week: settingsData.startOfWeek
+            }
+          }
+
+          const response = await fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              first_name: settingsData.firstName,
+              last_name: settingsData.lastName,
+              settings: settings
+            })
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            if (response.status === 401) {
+              console.error('Unauthorized when saving preferences:', errorData)
+              alert('Your session may have expired. Please refresh the page and try again.')
+              setSaving(false)
+              setSavingSection(null)
+              return
+            }
+            throw new Error(errorData.error || 'Failed to save preferences')
+          }
+
+          // Update original settings after successful save
+          setOriginalSettings(prev => prev ? {
+            ...prev,
+            theme: settingsData.theme,
+            accentColor: settingsData.accentColor,
+            timeFormat: settingsData.timeFormat,
+            startOfWeek: settingsData.startOfWeek,
+          } : null)
+
+          // Apply theme and accent color immediately after successful save
+          setTheme(settingsData.theme)
+          setAccentColor(settingsData.accentColor)
+          
+          addToast({
+            type: 'success',
+            title: 'Settings Saved',
+            description: 'Your preferences have been updated successfully.',
+            duration: 3000
+          })
+          break
+        }
+        
+        default:
+          throw new Error(`Unknown section: ${section}`)
+      }
+      
+      // Reset unsaved changes for this section
+      setHasUnsavedChanges(prev => ({ ...prev, [section]: false }))
+      
+    } catch (error: any) {
+      console.error(`Error saving ${section} settings:`, error)
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        description: error.message || `Failed to save ${section} settings. Please try again.`,
+        duration: 5000
+      })
+    } finally {
+      setSaving(false)
+      setSavingSection(null)
+    }
+  }
+
+  // Unified revert handler
+  const handleUnifiedRevert = async (section: string) => {
+    try {
+      // Fetch latest settings from database
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+      
+      // Fetch profile and settings
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .single()
+      
+      const prefs = settings?.preferences || {}
+      const savedSettings = profile?.settings || {}
+      
+      // Restore settings based on section
+      switch (section) {
+        case 'account': {
+          setSettingsData(prev => ({
+            ...prev,
+            firstName: profile?.first_name || '',
+            lastName: profile?.last_name || '',
+            dateOfBirth: profile?.date_of_birth || '',
+            phoneNumber: profile?.phone_number || '',
+          }))
+          break
+        }
+        
+        case 'workday': {
+          const workdaySettings = prefs.workday || {}
+          setSettingsData(prev => ({
+            ...prev,
+            workdayStartHour: workdaySettings.workday_start_hour || savedSettings.workday?.workday_start_hour || 9,
+            workdayEndHour: workdaySettings.workday_end_hour || savedSettings.workday?.workday_end_hour || 17,
+            lunchStartHour: workdaySettings.lunch_start_hour || savedSettings.workday?.lunch_start_hour || 12,
+            lunchEndHour: workdaySettings.lunch_end_hour || savedSettings.workday?.lunch_end_hour || 13,
+            allowWeekends: workdaySettings.allow_weekends ?? savedSettings.workday?.allow_weekends ?? false,
+            smartSchedulingEnabled: prefs.smart_scheduling?.enabled ?? true,
+          }))
+          break
+        }
+        
+        case 'preferences': {
+          setSettingsData(prev => ({
+            ...prev,
+            theme: (prefs.theme || savedSettings.preferences?.theme || theme) as 'dark' | 'light' | 'system',
+            accentColor: (prefs.accent_color || accentColor || 'orange') as 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple',
+            timeFormat: (prefs.time_format || savedSettings.preferences?.time_format || '12h') as '12h' | '24h',
+            startOfWeek: (
+              (prefs.week_start_day !== undefined
+                ? (prefs.week_start_day === 1 ? 'monday' : 'sunday')
+                : savedSettings.preferences?.start_of_week || 'monday')
+            ) as 'sunday' | 'monday',
+          }))
+          break
+        }
+      }
+      
+      // Update original settings to match reverted values
+      setOriginalSettings(prev => prev ? JSON.parse(JSON.stringify({
+        ...prev,
+        ...(section === 'account' ? {
+          firstName: profile?.first_name || '',
+          lastName: profile?.last_name || '',
+          dateOfBirth: profile?.date_of_birth || '',
+          phoneNumber: profile?.phone_number || '',
+        } : {}),
+        ...(section === 'workday' ? {
+          workdayStartHour: prefs.workday?.workday_start_hour || savedSettings.workday?.workday_start_hour || 9,
+          workdayEndHour: prefs.workday?.workday_end_hour || savedSettings.workday?.workday_end_hour || 17,
+          lunchStartHour: prefs.workday?.lunch_start_hour || savedSettings.workday?.lunch_start_hour || 12,
+          lunchEndHour: prefs.workday?.lunch_end_hour || savedSettings.workday?.lunch_end_hour || 13,
+          allowWeekends: prefs.workday?.allow_weekends ?? savedSettings.workday?.allow_weekends ?? false,
+          smartSchedulingEnabled: prefs.smart_scheduling?.enabled ?? true,
+        } : {}),
+        ...(section === 'preferences' ? {
+          theme: (prefs.theme || savedSettings.preferences?.theme || theme) as 'dark' | 'light' | 'system',
+          accentColor: (prefs.accent_color || accentColor || 'orange') as 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple',
+          timeFormat: (prefs.time_format || savedSettings.preferences?.time_format || '12h') as '12h' | '24h',
+          startOfWeek: (
+            (prefs.week_start_day !== undefined
+              ? (prefs.week_start_day === 1 ? 'monday' : 'sunday')
+              : savedSettings.preferences?.start_of_week || 'monday')
+          ) as 'sunday' | 'monday',
+        } : {}),
+      })) : null)
+      
+      // Reset unsaved changes for this section
+      setHasUnsavedChanges(prev => ({ ...prev, [section]: false }))
+      
+      addToast({
+        type: 'success',
+        title: 'Changes Reverted',
+        description: `Your ${section} settings have been reverted to the last saved state.`,
+        duration: 3000
+      })
+      
+    } catch (error: any) {
+      console.error(`Error reverting ${section} settings:`, error)
+      addToast({
+        type: 'error',
+        title: 'Revert Failed',
+        description: error.message || `Failed to revert ${section} settings. Please try again.`,
+        duration: 5000
+      })
+    }
+  }
+
+  // Unified Save/Revert Button Component
+  const UnifiedSaveRevertButtons = ({ section }: { section: string }) => {
+    const hasChanges = hasUnsavedChanges[section] || false
+    const isSaving = savingSection === section
+    
+    if (!hasChanges) return null
+    
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.2 }}
+        className="flex justify-end gap-3 pt-6 mt-6 border-t border-[var(--border)]"
+      >
+        <button
+          onClick={() => handleUnifiedRevert(section)}
+          disabled={isSaving}
+          className="px-6 py-2 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <X className="w-4 h-4" />
+          Revert Changes
+        </button>
+        <button
+          onClick={() => handleUnifiedSave(section)}
+          disabled={isSaving}
+          className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Save Changes
+            </>
+          )}
+        </button>
+      </motion.div>
+    )
   }
 
   // Handle preferences changes
@@ -2106,6 +2501,8 @@ export default function SettingsPage() {
                         )}
                       </CardContent>
                     </Card>
+                    
+                    <UnifiedSaveRevertButtons section="account" />
                   </motion.div>
                 )}
 
@@ -2419,63 +2816,6 @@ export default function SettingsPage() {
                             />
                           </button>
                         </div>
-                        
-                        <div className="flex justify-end pt-4">
-                          <button
-                            onClick={async () => {
-                              setSaving(true)
-                              try {
-                                const response = await fetch('/api/settings/workday', {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    workdayStartHour: settingsData.workdayStartHour,
-                                    workdayEndHour: settingsData.workdayEndHour,
-                                    lunchStartHour: settingsData.lunchStartHour,
-                                    lunchEndHour: settingsData.lunchEndHour,
-                                    allowWeekends: settingsData.allowWeekends
-                                  })
-                                })
-
-                                if (!response.ok) {
-                                  const errorData = await response.json()
-                                  throw new Error(errorData.error || 'Failed to save workday settings')
-                                }
-
-                                addToast({
-                                  type: 'success',
-                                  title: 'Settings Saved',
-                                  description: 'Your workday hours have been updated successfully.',
-                                  duration: 3000
-                                })
-                              } catch (error: any) {
-                                console.error('Error saving workday settings:', error)
-                                addToast({
-                                  type: 'error',
-                                  title: 'Save Failed',
-                                  description: error.message || 'Failed to save workday settings. Please try again.',
-                                  duration: 5000
-                                })
-                              } finally {
-                                setSaving(false)
-                              }
-                            }}
-                            disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {saving ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="w-4 h-4" />
-                                Save Workday Settings
-                              </>
-                            )}
-                          </button>
-                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -2500,32 +2840,10 @@ export default function SettingsPage() {
                             <p className="text-xs text-[var(--muted-foreground)]">Allow AI to automatically reschedule tasks when needed</p>
                           </div>
                           <button
-                            onClick={async () => {
+                            onClick={() => {
                               const newValue = !settingsData.smartSchedulingEnabled
                               setSettingsData({ ...settingsData, smartSchedulingEnabled: newValue })
-                              
-                              // Save to API
-                              try {
-                                const response = await fetch('/api/settings/smart-scheduling', {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ enabled: newValue })
-                                })
-                                
-                                if (!response.ok) {
-                                  throw new Error('Failed to save setting')
-                                }
-                              } catch (error) {
-                                console.error('Error saving smart scheduling setting:', error)
-                                // Revert on error
-                                setSettingsData({ ...settingsData, smartSchedulingEnabled: !newValue })
-                                addToast({
-                                  type: 'error',
-                                  title: 'Save Failed',
-                                  description: 'Failed to save smart scheduling setting. Please try again.',
-                                  duration: 5000
-                                })
-                              }
+                              // Don't save immediately - let unified save button handle it
                             }}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 focus:ring-offset-transparent ${
                               settingsData.smartSchedulingEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--accent)]'
@@ -2540,6 +2858,8 @@ export default function SettingsPage() {
                         </div>
                       </CardContent>
                     </Card>
+                    
+                    <UnifiedSaveRevertButtons section="workday" />
                   </motion.div>
                 )}
 
@@ -2942,6 +3262,8 @@ export default function SettingsPage() {
 
                     {/* Cookie Management */}
                     <CookieManagement />
+                    
+                    <UnifiedSaveRevertButtons section="privacy" />
                   </motion.div>
                 )}
 
@@ -3009,37 +3331,10 @@ export default function SettingsPage() {
                             <option value="monday">Monday</option>
                           </select>
                         </div>
-
-                        {/* Animated Save Button */}
-                        {showPreferencesSave && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            className="flex justify-end pt-4"
-                          >
-                            <button
-                              onClick={handleSavePreferences}
-                              disabled={saving}
-                              className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {saving ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Saving...
-                                </>
-                              ) : (
-                                <>
-                                  <Save className="w-4 h-4" />
-                                  Save Changes
-                                </>
-                              )}
-                            </button>
-                          </motion.div>
-                        )}
                       </CardContent>
                     </Card>
+                    
+                    <UnifiedSaveRevertButtons section="preferences" />
                   </motion.div>
                 )}
 

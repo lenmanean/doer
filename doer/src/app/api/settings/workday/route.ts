@@ -99,6 +99,8 @@ export async function PATCH(req: NextRequest) {
         user_id: user.id,
         preferences: updatedPreferences,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       })
 
     if (error) {

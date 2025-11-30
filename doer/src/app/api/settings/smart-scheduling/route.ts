@@ -46,6 +46,8 @@ export async function PATCH(request: NextRequest) {
         user_id: user.id,
         preferences: updatedPreferences,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       })
 
     if (updateError) {
