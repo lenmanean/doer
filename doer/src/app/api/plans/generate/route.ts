@@ -485,20 +485,35 @@ export async function POST(req: NextRequest) {
         const timeFormat = timeConstraints.timeFormat || '12h'
         const userLocalTime = timeConstraints.userLocalTime || new Date()
         const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
-        const totalHours = Math.ceil(totalDuration / 60)
+        
+        // Format total duration more accurately
+        const totalHours = Math.floor(totalDuration / 60)
+        const totalMinutes = totalDuration % 60
+        const totalDurationText = totalHours > 0 && totalMinutes > 0
+          ? `${totalHours} hour${totalHours !== 1 ? 's' : ''} and ${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`
+          : totalHours > 0
+          ? `${totalHours} hour${totalHours !== 1 ? 's' : ''}`
+          : `${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`
+        
+        // Determine if this was originally a single-day plan
+        const wasSingleDayPlan = timelineDays === 1
         
         if (requiresToday && urgencyLevel === 'high') {
           // User explicitly wanted today - warn about extension
           const hoursRemaining = Math.floor(remainingMinutes / 60)
           const minutesRemaining = remainingMinutes % 60
           const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          timeAdjustmentWarning = `This single-day plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Please start this plan tomorrow or adjust your goal scope.`
+          if (wasSingleDayPlan) {
+            timeAdjustmentWarning = `This single-day plan requires ${totalDurationText} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Please start this plan tomorrow or adjust your goal scope.`
+          } else {
+            timeAdjustmentWarning = `You requested completion today, but this plan requires ${totalDurationText} of work and only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed.`
+          }
         } else if (urgencyLevel === 'medium') {
           // Time-sensitive but not necessarily today
           const hoursRemaining = Math.floor(remainingMinutes / 60)
           const minutesRemaining = remainingMinutes % 60
           const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
+          timeAdjustmentWarning = `This plan requires ${totalDurationText} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
         } else {
           // No urgency - extend silently or with gentle note
           const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
