@@ -3,6 +3,7 @@ import { timeBlockScheduler } from '@/lib/time-block-scheduler'
 import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
 import { getBusySlotsForUser } from '@/lib/calendar/busy-slots'
 import { getProvider } from '@/lib/calendar/providers/provider-factory'
+import { detectTaskDependencies } from '@/lib/goal-analysis'
 
 /**
  * Generate time-block schedule for all tasks in a plan.
@@ -78,9 +79,20 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   // If it's a single-day plan or the start date is a weekend, allow weekends to avoid zero capacity
   const effectiveAllowWeekends = allowWeekends || singleDay || startIsWeekend
 
+  // Determine if we should force using the start date
+  // Force start date if:
+  // 1. Start date is today and user requested "today" (handled by caller passing forceStartDate)
+  // 2. Start date is a weekend and it's a single-day plan
+  const forceStartDate = singleDay && startIsWeekend
+
   // Get current time to avoid scheduling tasks in the past
   const now = new Date()
   const currentTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
+  
+  // Detect task dependencies
+  const taskDependencies = detectTaskDependencies(
+    tasks.map(t => ({ name: t.name, idx: t.idx }))
+  )
 
   // Fetch busy slots from all calendar providers (provider-agnostic)
   let existingSchedules: Array<{ date: string; start_time: string; end_time: string }> = []
@@ -128,7 +140,9 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     lunchEndHour,
     allowWeekends: effectiveAllowWeekends,
     currentTime,
-    existingSchedules // Pass busy slots to avoid conflicts
+    existingSchedules, // Pass busy slots to avoid conflicts
+    forceStartDate, // Force using start date when appropriate
+    taskDependencies // Pass detected dependencies to enforce ordering
   })
 
   // Persist placements

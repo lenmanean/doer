@@ -39,7 +39,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     weekdayMaxMinutes,
     weekendMaxMinutes,
     currentTime,
-    existingSchedules = []
+    existingSchedules = [],
+    forceStartDate = false,
+    taskDependencies = new Map<number, number[]>()
   } = options
 
   // COMPREHENSIVE VALIDATION
@@ -335,12 +337,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     return { ...task, targetDay }
   })
   
-  // Second pass: Ensure sequential order within same priority
+  // Second pass: Ensure sequential order within same priority AND enforce dependencies
   // Tasks with lower idx should have earlier or equal target days
+  // Tasks that depend on others must be scheduled on same or later day
   tasksWithTargetDays = tasksWithTargetDays.map(task => {
     const priority = task.priority || 4
     const tasksInPriority = tasksByPriority.get(priority) || []
     
+    let adjustedTargetDay = task.targetDay
+    
+    // Enforce idx-based ordering within same priority
     if (task.idx) {
       const earlierTasksInPriority = tasksInPriority.filter(t => t.idx && t.idx < task.idx)
       if (earlierTasksInPriority.length > 0) {
@@ -352,13 +358,39 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         if (earlierTargetDays.length > 0) {
           const latestEarlierTargetDay = Math.max(...earlierTargetDays)
           // Ensure this task's target day is not earlier than the latest earlier task
-          const adjustedTargetDay = Math.max(task.targetDay, latestEarlierTargetDay)
-          if (adjustedTargetDay !== task.targetDay) {
-            console.log(`  Adjusting target day for task ${task.idx} (${task.name}): ${task.targetDay} -> ${adjustedTargetDay} to maintain sequence`)
-            return { ...task, targetDay: adjustedTargetDay }
-          }
+          adjustedTargetDay = Math.max(adjustedTargetDay, latestEarlierTargetDay)
         }
       }
+    }
+    
+    // Enforce dependency constraints: if this task depends on others, it must be scheduled on same or later day
+    if (task.idx && taskDependencies.has(task.idx)) {
+      const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+      for (const depIdx of dependentTaskIdxs) {
+        const depTask = tasksWithTargetDays.find(t => t.idx === depIdx)
+        if (depTask) {
+          // This task depends on depTask, so it must be scheduled on same or later day
+          adjustedTargetDay = Math.max(adjustedTargetDay, depTask.targetDay)
+        }
+      }
+    }
+    
+    // Enforce reverse dependencies: if other tasks depend on this task, they must be scheduled on same or later day
+    // (This is handled when we process those tasks, but we log here for clarity)
+    for (const [depTaskIdx, deps] of taskDependencies.entries()) {
+      if (deps.includes(task.idx)) {
+        const depTask = tasksWithTargetDays.find(t => t.idx === depTaskIdx)
+        if (depTask && depTask.targetDay < task.targetDay) {
+          // The dependent task will be adjusted in its own iteration
+          // We just ensure this task's target day is valid
+        }
+      }
+    }
+    
+    if (adjustedTargetDay !== task.targetDay) {
+      const reason = taskDependencies.has(task.idx || -1) ? 'dependency constraint' : 'sequence'
+      console.log(`  🔗 Adjusting target day for task ${task.idx} (${task.name}): ${task.targetDay} -> ${adjustedTargetDay} (${reason})`)
+      return { ...task, targetDay: adjustedTargetDay }
     }
     
     return task
@@ -543,7 +575,13 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     const allowEarlierThanTarget = task.priority === 1
 
     const searchDaysSet = new Set<number>()
-    searchDaysSet.add(targetDay) // Start with target day
+    
+    // If forceStartDate is true and this is a priority task, prioritize start date (day 0)
+    if (forceStartDate && task.priority <= 2 && targetDay === 0) {
+      searchDaysSet.add(0) // Start date gets highest priority
+    } else {
+      searchDaysSet.add(targetDay) // Start with target day
+    }
     
     // Calculate max deviation based on priority - lower priority can deviate more
     // P1: max 2 days deviation, P2: max 3 days, P3: max 4 days, P4: max 5 days
@@ -671,9 +709,26 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       const dayConfig = dayConfigs[dayIndex]
       if (!dayConfig) continue
 
-      if (dayConfig.isWeekend && !allowWeekends) {
-        console.log(`  Skipping weekend (disabled): ${dateStr}`)
-        continue
+      // Weekend handling: respect allowWeekends and forceStartDate
+      if (dayConfig.isWeekend) {
+        // If weekends are disabled, skip
+        if (!allowWeekends) {
+          console.log(`  Skipping weekend (disabled): ${dateStr}`)
+          continue
+        }
+        
+        // If this is the start date and forceStartDate is true, prioritize it
+        if (forceStartDate && dayIndex === 0) {
+          // Allow scheduling on start date even if it's a weekend
+          // Don't skip
+        } else if (prefersWeekday) {
+          // Only skip weekend if there are weekday alternatives available
+          const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
+          if (hasWeekdayCandidate) {
+            console.log(`    Prefers weekday: skipping weekend ${dateStr} (weekday alternative available)`)
+            continue
+          }
+        }
       }
 
       // Check available capacity for this day
@@ -700,11 +755,25 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         }
       }
 
-      if (prefersWeekday && dayConfig.isWeekend) {
-        const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
-        if (hasWeekdayCandidate) {
-          console.log(`    Prefers weekday: skipping weekend ${dateStr}`)
+      // Weekend handling: respect allowWeekends and forceStartDate
+      if (dayConfig.isWeekend) {
+        // If weekends are disabled, skip
+        if (!allowWeekends) {
+          console.log(`    Skipping weekend (disabled): ${dateStr}`)
           continue
+        }
+        
+        // If this is the start date and forceStartDate is true, prioritize it
+        if (forceStartDate && dayIndex === 0) {
+          // Allow scheduling on start date even if it's a weekend
+          // Don't skip
+        } else if (prefersWeekday) {
+          // Only skip weekend if there are weekday alternatives available
+          const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
+          if (hasWeekdayCandidate) {
+            console.log(`    Prefers weekday: skipping weekend ${dateStr} (weekday alternative available)`)
+            continue
+          }
         }
       }
       
@@ -951,6 +1020,7 @@ function findNextAvailableSlot(
   const lunchOverlapEndMinutes = lunchOverlapEnd * 60
   
   // Determine the earliest we can start (workday start or current time for today)
+  // We cannot schedule tasks in the past, so if it's today, we must start from current time
   let earliestStartMinutes = workdayStartMinutes
   if (currentTime) {
     const currentTimeDateStr = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(
@@ -961,8 +1031,9 @@ function findNextAvailableSlot(
       const currentHour = currentTime.getHours()
       const currentMinute = currentTime.getMinutes()
       const currentMinutes = currentHour * 60 + currentMinute
-      // Use the later of workday start or current time
+      // Use the later of workday start or current time (cannot schedule in past)
       earliestStartMinutes = Math.max(workdayStartMinutes, currentMinutes)
+      console.log(`    ⏰ Today's plan - earliest start: ${formatTime(currentHour, currentMinute)} (current time)`)
     }
   }
   
@@ -1010,21 +1081,15 @@ function findNextAvailableSlot(
     )
     
     if (!overlappingSlot) {
-      // Found a valid gap! Check if it's before the suggested time
-      if (candidateStart <= suggestedStartMinutes) {
-        const startHour = Math.floor(candidateStart / 60)
-        const startMinute = candidateStart % 60
-        const timeStr = formatTime(startHour, startMinute)
-        console.log(`    ✅ Found available gap: ${timeStr} (${duration}min) - earlier than suggested ${formatTime(suggestedHour, suggestedMinute)}`)
-        return timeStr
-      } else {
-        // Gap is after suggested time, but we found it - use it for backfilling
-        const startHour = Math.floor(candidateStart / 60)
-        const startMinute = candidateStart % 60
-        const timeStr = formatTime(startHour, startMinute)
-        console.log(`    ✅ Found available gap: ${timeStr} (${duration}min) - using for backfilling`)
-        return timeStr
-      }
+      // Found a valid gap! Use it
+      const startHour = Math.floor(candidateStart / 60)
+      const startMinute = candidateStart % 60
+      const timeStr = formatTime(startHour, startMinute)
+      const gapInfo = candidateStart <= suggestedStartMinutes 
+        ? `earlier than suggested ${formatTime(suggestedHour, suggestedMinute)}`
+        : `using for backfilling`
+      console.log(`    ✅ Found available gap: ${timeStr} (${duration}min) - ${gapInfo}`)
+      return timeStr
     }
     
     // There's an overlap, move to after the overlapping slot

@@ -47,6 +47,8 @@ export interface UrgencyAnalysis {
   requiresToday: boolean
   requiresSpecificTime: boolean
   deadlinePhrase?: string
+  deadlineDate?: Date
+  deadlineType?: 'tomorrow' | 'specific_date' | 'none'
 }
 
 /**
@@ -147,12 +149,216 @@ export function detectUrgencyIndicators(
     urgencyLevel = 'low'
   }
 
+  // Detect deadline date
+  const deadlineInfo = detectDeadlineDate(goalText, clarifications, new Date())
+
   return {
     urgencyLevel,
     indicators: [...new Set(indicators)], // Remove duplicates
     requiresToday,
     requiresSpecificTime,
     deadlinePhrase,
+    deadlineDate: deadlineInfo.deadlineDate,
+    deadlineType: deadlineInfo.deadlineType,
   }
+}
+
+/**
+ * Detect and calculate actual deadline date from goal text and clarifications
+ * Parses phrases like "tomorrow morning", "by tomorrow", "by [date]", etc.
+ */
+export function detectDeadlineDate(
+  goalText: string,
+  clarifications?: Record<string, any> | string[],
+  currentDate: Date = new Date()
+): { deadlineDate: Date | null; deadlineType: 'tomorrow' | 'specific_date' | 'none' } {
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const lowerText = combinedText.toLowerCase()
+
+  // Normalize current date to midnight for accurate day calculations
+  const today = new Date(currentDate)
+  today.setHours(0, 0, 0, 0)
+
+  // Check for "tomorrow" patterns
+  const tomorrowPatterns = [
+    /\btomorrow\s+(?:morning|afternoon|evening|night)\b/,
+    /\bby\s+tomorrow\s+(?:morning|afternoon|evening|night)\b/,
+    /\btomorrow\b/,
+    /\bby\s+tomorrow\b/,
+  ]
+
+  for (const pattern of tomorrowPatterns) {
+    if (pattern.test(lowerText)) {
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      return { deadlineDate: tomorrow, deadlineType: 'tomorrow' }
+    }
+  }
+
+  // Check for specific date patterns (MM/DD, MM-DD, "by [day name]", etc.)
+  // Date patterns like "by 12/25", "by 12-25", "by December 25"
+  const datePatterns = [
+    /\bby\s+(\d{1,2})\/(\d{1,2})\b/, // "by 12/25"
+    /\bby\s+(\d{1,2})-(\d{1,2})\b/, // "by 12-25"
+    /\bdue\s+(?:on|by)\s+(\d{1,2})\/(\d{1,2})\b/, // "due on 12/25"
+    /\bdeadline\s+(?:is|on|by)\s+(\d{1,2})\/(\d{1,2})\b/, // "deadline is 12/25"
+  ]
+
+  for (const pattern of datePatterns) {
+    const match = lowerText.match(pattern)
+    if (match) {
+      const month = parseInt(match[1], 10)
+      const day = parseInt(match[2], 10)
+      const currentYear = today.getFullYear()
+      
+      // Create date for this year
+      const deadlineDate = new Date(currentYear, month - 1, day)
+      
+      // If the date has passed this year, assume next year
+      if (deadlineDate < today) {
+        deadlineDate.setFullYear(currentYear + 1)
+      }
+      
+      return { deadlineDate, deadlineType: 'specific_date' }
+    }
+  }
+
+  // Check for day name patterns (e.g., "by Monday", "by next Friday")
+  const dayNamePattern = /\bby\s+(?:next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i
+  const dayNameMatch = lowerText.match(dayNamePattern)
+  if (dayNameMatch) {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const targetDayName = dayNameMatch[1].toLowerCase()
+    const targetDayIndex = dayNames.indexOf(targetDayName)
+    const currentDayIndex = today.getDay()
+    
+    let daysUntilTarget = targetDayIndex - currentDayIndex
+    if (daysUntilTarget <= 0) {
+      daysUntilTarget += 7 // Next week
+    }
+    if (lowerText.includes('next')) {
+      daysUntilTarget += 7 // Explicitly "next [day]"
+    }
+    
+    const deadlineDate = new Date(today)
+    deadlineDate.setDate(deadlineDate.getDate() + daysUntilTarget)
+    return { deadlineDate, deadlineType: 'specific_date' }
+  }
+
+  return { deadlineDate: null, deadlineType: 'none' }
+}
+
+/**
+ * Detect task dependencies based on semantic patterns in task names
+ * Returns a map of task idx -> array of dependent task idxs
+ * (e.g., if task 3 depends on task 2, map will have: 3 -> [2])
+ */
+export function detectTaskDependencies(
+  tasks: Array<{ name: string; idx: number }>
+): Map<number, number[]> {
+  const dependencies = new Map<number, number[]>()
+  const lowerTaskNames = tasks.map(t => ({ ...t, lowerName: t.name.toLowerCase() }))
+
+  for (const task of lowerTaskNames) {
+    const taskDeps: number[] = []
+
+    // Pattern: "outline" / "structure" must come before "create" / "build" / "write"
+    if (
+      task.lowerName.includes('outline') ||
+      task.lowerName.includes('structure') ||
+      (task.lowerName.includes('plan') && !task.lowerName.includes('execute'))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('create') ||
+            otherTask.lowerName.includes('build') ||
+            otherTask.lowerName.includes('write') ||
+            otherTask.lowerName.includes('develop') ||
+            otherTask.lowerName.includes('make'))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "research" must come before "prepare" / "create" / "write"
+    if (task.lowerName.includes('research')) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('prepare') ||
+            otherTask.lowerName.includes('create') ||
+            otherTask.lowerName.includes('write') ||
+            otherTask.lowerName.includes('develop'))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "gather materials" / "collect" must come before "build" / "create"
+    if (
+      task.lowerName.includes('gather') ||
+      task.lowerName.includes('collect') ||
+      (task.lowerName.includes('materials') && !task.lowerName.includes('organize'))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('build') ||
+            otherTask.lowerName.includes('create') ||
+            otherTask.lowerName.includes('assemble') ||
+            otherTask.lowerName.includes('make'))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "practice" / "rehearse" must come before "final review" / "polish"
+    if (task.lowerName.includes('practice') || task.lowerName.includes('rehears')) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('final review') ||
+            otherTask.lowerName.includes('final polish') ||
+            (otherTask.lowerName.includes('final') && otherTask.lowerName.includes('review')))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "learn" / "study" must come before "practice" / "apply"
+    if (task.lowerName.includes('learn') || task.lowerName.includes('study')) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('practice') ||
+            otherTask.lowerName.includes('apply') ||
+            otherTask.lowerName.includes('implement'))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    if (taskDeps.length > 0) {
+      dependencies.set(task.idx, taskDeps)
+    }
+  }
+
+  return dependencies
 }
 

@@ -373,6 +373,20 @@ SCHEDULING STRATEGY:
 • Within each priority, schedule longer tasks first to avoid fragmentation
 • CRITICAL: Ensure logical dependencies are respected regardless of priority numbers
 
+TASK DEPENDENCY ENFORCEMENT:
+• Task idx (order) MUST reflect logical dependencies - if Task B uses output from Task A, Task A must have lower idx
+• Common dependency patterns:
+  - "Outline structure" / "Plan structure" MUST come before "Create slides" / "Build" / "Write content"
+  - "Research" / "Learn basics" MUST come before "Prepare" / "Create" / "Write" / "Develop"
+  - "Gather materials" / "Collect resources" MUST come before "Build" / "Create" / "Assemble"
+  - "Practice" / "Rehearse" MUST come before "Final review" / "Final polish"
+  - "Learn" / "Study" MUST come before "Practice" / "Apply" / "Implement"
+• Examples of correct ordering:
+  - Presentation prep: "Research topic" (idx 1) → "Outline structure" (idx 2) → "Create slides" (idx 3) → "Write notes" (idx 4) → "Practice delivery" (idx 5) → "Final review" (idx 6)
+  - Project build: "Research requirements" (idx 1) → "Design architecture" (idx 2) → "Gather materials" (idx 3) → "Build core features" (idx 4) → "Add polish" (idx 5)
+• When assigning idx, think: "What must be done first for this task to be possible?"
+• If you're unsure about dependency order, err on the side of putting foundational tasks earlier
+
 STRUCTURE REQUIREMENTS:
 1. Tasks: All tasks in unified list with duration estimates
    - Each task needs estimated_duration_minutes (5-360 minutes)

@@ -280,6 +280,8 @@ export interface TimeBlockSchedulerOptions {
     end_time: string
   }>
   availability?: NormalizedAvailability
+  forceStartDate?: boolean // If true, prioritize scheduling on start date even if it's a weekend
+  taskDependencies?: Map<number, number[]> // Map of task idx -> array of dependent task idxs
 }
 
 // AI-specific types
@@ -299,6 +301,10 @@ export interface AIModelRequest {
     remainingMinutes: number
     urgencyLevel: 'high' | 'medium' | 'low' | 'none'
     requiresToday: boolean
+    deadlineDate?: Date
+    deadlineType?: 'tomorrow' | 'specific_date' | 'none'
+    timeFormat?: '12h' | '24h'
+    userLocalTime?: Date
   }
 }
 

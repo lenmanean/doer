@@ -327,6 +327,8 @@ export async function POST(req: NextRequest) {
         remainingMinutes: remainingTime.remainingMinutes,
         urgencyLevel: urgencyAnalysis.urgencyLevel,
         requiresToday: urgencyAnalysis.requiresToday,
+        deadlineDate: urgencyAnalysis.deadlineDate,
+        deadlineType: urgencyAnalysis.deadlineType,
         timeFormat: timeFormat as '12h' | '24h',
         userLocalTime: userLocalTime,
       }
@@ -335,6 +337,8 @@ export async function POST(req: NextRequest) {
         remainingMinutes: remainingTime.remainingMinutes,
         urgencyLevel: urgencyAnalysis.urgencyLevel,
         requiresToday: urgencyAnalysis.requiresToday,
+        deadlineDate: urgencyAnalysis.deadlineDate,
+        deadlineType: urgencyAnalysis.deadlineType,
       })
     }
 
@@ -466,57 +470,75 @@ export async function POST(req: NextRequest) {
     const [year, month, day] = finalStartDate.split('-').map(Number)
     const parsedStartDate = new Date(year, month - 1, day, 0, 0, 0, 0)
     
-    // Intelligent time constraint handling: extend timeline if needed
+    // Intelligent time constraint handling: extend timeline if needed, respecting deadlines
     let timeAdjustmentWarning: string | null = null
     let adjustedTimelineDays = timelineDays
     
     if (timeConstraints && timeConstraints.isStartDateToday) {
-      const { remainingMinutes, urgencyLevel, requiresToday } = timeConstraints
+      const { remainingMinutes, urgencyLevel, requiresToday, deadlineDate, deadlineType } = timeConstraints
       const dailyCapacity = 250 // Realistic daily capacity in minutes
+      
+      // Calculate maximum allowed days based on deadline
+      let maxAllowedDays: number | null = null
+      if (deadlineDate && deadlineType !== 'none') {
+        const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24))
+        maxAllowedDays = Math.max(1, daysUntilDeadline + 1) // +1 to include start date
+        
+        // If deadline is "tomorrow", cap at 2 days (today + tomorrow)
+        if (deadlineType === 'tomorrow') {
+          maxAllowedDays = 2
+        }
+      }
       
       // Check if tasks fit in remaining time
       if (totalDuration > remainingMinutes) {
         // Calculate how many additional days are needed
         const additionalDays = calculateDaysNeeded(totalDuration, remainingMinutes, dailyCapacity)
-        adjustedTimelineDays = timelineDays + additionalDays
+        let proposedTimelineDays = timelineDays + additionalDays
         
-        // Generate contextual warning based on urgency
-        // Format current time according to user's preference
+        // Cap timeline at deadline if one exists
+        if (maxAllowedDays !== null && proposedTimelineDays > maxAllowedDays) {
+          proposedTimelineDays = maxAllowedDays
+          console.log(`⚠️ Timeline capped at ${maxAllowedDays} days due to deadline constraint`)
+        }
+        
+        adjustedTimelineDays = proposedTimelineDays
+        
+        // Generate contextual warning based on urgency and deadline
         const timeFormat = timeConstraints.timeFormat || '12h'
         const userLocalTime = timeConstraints.userLocalTime || new Date()
         const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+        const totalHours = Math.ceil(totalDuration / 60)
+        const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
         
-        // Format total duration more accurately
-        const totalHours = Math.floor(totalDuration / 60)
-        const totalMinutes = totalDuration % 60
-        const totalDurationText = totalHours > 0 && totalMinutes > 0
-          ? `${totalHours} hour${totalHours !== 1 ? 's' : ''} and ${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`
-          : totalHours > 0
-          ? `${totalHours} hour${totalHours !== 1 ? 's' : ''}`
-          : `${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`
-        
-        // Determine if this was originally a single-day plan
-        const wasSingleDayPlan = timelineDays === 1
-        
-        if (requiresToday && urgencyLevel === 'high') {
+        if (deadlineType === 'tomorrow' && adjustedTimelineDays > 2) {
+          // Deadline is tomorrow but plan needs more days
+          timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but your deadline is tomorrow morning. The plan has been adjusted to fit within the deadline. Consider starting earlier or reducing the scope.`
+        } else if (deadlineDate && adjustedTimelineDays > maxAllowedDays!) {
+          // Specific deadline exceeded
+          const deadlineStr = formatDateForDB(deadlineDate)
+          timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but your deadline is ${deadlineStr}. The plan has been adjusted to fit within the deadline. Consider starting earlier or reducing the scope.`
+        } else if (requiresToday && urgencyLevel === 'high') {
           // User explicitly wanted today - warn about extension
           const hoursRemaining = Math.floor(remainingMinutes / 60)
           const minutesRemaining = remainingMinutes % 60
-          const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          if (wasSingleDayPlan) {
-            timeAdjustmentWarning = `This single-day plan requires ${totalDurationText} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Please start this plan tomorrow or adjust your goal scope.`
+          if (adjustedTimelineDays === 1) {
+            timeAdjustmentWarning = `Not enough time remains today (current time: ${formattedCurrentTime}). Plan will start tomorrow.`
           } else {
-            timeAdjustmentWarning = `You requested completion today, but this plan requires ${totalDurationText} of work and only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed.`
+            timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)}.`
           }
+        } else if (urgencyLevel === 'medium' && deadlineType === 'tomorrow') {
+          // Time-sensitive with tomorrow deadline
+          const hoursRemaining = Math.floor(remainingMinutes / 60)
+          const minutesRemaining = remainingMinutes % 60
+          timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan adjusted to fit within tomorrow's deadline.`
         } else if (urgencyLevel === 'medium') {
           // Time-sensitive but not necessarily today
           const hoursRemaining = Math.floor(remainingMinutes / 60)
           const minutesRemaining = remainingMinutes % 60
-          const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          timeAdjustmentWarning = `This plan requires ${totalDurationText} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
+          timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
         } else {
           // No urgency - extend silently or with gentle note
-          const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
           timeAdjustmentWarning = `Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed comfortably.`
         }
         
@@ -527,12 +549,38 @@ export async function POST(req: NextRequest) {
           remainingMinutes,
           urgencyLevel,
           requiresToday,
+          deadlineDate: deadlineDate?.toISOString(),
+          deadlineType,
+          maxAllowedDays,
           warning: timeAdjustmentWarning,
         })
         
         // Update timeline
         aiContent.timeline_days = adjustedTimelineDays
-      } else {
+      }
+      
+      // Additional deadline validation: check if calculated end date exceeds deadline
+      if (timeConstraints && timeConstraints.deadlineDate && timeConstraints.deadlineType !== 'none') {
+        const calculatedEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
+        if (calculatedEndDate > timeConstraints.deadlineDate) {
+          // Recalculate to fit within deadline
+          const daysUntilDeadline = Math.ceil((timeConstraints.deadlineDate.getTime() - parsedStartDate.getTime()) / (1000 * 60 * 60 * 24))
+          const maxDays = timeConstraints.deadlineType === 'tomorrow' ? 2 : Math.max(1, daysUntilDeadline + 1)
+          
+          if (adjustedTimelineDays > maxDays) {
+            adjustedTimelineDays = maxDays
+            aiContent.timeline_days = adjustedTimelineDays
+            
+            if (!timeAdjustmentWarning) {
+              const deadlineStr = formatDateForDB(timeConstraints.deadlineDate)
+              timeAdjustmentWarning = `Plan adjusted to fit within deadline of ${deadlineStr}. Consider reducing scope or starting earlier.`
+            }
+            
+            console.log(`⚠️ Timeline capped at ${maxDays} days due to deadline: ${formatDateForDB(timeConstraints.deadlineDate)}`)
+          }
+        }
+      }
+    } else {
         console.log('✅ Tasks fit in remaining time:', {
           totalDuration,
           remainingMinutes,
