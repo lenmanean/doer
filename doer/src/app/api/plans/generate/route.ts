@@ -305,7 +305,7 @@ export async function POST(req: NextRequest) {
     const todayUTC = new Date(Date.UTC(userLocalTime.getFullYear(), userLocalTime.getMonth(), userLocalTime.getDate()))
     const startDateUTC = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()))
     const isStartDateToday = startDateUTC.getTime() === todayUTC.getTime()
-    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean; timeFormat?: '12h' | '24h'; userLocalTime?: Date } | undefined
+    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean; deadlineDate?: Date; deadlineType?: 'tomorrow' | 'specific_date' | 'none'; timeFormat?: '12h' | '24h'; userLocalTime?: Date } | undefined
 
     if (isStartDateToday) {
       // Fetch user's workday settings and time format preference
