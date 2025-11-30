@@ -171,7 +171,7 @@ export function detectDeadlineDate(
   goalText: string,
   clarifications?: Record<string, any> | string[],
   currentDate: Date = new Date()
-): { deadlineDate: Date | null; deadlineType: 'tomorrow' | 'specific_date' | 'none' } {
+): { deadlineDate: Date | undefined; deadlineType: 'tomorrow' | 'specific_date' | 'none' } {
   const combinedText = combineGoalWithClarifications(goalText, clarifications)
   const lowerText = combinedText.toLowerCase()
 
@@ -245,7 +245,7 @@ export function detectDeadlineDate(
     return { deadlineDate, deadlineType: 'specific_date' }
   }
 
-  return { deadlineDate: null, deadlineType: 'none' }
+  return { deadlineDate: undefined, deadlineType: 'none' }
 }
 
 /**
