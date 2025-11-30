@@ -836,7 +836,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           dateStr,
           scheduledSlots,
           dayConfig,
-          currentTime
+          currentTime,
+          requireStartDate
         )
 
           if (!startTime) {
@@ -1020,7 +1021,8 @@ function findNextAvailableSlot(
   dateStr: string,
   scheduledSlots: Map<string, Array<{start: number, end: number, taskId: string}>>,
   dayConfig: DayScheduleConfig,
-  currentTime?: Date
+  currentTime?: Date,
+  requireStartDate?: boolean
 ): string | null {
   const [suggestedHour, suggestedMinute] = suggestedStartTime.split(':').map(Number)
   const suggestedStartMinutes = suggestedHour * 60 + suggestedMinute
