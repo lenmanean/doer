@@ -78,6 +78,24 @@ export default function ProviderIntegrationsPage() {
   const [activePlan, setActivePlan] = useState<any>(null)
   const [showPushPanel, setShowPushPanel] = useState(false)
   const [showSyncDropdown, setShowSyncDropdown] = useState(false)
+  const syncDropdownRef = useRef<HTMLDivElement>(null)
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (syncDropdownRef.current && !syncDropdownRef.current.contains(event.target as Node)) {
+        setShowSyncDropdown(false)
+      }
+    }
+    
+    if (showSyncDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showSyncDropdown])
   
   // Provider display info
   const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {
@@ -772,37 +790,35 @@ export default function ProviderIntegrationsPage() {
                   </div>
                   
                   {/* Sync Button with Dropdown */}
-                  <div className="relative">
+                  <div className="relative" ref={syncDropdownRef}>
                     <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Button
-                          onClick={() => handleSync('basic')}
-                          disabled={syncing || selectedCalendarIds.length === 0}
-                          variant="outline"
-                          className="flex items-center gap-2 w-full"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                          {syncing ? 'Syncing...' : 'Sync'}
-                        </Button>
+                      <div className="relative">
                         <Button
                           onClick={() => setShowSyncDropdown(!showSyncDropdown)}
                           disabled={syncing || selectedCalendarIds.length === 0}
                           variant="outline"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-2"
+                          className="flex items-center gap-2"
                         >
+                          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                          {syncing ? 'Syncing...' : 'Sync'}
                           <ChevronDown className={`w-4 h-4 transition-transform ${showSyncDropdown ? 'rotate-180' : ''}`} />
                         </Button>
                         {showSyncDropdown && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-lg z-10">
+                          <div className="absolute top-full left-0 mt-1 bg-[var(--background)] border border-white/10 rounded-lg shadow-lg z-10 min-w-[200px]">
                             <button
-                              onClick={() => handleSync('basic')}
+                              onClick={() => {
+                                setShowSyncDropdown(false)
+                                handleSync('basic')
+                              }}
                               className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
                             >
                               Sync Present & Future
                             </button>
                             <button
-                              onClick={() => handleSync('full')}
+                              onClick={() => {
+                                setShowSyncDropdown(false)
+                                handleSync('full')
+                              }}
                               className="w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg border-t border-white/10"
                             >
                               Full Sync (All Events)

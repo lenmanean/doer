@@ -283,17 +283,16 @@ export async function fetchCalendarEvents(
         showDeleted: true, // Always show deleted events to detect deletions
       }
       
-      if (syncToken) {
-        // Incremental sync - only fetch changes since last sync
+      // For basic sync, always use timeMin (ignore syncToken to ensure we only get present/future events)
+      // For full sync, use syncToken if available for incremental sync, otherwise fetch all events
+      if (syncType === 'basic') {
+        // Basic sync: always fetch from today onwards, ignore syncToken
+        params.timeMin = startOfTodayUtc.toISOString()
+      } else if (syncToken) {
+        // Full sync with syncToken: incremental sync - fetch all changes since last sync
         params.syncToken = syncToken
-      } else {
-        // Full sync - determine date range based on syncType
-        if (syncType === 'basic') {
-          // Basic sync: present and future only
-          params.timeMin = startOfTodayUtc.toISOString()
-        }
-        // For full sync, don't set timeMin/timeMax - fetch all events
       }
+      // For full sync without syncToken, don't set timeMin/timeMax - fetch all events
       
       const response = await calendar.events.list(params)
       const items = response.data.items || []

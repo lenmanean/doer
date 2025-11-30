@@ -317,8 +317,12 @@ export class OutlookCalendarProvider implements CalendarProvider {
     // For simplicity, we'll track delta links per calendar or use a single combined sync token
     for (const calendarId of calendarIds) {
       try {
-        if (syncToken && syncToken.startsWith('https://')) {
-          // Delta link is a full URL - use it directly
+        // For basic sync, always use startDateTime (ignore syncToken to ensure we only get present/future events)
+        // For full sync, use syncToken if available for incremental sync, otherwise fetch all events
+        const useSyncToken = syncType === 'full' && syncToken && syncToken.startsWith('https://')
+        
+        if (useSyncToken) {
+          // Delta link is a full URL - use it directly (only for full sync)
           const accessToken = await this.getAccessToken(connectionId)
           const deltaResponse = await fetch(syncToken, {
             headers: {
@@ -386,20 +390,23 @@ export class OutlookCalendarProvider implements CalendarProvider {
           $orderby: 'start/dateTime',
         }
         
-        // For basic sync, set startDateTime to current date/time (present and future only)
+        // For basic sync, always set startDateTime to current date/time (present and future only)
         // For full sync, don't set startDateTime/endDateTime (fetch all events)
         if (syncType === 'basic') {
           params.startDateTime = startOfTodayUtc.toISOString()
         }
 
         const queryString = new URLSearchParams(params).toString()
-        const url = syncToken 
+        // For basic sync, never use delta query (always fresh query with startDateTime)
+        // For full sync, use delta query if syncToken exists
+        const url = (syncType === 'full' && syncToken) 
           ? `/me/calendars/${calendarId}/calendarView/delta?${queryString}`
           : `/me/calendars/${calendarId}/calendarView?${queryString}`
 
         let response: any = await client.api(url).get()
-        // For delta queries, check for deleted events
-        if (syncToken) {
+        // For delta queries, check for deleted events (only for full sync)
+        const isDeltaQuery = syncType === 'full' && syncToken
+        if (isDeltaQuery) {
           // Delta query - check for @removed
           for (const item of response.value || []) {
             if (item['@removed']) {
@@ -425,8 +432,8 @@ export class OutlookCalendarProvider implements CalendarProvider {
           let nextLink = response['@odata.nextLink']
             while (nextLink) {
             const nextResponse: any = await client.api(nextLink).get()
-            // For delta queries, check for deleted events
-            if (syncToken) {
+            // For delta queries, check for deleted events (only for full sync)
+            if (isDeltaQuery) {
               for (const item of nextResponse.value || []) {
                 if (item['@removed']) {
                   deletedEventIds.push(item.id)
