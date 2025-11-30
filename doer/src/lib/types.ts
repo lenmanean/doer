@@ -294,6 +294,12 @@ export interface AIModelRequest {
   clarifications?: Record<string, any>
   clarificationQuestions?: string[]
   availability?: NormalizedAvailability
+  timeConstraints?: {
+    isStartDateToday: boolean
+    remainingMinutes: number
+    urgencyLevel: 'high' | 'medium' | 'low' | 'none'
+    requiresToday: boolean
+  }
 }
 
 export interface AITaskOutput {
