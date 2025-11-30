@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { generateRoadmapContent } from '@/lib/ai'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
-import { addDays, formatDateForDB, parseDateFromDB } from '@/lib/date-utils'
+import { addDays, formatDateForDB, parseDateFromDB, formatTimeForDisplay } from '@/lib/date-utils'
 import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
@@ -305,10 +305,10 @@ export async function POST(req: NextRequest) {
     const todayUTC = new Date(Date.UTC(userLocalTime.getFullYear(), userLocalTime.getMonth(), userLocalTime.getDate()))
     const startDateUTC = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()))
     const isStartDateToday = startDateUTC.getTime() === todayUTC.getTime()
-    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean } | undefined
+    let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean; timeFormat?: '12h' | '24h'; userLocalTime?: Date } | undefined
 
     if (isStartDateToday) {
-      // Fetch user's workday settings
+      // Fetch user's workday settings and time format preference
       const { data: settings } = await supabase
         .from('user_settings')
         .select('preferences')
@@ -317,6 +317,7 @@ export async function POST(req: NextRequest) {
       
       const prefs = (settings?.preferences as any) ?? {}
       const workdaySettings = prefs.workday || {}
+      const timeFormat = prefs.time_format || '12h' // Default to 12h if not set
       
       // Use user's local time for remaining time calculation
       const remainingTime = calculateRemainingTime(startDate, workdaySettings, userLocalTime)
@@ -326,6 +327,8 @@ export async function POST(req: NextRequest) {
         remainingMinutes: remainingTime.remainingMinutes,
         urgencyLevel: urgencyAnalysis.urgencyLevel,
         requiresToday: urgencyAnalysis.requiresToday,
+        timeFormat: timeFormat as '12h' | '24h',
+        userLocalTime: userLocalTime,
       }
       
       console.log('⏰ Time constraints detected:', {
@@ -478,16 +481,24 @@ export async function POST(req: NextRequest) {
         adjustedTimelineDays = timelineDays + additionalDays
         
         // Generate contextual warning based on urgency
+        // Format current time according to user's preference
+        const timeFormat = timeConstraints.timeFormat || '12h'
+        const userLocalTime = timeConstraints.userLocalTime || new Date()
+        const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+        const totalHours = Math.ceil(totalDuration / 60)
+        
         if (requiresToday && urgencyLevel === 'high') {
           // User explicitly wanted today - warn about extension
           const hoursRemaining = Math.floor(remainingMinutes / 60)
           const minutesRemaining = remainingMinutes % 60
           const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          timeAdjustmentWarning = `You requested completion today, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday. Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed.`
+          timeAdjustmentWarning = `This single-day plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Please start this plan tomorrow or adjust your goal scope.`
         } else if (urgencyLevel === 'medium') {
           // Time-sensitive but not necessarily today
+          const hoursRemaining = Math.floor(remainingMinutes / 60)
+          const minutesRemaining = remainingMinutes % 60
           const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
-          timeAdjustmentWarning = `Not enough time remaining today. Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
+          timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan extended to ${formatDateForDB(newEndDate)} to ensure completion.`
         } else {
           // No urgency - extend silently or with gentle note
           const newEndDate = addDays(parsedStartDate, adjustedTimelineDays - 1)
