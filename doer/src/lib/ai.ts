@@ -352,18 +352,17 @@ CRITICAL PRIORITY RULES:
    • Assign Priority 3-4 so they occur last in the timeline
 6. Relaxation / mental prep tasks should be Priority 3-4 and occur after all actionable work
 7. Research/foundational learning → Priority 1 (needed before dependent work)
+8. Planning/structuring tasks that create blueprints or frameworks → Priority 1 (foundational - must be done before creation/building tasks)
+   • If a task creates a structure, plan, outline, or design that other tasks will use as input, it MUST be Priority 1
+   • Analyze the goal description to identify which tasks create foundational frameworks that others depend on
 
 EXAMPLES OF CORRECT PRIORITY ASSIGNMENT:
-Interview Prep (2 days):
-  - Priority 1: Update resume, Portfolio update, Research company (foundational - needed for later tasks)
-  - Priority 2: Prepare talking points, Practice interviews (important execution)
-  - Priority 2: Set up space, Tech check (time-sensitive - do day 2, not day 1)
-  
-Project Build (7 days):
-  - Priority 1: Research requirements, Design architecture (foundational)
-  - Priority 2: Build core features, Implement functionality (execution)
-  - Priority 3: Add polish, Optimize performance (enhancements)
-  - Priority 4: Write documentation, Add extras (optional)
+• Priority 1: Foundational tasks that others depend on (research, planning, structuring, gathering prerequisites)
+• Priority 2: Core execution tasks that use outputs from Priority 1 tasks
+• Priority 3: Enhancement and polish tasks that improve upon Priority 2 work
+• Priority 4: Optional additions and documentation
+
+General principle: Analyze the goal description to identify task dependencies. If Task B requires the output/result from Task A, then Task A is foundational and should be Priority 1, while Task B is Priority 2+.
 
 SCHEDULING STRATEGY:
 • Schedule Priority 1 tasks first (foundation work)
@@ -375,24 +374,26 @@ SCHEDULING STRATEGY:
 
 TASK DEPENDENCY ENFORCEMENT:
 • Task idx (order) MUST reflect logical dependencies - if Task B uses output from Task A, Task A must have lower idx
-• Common dependency patterns:
-  - "Outline structure" / "Plan structure" MUST come before "Create slides" / "Build" / "Write content"
-  - "Research" / "Learn basics" MUST come before "Prepare" / "Create" / "Write" / "Develop"
-  - "Gather materials" / "Collect resources" MUST come before "Build" / "Create" / "Assemble"
-  - "Practice" / "Rehearse" MUST come before "Final review" / "Final polish"
-  - "Learn" / "Study" MUST come before "Practice" / "Apply" / "Implement"
-• Examples of correct ordering:
-  - Presentation prep: "Research topic" (idx 1) → "Outline structure" (idx 2) → "Create slides" (idx 3) → "Write notes" (idx 4) → "Practice delivery" (idx 5) → "Final review" (idx 6)
-  - Project build: "Research requirements" (idx 1) → "Design architecture" (idx 2) → "Gather materials" (idx 3) → "Build core features" (idx 4) → "Add polish" (idx 5)
+• Priority assignment MUST also reflect dependencies - foundational tasks (those that others depend on) MUST be Priority 1
+• Analyze the goal description to identify logical dependencies between tasks:
+  - Tasks that create structures, plans, outlines, or designs that other tasks will use → Priority 1
+  - Tasks that gather information, learn basics, or research that other tasks need → Priority 1
+  - Tasks that collect materials or resources needed for later tasks → Priority 1
+  - Tasks that execute using outputs from foundational tasks → Priority 2+
+  - Tasks that practice or rehearse using completed work → Priority 2
+  - Tasks that review, polish, or enhance completed work → Priority 3+
+• When assigning priority, ask: "Does any other task need the output/result of this task?" If yes → Priority 1
 • When assigning idx, think: "What must be done first for this task to be possible?"
-• If you're unsure about dependency order, err on the side of putting foundational tasks earlier
+• Base your analysis on the specific goal description provided, not on generic patterns
+• If you're unsure about dependency order or priority, err on the side of putting foundational tasks earlier with Priority 1
 
 STRUCTURE REQUIREMENTS:
 1. Tasks: All tasks in unified list with duration estimates
    - Each task needs estimated_duration_minutes (5-360 minutes)
    - Each task needs priority (1, 2, 3, or 4)
+   - CRITICAL: Priority must match dependency relationships - analyze the goal description to identify which tasks are foundational (others depend on them) and assign Priority 1 to those
    - Total tasks should support the timeline (aim for 10-15 high-quality tasks)
-   - Generate appropriate mix of priorities based on logical dependencies
+   - Generate appropriate mix of priorities based on logical dependencies identified in the goal
    - Task names: 3-8 words, specific and actionable (NOT "Task 1", "Do thing")
    - Task details: 1-2 clear sentences explaining what to do
    - Each task must be meaningful and contribute to goal achievement
