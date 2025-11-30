@@ -476,12 +476,12 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
 
   // Helper function to check if a task is locked (has strict dependencies preventing movement)
   const isTaskLocked = (
-    task: typeof tasksWithTargetDays[number],
+    task: typeof tasksWithTargetDays[number] & { enforceTargetDay?: boolean },
     allTasks: typeof tasksWithTargetDays,
     taskDependencies: Map<number, number[]>
   ): boolean => {
     // Tasks with enforced target days cannot be moved
-    if (task.enforceTargetDay) {
+    if ((task as any).enforceTargetDay) {
       return true
     }
     
@@ -514,7 +514,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
 
   // Helper function to check if moving a task to a new day would violate dependencies
   const violatesDependencies = (
-    task: typeof tasksWithTargetDays[number],
+    task: typeof tasksWithTargetDays[number] & { enforceTargetDay?: boolean },
     newDay: number,
     allTasks: typeof tasksWithTargetDays,
     taskDependencies: Map<number, number[]>
@@ -609,7 +609,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     console.log(`⚖️ Ideal new task workload per day: ${idealNewTaskWorkload.toFixed(1)} min`)
     
     // Identify tasks that can be moved (not enforced)
-    const flexibleTasks = tasks.filter(t => !t.enforceTargetDay)
+    const flexibleTasks = tasks.filter(t => !(t as any).enforceTargetDay)
     
     // Sort days by workload (heaviest first)
     const daysByWorkload = Array.from(workloadPerDay.entries())
