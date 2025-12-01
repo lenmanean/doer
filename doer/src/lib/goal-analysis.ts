@@ -280,7 +280,14 @@ export function detectTimelineRequirement(
   
   // Patterns for explicit timeline requirements
   // "in X days", "over X days", "happening in X days", "within X days"
+  // Also handle "one week", "in one week", "over one week", etc.
   const timelinePatterns = [
+    // Week-based patterns (check these first as they're more specific)
+    /\b(?:in|over|within|for)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+weeks?\b/i,
+    /\b(?:in|over|within|for)\s+(\d+)\s+weeks?\b/,
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+week\s+(?:plan|timeline|schedule)\b/i,
+    /\b(\d+)\s+week\s+(?:plan|timeline|schedule)\b/,
+    // Day-based patterns
     /\b(?:in|over|within|for)\s+(\d+)\s+days?\b/,  // Digits
     /\b(?:in|over|within|for)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,  // Word numbers
     /\bhappening\s+in\s+(\d+)\s+days?\b/,
@@ -296,12 +303,21 @@ export function detectTimelineRequirement(
     if (match) {
       let days: number
       const matchedValue = match[1].toLowerCase()
+      const fullMatch = match[0].toLowerCase()
+      
+      // Check if it's a week-based pattern
+      const isWeekPattern = fullMatch.includes('week')
       
       // Check if it's a word number
       if (wordToNumber[matchedValue]) {
         days = wordToNumber[matchedValue]
       } else {
         days = parseInt(matchedValue, 10)
+      }
+      
+      // Convert weeks to days
+      if (isWeekPattern) {
+        days = days * 7
       }
       
       if (days > 0 && days <= 365) { // Reasonable range
@@ -511,6 +527,203 @@ export function detectTaskDependencies(
             if (!otherTaskDeps.includes(task.idx)) {
               otherTaskDeps.push(task.idx)
             }
+          }
+        }
+      }
+    }
+
+    // Pattern: "set up" / "setup" / "install" / "configure" must come before "learn" / "practice" / "build" / "write"
+    // Make learn/practice/build tasks depend on setup/install tasks
+    if (
+      task.lowerName.includes('set up') ||
+      task.lowerName.includes('setup') ||
+      task.lowerName.includes('install') ||
+      task.lowerName.includes('configure') ||
+      (task.lowerName.includes('environment') && (task.lowerName.includes('set') || task.lowerName.includes('up')))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('learn') ||
+            otherTask.lowerName.includes('practice') ||
+            otherTask.lowerName.includes('build') ||
+            otherTask.lowerName.includes('write') ||
+            otherTask.lowerName.includes('explore') ||
+            otherTask.lowerName.includes('understand'))
+        ) {
+          // Make otherTask (learn/practice/build) depend on task (setup/install)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "understand" / "learn" basic concepts must come before "explore" / "practice" / "write" / "build"
+    // Make explore/practice/write/build tasks depend on understand/learn tasks
+    if (
+      task.lowerName.includes('understand') ||
+      (task.lowerName.includes('learn') && !task.lowerName.includes('practice'))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('explore') ||
+            otherTask.lowerName.includes('practice') ||
+            otherTask.lowerName.includes('write') ||
+            otherTask.lowerName.includes('build') ||
+            (otherTask.lowerName.includes('learn') && otherTask.lowerName.includes('practice')))
+        ) {
+          // Make otherTask (explore/practice/write/build) depend on task (understand/learn)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: Sequential learning - "variables" -> "loops" -> "functions"
+    // Make loops depend on variables, functions depend on loops
+    if (task.lowerName.includes('variable')) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('loop') ||
+            otherTask.lowerName.includes('function'))
+        ) {
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+    if (task.lowerName.includes('loop')) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          otherTask.lowerName.includes('function')
+        ) {
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "write" / "learn" simple programs must come before "build" complex programs
+    // Make build tasks depend on write/learn tasks
+    if (
+      task.lowerName.includes('write') ||
+      (task.lowerName.includes('learn') && task.lowerName.includes('program'))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('build') ||
+            otherTask.lowerName.includes('create'))
+        ) {
+          // Make otherTask (build/create) depend on task (write/learn)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "build" / "create" part 1 must come before part 2
+    // Make part 2 depend on part 1
+    if (
+      task.lowerName.includes('build') ||
+      task.lowerName.includes('create')
+    ) {
+      const part1Match = task.lowerName.match(/part\s*1|part\s*i[^i]/i)
+      if (part1Match) {
+        for (const otherTask of lowerTaskNames) {
+          if (
+            otherTask.idx !== task.idx &&
+            (otherTask.lowerName.includes('build') ||
+              otherTask.lowerName.includes('create'))
+          ) {
+            const part2Match = otherTask.lowerName.match(/part\s*2|part\s*ii/i)
+            if (part2Match) {
+              // Make otherTask (part 2) depend on task (part 1)
+              if (!dependencies.has(otherTask.idx)) {
+                dependencies.set(otherTask.idx, [])
+              }
+              const otherTaskDeps = dependencies.get(otherTask.idx)!
+              if (!otherTaskDeps.includes(task.idx)) {
+                otherTaskDeps.push(task.idx)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Pattern: "build" / "create" must come before "test"
+    // Make test tasks depend on build/create tasks
+    if (
+      task.lowerName.includes('build') ||
+      task.lowerName.includes('create')
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('test') ||
+            otherTask.lowerName.includes('testing'))
+        ) {
+          // Make otherTask (test) depend on task (build/create)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "test" must come before "final adjustments" / "polish" / "final review"
+    // Make final adjustments depend on test tasks
+    if (
+      task.lowerName.includes('test') ||
+      task.lowerName.includes('testing')
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('final adjustment') ||
+            otherTask.lowerName.includes('final polish') ||
+            (otherTask.lowerName.includes('final') && (otherTask.lowerName.includes('adjust') || otherTask.lowerName.includes('review'))))
+        ) {
+          // Make otherTask (final adjustments) depend on task (test)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
           }
         }
       }
