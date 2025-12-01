@@ -374,9 +374,6 @@ export function PublicHeader() {
           {/* CTA Button */}
           {!isAuthenticated ? (
             <div className="hidden md:flex items-center space-x-3">
-              <Link href="/login">
-                <Button variant="outline" size="sm">{t('common.logIn')}</Button>
-              </Link>
               <Button
                 variant="primary"
                 size="sm"
@@ -393,6 +390,9 @@ export function PublicHeader() {
               >
                 Join Waitlist
               </Button>
+              <Link href="/login">
+                <Button variant="outline" size="sm">{t('common.logIn')}</Button>
+              </Link>
             </div>
           ) : (
             <>
@@ -481,9 +481,6 @@ export function PublicHeader() {
             </div>
             {!user ? (
               <div className="flex flex-col space-y-2 px-4 pt-4">
-                <Link href="/login">
-                  <Button variant="outline" size="sm" className="w-full">{t('common.logIn')}</Button>
-                </Link>
                 <Button
                   variant="primary"
                   size="sm"
@@ -502,6 +499,9 @@ export function PublicHeader() {
                 >
                   Join Waitlist
                 </Button>
+                <Link href="/login">
+                  <Button variant="outline" size="sm" className="w-full">{t('common.logIn')}</Button>
+                </Link>
               </div>
             ) : (
               <div className="flex flex-col space-y-2 px-4 pt-4">
