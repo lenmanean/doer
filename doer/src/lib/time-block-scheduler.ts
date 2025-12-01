@@ -45,6 +45,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     requireStartDate = false
   } = options
 
+  // Log availability overrides if custom workday hours are provided
+  if (workdayStartHour !== 9 || workdayEndHour !== 17) {
+    console.log('📅 Using custom workday hours from availability:', {
+      start: workdayStartHour,
+      end: workdayEndHour,
+      defaultStart: 9,
+      defaultEnd: 17,
+    })
+  }
+
   // COMPREHENSIVE VALIDATION
   console.log('🔧 Scheduler Input Validation:', {
     tasksCount: tasks.length,

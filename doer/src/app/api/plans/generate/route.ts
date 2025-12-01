@@ -7,7 +7,7 @@ import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
-import { detectUrgencyIndicators } from '@/lib/goal-analysis'
+import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications } from '@/lib/goal-analysis'
 import { calculateRemainingTime, calculateDaysNeeded } from '@/lib/time-constraints'
 import { NormalizedAvailability, BusySlot } from '@/lib/types'
 
@@ -351,6 +351,80 @@ export async function POST(req: NextRequest) {
     const urgencyAnalysis = detectUrgencyIndicators(finalGoalText, finalClarifications)
     console.log('🔍 Urgency analysis:', urgencyAnalysis)
 
+    // Detect availability patterns from goal text and clarifications
+    const availabilityAnalysis = detectAvailabilityPatterns(finalGoalText, finalClarifications)
+    console.log('📅 Availability analysis:', availabilityAnalysis)
+
+    // Calculate evening workday hours if availability patterns detected
+    let eveningWorkdayStartHour: number | undefined
+    let eveningWorkdayEndHour: number | undefined
+    
+    if (availabilityAnalysis.timeOfDay === 'evening' && availabilityAnalysis.hoursPerDay) {
+      // Fetch user's workday settings to get workday end time
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      
+      const prefs = (settings?.preferences as any) ?? {}
+      const workdaySettings = prefs.workday || {}
+      const defaultWorkdayEndHour = workdaySettings.workday_end_hour || 17
+      
+      // Try to extract workday end time from clarifications
+      let workdayEndHour = defaultWorkdayEndHour
+      const combinedClarifications = combineGoalWithClarifications('', finalClarifications)
+      const lowerClarifications = combinedClarifications.toLowerCase()
+      
+      // Look for time patterns in clarifications
+      const timePatterns = [
+        /\b(?:workday|work day|work)\s+(?:ends?|finishes?|is over)\s+(?:at|by)?\s*(\d{1,2})(?::\d{2})?\s*(pm)?/i,
+        /\b(?:ends?|finishes?)\s+(?:at|by)?\s*(\d{1,2})(?::\d{2})?\s*(pm)?/i,
+        /\b(\d{1,2})(?::\d{2})?\s*(pm)\b/i,
+      ]
+      
+      for (const pattern of timePatterns) {
+        const match = lowerClarifications.match(pattern)
+        if (match) {
+          let hour = parseInt(match[1], 10)
+          const isPM = match[2] || match[3]
+          if (isPM && hour < 12) {
+            hour += 12
+          } else if (!isPM && hour === 12) {
+            hour = 12 // noon
+          }
+          if (hour >= 12 && hour <= 23) {
+            workdayEndHour = hour
+            break
+          }
+        }
+      }
+      
+      // Calculate evening hours: start 30 minutes after workday ends, end after available hours
+      const bufferMinutes = 30
+      const eveningStartTotalMinutes = workdayEndHour * 60 + bufferMinutes
+      // Round up to next hour if there are minutes (e.g., 17:30 -> 18:00)
+      const eveningStartHour = Math.ceil(eveningStartTotalMinutes / 60)
+      const eveningEndTotalMinutes = eveningStartHour * 60 + (availabilityAnalysis.hoursPerDay * 60)
+      const eveningEndHour = Math.floor(eveningEndTotalMinutes / 60)
+      
+      // Cap at midnight (24:00)
+      if (eveningEndHour >= 24) {
+        eveningWorkdayStartHour = eveningStartHour
+        eveningWorkdayEndHour = 24
+      } else {
+        eveningWorkdayStartHour = eveningStartHour
+        eveningWorkdayEndHour = eveningEndHour
+      }
+      
+      console.log('🌙 Calculated evening workday hours:', {
+        workdayEndHour,
+        eveningStartHour: eveningWorkdayStartHour,
+        eveningEndHour: eveningWorkdayEndHour,
+        hoursPerDay: availabilityAnalysis.hoursPerDay,
+      })
+    }
+
     // Calculate time constraints if start date is today
     // Use user's local timezone for accurate time calculations
     const now = new Date()
@@ -557,6 +631,18 @@ export async function POST(req: NextRequest) {
     }
 
     aiContent.timeline_days = timelineDays
+
+    // Enforce timeline requirement even if start date is not today
+    if (urgencyAnalysis.timelineRequirement?.minimumDays) {
+      const minimumDays = urgencyAnalysis.timelineRequirement.minimumDays
+      if (aiContent.timeline_days < minimumDays) {
+        console.log('📅 Enforcing user-specified minimum timeline:', {
+          aiTimeline: aiContent.timeline_days,
+          userMinimum: minimumDays,
+        })
+        aiContent.timeline_days = minimumDays
+      }
+    }
 
     const [year, month, day] = finalStartDate.split('-').map(Number)
     let parsedStartDate = new Date(year, month - 1, day, 0, 0, 0, 0)
@@ -1169,7 +1255,8 @@ export async function POST(req: NextRequest) {
       const schedulerUserLocalTime = timeConstraints?.userLocalTime || userLocalTime
       // Pass requireStartDate flag if user explicitly required today
       const requireStartDate = timeConstraints?.requiresToday && timeConstraints?.urgencyLevel === 'high'
-      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate)
+      // Pass evening workday hours if availability patterns detected
+      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate, eveningWorkdayStartHour, eveningWorkdayEndHour)
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
     } catch (scheduleError) {
       console.error('Error generating task schedule:', scheduleError)

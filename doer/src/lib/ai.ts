@@ -13,7 +13,7 @@ export const openai = new OpenAI({
 })
 
 import { AIModelRequest } from './types'
-import { combineGoalWithClarifications } from './goal-analysis'
+import { combineGoalWithClarifications, detectAvailabilityPatterns } from './goal-analysis'
 
 /**
  * Evaluates whether a goal is realistically achievable within the 21-day cap
@@ -85,9 +85,20 @@ export async function analyzeClarificationNeeds(
   // Combine goal with clarifications for full context
   const contextualGoal = combineGoalWithClarifications(goal, clarifications)
   
+  // Detect availability patterns to include in prompt
+  const availabilityPatterns = detectAvailabilityPatterns(goal, clarifications)
+  const availabilityContext = availabilityPatterns.requiresClarification
+    ? `\n\nAVAILABILITY PATTERNS DETECTED:
+- Time of day: ${availabilityPatterns.timeOfDay || 'not specified'}
+- Hours per day: ${availabilityPatterns.hoursPerDay || 'not specified'}
+- Days of week: ${availabilityPatterns.daysOfWeek?.join(', ') || 'not specified'}
+- Requires clarification: ${availabilityPatterns.requiresClarification ? 'YES' : 'NO'}
+${availabilityPatterns.clarificationQuestions ? `- Suggested questions: ${availabilityPatterns.clarificationQuestions.join(', ')}` : ''}`
+    : ''
+  
   const prompt = `Analyze this goal to determine if clarification questions are needed before creating a plan.
 
-GOAL AND CONTEXT: "${contextualGoal}"
+GOAL AND CONTEXT: "${contextualGoal}"${availabilityContext}
 
 ANALYSIS CRITERIA:
 - Ambiguity: Is the goal vague or unclear? (e.g., "learn programming" vs "learn Python")
@@ -95,6 +106,7 @@ ANALYSIS CRITERIA:
 - Scope uncertainty: Could it mean different things? (e.g., "get fit" - cardio, strength, flexibility?)
 - Time-sensitive details: Are there implicit deadlines or schedules?
 - Timeline ambiguity: Can't determine realistic timeline from goal alone? (e.g., "learn programming" - quick intro vs deep mastery?)
+- Availability patterns: Does the goal mention specific times (evenings, mornings, weekends)? Do we need to know when work ends or when sessions should start?
 
 DECISION RULES:
 - Consider ALL provided context, including clarifications - if context already answers questions, don't ask them again
@@ -103,12 +115,15 @@ DECISION RULES:
 - Questions should be essential for creating a quality plan
 - Avoid asking questions that are already answered in the provided context
 - Try to infer timeline from goal description and context first
+- If availability patterns are detected but details are missing (e.g., "evening after work" but no workday end time), include relevant questions
 
 EXAMPLES:
 - "Run a 5K in under 30 minutes" → CLEAR, no questions needed
 - "Learn guitar" → UNCLEAR, needs: "What's your current guitar experience level?"
 - "Start a business" → UNCLEAR, needs: "What type of business?" and "What's your budget range?"
 - "Learn programming" → UNCLEAR timeline, needs: "How much time do you have? Quick intro (1-2 weeks) or deep mastery (3-6 months)?"
+- "I have 2 hours each evening after work" → needs: "What time does your workday end?"
+- "I can only work on weekends" → needs: "What hours are you available on weekends?"
 
 Return JSON format:
 {
@@ -316,8 +331,18 @@ MULTI-DAY PLAN DISTRIBUTION:
 AVAILABILITY-CONSCIOUS DISTRIBUTION:
 • When assigning tasks, assume the user wants to honor their declared workday start/end times and lunch break, so spread the total duration across the available days rather than stacking everything on the final date.
 • Use the provided availability context (time off, busy slots, lunch windows) to avoid locking tasks into unavailable periods; mention the relevant window only if it changes the timeline.
+• Extract availability patterns from goal text (evenings, mornings, weekends, hours per day)
+• If user mentions "X hours available", ensure daily task duration doesn't exceed X hours
+• If user mentions "evening after work", note this in plan_summary and adjust task timing expectations
 • Target a realistic per-day capacity (e.g., 250-320 minutes max) and keep tasks balanced across the active days—high durations should be broken into multiple days if they would otherwise exceed that cap.
 • Prefer to fill earlier active days first but allow higher-priority, dependency-sensitive tasks to move toward the start of the timeline while still leaving room for practice/final review on later days.
+
+AVAILABILITY PATTERNS IN GOAL TEXT:
+• If the user mentions specific availability (e.g., "evenings after work", "2 hours per day", "weekends only"), extract and respect these constraints
+• When user says "evening after work", assume they mean after their workday ends (typically 5-6 PM)
+• If user specifies hours per day (e.g., "2 hours available"), ensure total daily task duration respects this limit
+• Mention availability constraints in plan_summary if they affect timeline or task distribution
+• Example: "User has 2 hours each evening → plan tasks to fit within 120 minutes per day"
 
 PRIORITY ASSIGNMENT (1-4):
 • Keep Priority 1 (Critical) tasks to essential prerequisites ONLY (target ≤35% of total tasks)

@@ -47,6 +47,14 @@ export interface TimelineRequirement {
   timelinePhrase?: string
 }
 
+export interface AvailabilityPattern {
+  timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'night'
+  hoursPerDay?: number
+  daysOfWeek?: ('weekday' | 'weekend')[]
+  requiresClarification?: boolean
+  clarificationQuestions?: string[]
+}
+
 export interface UrgencyAnalysis {
   urgencyLevel: 'high' | 'medium' | 'low' | 'none'
   indicators: string[]
@@ -331,6 +339,121 @@ export function detectTimelineRequirement(
   }
   
   return {}
+}
+
+/**
+ * Detect availability patterns from goal text and clarifications
+ * Extracts information about when and how much time the user has available
+ */
+export function detectAvailabilityPatterns(
+  goalText: string,
+  clarifications?: Record<string, any> | string[]
+): AvailabilityPattern {
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const lowerText = combinedText.toLowerCase()
+  
+  const result: AvailabilityPattern = {}
+  const questions: string[] = []
+  
+  // Detect time of day patterns
+  if (lowerText.includes('evening') || lowerText.includes('evenings')) {
+    result.timeOfDay = 'evening'
+    // Check if "after work" is mentioned
+    if (lowerText.includes('after work') || lowerText.includes('after-work')) {
+      // Check if workday end time is mentioned in clarifications
+      const hasWorkdayEnd = checkForWorkdayEnd(clarifications)
+      if (!hasWorkdayEnd) {
+        result.requiresClarification = true
+        questions.push('What time does your workday end?')
+      }
+    }
+  } else if (lowerText.includes('morning') || lowerText.includes('mornings')) {
+    result.timeOfDay = 'morning'
+  } else if (lowerText.includes('afternoon') || lowerText.includes('afternoons')) {
+    result.timeOfDay = 'afternoon'
+  } else if (lowerText.includes('night') || lowerText.includes('nights')) {
+    result.timeOfDay = 'night'
+  }
+  
+  // Detect hours per day patterns
+  // Patterns: "X hours available", "X hours per day", "about X hours", "X hours each"
+  const hoursPatterns = [
+    /(?:about|approximately|around|roughly)?\s*(\d+(?:\.\d+)?)\s+hours?\s+(?:available|per day|each|every day|daily)/i,
+    /(?:have|got|get)\s+(?:about|approximately|around|roughly)?\s*(\d+(?:\.\d+)?)\s+hours?\s+(?:available|each|per day|every day|daily)/i,
+    /(\d+(?:\.\d+)?)\s+hours?\s+(?:available|per day|each|every day|daily)/i,
+  ]
+  
+  for (const pattern of hoursPatterns) {
+    const match = lowerText.match(pattern)
+    if (match) {
+      const hours = parseFloat(match[1])
+      if (hours > 0 && hours <= 24) {
+        result.hoursPerDay = hours
+        break
+      }
+    }
+  }
+  
+  // Detect days of week patterns
+  if (lowerText.includes('weekend') || lowerText.includes('weekends')) {
+    result.daysOfWeek = ['weekend']
+    // Check if weekend hours are specified
+    if (!lowerText.match(/\d+\s*(?:am|pm|hours?)/i)) {
+      result.requiresClarification = true
+      if (!questions.some(q => q.includes('weekend'))) {
+        questions.push('What hours are you available on weekends?')
+      }
+    }
+  } else if (lowerText.includes('weekday') || lowerText.includes('weekdays')) {
+    result.daysOfWeek = ['weekday']
+  }
+  
+  // Detect "after [time]" patterns
+  const afterTimePattern = /after\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i
+  const afterTimeMatch = lowerText.match(afterTimePattern)
+  if (afterTimeMatch) {
+    // Time is specified, no clarification needed
+    result.timeOfDay = result.timeOfDay || 'evening'
+  }
+  
+  // Detect "before [time]" patterns
+  const beforeTimePattern = /before\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i
+  const beforeTimeMatch = lowerText.match(beforeTimePattern)
+  if (beforeTimeMatch) {
+    result.timeOfDay = result.timeOfDay || 'morning'
+  }
+  
+  // Set clarification questions if needed
+  if (questions.length > 0) {
+    result.clarificationQuestions = questions
+  }
+  
+  return result
+}
+
+/**
+ * Helper function to check if workday end time is mentioned in clarifications
+ */
+function checkForWorkdayEnd(clarifications?: Record<string, any> | string[]): boolean {
+  if (!clarifications) return false
+  
+  const combinedText = combineGoalWithClarifications('', clarifications)
+  const lowerText = combinedText.toLowerCase()
+  
+  // Check for time patterns like "5pm", "5 pm", "17:00", "ends at 5"
+  const timePatterns = [
+    /\b(?:workday|work day|work)\s+(?:ends?|finishes?|is over)\s+(?:at|by)?\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i,
+    /\b(?:ends?|finishes?)\s+(?:at|by)?\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i,
+    /\b(\d{1,2}(?::\d{2})?\s*(?:pm))\b/i, // Any PM time
+  ]
+  
+  for (const pattern of timePatterns) {
+    if (pattern.test(lowerText)) {
+      return true
+    }
+  }
+  
+  return false
 }
 
 /**
