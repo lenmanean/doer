@@ -58,19 +58,58 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Enforce admin-only site access
   const url = new URL(req.url)
   const pathname = url.pathname
 
-  // Allow access to login and auth routes for everyone
-  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/')
+  // Define public routes that don't require authentication
+  const publicRoutes = [
+    '/', // Homepage
+    '/landing',
+    '/login',
+    '/pricing',
+    '/features',
+    '/about-us',
+    '/blog',
+    '/careers',
+    '/changelog',
+    '/community',
+    '/contact',
+    '/documentation',
+    '/feature-request',
+    '/help',
+    '/privacy',
+    '/responsible-use',
+    '/roadmap',
+    '/security',
+    '/solutions',
+    '/terms',
+    '/integrations', // Public integrations page
+    '/checkout', // Checkout page
+    '/health', // Health check
+  ]
+
+  // Allow public routes
+  const isPublicRoute = publicRoutes.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`)
+  )
+  
+  // Allow auth routes (signup, callback, etc.)
   const isAuthRoute = pathname.startsWith('/auth/')
   
-  if (isLoginRoute || isAuthRoute) {
+  // Allow API routes
+  const isApiRoute = pathname.startsWith('/api/')
+  
+  // Allow static assets
+  const isStaticAsset = pathname.startsWith('/_next/') || 
+                        pathname.startsWith('/favicon') ||
+                        pathname.match(/\.(ico|png|jpg|jpeg|svg|webp|css|js)$/)
+
+  // If it's a public route, auth route, API route, or static asset, allow access
+  if (isPublicRoute || isAuthRoute || isApiRoute || isStaticAsset) {
     return res
   }
 
-  // For all other routes, check if user is admin
+  // For protected routes (dashboard, settings, onboarding, etc.), check authentication
   let user = null as any
   try {
     const { data, error } = await supabase.auth.getUser()
@@ -79,36 +118,15 @@ export async function middleware(req: NextRequest) {
     user = null
   }
 
-  // If not authenticated, redirect to login
+  // If not authenticated, redirect to login for protected routes
   if (!user) {
     const redirectUrl = new URL('/login', req.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If authenticated, check if username is "admin"
-  try {
-    const { data: userSettings, error: settingsError } = await supabase
-      .from('user_settings')
-      .select('username')
-      .eq('user_id', user.id)
-      .single()
-
-    // If no user_settings found or username is not "admin", redirect to login
-    if (settingsError || !userSettings || userSettings.username !== 'admin') {
-      const redirectUrl = new URL('/login', req.url)
-      redirectUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    // User is admin, allow access
-    return res
-  } catch (error) {
-    // On error, redirect to login for safety
-    const redirectUrl = new URL('/login', req.url)
-    redirectUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(redirectUrl)
-  }
+  // Authenticated user, allow access to protected routes
+  return res
 }
 
 export const config = {
