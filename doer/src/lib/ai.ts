@@ -519,3 +519,125 @@ CRITICAL VALIDATION BEFORE RESPONDING:
 
   return parsed
 }
+
+/**
+ * Generates context-aware clarification questions for an existing plan
+ * Based on the plan content, user schedule, and calendar events
+ */
+export async function generatePlanClarificationQuestions(request: {
+  goal: string
+  planSummary: string
+  timelineDays: number
+  tasks: Array<{ name: string; details: string; duration: number; priority: number }>
+  existingSchedules: Array<{ date: string; start_time: string; end_time: string }>
+  calendarBusySlots: Array<{ start: string; end: string }>
+  workdaySettings: { startHour: number; endHour: number; lunchStart: number; lunchEnd: number; allowWeekends: boolean }
+}): Promise<{ questions: string[]; reasoning: string }> {
+  // Calculate capacity utilization
+  const workdayMinutes = (request.workdaySettings.endHour - request.workdaySettings.startHour) * 60
+  const lunchMinutes = Math.max(0, request.workdaySettings.lunchEnd - request.workdaySettings.lunchStart)
+  const availableMinutesPerDay = Math.max(1, workdayMinutes - lunchMinutes) // Ensure not zero
+  const totalTaskMinutes = request.tasks.reduce((sum, task) => sum + (task.duration || 0), 0)
+  const timelineDays = Math.max(1, request.timelineDays) // Prevent division by zero
+  const averageMinutesPerDay = totalTaskMinutes / timelineDays
+  const capacityUtilization = availableMinutesPerDay > 0 ? (averageMinutesPerDay / availableMinutesPerDay) * 100 : 0
+
+  // Analyze schedule conflicts
+  const hasScheduleConflicts = request.existingSchedules.length > 0 || request.calendarBusySlots.length > 0
+  const conflictSummary = hasScheduleConflicts
+    ? `User has ${request.existingSchedules.length} existing scheduled tasks and ${request.calendarBusySlots.length} calendar busy slots.`
+    : 'User has no existing scheduled tasks or calendar conflicts.'
+
+  const prompt = `You are an intelligent plan enhancement assistant. Analyze the following plan and generate 0-5 clarification questions that would help improve the plan's accuracy and effectiveness.
+
+GOAL: "${request.goal}"
+
+PLAN SUMMARY: "${request.planSummary}"
+
+TIMELINE: ${request.timelineDays} day${request.timelineDays !== 1 ? 's' : ''}
+
+TASKS (${request.tasks.length} total, ${totalTaskMinutes} minutes total):
+${request.tasks.map((t, i) => `${i + 1}. ${t.name} (${t.duration} min, Priority ${t.priority})`).join('\n')}
+
+CAPACITY ANALYSIS:
+- Available minutes per day: ${availableMinutesPerDay}
+- Average minutes per day needed: ${Math.round(averageMinutesPerDay)}
+- Capacity utilization: ${Math.round(capacityUtilization)}%
+${capacityUtilization > 90 ? '⚠️ HIGH CAPACITY - Plan may be too ambitious' : capacityUtilization < 50 ? '✓ LOW CAPACITY - Plan has room for more' : '✓ MODERATE CAPACITY - Plan is well-balanced'}
+
+SCHEDULE CONTEXT:
+${conflictSummary}
+${request.workdaySettings.allowWeekends ? 'User can work on weekends.' : 'User cannot work on weekends.'}
+Workday: ${request.workdaySettings.startHour}:00 - ${request.workdaySettings.endHour}:00
+Lunch: ${request.workdaySettings.lunchStart}:00 - ${request.workdaySettings.lunchEnd}:00
+
+ANALYSIS CRITERIA:
+1. **Capacity Issues**: If capacity utilization > 90%, ask about time availability or willingness to extend timeline
+2. **Task Clarity**: If any tasks are vague or could be interpreted multiple ways, ask for specifics
+3. **Missing Context**: If plan lacks important details (experience level, resources, constraints), ask about them
+4. **Timeline Realism**: If timeline seems tight or loose, ask about flexibility or urgency
+5. **Schedule Conflicts**: If there are many conflicts, ask about priority or flexibility
+6. **Task Dependencies**: If tasks seem out of order or missing prerequisites, ask about dependencies
+7. **Resource Needs**: If tasks require specific tools/materials, ask about availability
+
+DECISION RULES:
+- Generate 0-5 questions (fewer is better - only ask what's truly valuable)
+- Questions should be SPECIFIC and ACTIONABLE
+- Avoid questions already answered by the goal or plan
+- Focus on questions that would SIGNIFICANTLY improve plan quality
+- If plan is already well-defined, return empty array
+- Questions should help refine timeline, task scope, or scheduling
+
+EXAMPLES:
+- High capacity (95%): "Would you be able to extend the timeline by 1-2 days, or do you have additional time available each day?"
+- Vague task: "For 'Research best practices', what specific areas should be prioritized?"
+- Missing context: "What's your current experience level with [relevant skill]?"
+- Timeline tight: "Is the ${request.timelineDays}-day timeline firm, or could it be extended if needed?"
+
+Return JSON format:
+{
+  "questions": string[],
+  "reasoning": "Brief explanation of why these questions were generated (or why none were needed)"
+}`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are an intelligent plan enhancement assistant. Generate 0-5 specific, actionable clarification questions that would improve plan quality. Return only valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.4,
+      response_format: { type: 'json_object' },
+    })
+
+    const output = completion.choices[0].message.content
+    if (!output) {
+      throw new Error('Empty AI response')
+    }
+
+    const parsed = JSON.parse(output)
+
+    // Validate response structure
+    if (!parsed.questions || !Array.isArray(parsed.questions)) {
+      throw new Error('AI did not return questions array')
+    }
+
+    // Validate questions are strings and filter empty ones
+    const validQuestions = parsed.questions
+      .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
+      .slice(0, 5) // Limit to 5 questions max
+
+    return {
+      questions: validQuestions,
+      reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : 'Questions generated to improve plan quality',
+    }
+  } catch (error) {
+    console.error('Error generating clarification questions:', error)
+    // Return empty questions on error rather than failing
+    return {
+      questions: [],
+      reasoning: 'Unable to generate questions at this time',
+    }
+  }
+}

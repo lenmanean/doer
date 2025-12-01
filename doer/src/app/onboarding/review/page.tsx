@@ -1,20 +1,22 @@
 // src/app/onboarding/review/page.tsx
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Task } from '@/lib/types'
 import { formatDateForDisplay, parseDateFromDB, formatTimeForDisplay } from '@/lib/date-utils'
-import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2 } from 'lucide-react'
+import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { useToast } from '@/components/ui/Toast'
 import type { ReviewPlanData } from '@/lib/types/roadmap'
 
 export default function ReviewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, supabase, loading: authLoading } = useSupabase()
+  const { addToast } = useToast()
   const [plan, setPlan] = useState<ReviewPlanData | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,6 +28,14 @@ export default function ReviewPage() {
   const [editedPlan, setEditedPlan] = useState<ReviewPlanData | null>(null)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
+  const [showStrengthenButton, setShowStrengthenButton] = useState(true)
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false)
+  const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([])
+  const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({})
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isRequestInFlightRef = useRef(false)
 
   const wrapSortTasksChronologically = (items: Task[]) => {
     return [...items].sort((a, b) => {
@@ -187,6 +197,23 @@ export default function ReviewPage() {
     }
     loadTimeFormat()
   }, [user, supabase])
+
+  // Error boundary: Reset state on unmount to prevent stale state
+  useEffect(() => {
+    return () => {
+      // Cancel any in-flight requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      // Cleanup on unmount
+      setClarificationQuestions([])
+      setClarificationAnswers({})
+      setCurrentQuestionIndex(0)
+      setIsGeneratingQuestions(false)
+      setIsRegenerating(false)
+      isRequestInFlightRef.current = false
+    }
+  }, [])
 
   // Helper function to format time string (HH:MM) to user's preferred format
   const formatTimeString = (timeStr: string | null | undefined): string => {
@@ -452,6 +479,395 @@ export default function ReviewPage() {
     } catch (error) {
       console.error('[Review] Error validating session:', error)
       alert('There was an error transitioning to the dashboard. Please try again.')
+    }
+  }
+
+  const handleStrengthenPlan = async () => {
+    if (!plan?.id) {
+      addToast({
+        type: 'error',
+        title: 'Plan Not Found',
+        description: 'Unable to strengthen plan. Please refresh the page and try again.',
+      })
+      return
+    }
+    
+    // Prevent duplicate calls
+    if (isRequestInFlightRef.current || isGeneratingQuestions) {
+      return
+    }
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Create new abort controller
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+    isRequestInFlightRef.current = true
+
+    setIsGeneratingQuestions(true)
+    setShowStrengthenButton(false)
+
+    try {
+      const response = await fetch(`/api/plans/${plan.id}/clarify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: abortController.signal,
+      })
+
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        throw new Error(`Invalid response format. Expected JSON but got ${contentType}. Status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Failed to generate clarification questions (${response.status})`)
+      }
+
+      if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+        setClarificationQuestions(data.questions)
+        setCurrentQuestionIndex(0)
+        setClarificationAnswers({})
+        addToast({
+          type: 'success',
+          title: 'Questions Generated',
+          description: `We've generated ${data.questions.length} question${data.questions.length === 1 ? '' : 's'} to help strengthen your plan.`,
+        })
+      } else {
+        // No questions generated, show message
+        addToast({
+          type: 'info',
+          title: 'Plan Already Well-Defined',
+          description: 'No clarification questions were generated. Your plan is already well-defined!',
+        })
+        setShowStrengthenButton(true)
+      }
+    } catch (error) {
+      // Don't show error if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+      
+      // Handle network errors separately
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Network error generating clarification questions:', error)
+        addToast({
+          type: 'error',
+          title: 'Network Error',
+          description: 'Failed to connect to server. Please check your internet connection and try again.',
+        })
+        setShowStrengthenButton(true)
+        return
+      }
+      
+      console.error('Error generating clarification questions:', error)
+      // Reset all clarification state on error
+      setClarificationQuestions([])
+      setCurrentQuestionIndex(0)
+      setClarificationAnswers({})
+      
+      // Provide specific error messages based on error type
+      let genErrorTitle = 'Failed to Generate Questions'
+      let genErrorDescription = 'Failed to generate clarification questions. Please try again.'
+      
+      if (error instanceof Error) {
+        if (error.message.includes('USAGE_LIMIT_EXCEEDED') || error.message.includes('credits')) {
+          genErrorTitle = 'Credit Limit Reached'
+          genErrorDescription = 'You have exhausted your plan generation credits. Please upgrade your plan or wait for the next billing cycle.'
+        } else if (error.message.includes('timeout') || error.message.includes('time out')) {
+          genErrorTitle = 'Request Timeout'
+          genErrorDescription = 'The request took too long. Please try again.'
+        } else {
+          genErrorDescription = error.message
+        }
+      }
+      
+      addToast({
+        type: 'error',
+        title: genErrorTitle,
+        description: genErrorDescription,
+      })
+      setShowStrengthenButton(true)
+    } finally {
+      setIsGeneratingQuestions(false)
+      isRequestInFlightRef.current = false
+      abortControllerRef.current = null
+    }
+  }
+
+  const handleClarificationAnswer = (answer: string) => {
+    // Trim whitespace but allow empty answers (user can skip individual questions)
+    const trimmedAnswer = answer.trim()
+    
+    const newAnswers = {
+      ...clarificationAnswers,
+      [currentQuestionIndex.toString()]: trimmedAnswer,
+    }
+    setClarificationAnswers(newAnswers)
+
+    if (currentQuestionIndex < clarificationQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1)
+    } else {
+      // All questions answered, submit (even if some answers are empty)
+      handleSubmitClarifications(newAnswers)
+    }
+  }
+
+  const handleClarificationCancel = () => {
+    // Cancel any in-flight requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Reset clarification state
+    setClarificationQuestions([])
+    setClarificationAnswers({})
+    setCurrentQuestionIndex(0)
+    setIsGeneratingQuestions(false)
+    setIsRegenerating(false)
+    setShowStrengthenButton(true)
+    isRequestInFlightRef.current = false
+    abortControllerRef.current = null
+  }
+
+  const handleClarificationBack = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1)
+    } else {
+      // On first question, cancel the entire clarification flow
+      handleClarificationCancel()
+    }
+  }
+
+  const handleSubmitClarifications = async (answers?: Record<string, string>) => {
+    if (!plan?.id) {
+      addToast({
+        type: 'error',
+        title: 'Plan Not Found',
+        description: 'Unable to submit clarifications. Please refresh the page and try again.',
+      })
+      return
+    }
+    
+    // Validate we have questions
+    if (clarificationQuestions.length === 0) {
+      addToast({
+        type: 'error',
+        title: 'No Questions',
+        description: 'No clarification questions available. Please try strengthening your plan again.',
+      })
+      return
+    }
+    
+    // Prevent duplicate calls
+    if (isRequestInFlightRef.current || isRegenerating) {
+      return
+    }
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Create new abort controller
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+    isRequestInFlightRef.current = true
+
+    const finalAnswers = answers || clarificationAnswers
+    setIsRegenerating(true)
+
+    try {
+      // Validate all questions have corresponding answers (even if empty strings)
+      const missingAnswers: number[] = []
+      clarificationQuestions.forEach((_, index) => {
+        const answer = finalAnswers[index.toString()]
+        if (answer === undefined) {
+          missingAnswers.push(index + 1)
+        }
+      })
+      
+      if (missingAnswers.length > 0) {
+        addToast({
+          type: 'error',
+          title: 'Missing Answers',
+          description: `Please provide answers for all questions before submitting. Missing: Question ${missingAnswers.join(', ')}`,
+        })
+        return
+      }
+      
+      // Format answers for API
+      const formattedAnswers: Record<string, string> = {}
+      clarificationQuestions.forEach((_, index) => {
+        formattedAnswers[`clarification_${index + 1}`] = finalAnswers[index.toString()] || ''
+      })
+
+      const response = await fetch(`/api/plans/${plan.id}/regenerate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: abortController.signal,
+        body: JSON.stringify({
+          clarifications: formattedAnswers,
+          clarificationQuestions: clarificationQuestions,
+          timezone_offset: new Date().getTimezoneOffset(),
+        }),
+      })
+
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        throw new Error(`Invalid response format. Expected JSON but got ${contentType}. Status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Failed to regenerate plan (${response.status})`)
+      }
+
+      // Refresh plan and tasks from database
+      if (plan.id && user) {
+        try {
+          const { data: refreshedPlan, error: planError } = await supabase
+            .from('plans')
+            .select('*')
+            .eq('id', plan.id)
+            .eq('user_id', user.id)
+            .single()
+
+          if (!planError && refreshedPlan) {
+            setPlan(refreshedPlan as any)
+          }
+
+          const { data: refreshedTasks, error: tasksError } = await supabase
+            .from('tasks')
+            .select(`
+              *,
+              task_schedule (
+                id,
+                date,
+                start_time,
+                end_time,
+                duration_minutes
+              )
+            `)
+            .eq('plan_id', plan.id)
+            .eq('user_id', user.id)
+            .order('idx', { ascending: true })
+
+          if (!tasksError && refreshedTasks) {
+            const tasksWithSchedule = (Array.isArray(refreshedTasks) ? refreshedTasks : []).map((task: any) => {
+              const schedules = Array.isArray(task.task_schedule) ? task.task_schedule : []
+              const primarySchedule = schedules[0] || null
+              return {
+                ...task,
+                scheduled_date: primarySchedule?.date || null,
+                start_time: primarySchedule?.start_time || null,
+                end_time: primarySchedule?.end_time || null,
+                estimated_duration_minutes: primarySchedule?.duration_minutes || task.estimated_duration_minutes || 0,
+                schedule_id: primarySchedule?.id || null,
+                schedules: schedules
+              }
+            })
+            setTasks(wrapSortTasksChronologically(tasksWithSchedule as any))
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing plan data after regeneration:', refreshError)
+          // Fallback to response data if refresh fails
+          if (data.plan) {
+            setPlan(data.plan as any)
+          }
+          if (data.tasks) {
+            setTasks(data.tasks as Task[])
+          }
+        }
+      } else {
+        // Fallback if no planId or supabase - use response data
+        if (data.plan) {
+          setPlan(data.plan as any)
+        }
+        if (data.tasks) {
+          setTasks(data.tasks as Task[])
+        }
+      }
+
+      // Reset clarification UI
+      setClarificationQuestions([])
+      setCurrentQuestionIndex(0)
+      setClarificationAnswers({})
+      setShowStrengthenButton(true)
+      
+      // Show success message with warning if schedule generation failed
+      const message = data.scheduleGenerationSuccess !== false 
+        ? 'Your plan has been updated with the new information.'
+        : 'Your plan has been updated, but task schedules may be incomplete. Please review your plan.'
+      
+      addToast({
+        type: data.scheduleGenerationSuccess !== false ? 'success' : 'warning',
+        title: 'Plan Strengthened',
+        description: message,
+      })
+    } catch (error) {
+      // Don't show error if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        return
+      }
+      
+      // Handle network errors separately
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Network error regenerating plan:', error)
+        addToast({
+          type: 'error',
+          title: 'Network Error',
+          description: 'Failed to connect to server. Please check your internet connection and try again.',
+        })
+        return
+      }
+      
+      console.error('Error regenerating plan:', error)
+      // Keep questions visible so user can retry or skip
+      // Don't reset clarification state - allow user to try again or skip
+      
+      // Provide specific error messages based on error type
+      let regenErrorTitle = 'Regeneration Failed'
+      let regenErrorDescription = 'Failed to regenerate plan. Please try again.'
+      
+      if (error instanceof Error) {
+        if (error.message.includes('USAGE_LIMIT_EXCEEDED') || error.message.includes('credits')) {
+          regenErrorTitle = 'Credit Limit Reached'
+          regenErrorDescription = 'You have exhausted your plan generation credits. Please upgrade your plan or wait for the next billing cycle.'
+        } else if (error.message.includes('timeout') || error.message.includes('time out')) {
+          regenErrorTitle = 'Request Timeout'
+          regenErrorDescription = 'The request took too long. Please try again.'
+        } else if (error.message.includes('INVALID_REQUEST') || error.message.includes('validation')) {
+          regenErrorTitle = 'Invalid Request'
+          regenErrorDescription = 'The submitted answers are invalid. Please check your responses and try again.'
+        } else {
+          regenErrorDescription = error.message
+        }
+      }
+      
+      addToast({
+        type: 'error',
+        title: regenErrorTitle,
+        description: regenErrorDescription,
+      })
+      // Note: We keep clarificationQuestions visible so user can retry or skip
+    } finally {
+      setIsRegenerating(false)
+      isRequestInFlightRef.current = false
+      abortControllerRef.current = null
     }
   }
 
@@ -934,12 +1350,163 @@ export default function ReviewPage() {
           </div>
         </div>
 
+        {/* Strengthen Plan Button */}
+        {showStrengthenButton && plan?.id && (
+          <div className="flex justify-center pt-4">
+            <Button
+              onClick={handleStrengthenPlan}
+              variant="secondary"
+              className="flex items-center gap-2 px-8 bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isGeneratingQuestions || isRegenerating}
+            >
+              {isGeneratingQuestions ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Generating Questions...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Strengthen Plan
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Clarification UI */}
+        {clarificationQuestions.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-lg p-6 mt-4">
+            {isGeneratingQuestions && (
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-sm text-blue-300 flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
+                  Generating clarification questions...
+                </p>
+              </div>
+            )}
+            {isRegenerating && (
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-sm text-blue-300 flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
+                  Regenerating plan with your answers...
+                </p>
+              </div>
+            )}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-[#d7d2cb]/70">
+                  Question {currentQuestionIndex + 1} of {clarificationQuestions.length}
+                </span>
+                <span className="text-sm text-[#d7d2cb]/70">
+                  {Math.round(((currentQuestionIndex + 1) / clarificationQuestions.length) * 100)}%
+                </span>
+              </div>
+              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-[var(--primary)] rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((currentQuestionIndex + 1) / clarificationQuestions.length) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4">
+                {clarificationQuestions[currentQuestionIndex]}
+              </h3>
+              <textarea
+                value={clarificationAnswers[currentQuestionIndex.toString()] || ''}
+                onChange={(e) => {
+                  const newAnswers = {
+                    ...clarificationAnswers,
+                    [currentQuestionIndex.toString()]: e.target.value,
+                  }
+                  setClarificationAnswers(newAnswers)
+                }}
+                placeholder="Type your answer here..."
+                className="w-full px-4 py-4 text-lg bg-white/5 border border-white/10 rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all resize-none"
+                rows={4}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClarificationCancel}
+                  disabled={isRegenerating || isGeneratingQuestions}
+                  className="flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClarificationBack}
+                  disabled={isRegenerating || currentQuestionIndex === 0}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  {currentQuestionIndex === 0 ? 'Back' : 'Previous'}
+                </Button>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleClarificationCancel}
+                  disabled={isRegenerating || isGeneratingQuestions || isRequestInFlightRef.current}
+                  className="text-[#d7d2cb]/60 hover:text-[#d7d2cb]"
+                >
+                  Skip All
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => {
+                    const answer = clarificationAnswers[currentQuestionIndex.toString()] || ''
+                    if (answer.trim()) {
+                      handleClarificationAnswer(answer)
+                    }
+                  }}
+                  disabled={
+                    isRegenerating || !clarificationAnswers[currentQuestionIndex.toString()]?.trim()
+                  }
+                  className="flex items-center gap-2"
+                >
+                  {isRegenerating ? (
+                    'Processing...'
+                  ) : currentQuestionIndex === clarificationQuestions.length - 1 ? (
+                    <>
+                      Strengthen Plan
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  ) : (
+                    <>
+                      Next
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex justify-center gap-4 pt-4">
           <Button
             onClick={handleRegenerate}
             variant="outline"
             className="flex items-center gap-2 px-8"
+            disabled={isGeneratingQuestions || isRegenerating}
           >
             <RotateCcw className="w-4 h-4" />
             Regenerate Plan
@@ -947,6 +1514,7 @@ export default function ReviewPage() {
           <Button
             onClick={handleAcceptPlan}
             className="flex items-center gap-2 px-8 bg-[var(--primary)] hover:bg-[var(--primary)]/90"
+            disabled={isGeneratingQuestions || isRegenerating}
           >
             <CheckCircle className="w-4 h-4" />
             Accept Plan
