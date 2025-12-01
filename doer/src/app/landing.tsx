@@ -105,7 +105,10 @@ export default function LandingPage() {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Features</a>
               <a href="#testimonials" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Testimonials</a>
-              <a href="#pricing" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
+              {/* Pricing link hidden until launch */}
+              {false && (
+                <a href="#pricing" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
+              )}
               <Link href="/login">
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
@@ -147,7 +150,10 @@ export default function LandingPage() {
             <div className="px-4 py-4 space-y-4">
               <a href="#features" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Features</a>
               <a href="#testimonials" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Testimonials</a>
-              <a href="#pricing" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
+              {/* Pricing link hidden until launch */}
+              {false && (
+                <a href="#pricing" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
+              )}
               <div className="flex flex-col space-y-2 pt-4 border-t border-white/10">
                 <Link href="/login">
                   <Button variant="outline" size="sm" className="w-full">Sign In</Button>

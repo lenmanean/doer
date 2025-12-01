@@ -529,55 +529,57 @@ export default function Home() {
           </div>
       </section>
 
-      {/* Pricing Preview Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2
-              ref={pricingTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${pricingTitleAnim.isVisible ? 'visible' : ''}`}
-            >
-              {t('pricing.title')}
-            </h2>
-            <p
-              ref={pricingDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${pricingDescAnim.isVisible ? 'visible' : ''}`}
-            >
-              {t('pricing.subtitle')}
-            </p>
-          </div>
+      {/* Pricing Preview Section - Hidden until launch */}
+      {false && (
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2
+                ref={pricingTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
+                className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${pricingTitleAnim.isVisible ? 'visible' : ''}`}
+              >
+                {t('pricing.title')}
+              </h2>
+              <p
+                ref={pricingDescAnim.ref as React.RefObject<HTMLParagraphElement>}
+                className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${pricingDescAnim.isVisible ? 'visible' : ''}`}
+              >
+                {t('pricing.subtitle')}
+              </p>
+            </div>
 
-          {/* Pricing Cards - Centered */}
-          <div className="flex justify-center">
-            <div className="max-w-5xl w-full grid sm:grid-cols-2 gap-8">
-            {/* Free Plan Card */}
-            <PricingCard
-              title={t('pricing.startFree')}
-              description={t('pricing.getAccessTo')}
-              features={[
-                t('pricing.allCoreFeatures'),
-                t('pricing.builtInIntegrations'),
-                t('pricing.authenticationSystem'),
-                t('pricing.databaseFunctionality'),
-              ]}
-              buttonText="Join Waitlist"
-              buttonHref="#waitlist"
-              delay={0}
-            />
-            {/* Paid Plans Card */}
-            <PricingCard
-              title={t('pricing.paidPlansFrom')}
-              price="$16"
-              priceUnit="/mo"
-              description={t('pricing.upgradeDescription')}
-              buttonText={t('pricing.seeAllPlans')}
-              buttonHref="/pricing"
-              delay={150}
-            />
+            {/* Pricing Cards - Centered */}
+            <div className="flex justify-center">
+              <div className="max-w-5xl w-full grid sm:grid-cols-2 gap-8">
+              {/* Free Plan Card */}
+              <PricingCard
+                title={t('pricing.startFree')}
+                description={t('pricing.getAccessTo')}
+                features={[
+                  t('pricing.allCoreFeatures'),
+                  t('pricing.builtInIntegrations'),
+                  t('pricing.authenticationSystem'),
+                  t('pricing.databaseFunctionality'),
+                ]}
+                buttonText="Join Waitlist"
+                buttonHref="#waitlist"
+                delay={0}
+              />
+              {/* Paid Plans Card */}
+              <PricingCard
+                title={t('pricing.paidPlansFrom')}
+                price="$16"
+                priceUnit="/mo"
+                description={t('pricing.upgradeDescription')}
+                buttonText={t('pricing.seeAllPlans')}
+                buttonHref="/pricing"
+                delay={150}
+              />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* FAQ Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">

@@ -1,13 +1,18 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { Button } from '@/components/ui/Button'
 import { useSupabase } from '@/components/providers/supabase-provider'
+
+// Hide pricing page until launch - redirect to homepage
+const SHOW_PRICING_PAGE = false
 
 type CreditTooltipProps = {
   text: string
@@ -25,6 +30,19 @@ function CreditTooltip({ text }: CreditTooltipProps) {
 }
 
 export default function PricingPage() {
+  const router = useRouter()
+  
+  // Redirect to homepage if pricing is hidden
+  useEffect(() => {
+    if (!SHOW_PRICING_PAGE) {
+      router.push('/')
+    }
+  }, [router])
+
+  // Don't render anything while redirecting
+  if (!SHOW_PRICING_PAGE) {
+    return null
+  }
   const t = useTranslations()
   const { user } = useSupabase()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
