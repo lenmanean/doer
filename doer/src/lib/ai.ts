@@ -77,7 +77,8 @@ Goal and Context:
  */
 export async function analyzeClarificationNeeds(
   goal: string,
-  clarifications?: Record<string, any> | string[]
+  clarifications?: Record<string, any> | string[],
+  workdaySettings?: { workday_end_hour?: number }
 ): Promise<{
   needsClarification: boolean
   questions: string[]
@@ -85,8 +86,8 @@ export async function analyzeClarificationNeeds(
   // Combine goal with clarifications for full context
   const contextualGoal = combineGoalWithClarifications(goal, clarifications)
   
-  // Detect availability patterns to include in prompt
-  const availabilityPatterns = detectAvailabilityPatterns(goal, clarifications)
+  // Detect availability patterns to include in prompt (check user settings first)
+  const availabilityPatterns = detectAvailabilityPatterns(goal, clarifications, workdaySettings)
   const availabilityContext = availabilityPatterns.requiresClarification
     ? `\n\nAVAILABILITY PATTERNS DETECTED:
 - Time of day: ${availabilityPatterns.timeOfDay || 'not specified'}

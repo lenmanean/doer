@@ -347,7 +347,8 @@ export function detectTimelineRequirement(
  */
 export function detectAvailabilityPatterns(
   goalText: string,
-  clarifications?: Record<string, any> | string[]
+  clarifications?: Record<string, any> | string[],
+  workdaySettings?: { workday_end_hour?: number }
 ): AvailabilityPattern {
   const combinedText = combineGoalWithClarifications(goalText, clarifications)
   const lowerText = combinedText.toLowerCase()
@@ -360,9 +361,11 @@ export function detectAvailabilityPatterns(
     result.timeOfDay = 'evening'
     // Check if "after work" is mentioned
     if (lowerText.includes('after work') || lowerText.includes('after-work')) {
-      // Check if workday end time is mentioned in clarifications
-      const hasWorkdayEnd = checkForWorkdayEnd(clarifications)
-      if (!hasWorkdayEnd) {
+      // Check if workday end time is available in user settings or clarifications
+      const hasWorkdayEndInSettings = workdaySettings?.workday_end_hour !== undefined && workdaySettings.workday_end_hour !== null
+      const hasWorkdayEndInClarifications = checkForWorkdayEnd(clarifications)
+      
+      if (!hasWorkdayEndInSettings && !hasWorkdayEndInClarifications) {
         result.requiresClarification = true
         questions.push('What time does your workday end?')
       }

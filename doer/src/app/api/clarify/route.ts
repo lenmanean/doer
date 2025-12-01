@@ -66,6 +66,20 @@ export async function POST(req: NextRequest) {
 
     const trimmedGoal = goal.trim()
 
+    // Fetch user's workday settings to avoid asking for information we already have
+    const supabase = await createClient()
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('preferences')
+      .eq('user_id', userId)
+      .maybeSingle()
+    
+    const prefs = (settings?.preferences as any) ?? {}
+    const workdayPrefs = prefs.workday || {}
+    const workdaySettings = {
+      workday_end_hour: workdayPrefs.workday_end_hour,
+    }
+
     // Pass clarifications to AI functions for full contextual awareness
     const feasibility = await evaluateGoalFeasibility(trimmedGoal, clarifications)
     console.log('🧠 Clarify route feasibility evaluation:', feasibility)
@@ -85,7 +99,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    const clarificationNeeds = await analyzeClarificationNeeds(trimmedGoal, clarifications)
+    const clarificationNeeds = await analyzeClarificationNeeds(trimmedGoal, clarifications, workdaySettings)
 
     await creditService!.commit('api_credits', CLARIFY_CREDIT_COST, {
       route: 'clarify',

@@ -351,8 +351,21 @@ export async function POST(req: NextRequest) {
     const urgencyAnalysis = detectUrgencyIndicators(finalGoalText, finalClarifications)
     console.log('🔍 Urgency analysis:', urgencyAnalysis)
 
-    // Detect availability patterns from goal text and clarifications
-    const availabilityAnalysis = detectAvailabilityPatterns(finalGoalText, finalClarifications)
+    // Fetch user's workday settings to pass to availability detection
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    
+    const prefs = (settings?.preferences as any) ?? {}
+    const workdayPrefs = prefs.workday || {}
+    const workdaySettings = {
+      workday_end_hour: workdayPrefs.workday_end_hour,
+    }
+
+    // Detect availability patterns from goal text and clarifications (with user settings)
+    const availabilityAnalysis = detectAvailabilityPatterns(finalGoalText, finalClarifications, workdaySettings)
     console.log('📅 Availability analysis:', availabilityAnalysis)
 
     // Calculate evening workday hours if availability patterns detected
@@ -360,16 +373,7 @@ export async function POST(req: NextRequest) {
     let eveningWorkdayEndHour: number | undefined
     
     if (availabilityAnalysis.timeOfDay === 'evening' && availabilityAnalysis.hoursPerDay) {
-      // Fetch user's workday settings to get workday end time
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('preferences')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      
-      const prefs = (settings?.preferences as any) ?? {}
-      const workdaySettings = prefs.workday || {}
-      const defaultWorkdayEndHour = workdaySettings.workday_end_hour || 17
+      const defaultWorkdayEndHour = workdayPrefs.workday_end_hour || 17
       
       // Try to extract workday end time from clarifications
       let workdayEndHour = defaultWorkdayEndHour
