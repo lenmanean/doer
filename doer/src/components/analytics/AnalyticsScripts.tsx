@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { getConsentCategories } from '@/lib/cookies/cookie-utils'
 
 const GA4_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID
-const FACEBOOK_PIXEL_ID = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID
 const GOOGLE_ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID
 
 /**
@@ -70,29 +69,8 @@ export function AnalyticsScripts() {
         </>
       )}
 
-      {/* Facebook Pixel */}
-      {FACEBOOK_PIXEL_ID && hasMarketingConsent && (
-        <Script
-          id="facebook-pixel"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              !function(f,b,e,v,n,t,s)
-              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-              n.queue=[];t=b.createElement(e);t.async=!0;
-              t.src=v;s=b.getElementsByTagName(e)[0];
-              s.parentNode.insertBefore(t,s)}(window, document,'script',
-              'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '${FACEBOOK_PIXEL_ID}');
-              fbq('track', 'PageView');
-            `,
-          }}
-        />
-      )}
-
       {/* Google Ads Conversion Tracking */}
+      {/* Note: Facebook Pixel is loaded in root layout to avoid duplication */}
       {GOOGLE_ADS_ID && hasMarketingConsent && (
         <Script
           id="google-ads"

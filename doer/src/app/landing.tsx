@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
+import { WaitlistForm } from '@/components/ui/WaitlistForm'
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -108,9 +109,21 @@ export default function LandingPage() {
               <Link href="/login">
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
-              <Link href="/login">
-                <Button variant="primary" size="sm">Get Started</Button>
-              </Link>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault()
+                  const waitlistSection = document.getElementById('waitlist')
+                  if (waitlistSection) {
+                    waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                  } else {
+                    window.location.href = '/#waitlist'
+                  }
+                }}
+              >
+                Join Waitlist
+              </Button>
             </div>
 
             {/* Mobile menu button */}
@@ -139,9 +152,23 @@ export default function LandingPage() {
                 <Link href="/login">
                   <Button variant="outline" size="sm" className="w-full">Sign In</Button>
                 </Link>
-                <Link href="/login">
-                  <Button variant="primary" size="sm" className="w-full">Get Started</Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setMobileMenuOpen(false)
+                    const waitlistSection = document.getElementById('waitlist')
+                    if (waitlistSection) {
+                      waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                    } else {
+                      window.location.href = '/#waitlist'
+                    }
+                  }}
+                >
+                  Join Waitlist
+                </Button>
               </div>
             </div>
           </motion.div>
@@ -167,13 +194,13 @@ export default function LandingPage() {
                 AI-powered roadmap generation that transforms your written goals into structured, 
                 actionable plans you can actually follow.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                <Link href="/login">
-                  <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto">
-                    Start Now
-                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
+              <div className="max-w-xl mx-auto mb-12">
+                <WaitlistForm
+                  source="landing_page_hero"
+                  variant="compact"
+                  placeholder="Enter your email"
+                  buttonText="Join Waitlist"
+                />
               </div>
               
               {/* Template Suggestions */}
@@ -196,6 +223,26 @@ export default function LandingPage() {
                 <p className="text-[#d7d2cb]/50 text-sm">Trusted by achievers worldwide</p>
               </div>
             </div>
+          </FadeInWrapper>
+        </div>
+      </section>
+
+      {/* Waitlist Section */}
+      <section id="waitlist" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-white/5 to-transparent">
+        <div className="max-w-2xl mx-auto text-center">
+          <FadeInWrapper direction="up">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-[#d7d2cb]">
+              Join the Waitlist
+            </h2>
+            <p className="text-xl text-[#d7d2cb]/70 mb-8">
+              Be the first to know when DOER launches. Get early access and exclusive updates.
+            </p>
+            <WaitlistForm
+              source="landing_page_waitlist_section"
+              variant="default"
+              placeholder="Enter your email"
+              buttonText="Join Waitlist"
+            />
           </FadeInWrapper>
         </div>
       </section>
@@ -239,12 +286,23 @@ export default function LandingPage() {
                     <p className="text-xl text-[#d7d2cb]/70 leading-relaxed mb-6">
                       {feature.description}
                     </p>
-                    <Link href="/login">
-                      <Button variant="outline" size="lg" className="group">
-                        Start building
-                        <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="group"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        const waitlistSection = document.getElementById('waitlist')
+                        if (waitlistSection) {
+                          waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                        } else {
+                          window.location.href = '/#waitlist'
+                        }
+                      }}
+                    >
+                      Join Waitlist
+                      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
                   </div>
                 </div>
               </FadeInWrapper>
@@ -393,12 +451,14 @@ export default function LandingPage() {
               actionable plans, or complete achievement strategies that are ready to use.
             </p>
             <div className="flex justify-center">
-              <Link href="/login">
-                <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto">
-                  Start building
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
+              <div className="max-w-xl w-full">
+                <WaitlistForm
+                  source="landing_page_cta"
+                  variant="compact"
+                  placeholder="Enter your email"
+                  buttonText="Join Waitlist"
+                />
+              </div>
             </div>
           </FadeInWrapper>
         </div>

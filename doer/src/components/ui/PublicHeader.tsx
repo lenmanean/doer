@@ -377,9 +377,22 @@ export function PublicHeader() {
               <Link href="/login">
                 <Button variant="outline" size="sm">{t('common.logIn')}</Button>
               </Link>
-              <Link href="/auth/signup">
-                <Button variant="primary" size="sm">{t('common.startPlanning')}</Button>
-              </Link>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault()
+                  const waitlistSection = document.getElementById('waitlist')
+                  if (waitlistSection) {
+                    waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                  } else {
+                    // If not on homepage, navigate to homepage with hash
+                    window.location.href = '/#waitlist'
+                  }
+                }}
+              >
+                Join Waitlist
+              </Button>
             </div>
           ) : (
             <>
@@ -471,9 +484,24 @@ export function PublicHeader() {
                 <Link href="/login">
                   <Button variant="outline" size="sm" className="w-full">{t('common.logIn')}</Button>
                 </Link>
-                <Link href="/auth/signup">
-                  <Button variant="primary" size="sm" className="w-full">{t('common.startPlanning')}</Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setMobileMenuOpen(false)
+                    const waitlistSection = document.getElementById('waitlist')
+                    if (waitlistSection) {
+                      waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                    } else {
+                      // If not on homepage, navigate to homepage with hash
+                      window.location.href = '/#waitlist'
+                    }
+                  }}
+                >
+                  Join Waitlist
+                </Button>
               </div>
             ) : (
               <div className="flex flex-col space-y-2 px-4 pt-4">

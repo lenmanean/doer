@@ -191,6 +191,24 @@ export function trackPurchase(value: number, currency: string = 'USD', additiona
 }
 
 /**
+ * Track WaitlistSignup event
+ * Fires a custom Meta Pixel event when a user successfully joins the waitlist
+ * Event name: WaitlistSignup
+ * 
+ * @param source - Source of the waitlist signup (e.g., 'landing_page_hero', 'pricing_card', 'header_button')
+ */
+export function trackWaitlistSignup(source: string): void {
+  if (typeof window === 'undefined') return
+  
+  // Fire the custom event to Meta Pixel
+  if (window.fbq && FACEBOOK_PIXEL_ID) {
+    window.fbq('trackCustom', 'WaitlistSignup', {
+      source: source,
+    })
+  }
+}
+
+/**
  * Initialize all marketing services (Facebook Pixel and Google Ads)
  * Only initializes if marketing consent is given
  */

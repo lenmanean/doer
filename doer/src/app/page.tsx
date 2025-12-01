@@ -9,6 +9,7 @@ import { useSupabase } from '@/components/providers/supabase-provider'
 import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
+import { WaitlistForm } from '@/components/ui/WaitlistForm'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
   SiGooglecalendar, 
@@ -30,19 +31,7 @@ export default function Home() {
   const router = useRouter()
   const { user, loading, sessionReady } = useSupabase()
   const t = useTranslations()
-  const [goal, setGoal] = useState('')
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
-  const [isFocused, setIsFocused] = useState(false)
-  const [placeholderIndex, setPlaceholderIndex] = useState(0)
-  const [isFading, setIsFading] = useState(false)
-  
-  const placeholderTexts = [
-    'Learn to play guitar',
-    'Start a blog',
-    'Get in shape',
-    'Prepare for a marathon',
-    'Learn a new language',
-  ]
 
   // Handle authentication code parameter - redirect to callback handler
   // The callback route will handle redirecting to the production domain
@@ -65,41 +54,7 @@ export default function Home() {
     }
   }, [])
 
-  // Cycling placeholder animation with fade transitions
-  useEffect(() => {
-    if (isFocused || goal) return
-    
-    const interval = setInterval(() => {
-      // Fade out
-      setIsFading(true)
-      
-      // After fade out completes, change text and fade in
-      setTimeout(() => {
-        setPlaceholderIndex((prev) => (prev + 1) % placeholderTexts.length)
-        setIsFading(false)
-      }, 500) // Half of the transition duration
-    }, 3000) // Change every 3 seconds
-
-    return () => clearInterval(interval)
-  }, [isFocused, goal, placeholderTexts.length])
-
   const isAuthenticated = Boolean(user && sessionReady && !loading)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (goal.trim()) {
-      if (isAuthenticated) {
-        router.push(`/onboarding?goal=${encodeURIComponent(goal.trim())}`)
-      } else {
-        localStorage.setItem('pendingGoal', goal.trim())
-        router.push('/login')
-      }
-    }
-  }
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setGoal(suggestion)
-  }
 
   const suggestions = [
     t('hero.suggestion1'),
@@ -147,77 +102,15 @@ export default function Home() {
             </p>
       </div>
 
-          {/* Input Form */}
-          <form onSubmit={handleSubmit} className="space-y-8 max-w-3xl mx-auto">
-            <div className="relative">
-              <input
-                type="text"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                placeholder=" "
-                className="w-full px-8 py-6 pr-16 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-orange-500 focus:border-transparent text-xl"
-                autoFocus
-              />
-              {/* Animated placeholder overlay */}
-              {!goal && !isFocused && (
-                <div className="absolute left-8 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <span
-                    className={`text-xl text-gray-400 dark:text-gray-500 transition-opacity duration-500 ${
-                      isFading ? 'opacity-0' : 'opacity-100'
-                    }`}
-                  >
-                    {placeholderTexts[placeholderIndex]}
-                  </span>
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={!goal.trim()}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-              >
-                <ArrowRight className="w-6 h-6 text-white" />
-              </button>
-            </div>
-
-            {/* Input Suggestions */}
-            <div className="space-y-4">
-              <p className="text-base text-gray-600 dark:text-gray-400 font-medium text-center">
-                {t('hero.inputSuggestions')}
-              </p>
-              <div className="flex flex-wrap gap-4 justify-center">
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    onMouseEnter={(e) => {
-                      const isDark = document.documentElement.classList.contains('dark')
-                      if (!isDark) {
-                        // Light mode hover - consistent with all dropdowns
-                        e.currentTarget.style.setProperty('background-color', '#4b5563', 'important')
-                        e.currentTarget.style.setProperty('color', '#ffffff', 'important')
-                        e.currentTarget.style.setProperty('border-color', '#4b5563', 'important')
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      const isDark = document.documentElement.classList.contains('dark')
-                      if (!isDark) {
-                        // Reset light mode styles
-                        e.currentTarget.style.removeProperty('background-color')
-                        e.currentTarget.style.removeProperty('color')
-                        e.currentTarget.style.removeProperty('border-color')
-                      }
-                    }}
-                    className="px-6 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-base text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white dark:hover:border-gray-600 transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-                          </div>
-                            </div>
-            </form>
+          {/* Waitlist Form */}
+          <div id="waitlist" className="max-w-2xl mx-auto">
+            <WaitlistForm
+              source="landing_page_hero"
+              variant="default"
+              placeholder="Enter your email to join the waitlist"
+              buttonText="Join Waitlist"
+            />
+          </div>
                         </div>
       </section>
 
@@ -666,8 +559,8 @@ export default function Home() {
                 t('pricing.authenticationSystem'),
                 t('pricing.databaseFunctionality'),
               ]}
-              buttonText="Get Started"
-              buttonHref={isAuthenticated ? '/dashboard' : '/auth/signup'}
+              buttonText="Join Waitlist"
+              buttonHref="#waitlist"
               delay={0}
             />
             {/* Paid Plans Card */}
@@ -800,11 +693,14 @@ export default function Home() {
                 }}
               >{t('cta.doer')}</span>{t('cta.question')}
             </p>
-            <Link href={isAuthenticated ? '/dashboard' : '/auth/signup'}>
-              <Button variant="primary" size="lg" className="text-xl px-12 py-6 bg-orange-500 !text-white hover:bg-orange-600 shadow-2xl animate-glow animate-button-pulse">
-                {t('cta.button')}
-              </Button>
-            </Link>
+            <div className="max-w-xl mx-auto">
+              <WaitlistForm
+                source="final_cta"
+                variant="compact"
+                placeholder="Enter your email"
+                buttonText="Join Waitlist"
+              />
+            </div>
           </div>
         </div>
 
@@ -987,11 +883,26 @@ function PricingCard({
         </ul>
       )}
       {!features && description && <div className="mb-8 flex-grow"></div>}
-      <Link href={buttonHref}>
-        <Button variant="primary" size="lg" className="w-full text-lg py-4">
+      {buttonHref === '#waitlist' ? (
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full text-lg py-4"
+          onClick={(e) => {
+            e.preventDefault()
+            const waitlistSection = document.getElementById('waitlist')
+            waitlistSection?.scrollIntoView({ behavior: 'smooth' })
+          }}
+        >
           {buttonText}
         </Button>
-      </Link>
+      ) : (
+        <Link href={buttonHref}>
+          <Button variant="primary" size="lg" className="w-full text-lg py-4">
+            {buttonText}
+          </Button>
+        </Link>
+      )}
     </div>
   )
 }

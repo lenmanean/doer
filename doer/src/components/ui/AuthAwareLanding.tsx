@@ -320,9 +320,21 @@ export default function AuthAwareLanding() {
                   <Link href="/login">
                     <Button variant="outline" size="sm">Sign In</Button>
                   </Link>
-                  <Link href="/login">
-                    <Button variant="primary" size="sm">Get Started</Button>
-                  </Link>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const waitlistSection = document.getElementById('waitlist')
+                      if (waitlistSection) {
+                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                      } else {
+                        window.location.href = '/#waitlist'
+                      }
+                    }}
+                  >
+                    Join Waitlist
+                  </Button>
                 </div>
               )}
             </div>
@@ -373,9 +385,23 @@ export default function AuthAwareLanding() {
                       <Link href="/login">
                         <Button variant="outline" size="sm" className="w-full">Sign In</Button>
                       </Link>
-                      <Link href="/login">
-                        <Button variant="primary" size="sm" className="w-full">Get Started</Button>
-                      </Link>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setMobileMenuOpen(false)
+                          const waitlistSection = document.getElementById('waitlist')
+                          if (waitlistSection) {
+                            waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                          } else {
+                            window.location.href = '/#waitlist'
+                          }
+                        }}
+                      >
+                        Join Waitlist
+                      </Button>
                     </>
                   )}
                 </div>
@@ -411,12 +437,23 @@ export default function AuthAwareLanding() {
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 ) : (
-                  <Link href="/login">
-                    <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto">
-                      Start Now
-                      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="group text-lg px-10 py-6 h-auto"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const waitlistSection = document.getElementById('waitlist')
+                      if (waitlistSection) {
+                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                      } else {
+                        window.location.href = '/#waitlist'
+                      }
+                    }}
+                  >
+                    Join Waitlist
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
                 )}
               </div>
               
@@ -484,15 +521,26 @@ export default function AuthAwareLanding() {
                       {feature.description}
                     </p>
                     {!isAuthenticated ? (
-                      <Link href="/login">
-                        <Button variant="outline" size="lg" className="group">
-                          Start building
-                          <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        </Button>
-                      </Link>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="group"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const waitlistSection = document.getElementById('waitlist')
+                          if (waitlistSection) {
+                            waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                          } else {
+                            window.location.href = '/#waitlist'
+                          }
+                        }}
+                      >
+                        Join Waitlist
+                        <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </Button>
                     ) : (
                       <Button variant="outline" size="lg" className="group" onClick={handleDashboardClick}>
-                        Start building
+                        Go to Dashboard
                         <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     )}
@@ -646,16 +694,27 @@ export default function AuthAwareLanding() {
             <div className="flex justify-center">
               {user ? (
                 <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto" onClick={handleDashboardClick}>
-                  Start building
+                  Go to Dashboard
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               ) : (
-                <Link href="/login">
-                  <Button variant="primary" size="lg" className="group text-lg px-10 py-6 h-auto">
-                    Start building
-                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="group text-lg px-10 py-6 h-auto"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    const waitlistSection = document.getElementById('waitlist')
+                    if (waitlistSection) {
+                      waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                    } else {
+                      window.location.href = '/#waitlist'
+                    }
+                  }}
+                >
+                  Join Waitlist
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
               )}
             </div>
           </FadeInWrapper>
