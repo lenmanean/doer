@@ -1014,11 +1014,18 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           // Allow scheduling on start date even if it's a weekend
           // Don't skip
         } else if (prefersWeekday) {
-          // Only skip weekend if there are weekday alternatives available
-        const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
-        if (hasWeekdayCandidate) {
-            console.log(`    Prefers weekday: skipping weekend ${dateStr} (weekday alternative available)`)
-          continue
+          // Only skip weekend if there are weekday alternatives with sufficient capacity
+          const hasWeekdayCandidateWithCapacity = searchDays.some(idx => {
+            if (idx === dayIndex || dayConfigs[idx]?.isWeekend) return false
+            const candidateConfig = dayConfigs[idx]
+            if (!candidateConfig) return false
+            const candidateUsed = dailyScheduled[idx] || 0
+            const candidateAvailable = candidateConfig.dailyCapacity - candidateUsed
+            return candidateAvailable >= remainingDuration
+          })
+          if (hasWeekdayCandidateWithCapacity) {
+            console.log(`    Prefers weekday: skipping weekend ${dateStr} (weekday alternative with capacity available)`)
+            continue
           }
         }
       }
@@ -1266,8 +1273,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // Only add to unscheduledTasks if not being tracked for retry
       const isTrackedForRetry = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
       if (!isTrackedForRetry) {
-        console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
-        unscheduledTasks.push(task.id)
+      console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+      unscheduledTasks.push(task.id)
       } else {
         console.log(`    ⏸️ Task "${task.name}" skipped due to unscheduled prerequisites - will retry after prerequisites are scheduled`)
       }
@@ -1432,8 +1439,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           if ((forceStartDate || requireStartDate) && dayIndex === 0) {
             // Allow
           } else if (prefersWeekday) {
-            const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
-            if (hasWeekdayCandidate) {
+            // Only skip weekend if there are weekday alternatives with sufficient capacity
+            const hasWeekdayCandidateWithCapacity = searchDays.some(idx => {
+              if (idx === dayIndex || dayConfigs[idx]?.isWeekend) return false
+              const candidateConfig = dayConfigs[idx]
+              if (!candidateConfig) return false
+              const candidateUsed = dailyScheduled[idx] || 0
+              const candidateAvailable = candidateConfig.dailyCapacity - candidateUsed
+              return candidateAvailable >= remainingDuration
+            })
+            if (hasWeekdayCandidateWithCapacity) {
               continue
             }
           }
@@ -1667,14 +1682,14 @@ function findBestTimeSlot(
       // Use UTC methods to extract user's local time components
       const earliestHour = currentTime.getUTCHours()
       const earliestMinute = currentTime.getUTCMinutes()
-      const earliestMinutes = earliestHour * 60 + earliestMinute
-      const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
-      
-      // Use the later of workday start or earliest start time
-      if (earliestMinutes > workdayStartMinutes) {
-        effectiveStartHour = earliestHour
-        effectiveStartMinute = earliestMinute
-      }
+    const earliestMinutes = earliestHour * 60 + earliestMinute
+    const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
+    
+    // Use the later of workday start or earliest start time
+    if (earliestMinutes > workdayStartMinutes) {
+      effectiveStartHour = earliestHour
+      effectiveStartMinute = earliestMinute
+    }
     } else {
       // Day 0 is not today - use workday start
       console.log(`    Day 0 is tomorrow - using workday start: ${formatTime(dayConfig.startHour, dayConfig.startMinute)}`)

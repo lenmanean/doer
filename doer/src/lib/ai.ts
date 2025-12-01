@@ -532,7 +532,7 @@ export async function generatePlanClarificationQuestions(request: {
   existingSchedules: Array<{ date: string; start_time: string; end_time: string }>
   calendarBusySlots: Array<{ start: string; end: string }>
   workdaySettings: { startHour: number; endHour: number; lunchStart: number; lunchEnd: number; allowWeekends: boolean }
-}): Promise<{ questions: string[]; reasoning: string }> {
+}): Promise<{ questions: Array<{ text: string; options: string[] }>; reasoning: string }> {
   // Calculate capacity utilization
   const workdayMinutes = (request.workdaySettings.endHour - request.workdaySettings.startHour) * 60
   const lunchMinutes = Math.max(0, request.workdaySettings.lunchEnd - request.workdaySettings.lunchStart)
@@ -588,15 +588,40 @@ DECISION RULES:
 - If plan is already well-defined, return empty array
 - Questions should help refine timeline, task scope, or scheduling
 
+MULTIPLE CHOICE REQUIREMENTS:
+- Each question MUST include 2-5 answer options
+- The number of options should be appropriate for the question (typically 2-4, use 5 only for complex questions)
+- Options should be mutually exclusive and cover the most common scenarios
+- Always include an "Other" option as the last option to allow custom responses
+- Options should be concise (1-2 short phrases each)
+- Make options specific and actionable, not vague
+
 EXAMPLES:
-- High capacity (95%): "Would you be able to extend the timeline by 1-2 days, or do you have additional time available each day?"
-- Vague task: "For 'Research best practices', what specific areas should be prioritized?"
-- Missing context: "What's your current experience level with [relevant skill]?"
-- Timeline tight: "Is the ${request.timelineDays}-day timeline firm, or could it be extended if needed?"
+- High capacity (95%): {
+    "text": "Would you be able to extend the timeline, or do you have additional time available?",
+    "options": ["Extend timeline by 1-2 days", "I can add 1-2 hours per day", "I prefer to keep the current timeline", "Other"]
+  }
+- Vague task: {
+    "text": "For 'Research best practices', what specific areas should be prioritized?",
+    "options": ["Performance optimization", "Security best practices", "Code structure and patterns", "All of the above", "Other"]
+  }
+- Missing context: {
+    "text": "What's your current experience level with [relevant skill]?",
+    "options": ["Beginner", "Intermediate", "Advanced", "Expert", "Other"]
+  }
+- Timeline tight: {
+    "text": "Is the ${request.timelineDays}-day timeline firm, or could it be extended if needed?",
+    "options": ["Timeline is firm, cannot extend", "Can extend by 1-2 days if needed", "Can extend by 3+ days if needed", "Timeline is flexible", "Other"]
+  }
 
 Return JSON format:
 {
-  "questions": string[],
+  "questions": [
+    {
+      "text": "Question text here",
+      "options": ["Option 1", "Option 2", "Option 3", "Other"]
+    }
+  ],
   "reasoning": "Brief explanation of why these questions were generated (or why none were needed)"
 }`
 
@@ -604,7 +629,7 @@ Return JSON format:
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are an intelligent plan enhancement assistant. Generate 0-5 specific, actionable clarification questions that would improve plan quality. Return only valid JSON.' },
+        { role: 'system', content: 'You are an intelligent plan enhancement assistant. Generate 0-5 specific, actionable clarification questions with multiple choice options (2-5 options each, always include "Other" as last option). Return only valid JSON.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.4,
@@ -623,10 +648,27 @@ Return JSON format:
       throw new Error('AI did not return questions array')
     }
 
-    // Validate questions are strings and filter empty ones
+    // Validate and transform questions to include options
     const validQuestions = parsed.questions
-      .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
+      .filter((q: any) => {
+        if (!q || typeof q !== 'object') return false
+        if (typeof q.text !== 'string' || q.text.trim().length === 0) return false
+        if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 5) return false
+        // Ensure all options are strings
+        if (!q.options.every((opt: any) => typeof opt === 'string' && opt.trim().length > 0)) return false
+        // Ensure "Other" is included as last option
+        const lastOption = q.options[q.options.length - 1]?.toLowerCase().trim()
+        if (lastOption !== 'other') {
+          // Add "Other" if not present
+          q.options.push('Other')
+        }
+        return true
+      })
       .slice(0, 5) // Limit to 5 questions max
+      .map((q: any) => ({
+        text: q.text.trim(),
+        options: q.options.map((opt: string) => opt.trim()).filter((opt: string) => opt.length > 0)
+      }))
 
     return {
       questions: validQuestions,

@@ -30,8 +30,9 @@ export default function ReviewPage() {
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
   const [showStrengthenButton, setShowStrengthenButton] = useState(true)
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false)
-  const [clarificationQuestions, setClarificationQuestions] = useState<string[]>([])
+  const [clarificationQuestions, setClarificationQuestions] = useState<Array<{ text: string; options: string[] }>>([])
   const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({})
+  const [clarificationOtherTexts, setClarificationOtherTexts] = useState<Record<string, string>>({})
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -533,14 +534,31 @@ export default function ReviewPage() {
       }
 
       if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-        setClarificationQuestions(data.questions)
-        setCurrentQuestionIndex(0)
-        setClarificationAnswers({})
-        addToast({
-          type: 'success',
-          title: 'Questions Generated',
-          description: `We've generated ${data.questions.length} question${data.questions.length === 1 ? '' : 's'} to help strengthen your plan.`,
-        })
+        // Validate questions structure
+        const validQuestions = data.questions.filter((q: any) => 
+          q && typeof q === 'object' && 
+          typeof q.text === 'string' && 
+          Array.isArray(q.options) && 
+          q.options.length >= 2
+        )
+        if (validQuestions.length > 0) {
+          setClarificationQuestions(validQuestions)
+          setCurrentQuestionIndex(0)
+          setClarificationAnswers({})
+          setClarificationOtherTexts({})
+          addToast({
+            type: 'success',
+            title: 'Questions Generated',
+            description: `We've generated ${validQuestions.length} question${validQuestions.length === 1 ? '' : 's'} to help strengthen your plan.`,
+          })
+        } else {
+          addToast({
+            type: 'info',
+            title: 'Plan Already Well-Defined',
+            description: 'No clarification questions were generated. Your plan is already well-defined!',
+          })
+          setShowStrengthenButton(true)
+        }
       } else {
         // No questions generated, show message
         addToast({
@@ -573,6 +591,7 @@ export default function ReviewPage() {
       setClarificationQuestions([])
       setCurrentQuestionIndex(0)
       setClarificationAnswers({})
+      setClarificationOtherTexts({})
       
       // Provide specific error messages based on error type
       let genErrorTitle = 'Failed to Generate Questions'
@@ -603,21 +622,48 @@ export default function ReviewPage() {
     }
   }
 
-  const handleClarificationAnswer = (answer: string) => {
-    // Trim whitespace but allow empty answers (user can skip individual questions)
-    const trimmedAnswer = answer.trim()
+  const handleClarificationAnswer = (option: string) => {
+    const question = clarificationQuestions[currentQuestionIndex]
+    if (!question) return
+    
+    const isOther = option.toLowerCase().trim() === 'other'
+    let finalAnswer: string
+    
+    if (isOther) {
+      // For "Other", use the custom text if provided, otherwise use "Other"
+      const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim() || ''
+      finalAnswer = otherText ? `Other: ${otherText}` : 'Other'
+    } else {
+      finalAnswer = option
+    }
     
     const newAnswers = {
       ...clarificationAnswers,
-      [currentQuestionIndex.toString()]: trimmedAnswer,
+      [currentQuestionIndex.toString()]: finalAnswer,
     }
     setClarificationAnswers(newAnswers)
 
     if (currentQuestionIndex < clarificationQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1)
     } else {
-      // All questions answered, submit (even if some answers are empty)
+      // All questions answered, submit
       handleSubmitClarifications(newAnswers)
+    }
+  }
+  
+  const handleOtherTextChange = (text: string) => {
+    setClarificationOtherTexts({
+      ...clarificationOtherTexts,
+      [currentQuestionIndex.toString()]: text,
+    })
+    // Update answer if "Other" is selected
+    const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()]
+    if (currentAnswer && currentAnswer.toLowerCase().startsWith('other')) {
+      const trimmedText = text.trim()
+      setClarificationAnswers({
+        ...clarificationAnswers,
+        [currentQuestionIndex.toString()]: trimmedText ? `Other: ${trimmedText}` : 'Other',
+      })
     }
   }
 
@@ -630,6 +676,7 @@ export default function ReviewPage() {
     // Reset clarification state
     setClarificationQuestions([])
     setClarificationAnswers({})
+    setClarificationOtherTexts({})
     setCurrentQuestionIndex(0)
     setIsGeneratingQuestions(false)
     setIsRegenerating(false)
@@ -704,10 +751,11 @@ export default function ReviewPage() {
         return
       }
       
-      // Format answers for API
+      // Format answers for API - use question text as key
       const formattedAnswers: Record<string, string> = {}
-      clarificationQuestions.forEach((_, index) => {
-        formattedAnswers[`clarification_${index + 1}`] = finalAnswers[index.toString()] || ''
+      clarificationQuestions.forEach((question, index) => {
+        const answer = finalAnswers[index.toString()] || ''
+        formattedAnswers[question.text] = answer
       })
 
       const response = await fetch(`/api/plans/${plan.id}/regenerate`, {
@@ -806,6 +854,7 @@ export default function ReviewPage() {
       setClarificationQuestions([])
       setCurrentQuestionIndex(0)
       setClarificationAnswers({})
+      setClarificationOtherTexts({})
       setShowStrengthenButton(true)
       
       // Show success message with warning if schedule generation failed
@@ -1391,22 +1440,66 @@ export default function ReviewPage() {
 
             <div className="mb-6">
               <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4">
-                {clarificationQuestions[currentQuestionIndex]}
+                {clarificationQuestions[currentQuestionIndex]?.text || ''}
               </h3>
-              <textarea
-                value={clarificationAnswers[currentQuestionIndex.toString()] || ''}
-                onChange={(e) => {
-                  const newAnswers = {
-                    ...clarificationAnswers,
-                    [currentQuestionIndex.toString()]: e.target.value,
-                  }
-                  setClarificationAnswers(newAnswers)
-                }}
-                placeholder="Type your answer here..."
-                className="w-full px-4 py-4 text-lg bg-white/5 border border-white/10 rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all resize-none"
-                rows={4}
-                autoFocus
-              />
+              <div className="space-y-3">
+                {clarificationQuestions[currentQuestionIndex]?.options.map((option, optionIndex) => {
+                  const isOther = option.toLowerCase().trim() === 'other'
+                  const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()] || ''
+                  const isSelected = isOther 
+                    ? currentAnswer.toLowerCase().startsWith('other')
+                    : currentAnswer === option
+                  
+                  return (
+                    <div key={optionIndex}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isOther) {
+                            // Set "Other" as answer, will be updated when user types
+                            setClarificationAnswers({
+                              ...clarificationAnswers,
+                              [currentQuestionIndex.toString()]: 'Other',
+                            })
+                          } else {
+                            handleClarificationAnswer(option)
+                          }
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                            : 'border-white/10 bg-white/5 text-[#d7d2cb] hover:border-white/20 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected
+                              ? 'border-[var(--primary)] bg-[var(--primary)]'
+                              : 'border-white/30'
+                          }`}>
+                            {isSelected && (
+                              <div className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <span className="flex-1 font-medium">{option}</span>
+                        </div>
+                      </button>
+                      {isOther && isSelected && (
+                        <div className="mt-2 ml-8">
+                          <input
+                            type="text"
+                            value={clarificationOtherTexts[currentQuestionIndex.toString()] || ''}
+                            onChange={(e) => handleOtherTextChange(e.target.value)}
+                            placeholder="Please specify..."
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
+                            autoFocus
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -1449,12 +1542,38 @@ export default function ReviewPage() {
                   variant="primary"
                   onClick={() => {
                     const answer = clarificationAnswers[currentQuestionIndex.toString()] || ''
-                    if (answer.trim()) {
-                      handleClarificationAnswer(answer)
+                    const question = clarificationQuestions[currentQuestionIndex]
+                    if (!question) return
+                    
+                    // If "Other" is selected, check if custom text is provided
+                    if (answer.toLowerCase().startsWith('other')) {
+                      const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim()
+                      if (!otherText) {
+                        addToast({
+                          type: 'error',
+                          title: 'Please Specify',
+                          description: 'Please provide your answer in the "Other" field.',
+                        })
+                        return
+                      }
+                    }
+                    
+                    if (answer) {
+                      // Find the selected option to pass to handleClarificationAnswer
+                      const selectedOption = question.options.find(opt => {
+                        if (opt.toLowerCase().trim() === 'other') {
+                          return answer.toLowerCase().startsWith('other')
+                        }
+                        return answer === opt
+                      })
+                      
+                      if (selectedOption) {
+                        handleClarificationAnswer(selectedOption)
+                      }
                     }
                   }}
                   disabled={
-                    isRegenerating || !clarificationAnswers[currentQuestionIndex.toString()]?.trim()
+                    isRegenerating || !clarificationAnswers[currentQuestionIndex.toString()]
                   }
                   className="flex items-center gap-2"
                 >

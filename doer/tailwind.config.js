@@ -19,7 +19,7 @@ module.exports = {
           foreground: '#64748b',
         },
         primary: {
-          DEFAULT: '#ea580c',
+          DEFAULT: '#ff7f00',
           foreground: '#ffffff',
         },
         secondary: {
@@ -36,7 +36,7 @@ module.exports = {
         },
         border: 'rgba(255, 255, 255, 0.1)',
         input: 'rgba(255, 255, 255, 0.05)',
-        ring: '#ea580c',
+        ring: '#ff7f00',
       },
       
       fontFamily: {
@@ -186,9 +186,9 @@ module.exports = {
       },
       
       backgroundImage: {
-        'gradient-orange': 'linear-gradient(135deg, #ff7f00 0%, #ea580c 100%)',
-        'gradient-orange-hover': 'linear-gradient(135deg, #ea580c 0%, #dc2626 100%)',
-        'gradient-text': 'linear-gradient(135deg, #ff7f00 0%, #ea580c 50%, #dc2626 100%)',
+        'gradient-orange': 'linear-gradient(135deg, #ff7f00 0%, #e67300 100%)',
+        'gradient-orange-hover': 'linear-gradient(135deg, #e67300 0%, #dc2626 100%)',
+        'gradient-text': 'linear-gradient(135deg, #ff7f00 0%, #e67300 50%, #dc2626 100%)',
       },
     },
   },
@@ -206,7 +206,7 @@ module.exports = {
           borderRadius: '0.75rem',
         },
         '.gradient-text': {
-          background: 'linear-gradient(135deg, #ff7f00 0%, #ea580c 50%, #dc2626 100%)',
+          background: 'linear-gradient(135deg, #ff7f00 0%, #e67300 50%, #dc2626 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',

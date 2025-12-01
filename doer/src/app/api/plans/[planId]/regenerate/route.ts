@@ -104,9 +104,10 @@ export async function POST(
           ) as Record<string, string>
         : {}
     
-    const clarificationQuestions: string[] = 
+    // clarificationQuestions is now optional - we use question text as keys in clarifications
+    const clarificationQuestions: Array<string | { text: string; options: string[] }> = 
       Array.isArray(body.clarificationQuestions)
-        ? body.clarificationQuestions.filter((q: any) => typeof q === 'string' && q.trim().length > 0)
+        ? body.clarificationQuestions
         : []
     
     const timezoneOffset: number = 
@@ -115,10 +116,23 @@ export async function POST(
         : new Date().getTimezoneOffset()
 
     // Validate that clarifications match the questions
-    // Expected format: { "clarification_1": "answer1", "clarification_2": "answer2", ... }
+    // Expected format: { "question text": "answer", ... } or { "clarification_1": "answer1", ... }
+    // Support both old format (string array) and new format (object array with text/options)
     if (clarificationQuestions.length > 0) {
-      const expectedKeys = clarificationQuestions.map((_, index) => `clarification_${index + 1}`)
       const providedKeys = Object.keys(clarifications)
+      
+      // Determine expected keys based on question format
+      const expectedKeys: string[] = []
+      for (const question of clarificationQuestions) {
+        if (typeof question === 'string') {
+          // Old format: use index-based keys
+          const index = clarificationQuestions.indexOf(question)
+          expectedKeys.push(`clarification_${index + 1}`)
+        } else if (typeof question === 'object' && question !== null && 'text' in question) {
+          // New format: use question text as key
+          expectedKeys.push(question.text)
+        }
+      }
       
       // Check if all expected keys are present (answers can be empty strings, but keys should exist)
       const missingKeys = expectedKeys.filter(key => !providedKeys.includes(key))
@@ -233,11 +247,22 @@ export async function POST(
       timeOff: [],
     }
 
+    // Convert clarificationQuestions to string array for AI request
+    // Support both old format (string[]) and new format (Array<{text: string, options: string[]}>)
+    const clarificationQuestionsForAI: string[] = clarificationQuestions.map((q) => {
+      if (typeof q === 'string') {
+        return q
+      } else if (typeof q === 'object' && q !== null && 'text' in q) {
+        return q.text
+      }
+      return ''
+    }).filter((q) => q.length > 0)
+
     // Prepare AI request
     const aiRequest = {
       goal: combinedGoal,
       clarifications,
-      clarificationQuestions,
+      clarificationQuestions: clarificationQuestionsForAI,
       start_date: plan.start_date,
       availability,
       workdaySettings: {
