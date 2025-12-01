@@ -151,21 +151,32 @@ export async function POST(
       // Continue without calendar events - not critical
     }
 
-    // Fetch user workday settings
+    // Fetch user workday settings (use defaults if not found)
     const { data: userSettings, error: settingsError } = await supabase
       .from('user_settings')
       .select('workday_start_hour, workday_end_hour, lunch_start_hour, lunch_end_hour, allow_weekends')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (settingsError || !userSettings) {
-      if (reserved) {
-        await creditService.release('api_credits', CLARIFICATION_GENERATION_CREDIT_COST, { reason: 'settings_fetch_failed' })
-      }
-      return NextResponse.json(
-        { error: 'SETTINGS_FETCH_FAILED', message: 'Failed to fetch user settings' },
-        { status: 500 }
-      )
+    // Use defaults if settings don't exist (new users may not have settings yet)
+    const workdaySettings = userSettings ? {
+      startHour: userSettings.workday_start_hour || 9,
+      endHour: userSettings.workday_end_hour || 17,
+      lunchStart: userSettings.lunch_start_hour || 12,
+      lunchEnd: userSettings.lunch_end_hour || 13,
+      allowWeekends: userSettings.allow_weekends !== false,
+    } : {
+      startHour: 9,
+      endHour: 17,
+      lunchStart: 12,
+      lunchEnd: 13,
+      allowWeekends: true,
+    }
+
+    if (settingsError && settingsError.code !== 'PGRST116') {
+      // PGRST116 is "not found" which is acceptable - we use defaults
+      console.error('Error fetching user settings:', settingsError)
+      // Continue with defaults rather than failing
     }
 
     // Calculate timeline days
@@ -179,14 +190,7 @@ export async function POST(
       end: event.end_time,
     }))
 
-    // Prepare workday settings
-    const workdaySettings = {
-      startHour: userSettings.workday_start_hour || 9,
-      endHour: userSettings.workday_end_hour || 17,
-      lunchStart: userSettings.lunch_start_hour || 12,
-      lunchEnd: userSettings.lunch_end_hour || 13,
-      allowWeekends: userSettings.allow_weekends !== false,
-    }
+    // workdaySettings already prepared above with defaults
 
     // Generate clarification questions
     const result = await generatePlanClarificationQuestions({

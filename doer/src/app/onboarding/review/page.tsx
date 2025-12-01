@@ -1350,29 +1350,6 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {/* Strengthen Plan Button */}
-        {showStrengthenButton && plan?.id && (
-          <div className="flex justify-center pt-4">
-            <Button
-              onClick={handleStrengthenPlan}
-              variant="secondary"
-              className="flex items-center gap-2 px-8 bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={isGeneratingQuestions || isRegenerating}
-            >
-              {isGeneratingQuestions ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Generating Questions...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Strengthen Plan
-                </>
-              )}
-            </Button>
-          </div>
-        )}
 
         {/* Clarification UI */}
         {clarificationQuestions.length > 0 && (
@@ -1600,6 +1577,32 @@ export default function ReviewPage() {
         </div>
         )}
       </AnimatePresence>
+
+      {/* Floating Strengthen Plan Button - Fixed at bottom of viewport */}
+      {showStrengthenButton && plan?.id && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-lg shadow-black/20 p-4 pointer-events-auto">
+            <Button
+              onClick={handleStrengthenPlan}
+              variant="primary"
+              className="flex items-center gap-2 px-8"
+              disabled={isGeneratingQuestions || isRegenerating}
+            >
+              {isGeneratingQuestions ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Generating Questions...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Strengthen Plan
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
