@@ -42,9 +42,24 @@ export function WaitlistForm({
   const [error, setError] = useState('')
   const { addToast } = useToast()
 
+  // New Year/resolutions themed goal suggestions
+  const goalSuggestions = [
+    'Get in shape',
+    'Learn a new skill',
+    'Start a business',
+    'Save money',
+    'Find a new job',
+  ]
+
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email.trim())
+  }
+
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion: string) => {
+    setGoal(suggestion)
+    setError('')
   }
 
   const handleGoalNext = () => {
@@ -186,20 +201,35 @@ export function WaitlistForm({
   if (enableGoalCapture && step === 'goal') {
     return (
       <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-              <Target className="w-5 h-5 text-orange-500" />
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-12 h-12 rounded-full bg-[#ff7f00]/20 flex items-center justify-center flex-shrink-0">
+              <Target className="w-6 h-6 text-[#ff7f00]" />
             </div>
             <div>
-              <label htmlFor="waitlist-goal" className="block text-lg font-semibold text-gray-900 dark:text-white">
+              <label htmlFor="waitlist-goal" className="block text-2xl font-semibold text-[#d7d2cb]">
                 What's your goal?
               </label>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-[#d7d2cb]/70 mt-1">
                 Tell us what you want to achieve
               </p>
             </div>
           </div>
+          
+          {/* Clickable Suggestion Chips */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {goalSuggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#ff7f00]/50 rounded-lg text-sm font-medium text-[#d7d2cb] hover:text-white transition-all duration-200"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+
           <textarea
             id="waitlist-goal"
             value={goal}
@@ -207,15 +237,15 @@ export function WaitlistForm({
               setGoal(e.target.value)
               setError('')
             }}
-            placeholder="e.g., Learn to play guitar, Start a blog, Get in shape, Launch my startup..."
+            placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
             disabled={isLoading || isSuccess}
             rows={4}
-            className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border-2 ${
-              error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-            } rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-colors resize-none`}
+            className={`w-full px-4 py-4 text-lg bg-white/5 border ${
+              error ? 'border-red-500/50' : 'border-white/10'
+            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed`}
           />
           {error && (
-            <p className="mt-2 text-sm text-red-500">{error}</p>
+            <p className="mt-2 text-sm text-red-400">{error}</p>
           )}
         </div>
         <Button
