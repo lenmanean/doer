@@ -332,6 +332,7 @@ export function detectTaskDependencies(
     const taskDeps: number[] = []
 
     // Pattern: "outline" / "structure" must come before "create" / "build" / "write"
+    // Make create/build tasks depend on outline/structure tasks
     if (
       task.lowerName.includes('outline') ||
       task.lowerName.includes('structure') ||
@@ -346,14 +347,20 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('develop') ||
             otherTask.lowerName.includes('make'))
         ) {
-          if (!taskDeps.includes(otherTask.idx)) {
-            taskDeps.push(otherTask.idx)
+          // Make otherTask (create/build) depend on task (outline/structure)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
           }
         }
       }
     }
 
     // Pattern: "research" must come before "prepare" / "create" / "write"
+    // Make prepare/create tasks depend on research tasks
     if (task.lowerName.includes('research')) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -363,14 +370,20 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('write') ||
             otherTask.lowerName.includes('develop'))
         ) {
-          if (!taskDeps.includes(otherTask.idx)) {
-            taskDeps.push(otherTask.idx)
+          // Make otherTask (prepare/create) depend on task (research)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
           }
         }
       }
     }
 
     // Pattern: "gather materials" / "collect" must come before "build" / "create"
+    // Make build/create tasks depend on gather/collect tasks
     if (
       task.lowerName.includes('gather') ||
       task.lowerName.includes('collect') ||
@@ -384,8 +397,13 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('assemble') ||
             otherTask.lowerName.includes('make'))
         ) {
-          if (!taskDeps.includes(otherTask.idx)) {
-            taskDeps.push(otherTask.idx)
+          // Make otherTask (build/create) depend on task (gather/collect)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
           }
         }
       }
@@ -408,6 +426,7 @@ export function detectTaskDependencies(
     }
 
     // Pattern: "learn" / "study" must come before "practice" / "apply"
+    // Make practice/apply tasks depend on learn/study tasks
     if (task.lowerName.includes('learn') || task.lowerName.includes('study')) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -416,8 +435,13 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('apply') ||
             otherTask.lowerName.includes('implement'))
         ) {
-          if (!taskDeps.includes(otherTask.idx)) {
-            taskDeps.push(otherTask.idx)
+          // Make otherTask (practice/apply) depend on task (learn/study)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
           }
         }
       }
@@ -447,6 +471,7 @@ export function detectTaskDependencies(
 
     // Pattern: "prepare" / "organize" must come before "practice" / "run" (for interview/event prep)
     // Only if both tasks share the same context (interview, presentation, event, etc.)
+    // Make practice tasks depend on prepare/organize tasks
     if (
       task.lowerName.includes('prepare') ||
       task.lowerName.includes('organize')
@@ -477,8 +502,15 @@ export function detectTaskDependencies(
             (taskContext.length > 0 && otherContext.length > 0 && 
               taskContext.some(ctx => otherContext.includes(ctx)))
           
-          if (contextsMatch && !taskDeps.includes(otherTask.idx)) {
-            taskDeps.push(otherTask.idx)
+          if (contextsMatch) {
+            // Make otherTask (practice) depend on task (prepare/organize)
+            if (!dependencies.has(otherTask.idx)) {
+              dependencies.set(otherTask.idx, [])
+            }
+            const otherTaskDeps = dependencies.get(otherTask.idx)!
+            if (!otherTaskDeps.includes(task.idx)) {
+              otherTaskDeps.push(task.idx)
+            }
           }
         }
       }

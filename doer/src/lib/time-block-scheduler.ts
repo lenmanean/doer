@@ -788,6 +788,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   }
 
   let latestSequentialDay = 0
+  const tasksSkippedDueToDependencies: Array<{task: typeof tasksWithTargetDays[number], reason: string}> = []
 
   for (const taskWithTarget of tasksWithTargetDays) {
     const task = taskWithTarget
@@ -1080,7 +1081,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             }
           } else if (depTaskWithTarget.targetDay === dayIndex) {
             // Prerequisite has same target day but hasn't been scheduled yet
-            unscheduledPrerequisitesOnSameDay.push(depIdx)
+            // BUT: also check if it's already scheduled on a different day
+            const isScheduledElsewhere = placements.some(p => p.task_id === depTask.id)
+            if (!isScheduledElsewhere) {
+              unscheduledPrerequisitesOnSameDay.push(depIdx)
+            }
           }
         }
         
@@ -1090,6 +1095,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             .map(idx => tasks.find(t => t.idx === idx)?.name || `task ${idx}`)
             .join(', ')
           console.log(`    🔗 Task ${task.idx} has unscheduled prerequisites on day ${dayIndex} (${depTaskNames}) - skipping this day to maintain dependency ordering`)
+          // Track this task for retry later
+          const alreadyTracked = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
+          if (!alreadyTracked) {
+            tasksSkippedDueToDependencies.push({
+              task: taskWithTarget,
+              reason: `Unscheduled prerequisites on day ${dayIndex}: ${depTaskNames}`
+            })
+          }
           continue // Skip this day, task will be scheduled later after prerequisites
         }
         
@@ -1242,6 +1255,352 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     if (!scheduled) {
       console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
       unscheduledTasks.push(task.id)
+    }
+  }
+
+  // Retry tasks that were skipped due to unscheduled prerequisites
+  const retryTasks = tasksSkippedDueToDependencies.filter(skipped => {
+    // Check if all prerequisites are now scheduled
+    if (!skipped.task.idx || !taskDependencies.has(skipped.task.idx)) return false
+    const dependentTaskIdxs = taskDependencies.get(skipped.task.idx) || []
+    return dependentTaskIdxs.every(depIdx => {
+      const depTask = tasks.find(t => t.idx === depIdx)
+      if (!depTask) return false
+      return placements.some(p => p.task_id === depTask.id)
+    })
+  })
+
+  if (retryTasks.length > 0) {
+    console.log(`🔄 Retrying ${retryTasks.length} task(s) that were skipped due to unscheduled prerequisites`)
+    
+    for (const skipped of retryTasks) {
+      const task = skipped.task
+      // Check if task is already scheduled
+      if (placements.some(p => p.task_id === task.id)) {
+        console.log(`  Task ${task.idx} (${task.name}) already scheduled, skipping retry`)
+        continue
+      }
+      
+      let remainingDuration = task.estimated_duration_minutes
+      let scheduled = false
+      const targetDay = task.targetDay || 0
+      console.log(`Retrying task: ${task.name} (${task.estimated_duration_minutes} min) - idx: ${task.idx}, priority: ${task.priority}, targetDay: ${targetDay}`)
+
+      // Reuse the same search strategy as main loop
+      const prefersWeekend = allowWeekends &&
+        effectiveWeekendCap > effectiveWeekdayCap &&
+        task.estimated_duration_minutes >= effectiveWeekdayCap * 0.6
+
+      const prefersWeekday = allowWeekends &&
+        !prefersWeekend &&
+        task.estimated_duration_minutes <= effectiveWeekdayCap * 0.5
+
+      const allowEarlierThanTarget = task.priority === 1
+
+      const searchDaysSet = new Set<number>()
+      if (forceStartDate && task.priority <= 2 && targetDay === 0) {
+        searchDaysSet.add(0)
+      } else {
+        searchDaysSet.add(targetDay)
+      }
+      
+      const baseDeviation = task.priority === 1 ? 2 : task.priority === 2 ? 3 : task.priority === 3 ? 4 : 5
+      const timelineDeviationLimit = Math.floor(Math.max(totalActiveDays - 1, 0) * 0.3)
+      const maxDeviation = Math.min(baseDeviation, timelineDeviationLimit)
+      
+      for (let offset = 1; offset <= maxDeviation; offset++) {
+        if (allowEarlierThanTarget && targetDay - offset >= 0) searchDaysSet.add(targetDay - offset)
+        if (targetDay + offset < totalDays) searchDaysSet.add(targetDay + offset)
+      }
+      
+      if (task.priority >= 3) {
+        for (let dayIndex = targetDay + maxDeviation + 1; dayIndex < totalDays; dayIndex++) {
+          searchDaysSet.add(dayIndex)
+        }
+        if (allowEarlierThanTarget) {
+          for (let dayIndex = targetDay - maxDeviation - 1; dayIndex >= 0; dayIndex--) {
+            searchDaysSet.add(dayIndex)
+          }
+        }
+      } else {
+        if (allowEarlierThanTarget) {
+          for (let dayIndex = targetDay - maxDeviation - 1; dayIndex >= 0; dayIndex--) {
+            searchDaysSet.add(dayIndex)
+          }
+        }
+        for (let dayIndex = targetDay + maxDeviation + 1; dayIndex < totalDays; dayIndex++) {
+          searchDaysSet.add(dayIndex)
+        }
+      }
+      
+      const searchDays = Array.from(searchDaysSet).sort((a, b) => {
+        if (a < targetDay && b >= targetDay) return 1
+        if (b < targetDay && a >= targetDay) return -1
+        const aConfig = dayConfigs[a]
+        const bConfig = dayConfigs[b]
+        const aUsed = dailyScheduled[a] || 0
+        const bUsed = dailyScheduled[b] || 0
+        const aAvailable = (aConfig?.dailyCapacity || 0) - aUsed
+        const bAvailable = (bConfig?.dailyCapacity || 0) - bUsed
+
+        const targetCapacity = (cfg: typeof dayConfigs[number] | undefined, used: number) =>
+          (cfg?.dailyCapacity || 0) - used
+
+        const targetHasRoomA = a === targetDay && targetCapacity(aConfig, aUsed) >= remainingDuration
+        const targetHasRoomB = b === targetDay && targetCapacity(bConfig, bUsed) >= remainingDuration
+
+        if (targetHasRoomA && !targetHasRoomB) return -1
+        if (targetHasRoomB && !targetHasRoomA) return 1
+        if (task.priority <= 2) {
+          const aDist = Math.abs(a - targetDay)
+          const bDist = Math.abs(b - targetDay)
+          if (Math.abs(aDist - bDist) > 1) {
+            return aDist - bDist
+          }
+        }
+        
+        if (aAvailable !== bAvailable) {
+          return bAvailable - aAvailable
+        }
+        
+        const aWeekend = aConfig?.isWeekend ?? false
+        const bWeekend = bConfig?.isWeekend ?? false
+
+        const aBias = prefersWeekend
+          ? (aWeekend ? -0.25 : 0.25)
+          : prefersWeekday
+            ? (aWeekend ? 0.25 : -0.1)
+            : 0
+        const bBias = prefersWeekend
+          ? (bWeekend ? -0.25 : 0.25)
+          : prefersWeekday
+            ? (bWeekend ? 0.25 : -0.1)
+            : 0
+
+        const aDist = Math.abs(a - targetDay)
+        const bDist = Math.abs(b - targetDay)
+        const aScore = aDist + aBias
+        const bScore = bDist + bBias
+
+        if (aScore !== bScore) return aScore - bScore
+
+        if (aWeekend !== bWeekend) {
+          if (prefersWeekend) return aWeekend ? -1 : 1
+          if (prefersWeekday) return aWeekend ? 1 : -1
+        }
+
+        if (task.priority >= 3 && a !== b) return b - a
+        if (a !== b) return a - b
+        return 0
+      })
+
+      // Try to schedule the task using the same logic as main loop
+      for (const dayIndex of searchDays) {
+        if (remainingDuration <= 0) break
+        
+        if (isSingleDayPlan && dayIndex !== 0) {
+          continue
+        }
+        
+        const currentDate = new Date(startDate)
+        currentDate.setDate(startDate.getDate() + dayIndex)
+        const dateStr = currentDate.toISOString().split('T')[0]
+
+        const dayConfig = dayConfigs[dayIndex]
+        if (!dayConfig) continue
+
+        if (dayConfig.isWeekend) {
+          if (!allowWeekends) {
+            continue
+          }
+          if ((forceStartDate || requireStartDate) && dayIndex === 0) {
+            // Allow
+          } else if (prefersWeekday) {
+            const hasWeekdayCandidate = searchDays.some(idx => idx !== dayIndex && !(dayConfigs[idx]?.isWeekend ?? false))
+            if (hasWeekdayCandidate) {
+              continue
+            }
+          }
+        }
+
+        const alreadyScheduled = dailyScheduled[dayIndex] || 0
+        const dayCapacity = dayConfig.dailyCapacity
+        const availableCapacity = dayCapacity - alreadyScheduled
+
+        if (availableCapacity <= 0) {
+          continue
+        }
+        
+        if (remainingDuration > availableCapacity) {
+          continue
+        }
+
+        if (prefersWeekend && !dayConfig.isWeekend) {
+          const hasWeekendCandidate = searchDays.some(idx => idx !== dayIndex && (dayConfigs[idx]?.isWeekend ?? false))
+          if (hasWeekendCandidate && task.estimated_duration_minutes > dayCapacity) {
+            continue
+          }
+        }
+
+        const daysFromTarget = Math.abs(dayIndex - targetDay)
+        const isTooEarly = dayIndex < targetDay && task.priority >= 3 && daysFromTarget > 2
+        if (isTooEarly) {
+          continue
+        }
+        
+        const durationToSchedule = remainingDuration
+        
+        // Check dependencies - prerequisites should now be scheduled
+        let earliestDependencyEndTime: string | null = null
+        if (task.idx && taskDependencies.has(task.idx)) {
+          const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+          const prerequisiteEndTimes: string[] = []
+          
+          for (const depIdx of dependentTaskIdxs) {
+            const depTask = tasks.find(t => t.idx === depIdx)
+            if (!depTask) continue
+            
+            // Check if prerequisite is scheduled on this day
+            const depPlacements = placements.filter(p => {
+              return p.task_id === depTask.id && p.day_index === dayIndex
+            })
+            
+            if (depPlacements.length > 0) {
+              for (const depPlacement of depPlacements) {
+                const depDuration = depTask.estimated_duration_minutes || 0
+                const depEndTime = addMinutesToTime(depPlacement.start_time, depDuration)
+                prerequisiteEndTimes.push(depEndTime)
+              }
+            }
+          }
+          
+          if (prerequisiteEndTimes.length > 0) {
+            const latestEndTime = prerequisiteEndTimes.reduce((latest, current) => {
+              const [latestHour, latestMin] = latest.split(':').map(Number)
+              const [currentHour, currentMin] = current.split(':').map(Number)
+              const latestMinutes = latestHour * 60 + latestMin
+              const currentMinutes = currentHour * 60 + currentMin
+              return currentMinutes > latestMinutes ? current : latest
+            })
+            earliestDependencyEndTime = latestEndTime
+          }
+        }
+        
+        let initialStartTime = findBestTimeSlot(
+          dayIndex,
+          durationToSchedule,
+          dayConfig,
+          currentTime,
+          currentDate,
+          requireStartDate
+        )
+        
+        if (initialStartTime && earliestDependencyEndTime) {
+          const [initialHour, initialMin] = initialStartTime.split(':').map(Number)
+          const [depEndHour, depEndMin] = earliestDependencyEndTime.split(':').map(Number)
+          const initialMinutes = initialHour * 60 + initialMin
+          const depEndMinutes = depEndHour * 60 + depEndMin
+          
+          if (initialMinutes < depEndMinutes) {
+            initialStartTime = earliestDependencyEndTime
+            
+            const [adjustedHour, adjustedMin] = initialStartTime.split(':').map(Number)
+            const adjustedStartMinutes = adjustedHour * 60 + adjustedMin
+            const workdayEndMinutes = dayConfig.endHour * 60
+            const taskEndMinutes = adjustedStartMinutes + durationToSchedule
+            
+            if (taskEndMinutes > workdayEndMinutes) {
+              continue
+            }
+          }
+        }
+
+        if (initialStartTime) {
+          const startTime = findNextAvailableSlot(
+            initialStartTime,
+            durationToSchedule,
+            dateStr,
+            scheduledSlots,
+            dayConfig,
+            currentTime,
+            requireStartDate
+          )
+
+          if (!startTime) {
+            continue
+          }
+
+          const endTime = addMinutesToTime(startTime, durationToSchedule)
+          
+          if (currentTime && currentDate && dayIndex === 0 && !requireStartDate) {
+            const [startHour, startMinute] = startTime.split(':').map(Number)
+            const taskStartTime = new Date(Date.UTC(
+              currentDate.getUTCFullYear(),
+              currentDate.getUTCMonth(),
+              currentDate.getUTCDate(),
+              startHour,
+              startMinute,
+              0,
+              0
+            ))
+            
+            const currentDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(currentTime.getUTCDate()).padStart(2, '0')}`
+            const taskDateStr = `${taskStartTime.getUTCFullYear()}-${String(taskStartTime.getUTCMonth() + 1).padStart(2, '0')}-${String(taskStartTime.getUTCDate()).padStart(2, '0')}`
+            
+            if (currentDateStr === taskDateStr && taskStartTime < currentTime) {
+              continue
+            }
+          }
+
+          const [startHour, startMinute] = startTime.split(':').map(Number)
+          const [endHour, endMinute] = endTime.split(':').map(Number)
+          const startMinutes = startHour * 60 + startMinute
+          const endMinutes = endHour * 60 + endMinute
+          
+          const daySlots = scheduledSlots.get(dateStr) || []
+          const hasOverlap = daySlots.some(slot => 
+            startMinutes < slot.end && endMinutes > slot.start
+          )
+          
+          if (hasOverlap) {
+            continue
+          }
+          
+          placements.push({
+            task_id: task.id,
+            date: dateStr,
+            day_index: dayIndex,
+            start_time: startTime,
+            end_time: endTime,
+            duration_minutes: durationToSchedule
+          })
+
+          if (!scheduledSlots.has(dateStr)) {
+            scheduledSlots.set(dateStr, [])
+          }
+          scheduledSlots.get(dateStr)!.push({
+            start: startMinutes,
+            end: endMinutes,
+            taskId: task.id
+          })
+
+          dailyScheduled[dayIndex] = alreadyScheduled + durationToSchedule
+          totalScheduledHours += durationToSchedule / 60
+          remainingDuration -= durationToSchedule
+          scheduled = true
+          if (task.idx) {
+            latestSequentialDay = Math.max(latestSequentialDay, dayIndex)
+          }
+          
+          console.log(`    ✓ Retry: Scheduled task "${task.name}" (${durationToSchedule} min) on ${dateStr}`)
+          break
+        }
+      }
+
+      if (!scheduled) {
+        console.log(`    ⚠️ Retry failed: Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+        unscheduledTasks.push(task.id)
+      }
     }
   }
 
