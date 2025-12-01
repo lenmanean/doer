@@ -627,6 +627,17 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       if (newTasksOnHeavyDay <= idealNewTaskWorkload * 1.1) continue
       
       // Find tasks on this day that can be moved
+      const tasksOnHeavyDay = tasks.filter(t => t.targetDay === heavyDay)
+      const lockedTasksOnHeavyDay = tasksOnHeavyDay.filter(t => isTaskLocked(t, tasks, dependencies))
+      
+      console.log(`⚖️ Checking tasks on Day ${heavyDay} for movement:`, {
+        totalTasks: tasksOnHeavyDay.length,
+        flexibleTasks: flexibleTasks.filter(t => t.targetDay === heavyDay).length,
+        lockedTasks: lockedTasksOnHeavyDay.map(t => t.name),
+        newTaskWorkload: newTasksOnHeavyDay,
+        idealNewTaskWorkload: idealNewTaskWorkload.toFixed(1)
+      })
+      
       const tasksToMove = flexibleTasks.filter(t => 
         t.targetDay === heavyDay &&
         !isTaskLocked(t, tasks, dependencies)
@@ -1178,23 +1189,33 @@ function findBestTimeSlot(
   currentDate?: Date,
   requireStartDate?: boolean
 ): string | null {
-  // For day 0 (today), respect the earliest start time from currentTime if provided
+  // For day 0, only apply current time constraint if Day 0 is actually today
   // UNLESS requireStartDate is true - in that case, use workday start time
   let effectiveStartHour = dayConfig.startHour
   let effectiveStartMinute = dayConfig.startMinute
   
   if (dayIndex === 0 && currentTime && currentDate && !requireStartDate) {
-    // currentTime is timezone-adjusted (represents user's local time)
-    // Use UTC methods to extract user's local time components
-    const earliestHour = currentTime.getUTCHours()
-    const earliestMinute = currentTime.getUTCMinutes()
-    const earliestMinutes = earliestHour * 60 + earliestMinute
-    const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
+    // Check if currentDate is actually today
+    const currentTimeDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(currentTime.getUTCDate()).padStart(2, '0')}`
+    const day0DateStr = `${currentDate.getUTCFullYear()}-${String(currentDate.getUTCMonth() + 1).padStart(2, '0')}-${String(currentDate.getUTCDate()).padStart(2, '0')}`
     
-    // Use the later of workday start or earliest start time
-    if (earliestMinutes > workdayStartMinutes) {
-      effectiveStartHour = earliestHour
-      effectiveStartMinute = earliestMinute
+    // Only apply current time constraint if Day 0 is actually today
+    if (currentTimeDateStr === day0DateStr) {
+      // currentTime is timezone-adjusted (represents user's local time)
+      // Use UTC methods to extract user's local time components
+      const earliestHour = currentTime.getUTCHours()
+      const earliestMinute = currentTime.getUTCMinutes()
+      const earliestMinutes = earliestHour * 60 + earliestMinute
+      const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
+      
+      // Use the later of workday start or earliest start time
+      if (earliestMinutes > workdayStartMinutes) {
+        effectiveStartHour = earliestHour
+        effectiveStartMinute = earliestMinute
+      }
+    } else {
+      // Day 0 is not today - use workday start
+      console.log(`    Day 0 is tomorrow - using workday start: ${formatTime(dayConfig.startHour, dayConfig.startMinute)}`)
     }
   }
 

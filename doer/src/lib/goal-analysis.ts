@@ -270,19 +270,40 @@ export function detectTimelineRequirement(
   const combinedText = combineGoalWithClarifications(goalText, clarifications)
   const lowerText = combinedText.toLowerCase()
   
+  // Map word numbers to digits
+  const wordToNumber: Record<string, number> = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+    'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+    'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19, 'twenty': 20
+  }
+  
   // Patterns for explicit timeline requirements
   // "in X days", "over X days", "happening in X days", "within X days"
   const timelinePatterns = [
-    /\b(?:in|over|within|for)\s+(\d+)\s+days?\b/,
+    /\b(?:in|over|within|for)\s+(\d+)\s+days?\b/,  // Digits
+    /\b(?:in|over|within|for)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,  // Word numbers
     /\bhappening\s+in\s+(\d+)\s+days?\b/,
+    /\bhappening\s+in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,
     /\b(?:complete|finish|done)\s+(?:in|over|within)\s+(\d+)\s+days?\b/,
+    /\b(?:complete|finish|done)\s+(?:in|over|within)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,
     /\b(\d+)\s+day\s+(?:plan|timeline|schedule)\b/,
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+day\s+(?:plan|timeline|schedule)\b/i,
   ]
   
   for (const pattern of timelinePatterns) {
     const match = lowerText.match(pattern)
     if (match) {
-      const days = parseInt(match[1], 10)
+      let days: number
+      const matchedValue = match[1].toLowerCase()
+      
+      // Check if it's a word number
+      if (wordToNumber[matchedValue]) {
+        days = wordToNumber[matchedValue]
+      } else {
+        days = parseInt(matchedValue, 10)
+      }
+      
       if (days > 0 && days <= 365) { // Reasonable range
         return {
           minimumDays: days,
@@ -402,21 +423,20 @@ export function detectTaskDependencies(
       }
     }
 
-    // Pattern: "set up" / "setup" / "tech check" / "test" must come before "practice" / "rehearse" / "run"
+    // Pattern: "practice" / "rehearse" / "mock interview" must come AFTER "set up" / "setup" / "tech check" / "test"
     if (
-      task.lowerName.includes('set up') ||
-      task.lowerName.includes('setup') ||
-      task.lowerName.includes('tech check') ||
-      task.lowerName.includes('test') ||
-      (task.lowerName.includes('check') && (task.lowerName.includes('tech') || task.lowerName.includes('equipment')))
+      task.lowerName.includes('practice') ||
+      task.lowerName.includes('rehears') ||
+      (task.lowerName.includes('mock') && task.lowerName.includes('interview'))
     ) {
       for (const otherTask of lowerTaskNames) {
         if (
           otherTask.idx !== task.idx &&
-          (otherTask.lowerName.includes('practice') ||
-            otherTask.lowerName.includes('rehears') ||
-            otherTask.lowerName.includes('run') ||
-            (otherTask.lowerName.includes('mock') && otherTask.lowerName.includes('interview')))
+          (otherTask.lowerName.includes('set up') ||
+            otherTask.lowerName.includes('setup') ||
+            otherTask.lowerName.includes('tech check') ||
+            otherTask.lowerName.includes('test') ||
+            (otherTask.lowerName.includes('check') && (otherTask.lowerName.includes('tech') || otherTask.lowerName.includes('equipment'))))
         ) {
           if (!taskDeps.includes(otherTask.idx)) {
             taskDeps.push(otherTask.idx)
