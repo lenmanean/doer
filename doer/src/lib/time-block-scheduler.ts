@@ -1037,10 +1037,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             const earlierTasksOnSameDay = earlierPlacements.filter(p => p.day_index === dayIndex)
             
             if (earlierTasksOnSameDay.length > 0) {
-              // On the same day, we need to ensure proper time ordering
-              // This will be handled by the time slot allocation (findNextAvailableSlot)
-              // which naturally respects chronological order within a day
-              console.log(`    Task ${task.idx} shares day ${dayIndex} with earlier tasks - time ordering will be enforced`)
+              // On the same day, tasks with lower idx should be scheduled earlier
+              // Note: This is idx-based ordering within same priority. Dependency-based ordering
+              // is handled separately below when calculating initialStartTime.
+              console.log(`    Task ${task.idx} shares day ${dayIndex} with earlier tasks (idx-based ordering)`)
             }
             
             // Allow scheduling on earlier days to backfill available capacity
@@ -1052,8 +1052,46 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // 🔧 FIX: Schedule the entire remaining duration (we already checked it fits above)
       const durationToSchedule = remainingDuration
       
+      // Enforce dependency time ordering: if this task has dependencies scheduled on the same day,
+      // it must start after all prerequisite tasks end
+      let earliestDependencyEndTime: string | null = null
+      if (task.idx && taskDependencies.has(task.idx)) {
+        const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+        const prerequisiteEndTimes: string[] = []
+        
+        for (const depIdx of dependentTaskIdxs) {
+          // Find placements for prerequisite tasks on this same day
+          const depPlacements = placements.filter(p => {
+            const depTask = tasks.find(t => t.idx === depIdx)
+            return depTask && p.task_id === depTask.id && p.day_index === dayIndex
+          })
+          
+          for (const depPlacement of depPlacements) {
+            // Calculate end time of prerequisite task
+            const [depStartHour, depStartMinute] = depPlacement.start_time.split(':').map(Number)
+            const depTask = tasks.find(t => t.idx === depIdx)
+            const depDuration = depTask?.estimated_duration_minutes || 0
+            const depEndTime = addMinutesToTime(depPlacement.start_time, depDuration)
+            prerequisiteEndTimes.push(depEndTime)
+          }
+        }
+        
+        if (prerequisiteEndTimes.length > 0) {
+          // Find the latest end time among all prerequisites
+          const latestEndTime = prerequisiteEndTimes.reduce((latest, current) => {
+            const [latestHour, latestMin] = latest.split(':').map(Number)
+            const [currentHour, currentMin] = current.split(':').map(Number)
+            const latestMinutes = latestHour * 60 + latestMin
+            const currentMinutes = currentHour * 60 + currentMin
+            return currentMinutes > latestMinutes ? current : latest
+          })
+          earliestDependencyEndTime = latestEndTime
+          console.log(`    🔗 Task ${task.idx} has dependencies on day ${dayIndex} - must start after ${earliestDependencyEndTime}`)
+        }
+      }
+      
       // Find the best time slot for this task (returns earliest possible start)
-      const initialStartTime = findBestTimeSlot(
+      let initialStartTime = findBestTimeSlot(
         dayIndex,
         durationToSchedule,
         dayConfig,
@@ -1061,6 +1099,31 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         currentDate,
         requireStartDate
       )
+      
+      // If we have a dependency constraint, ensure we start after the latest prerequisite ends
+      if (initialStartTime && earliestDependencyEndTime) {
+        const [initialHour, initialMin] = initialStartTime.split(':').map(Number)
+        const [depEndHour, depEndMin] = earliestDependencyEndTime.split(':').map(Number)
+        const initialMinutes = initialHour * 60 + initialMin
+        const depEndMinutes = depEndHour * 60 + depEndMin
+        
+        if (initialMinutes < depEndMinutes) {
+          // Start time must be after dependency ends - use dependency end time as minimum
+          initialStartTime = earliestDependencyEndTime
+          console.log(`    🔗 Adjusted start time to ${initialStartTime} to respect dependency ordering`)
+          
+          // Check if task can still fit in the day after dependency constraint
+          const [adjustedHour, adjustedMin] = initialStartTime.split(':').map(Number)
+          const adjustedStartMinutes = adjustedHour * 60 + adjustedMin
+          const workdayEndMinutes = dayConfig.endHour * 60
+          const taskEndMinutes = adjustedStartMinutes + durationToSchedule
+          
+          if (taskEndMinutes > workdayEndMinutes) {
+            console.log(`    ❌ Task cannot fit on day ${dayIndex} after dependency constraint (would end at ${formatTime(Math.floor(taskEndMinutes / 60), taskEndMinutes % 60)}, workday ends at ${formatTime(dayConfig.endHour, 0)})`)
+            continue // Skip this day, try next day
+          }
+        }
+      }
 
       if (initialStartTime) {
         // Find the next available slot that doesn't overlap
