@@ -1253,8 +1253,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     }
 
     if (!scheduled) {
-      console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
-      unscheduledTasks.push(task.id)
+      // Only add to unscheduledTasks if not being tracked for retry
+      const isTrackedForRetry = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
+      if (!isTrackedForRetry) {
+        console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+        unscheduledTasks.push(task.id)
+      } else {
+        console.log(`    ⏸️ Task "${task.name}" skipped due to unscheduled prerequisites - will retry after prerequisites are scheduled`)
+      }
     }
   }
 
@@ -1593,6 +1599,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           }
           
           console.log(`    ✓ Retry: Scheduled task "${task.name}" (${durationToSchedule} min) on ${dateStr}`)
+          // Remove from unscheduledTasks if it was added earlier (shouldn't happen with the fix above, but safety check)
+          const unscheduledIndex = unscheduledTasks.indexOf(task.id)
+          if (unscheduledIndex !== -1) {
+            unscheduledTasks.splice(unscheduledIndex, 1)
+          }
           break
         }
       }
