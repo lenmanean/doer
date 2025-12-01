@@ -101,7 +101,7 @@ export async function POST(
       typeof body.clarifications === 'object' && body.clarifications !== null && !Array.isArray(body.clarifications)
         ? Object.fromEntries(
             Object.entries(body.clarifications).filter(([_, v]) => typeof v === 'string')
-          )
+          ) as Record<string, string>
         : {}
     
     const clarificationQuestions: string[] = 
