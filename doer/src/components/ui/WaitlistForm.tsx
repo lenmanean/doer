@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Check } from 'lucide-react'
+import { Mail, Check, Target, ArrowRight, ArrowLeft } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
@@ -12,10 +12,15 @@ interface WaitlistFormProps {
   placeholder?: string
   buttonText?: string
   className?: string
+  enableGoalCapture?: boolean // If true, shows two-step flow (Goal → Email)
 }
 
 /**
  * WaitlistForm component for email signup with Meta Pixel tracking
+ * 
+ * Two-step flow (if enableGoalCapture is true):
+ * Step 1: User enters their goal/dream
+ * Step 2: User enters email to join waitlist
  * 
  * Fires WaitlistSignup event after successful signup
  * Event name: WaitlistSignup
@@ -27,7 +32,10 @@ export function WaitlistForm({
   placeholder = 'Enter your email',
   buttonText = 'Join Waitlist',
   className = '',
+  enableGoalCapture = false, // Default to false for backward compatibility
 }: WaitlistFormProps) {
+  const [step, setStep] = useState<'goal' | 'email'>(enableGoalCapture ? 'goal' : 'email')
+  const [goal, setGoal] = useState('')
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -39,9 +47,33 @@ export function WaitlistForm({
     return emailRegex.test(email.trim())
   }
 
+  const handleGoalNext = () => {
+    if (!goal.trim()) {
+      setError('Please tell us about your goal')
+      return
+    }
+    if (goal.trim().length < 10) {
+      setError('Please provide a bit more detail about your goal (at least 10 characters)')
+      return
+    }
+    setError('')
+    setStep('email')
+  }
+
+  const handleEmailBack = () => {
+    setError('')
+    setStep('goal')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // If in goal step and goal capture is enabled, move to email step
+    if (step === 'goal' && enableGoalCapture) {
+      handleGoalNext()
+      return
+    }
 
     // Validate email
     if (!email.trim()) {
@@ -62,6 +94,7 @@ export function WaitlistForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
+          goal: enableGoalCapture ? goal.trim() : undefined,
           source,
         }),
       })
@@ -79,6 +112,10 @@ export function WaitlistForm({
 
       setIsSuccess(true)
       setEmail('')
+      setGoal('')
+      if (enableGoalCapture) {
+        setStep('goal')
+      }
 
       addToast({
         type: 'success',
@@ -145,8 +182,76 @@ export function WaitlistForm({
     )
   }
 
+  // Two-step flow: Goal → Email
+  if (enableGoalCapture && step === 'goal') {
+    return (
+      <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+              <Target className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <label htmlFor="waitlist-goal" className="block text-lg font-semibold text-gray-900 dark:text-white">
+                What's your goal?
+              </label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Tell us what you want to achieve
+              </p>
+            </div>
+          </div>
+          <textarea
+            id="waitlist-goal"
+            value={goal}
+            onChange={(e) => {
+              setGoal(e.target.value)
+              setError('')
+            }}
+            placeholder="e.g., Learn to play guitar, Start a blog, Get in shape, Launch my startup..."
+            disabled={isLoading || isSuccess}
+            rows={4}
+            className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border-2 ${
+              error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+            } rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-colors resize-none`}
+          />
+          {error && (
+            <p className="mt-2 text-sm text-red-500">{error}</p>
+          )}
+        </div>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={isLoading || !goal.trim() || goal.trim().length < 10}
+          className="w-full"
+        >
+          Continue <ArrowRight className="ml-2 w-5 h-5" />
+        </Button>
+      </form>
+    )
+  }
+
+  // Email step (step 2 in two-step flow, or single step if goal capture is disabled)
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
+      {enableGoalCapture && step === 'email' && (
+        <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Goal</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{goal}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleEmailBack}
+              className="text-sm text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 flex items-center gap-1 flex-shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Edit
+            </button>
+          </div>
+        </div>
+      )}
       <div>
         <label htmlFor="waitlist-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Email Address

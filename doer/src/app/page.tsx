@@ -102,13 +102,14 @@ export default function Home() {
             </p>
       </div>
 
-          {/* Waitlist Form */}
+          {/* Waitlist Form with Goal Capture */}
           <div id="waitlist" className="max-w-2xl mx-auto">
             <WaitlistForm
               source="landing_page_hero"
               variant="default"
               placeholder="Enter your email to join the waitlist"
               buttonText="Join Waitlist"
+              enableGoalCapture={true}
             />
           </div>
                         </div>

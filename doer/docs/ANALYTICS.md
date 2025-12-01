@@ -100,6 +100,49 @@ Global `fbq` function is declared in:
   }
   ```
 
+## Viewing Pixel Data
+
+### Events Manager
+Access your Meta Pixel data through Facebook Events Manager:
+- **URL**: https://business.facebook.com/events_manager2
+- **Pixel ID**: `871104482045579`
+
+### What You Can View
+1. **Overview Dashboard**
+   - Real-time event activity
+   - Event counts and trends
+   - Pixel status and health
+
+2. **Events Tab**
+   - `PageView` events (automatic on every page load)
+   - `WaitlistSignup` custom events (after successful signup)
+   - Event source breakdown (e.g., `landing_page_hero`, `final_cta`)
+
+3. **Test Events Tab**
+   - Real-time event testing
+   - Use browser extension or test ID for immediate verification
+   - Perfect for debugging during development
+
+4. **Diagnostics Tab**
+   - Pixel installation status
+   - Error tracking
+   - Performance metrics
+
+### Quick Access Links
+- **Events Manager**: https://business.facebook.com/events_manager2
+- **Test Events**: https://business.facebook.com/events_manager2/test_events
+- **Pixel Settings**: Navigate to your Pixel in Events Manager
+
+### Expected Events
+- **PageView**: Fires automatically on every page load
+- **WaitlistSignup**: Custom event with `source` parameter indicating signup origin
+
+### Testing in Real-Time
+1. Open Events Manager → Test Events tab
+2. Enable Test Mode (install Meta Pixel Helper browser extension)
+3. Visit your website and complete a waitlist signup
+4. Events should appear in the Test Events feed within seconds
+
 ## Notes
 
 - Meta Pixel script is loaded only once in the root layout to avoid duplication
@@ -107,6 +150,7 @@ Global `fbq` function is declared in:
 - All tracking is client-side only (browser Pixel tracking)
 - No server-side Conversions API or datasets are used
 - The Pixel script respects SSR and only runs in the browser
+- Events may take a few minutes to appear in Events Manager (use Test Events for immediate verification)
 
 ## Related Files
 

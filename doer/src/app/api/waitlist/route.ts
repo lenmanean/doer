@@ -12,14 +12,14 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
  * POST /api/waitlist
- * Handles waitlist email signups
+ * Handles waitlist email signups with optional goal capture
  * 
- * Body: { email: string, source?: string }
+ * Body: { email: string, source?: string, goal?: string }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, source } = body
+    const { email, source, goal } = body
 
     // Validate email is provided
     if (!email || typeof email !== 'string') {
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       .insert({
         email: normalizedEmail,
         source: source || null,
+        goal: goal && typeof goal === 'string' ? goal.trim() : null,
         ip_address: ipAddress,
         user_agent: userAgent,
       })
