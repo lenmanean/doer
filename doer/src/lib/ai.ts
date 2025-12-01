@@ -201,7 +201,7 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
   // Build time constraint context if applicable
   let timeConstraintContext = ''
   if (request.timeConstraints && request.timeConstraints.isStartDateToday) {
-    const { remainingMinutes, urgencyLevel, requiresToday } = request.timeConstraints
+    const { remainingMinutes, urgencyLevel, requiresToday, timelineRequirement } = request.timeConstraints
     const remainingHours = Math.floor(remainingMinutes / 60)
     const remainingMins = remainingMinutes % 60
     
@@ -216,6 +216,11 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
 • Example: If ${remainingMinutes} min remain but tasks total 300 min → extend to 2 days, start some tasks tomorrow
 
 `
+    
+    // Add timeline requirement context if user explicitly specified a timeline
+    if (timelineRequirement?.minimumDays) {
+      timeConstraintContext += `\nTIMELINE REQUIREMENT: The user has explicitly requested a ${timelineRequirement.minimumDays}-day timeline. Ensure your timeline_days reflects this requirement, even if tasks could theoretically fit in fewer days. The timeline_days should be at least ${timelineRequirement.minimumDays} days.\n\n`
+    }
 
   }
 

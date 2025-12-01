@@ -306,6 +306,11 @@ export interface AIModelRequest {
     deadlineType?: 'tomorrow' | 'specific_date' | 'none'
     timeFormat?: '12h' | '24h'
     userLocalTime?: Date
+    timelineRequirement?: {
+      minimumDays?: number
+      preferredDays?: number
+      timelinePhrase?: string
+    }
   }
 }
 

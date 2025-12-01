@@ -396,6 +396,7 @@ export async function POST(req: NextRequest) {
         timeFormat: timeFormat as '12h' | '24h',
         userLocalTime: userLocalTime,
         isAfterWorkday: remainingTime.isAfterWorkday,
+        timelineRequirement: urgencyAnalysis.timelineRequirement,
       }
       
       console.log('⏰ Time constraints detected:', {
@@ -566,7 +567,7 @@ export async function POST(req: NextRequest) {
     let adjustedTimelineDays = timelineDays
     
     if (timeConstraints && timeConstraints.isStartDateToday) {
-      const { remainingMinutes, urgencyLevel, requiresToday, deadlineDate, deadlineType, isAfterWorkday } = timeConstraints
+      const { remainingMinutes, urgencyLevel, requiresToday, deadlineDate, deadlineType, isAfterWorkday, timelineRequirement } = timeConstraints
       const dailyCapacity = 250 // Realistic daily capacity in minutes
       
       // Calculate maximum allowed days based on deadline
@@ -703,7 +704,21 @@ export async function POST(req: NextRequest) {
         if (willMoveStartDate) {
           // Start date moved to tomorrow - calculate total days needed from scratch
           // Total days = ceil(totalDuration / dailyCapacity)
-          proposedTimelineDays = Math.ceil(totalDuration / dailyCapacity)
+          const capacityBasedDays = Math.ceil(totalDuration / dailyCapacity)
+          
+          // Respect minimum timeline if user explicitly specified one
+          const minimumTimeline = timelineRequirement?.minimumDays
+          if (minimumTimeline && minimumTimeline > capacityBasedDays) {
+            proposedTimelineDays = minimumTimeline
+            console.log('📅 Respecting user-specified minimum timeline:', {
+              userMinimum: minimumTimeline,
+              capacityBased: capacityBasedDays,
+              finalTimeline: proposedTimelineDays
+            })
+          } else {
+            proposedTimelineDays = capacityBasedDays
+          }
+          
           console.log('📅 Start date moved to tomorrow - calculating total days needed:', {
             dailyCapacity,
             totalDuration,
@@ -713,13 +728,36 @@ export async function POST(req: NextRequest) {
           // Still starting today - calculate additional days needed
           const effectiveRemainingMinutes = isAfterWorkday ? 0 : remainingMinutes
           const additionalDays = calculateDaysNeeded(totalDuration, effectiveRemainingMinutes, dailyCapacity)
-          proposedTimelineDays = timelineDays + additionalDays
+          const capacityBasedDays = timelineDays + additionalDays
+          
+          // Respect minimum timeline if user explicitly specified one
+          const minimumTimeline = timelineRequirement?.minimumDays
+          if (minimumTimeline && minimumTimeline > capacityBasedDays) {
+            proposedTimelineDays = minimumTimeline
+            console.log('📅 Respecting user-specified minimum timeline:', {
+              userMinimum: minimumTimeline,
+              capacityBased: capacityBasedDays,
+              finalTimeline: proposedTimelineDays
+            })
+          } else {
+            proposedTimelineDays = capacityBasedDays
+          }
         }
         
         // Cap timeline at deadline if one exists
         if (maxAllowedDays !== null && proposedTimelineDays > maxAllowedDays) {
           proposedTimelineDays = maxAllowedDays
           console.log(`⚠️ Timeline capped at ${maxAllowedDays} days due to deadline constraint`)
+        }
+        
+        // Ensure we don't go below AI's original timeline if user specified a timeline
+        if (timelineRequirement?.minimumDays && proposedTimelineDays < timelineDays) {
+          proposedTimelineDays = Math.max(timelineDays, timelineRequirement.minimumDays)
+          console.log('📅 Preserving AI timeline due to user requirement:', {
+            aiTimeline: timelineDays,
+            userMinimum: timelineRequirement.minimumDays,
+            finalTimeline: proposedTimelineDays
+          })
         }
         
         adjustedTimelineDays = proposedTimelineDays
@@ -810,6 +848,13 @@ export async function POST(req: NextRequest) {
             timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work, but only ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} and ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''} remain in today's workday (current time: ${formattedCurrentTime}). Plan will start tomorrow and extend to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed comfortably.`
           } else {
             timeAdjustmentWarning = `This plan requires ${totalHours} hour${totalHours !== 1 ? 's' : ''} of work. Plan extended to ${formatDateForDB(newEndDate)} to ensure all tasks can be completed comfortably.`
+          }
+        }
+        
+        // Add context about respecting user's timeline preference if applicable
+        if (timelineRequirement?.minimumDays && adjustedTimelineDays >= timelineRequirement.minimumDays) {
+          if (timeAdjustmentWarning) {
+            timeAdjustmentWarning += ` Your requested ${timelineRequirement.minimumDays}-day timeline has been preserved.`
           }
         }
         

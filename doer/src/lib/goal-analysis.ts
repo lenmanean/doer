@@ -41,6 +41,12 @@ export function combineGoalWithClarifications(
   return `${goalText}\n\nAdditional context: ${clarificationsText}`
 }
 
+export interface TimelineRequirement {
+  minimumDays?: number
+  preferredDays?: number
+  timelinePhrase?: string
+}
+
 export interface UrgencyAnalysis {
   urgencyLevel: 'high' | 'medium' | 'low' | 'none'
   indicators: string[]
@@ -49,6 +55,7 @@ export interface UrgencyAnalysis {
   deadlinePhrase?: string
   deadlineDate?: Date
   deadlineType?: 'tomorrow' | 'specific_date' | 'none'
+  timelineRequirement?: TimelineRequirement
 }
 
 /**
@@ -151,6 +158,9 @@ export function detectUrgencyIndicators(
 
   // Detect deadline date
   const deadlineInfo = detectDeadlineDate(goalText, clarifications, new Date())
+  
+  // Detect timeline requirement
+  const timelineRequirement = detectTimelineRequirement(goalText, clarifications)
 
   return {
     urgencyLevel,
@@ -160,6 +170,7 @@ export function detectUrgencyIndicators(
     deadlinePhrase,
     deadlineDate: deadlineInfo.deadlineDate,
     deadlineType: deadlineInfo.deadlineType,
+    timelineRequirement,
   }
 }
 
@@ -246,6 +257,43 @@ export function detectDeadlineDate(
   }
 
   return { deadlineDate: undefined, deadlineType: 'none' }
+}
+
+/**
+ * Detect explicit timeline requirements from goal text and clarifications
+ * Identifies phrases like "in X days", "over X days", "happening in X days", etc.
+ */
+export function detectTimelineRequirement(
+  goalText: string,
+  clarifications?: Record<string, any> | string[]
+): TimelineRequirement {
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const lowerText = combinedText.toLowerCase()
+  
+  // Patterns for explicit timeline requirements
+  // "in X days", "over X days", "happening in X days", "within X days"
+  const timelinePatterns = [
+    /\b(?:in|over|within|for)\s+(\d+)\s+days?\b/,
+    /\bhappening\s+in\s+(\d+)\s+days?\b/,
+    /\b(?:complete|finish|done)\s+(?:in|over|within)\s+(\d+)\s+days?\b/,
+    /\b(\d+)\s+day\s+(?:plan|timeline|schedule)\b/,
+  ]
+  
+  for (const pattern of timelinePatterns) {
+    const match = lowerText.match(pattern)
+    if (match) {
+      const days = parseInt(match[1], 10)
+      if (days > 0 && days <= 365) { // Reasonable range
+        return {
+          minimumDays: days,
+          preferredDays: days,
+          timelinePhrase: match[0]
+        }
+      }
+    }
+  }
+  
+  return {}
 }
 
 /**
@@ -346,6 +394,48 @@ export function detectTaskDependencies(
           (otherTask.lowerName.includes('practice') ||
             otherTask.lowerName.includes('apply') ||
             otherTask.lowerName.includes('implement'))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "set up" / "setup" / "tech check" / "test" must come before "practice" / "rehearse" / "run"
+    if (
+      task.lowerName.includes('set up') ||
+      task.lowerName.includes('setup') ||
+      task.lowerName.includes('tech check') ||
+      task.lowerName.includes('test') ||
+      (task.lowerName.includes('check') && (task.lowerName.includes('tech') || task.lowerName.includes('equipment')))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('practice') ||
+            otherTask.lowerName.includes('rehears') ||
+            otherTask.lowerName.includes('run') ||
+            (otherTask.lowerName.includes('mock') && otherTask.lowerName.includes('interview')))
+        ) {
+          if (!taskDeps.includes(otherTask.idx)) {
+            taskDeps.push(otherTask.idx)
+          }
+        }
+      }
+    }
+
+    // Pattern: "prepare" / "organize" must come before "practice" / "run" (for interview/event prep)
+    if (
+      task.lowerName.includes('prepare') ||
+      task.lowerName.includes('organize')
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('practice') ||
+            otherTask.lowerName.includes('rehears') ||
+            (otherTask.lowerName.includes('mock') && otherTask.lowerName.includes('interview')))
         ) {
           if (!taskDeps.includes(otherTask.idx)) {
             taskDeps.push(otherTask.idx)
