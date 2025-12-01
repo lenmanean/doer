@@ -1058,25 +1058,44 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       if (task.idx && taskDependencies.has(task.idx)) {
         const dependentTaskIdxs = taskDependencies.get(task.idx) || []
         const prerequisiteEndTimes: string[] = []
+        const unscheduledPrerequisitesOnSameDay: number[] = []
         
         for (const depIdx of dependentTaskIdxs) {
-          // Find placements for prerequisite tasks on this same day
+          const depTask = tasks.find(t => t.idx === depIdx)
+          const depTaskWithTarget = tasksWithTargetDays.find(t => t.idx === depIdx)
+          if (!depTask || !depTaskWithTarget) continue
+          
+          // Check if prerequisite is already scheduled on this day
           const depPlacements = placements.filter(p => {
-            const depTask = tasks.find(t => t.idx === depIdx)
-            return depTask && p.task_id === depTask.id && p.day_index === dayIndex
+            return p.task_id === depTask.id && p.day_index === dayIndex
           })
           
-          for (const depPlacement of depPlacements) {
-            // Calculate end time of prerequisite task
-            const [depStartHour, depStartMinute] = depPlacement.start_time.split(':').map(Number)
-            const depTask = tasks.find(t => t.idx === depIdx)
-            const depDuration = depTask?.estimated_duration_minutes || 0
-            const depEndTime = addMinutesToTime(depPlacement.start_time, depDuration)
-            prerequisiteEndTimes.push(depEndTime)
+          if (depPlacements.length > 0) {
+            // Prerequisite is scheduled - calculate end time
+            for (const depPlacement of depPlacements) {
+              // Calculate end time of prerequisite task
+              const depDuration = depTask.estimated_duration_minutes || 0
+              const depEndTime = addMinutesToTime(depPlacement.start_time, depDuration)
+              prerequisiteEndTimes.push(depEndTime)
+            }
+          } else if (depTaskWithTarget.targetDay === dayIndex) {
+            // Prerequisite has same target day but hasn't been scheduled yet
+            unscheduledPrerequisitesOnSameDay.push(depIdx)
           }
         }
         
+        // If there are unscheduled prerequisites on the same day, skip this day
+        if (unscheduledPrerequisitesOnSameDay.length > 0) {
+          const depTaskNames = unscheduledPrerequisitesOnSameDay
+            .map(idx => tasks.find(t => t.idx === idx)?.name || `task ${idx}`)
+            .join(', ')
+          console.log(`    🔗 Task ${task.idx} has unscheduled prerequisites on day ${dayIndex} (${depTaskNames}) - skipping this day to maintain dependency ordering`)
+          continue // Skip this day, task will be scheduled later after prerequisites
+        }
+        
         if (prerequisiteEndTimes.length > 0) {
+          console.log(`    🔗 Found ${prerequisiteEndTimes.length} prerequisite(s) on day ${dayIndex} with end times: ${prerequisiteEndTimes.join(', ')}`)
+          
           // Find the latest end time among all prerequisites
           const latestEndTime = prerequisiteEndTimes.reduce((latest, current) => {
             const [latestHour, latestMin] = latest.split(':').map(Number)

@@ -446,10 +446,18 @@ export function detectTaskDependencies(
     }
 
     // Pattern: "prepare" / "organize" must come before "practice" / "run" (for interview/event prep)
+    // Only if both tasks share the same context (interview, presentation, event, etc.)
     if (
       task.lowerName.includes('prepare') ||
       task.lowerName.includes('organize')
     ) {
+      // Extract context keywords from this task
+      const taskContext: string[] = []
+      if (task.lowerName.includes('interview')) taskContext.push('interview')
+      if (task.lowerName.includes('presentation')) taskContext.push('presentation')
+      if (task.lowerName.includes('event')) taskContext.push('event')
+      if (task.lowerName.includes('meeting')) taskContext.push('meeting')
+      
       for (const otherTask of lowerTaskNames) {
         if (
           otherTask.idx !== task.idx &&
@@ -457,7 +465,19 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('rehears') ||
             (otherTask.lowerName.includes('mock') && otherTask.lowerName.includes('interview')))
         ) {
-          if (!taskDeps.includes(otherTask.idx)) {
+          // Only create dependency if contexts match (or if no specific context, allow it)
+          const otherContext: string[] = []
+          if (otherTask.lowerName.includes('interview')) otherContext.push('interview')
+          if (otherTask.lowerName.includes('presentation')) otherContext.push('presentation')
+          if (otherTask.lowerName.includes('event')) otherContext.push('event')
+          if (otherTask.lowerName.includes('meeting')) otherContext.push('meeting')
+          
+          // Create dependency if contexts match, or if no specific context in either task
+          const contextsMatch = (taskContext.length === 0 && otherContext.length === 0) ||
+            (taskContext.length > 0 && otherContext.length > 0 && 
+              taskContext.some(ctx => otherContext.includes(ctx)))
+          
+          if (contextsMatch && !taskDeps.includes(otherTask.idx)) {
             taskDeps.push(otherTask.idx)
           }
         }
@@ -469,6 +489,59 @@ export function detectTaskDependencies(
     }
   }
 
+  // Log detected dependencies
+  if (dependencies.size > 0) {
+    console.log('🔗 Detected task dependencies:')
+    dependencies.forEach((deps, taskIdx) => {
+      const task = tasks.find(t => t.idx === taskIdx)
+      const depTasks = deps.map(idx => tasks.find(t => t.idx === idx)?.name || `task ${idx}`)
+      console.log(`  Task ${taskIdx} (${task?.name || 'unknown'}): depends on [${depTasks.join(', ')}]`)
+    })
+  } else {
+    console.log('🔗 No task dependencies detected')
+  }
+
+  // Detect circular dependencies
+  const cycles = detectCircularDependencies(dependencies)
+  if (cycles.length > 0) {
+    console.warn('⚠️  Circular dependencies detected:', cycles.map(cycle => cycle.join(' -> ')).join(', '))
+  }
+
   return dependencies
+}
+
+function detectCircularDependencies(dependencies: Map<number, number[]>): Array<number[]> {
+  const cycles: Array<number[]> = []
+  const visited = new Set<number>()
+  const recursionStack = new Set<number>()
+  
+  const dfs = (taskIdx: number, path: number[]): void => {
+    if (recursionStack.has(taskIdx)) {
+      // Found a cycle
+      const cycleStart = path.indexOf(taskIdx)
+      cycles.push(path.slice(cycleStart))
+      return
+    }
+    
+    if (visited.has(taskIdx)) return
+    
+    visited.add(taskIdx)
+    recursionStack.add(taskIdx)
+    
+    const deps = dependencies.get(taskIdx) || []
+    for (const depIdx of deps) {
+      dfs(depIdx, [...path, taskIdx])
+    }
+    
+    recursionStack.delete(taskIdx)
+  }
+  
+  for (const taskIdx of dependencies.keys()) {
+    if (!visited.has(taskIdx)) {
+      dfs(taskIdx, [])
+    }
+  }
+  
+  return cycles
 }
 

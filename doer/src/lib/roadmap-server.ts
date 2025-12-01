@@ -136,6 +136,7 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   const taskDependencies = detectTaskDependencies(
     tasks.map(t => ({ name: t.name, idx: t.idx }))
   )
+  console.log(`🔗 Task dependencies detected: ${taskDependencies.size} task(s) have dependencies`)
 
   // Fetch existing task schedules from task_schedule table (excluding current plan)
   let existingTaskSchedules: Array<{ date: string; start_time: string; end_time: string }> = []
