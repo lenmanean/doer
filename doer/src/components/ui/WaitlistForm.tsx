@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Check, Target, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Mail, Check, ArrowRight, ArrowLeft } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
@@ -200,24 +200,40 @@ export function WaitlistForm({
   // Two-step flow: Goal → Email
   if (enableGoalCapture && step === 'goal') {
     return (
-      <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+      <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
         <div className="space-y-4">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 rounded-full bg-[#ff7f00]/20 flex items-center justify-center flex-shrink-0">
-              <Target className="w-6 h-6 text-[#ff7f00]" />
-            </div>
-            <div>
-              <label htmlFor="waitlist-goal" className="block text-2xl font-semibold text-[#d7d2cb]">
-                What's your goal?
-              </label>
-              <p className="text-sm text-[#d7d2cb]/70 mt-1">
-                Tell us what you want to achieve
-              </p>
-            </div>
+          {/* Input field with arrow button */}
+          <div className="relative">
+            <textarea
+              id="waitlist-goal"
+              value={goal}
+              onChange={(e) => {
+                setGoal(e.target.value)
+                setError('')
+              }}
+              placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
+              disabled={isLoading || isSuccess}
+              rows={4}
+              className={`w-full px-4 py-4 pr-14 text-lg bg-white/5 border ${
+                error ? 'border-red-500/50' : 'border-white/10'
+              } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed`}
+            />
+            {/* Arrow button at right-end */}
+            <button
+              type="submit"
+              disabled={isLoading || !goal.trim() || goal.trim().length < 10}
+              className="absolute right-3 bottom-3 p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
           </div>
           
-          {/* Clickable Suggestion Chips */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
+
+          {/* Clickable Suggestion Chips - Below input */}
+          <div className="flex flex-wrap gap-2">
             {goalSuggestions.map((suggestion, index) => (
               <button
                 key={index}
@@ -229,34 +245,7 @@ export function WaitlistForm({
               </button>
             ))}
           </div>
-
-          <textarea
-            id="waitlist-goal"
-            value={goal}
-            onChange={(e) => {
-              setGoal(e.target.value)
-              setError('')
-            }}
-            placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
-            disabled={isLoading || isSuccess}
-            rows={4}
-            className={`w-full px-4 py-4 text-lg bg-white/5 border ${
-              error ? 'border-red-500/50' : 'border-white/10'
-            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed`}
-          />
-          {error && (
-            <p className="mt-2 text-sm text-red-400">{error}</p>
-          )}
         </div>
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-          className="w-full"
-        >
-          Continue <ArrowRight className="ml-2 w-5 h-5" />
-        </Button>
       </form>
     )
   }
