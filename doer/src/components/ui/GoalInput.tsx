@@ -7,7 +7,7 @@ import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
-import type { trackWaitlistSignup as TrackWaitlistSignupType } from '@/lib/analytics/analytics-service'
+import { trackWaitlistSignup as trackGA4WaitlistSignup } from '@/lib/analytics/analytics-service'
 
 interface GoalInputProps {
   className?: string
@@ -153,18 +153,8 @@ export function GoalInput({
       if (typeof window !== 'undefined' && (window as any).fbq) {
         trackWaitlistSignup(source)
       }
-      // GA4 tracking - using dynamic import with proper typing
-      if (typeof window !== 'undefined') {
-        import('@/lib/analytics/analytics-service')
-          .then((analytics: { trackWaitlistSignup?: TrackWaitlistSignupType }) => {
-            if (analytics?.trackWaitlistSignup) {
-              analytics.trackWaitlistSignup(source)
-            }
-          })
-          .catch(() => {
-            // Analytics service not available, continue without GA4 tracking
-          })
-      }
+      // GA4 tracking
+      trackGA4WaitlistSignup(source)
 
       setIsSuccess(true)
       setEmail('')
