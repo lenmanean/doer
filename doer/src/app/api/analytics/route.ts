@@ -189,8 +189,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const timeRangeParam = searchParams.get('timeRange') || '30d'
     // Validate timeRange parameter
-    const validTimeRanges = ['7d', '30d', '90d', 'all']
-    const timeRange = validTimeRanges.includes(timeRangeParam) ? timeRangeParam : '30d'
+    type TimeRange = '7d' | '30d' | '90d' | 'all'
+    const validTimeRanges: TimeRange[] = ['7d', '30d', '90d', 'all']
+    const timeRange: TimeRange = (validTimeRanges.includes(timeRangeParam as TimeRange) ? timeRangeParam : '30d') as TimeRange
     
     // MOCK MODE: Return mock data immediately
     if (USE_MOCK_DATA) {
