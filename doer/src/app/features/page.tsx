@@ -83,6 +83,14 @@ export default function FeaturesPage() {
                               allowFullScreen
                             />
                           </div>
+                        ) : feature.id === 'ai-plan-generator' ? (
+                          <div className="relative aspect-video">
+                            <img 
+                              src="/ai-plan-preview.png" 
+                              alt={`${feature.title} preview`}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
                         ) : (
                           <div className="flex aspect-video items-center justify-center px-10 text-center">
                             <div>
