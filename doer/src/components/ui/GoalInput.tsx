@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowLeft, Mail, Check } from 'lucide-react'
+import { ArrowUp, ArrowRight, ArrowLeft, Mail, Check } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
@@ -265,9 +265,8 @@ export function GoalInput({
       <div className="space-y-4">
         {/* Input field with arrow button */}
         <div className="relative">
-          <input
+          <textarea
             id="goal-input"
-            type="text"
             value={goal}
             onChange={(e) => {
               setGoal(e.target.value)
@@ -275,17 +274,19 @@ export function GoalInput({
             }}
             placeholder={placeholder}
             disabled={isLoading}
+            rows={4}
             className={`w-full px-6 py-6 pr-16 text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
-            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed resize-none`}
+            style={{ minHeight: '120px' }}
           />
-          {/* Arrow button at right-end - vertically centered */}
+          {/* Arrow button at bottom-right */}
           <button
             type="submit"
             disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-4 bottom-4 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <ArrowRight className="w-6 h-6" />
+            <ArrowUp className="w-6 h-6" />
           </button>
         </div>
         
