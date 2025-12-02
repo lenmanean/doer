@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { WaitlistForm } from '@/components/ui/WaitlistForm'
+import { GoalInput } from '@/components/ui/GoalInput'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
@@ -33,6 +34,17 @@ export default function Home() {
   const { user, loading, sessionReady } = useSupabase()
   const t = useTranslations()
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
+
+  // Debug: Log feature flag values
+  useEffect(() => {
+    console.log('[DEBUG] Feature Flag Values:', {
+      'NEXT_PUBLIC_APP_LAUNCH_STATUS': process.env.NEXT_PUBLIC_APP_LAUNCH_STATUS,
+      'IS_LAUNCHED': !IS_PRE_LAUNCH,
+      'IS_PRE_LAUNCH': IS_PRE_LAUNCH,
+      'Will show GoalInput': !IS_PRE_LAUNCH,
+      'Will show WaitlistForm': IS_PRE_LAUNCH,
+    })
+  }, [])
 
   // Handle authentication code parameter - redirect to callback handler
   // The callback route will handle redirecting to the production domain
@@ -103,7 +115,7 @@ export default function Home() {
             </p>
       </div>
 
-          {/* Pre-launch: Waitlist Form with Goal Capture | Post-launch: Get Started Button */}
+          {/* Pre-launch: Waitlist Form with Goal Capture | Post-launch: Goal Input Field */}
           {IS_PRE_LAUNCH ? (
             <div id="waitlist" className="max-w-2xl mx-auto">
               <WaitlistForm
@@ -115,18 +127,12 @@ export default function Home() {
               />
             </div>
           ) : (
-            <div className="max-w-2xl mx-auto text-center">
-              <Link href="/auth/signup">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="text-xl px-8 py-6"
-                >
-                  Get Started
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">
+            <div className="max-w-2xl mx-auto">
+              <GoalInput
+                placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
+                buttonText="Get Started"
+              />
+              <p className="mt-4 text-center text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
                 <Link href="/login" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300">
                   Log in
@@ -727,16 +733,12 @@ export default function Home() {
                   buttonText="Join Waitlist"
                 />
               ) : (
-                <Link href="/auth/signup">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="text-xl px-8 py-6"
-                  >
-                    Get Started
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
+                <div className="text-center">
+                  <GoalInput
+                    placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
+                    buttonText="Get Started"
+                  />
+                </div>
               )}
             </div>
           </div>
