@@ -7,7 +7,6 @@ import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
-import * as analyticsService from '@/lib/analytics/analytics-service'
 
 interface GoalInputProps {
   className?: string
@@ -153,9 +152,15 @@ export function GoalInput({
       if (typeof window !== 'undefined' && (window as any).fbq) {
         trackWaitlistSignup(source)
       }
-      // GA4 tracking
-      if (analyticsService.trackWaitlistSignup) {
-        analyticsService.trackWaitlistSignup(source)
+      // GA4 tracking - using dynamic import to avoid build issues
+      if (typeof window !== 'undefined') {
+        import('@/lib/analytics/analytics-service').then((analytics) => {
+          if (analytics.trackWaitlistSignup) {
+            analytics.trackWaitlistSignup(source)
+          }
+        }).catch(() => {
+          // Analytics service not available, continue without GA4 tracking
+        })
       }
 
       setIsSuccess(true)
