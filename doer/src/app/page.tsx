@@ -118,7 +118,7 @@ export default function Home() {
       <PublicHeader />
 
       {/* Hero Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+      <section className="pt-20 pb-32 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h1
@@ -146,7 +146,7 @@ export default function Home() {
                 setWaitlistModalOpen(true)
               }}
             />
-            {!IS_PRE_LAUNCH && (
+            {!IS_PRE_LAUNCH && !isAuthenticated && (
               <p className="mt-4 text-center text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
                 <Link href="/login" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300">

@@ -47,6 +47,7 @@ export function GoalInput({
     'Start a business',
     'Save money',
     'Find a new job',
+    'Launch a blog',
   ]
 
   const validateEmail = (email: string): boolean => {
