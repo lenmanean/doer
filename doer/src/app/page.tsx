@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { WaitlistForm } from '@/components/ui/WaitlistForm'
+import { GoalInput } from '@/components/ui/GoalInput'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
