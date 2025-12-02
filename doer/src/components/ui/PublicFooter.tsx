@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 
 export function PublicFooter() {
   const t = useTranslations()
@@ -65,11 +66,13 @@ export function PublicFooter() {
                   {t('header.solutions')}
                 </Link>
               </li>
-              <li>
-                <Link href="/pricing" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  {t('header.pricing')}
-                </Link>
-              </li>
+              {!IS_PRE_LAUNCH && (
+                <li>
+                  <Link href="/pricing" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                    {t('header.pricing')}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link href="/roadmap" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('footer.roadmap')}
