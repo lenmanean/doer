@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
     const planId = searchParams.get('plan_id')
+    const allPlans = searchParams.get('all_plans') === 'true'
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
     
@@ -52,8 +53,12 @@ export async function GET(request: NextRequest) {
       .order('start_time', { ascending: true, nullsFirst: false })
     
     // Filter by plan_id if provided, otherwise get free mode tasks (plan_id is null)
+    // If all_plans=true, fetch ALL tasks (all plans + free-mode + calendar events)
     // Security: Use parameterized query to prevent SQL injection
-    if (planId) {
+    if (allPlans) {
+      // Fetch all tasks - no plan_id filter (includes all plans, free-mode, and calendar events)
+      // No additional filter needed - all tasks for the user will be returned
+    } else if (planId) {
       // Validate planId is a valid UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       if (!uuidRegex.test(planId)) {
@@ -79,6 +84,7 @@ export async function GET(request: NextRequest) {
       taskSchedules: taskSchedules?.length || 0, 
       error, 
       planId, 
+      allPlans,
       startDate, 
       endDate,
       userId: user.id,
@@ -231,7 +237,10 @@ export async function GET(request: NextRequest) {
       .eq('is_recurring', true)
       .eq('is_indefinite', true)
 
-    if (planId) {
+    if (allPlans) {
+      // Fetch all indefinite recurring tasks - no plan_id filter
+      // No additional filter needed - all tasks for the user will be returned
+    } else if (planId) {
       // Validate planId is a valid UUID format (already validated above, but double-check)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       if (uuidRegex.test(planId)) {

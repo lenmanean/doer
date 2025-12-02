@@ -25,7 +25,7 @@ export interface TasksByDate {
 }
 
 export function useTaskTimeSchedule(
-  planId: string | null | 'free-mode' | 'skip',
+  planId: string | null | 'free-mode' | 'skip' | 'all-plans',
   dateRange: { start: string; end: string }
 ) {
   const [tasksWithTime, setTasksWithTime] = useState<TasksByDate>({})
@@ -43,6 +43,7 @@ export function useTaskTimeSchedule(
     
     // Treat null planId as free-mode (no plan exists)
     const isFreeMode = planId === 'free-mode' || planId === null
+    const isAllPlans = planId === 'all-plans'
     
     fetchLock.current = true
     setLoading(true)
@@ -55,8 +56,11 @@ export function useTaskTimeSchedule(
         end_date: dateRange.end
       })
       
-      // Add plan_id parameter only if it exists (for plan-based tasks)
-      if (!isFreeMode && planId) {
+      // Add all_plans parameter if fetching all tasks
+      if (isAllPlans) {
+        params.append('all_plans', 'true')
+      } else if (!isFreeMode && planId) {
+        // Add plan_id parameter only if it exists (for plan-based tasks)
         params.append('plan_id', planId)
       }
       // If isFreeMode is true, we'll fetch free mode tasks (plan_id is null in database)
@@ -137,7 +141,12 @@ export function useTaskTimeSchedule(
     if (planId === 'skip') return
     // Treat null planId as free-mode so we still receive updates
     const isFreeMode = planId === 'free-mode' || planId === null
-    const channelName = isFreeMode ? 'task-time-schedule-free-mode' : `task-time-schedule-${planId}`
+    const isAllPlans = planId === 'all-plans'
+    const channelName = isAllPlans 
+      ? 'task-time-schedule-all-plans' 
+      : isFreeMode 
+        ? 'task-time-schedule-free-mode' 
+        : `task-time-schedule-${planId}`
     
     const channel = supabase
       .channel(channelName)
@@ -147,9 +156,14 @@ export function useTaskTimeSchedule(
           event: '*', 
           schema: 'public', 
           table: 'task_schedule',
+          // When all-plans mode, listen to all changes (no filter)
           // When a plan exists, listen to both plan tasks and calendar events (plan_id = null)
           // When free-mode, only listen to calendar events (plan_id = null)
-          filter: isFreeMode ? 'plan_id=is.null' : `plan_id=eq.${planId},plan_id=is.null`
+          filter: isAllPlans 
+            ? undefined 
+            : isFreeMode 
+              ? 'plan_id=is.null' 
+              : `plan_id=eq.${planId},plan_id=is.null`
         },
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -181,9 +195,14 @@ export function useTaskTimeSchedule(
           event: '*', 
           schema: 'public', 
           table: 'tasks',
+          // When all-plans mode, listen to all changes (no filter)
           // When a plan exists, listen to both plan tasks and calendar events (plan_id = null)
           // When free-mode, only listen to calendar events (plan_id = null)
-          filter: isFreeMode ? 'plan_id=is.null' : `plan_id=eq.${planId},plan_id=is.null`
+          filter: isAllPlans 
+            ? undefined 
+            : isFreeMode 
+              ? 'plan_id=is.null' 
+              : `plan_id=eq.${planId},plan_id=is.null`
         },
         () => {
           if (debounceRef.current) clearTimeout(debounceRef.current)

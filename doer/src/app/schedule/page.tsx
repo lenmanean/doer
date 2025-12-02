@@ -546,24 +546,14 @@ function ScheduleContent() {
     }
   }, [weekStartDay])
   
-  // Fetch tasks for the current week from appropriate sources
-  // If a plan exists, fetch both plan tasks and free-mode tasks; otherwise, only free-mode
-  const planParam = !isLoadingPlan && !isLoadingSettings && hasPlan ? currentPlanId : 'skip'
-  const freeParam = !isLoadingPlan && !isLoadingSettings ? 'free-mode' : 'skip'
+  // Fetch tasks for the current week from ALL sources (all plans + free-mode + calendar events)
+  // Schedule page should always show all tasks regardless of active plan
+  const allPlansParam = !isLoadingPlan && !isLoadingSettings ? 'all-plans' : 'skip'
 
-  const { tasksWithTime: planTasksWithTime, updateTaskTime, getTasksForDate: getPlanTasksForDate, refetch: refetchPlanTasks } = useTaskTimeSchedule(
-    planParam,
+  const { tasksWithTime: allTasksWithTime, updateTaskTime, getTasksForDate: getAllTasksForDate, refetch } = useTaskTimeSchedule(
+    allPlansParam,
     weekDateRange
   )
-  const { tasksWithTime: freeTasksWithTime, getTasksForDate: getFreeTasksForDate, refetch: refetchFreeTasks } = useTaskTimeSchedule(
-    freeParam,
-    weekDateRange
-  )
-
-  const refetch = useCallback(() => {
-    refetchPlanTasks()
-    refetchFreeTasks()
-  }, [refetchPlanTasks, refetchFreeTasks])
   
   // Optimistic task addition for immediate UI feedback
   const [optimisticTasks, setOptimisticTasks] = useState<any[]>([])
@@ -585,15 +575,13 @@ function ScheduleContent() {
   
   // Enhanced getTasksForDate that includes optimistic tasks (deduplicated)
   const getTasksForDateWithOptimistic = useCallback((date: string) => {
-    const realTasksPlan = getPlanTasksForDate(date)
-    const realTasksFree = getFreeTasksForDate(date)
+    const realTasks = getAllTasksForDate(date)
     
-    // Deduplicate by schedule_id (not task_id) since same task can appear in both plan and free queries
-    const allRealTasks = [...realTasksPlan, ...realTasksFree]
+    // Deduplicate by schedule_id (not task_id) since same task can appear multiple times
     const scheduleIdSet = new Set<string>()
     const deduplicatedTasks: any[] = []
     
-    for (const task of allRealTasks) {
+    for (const task of realTasks) {
       if (task.schedule_id && !scheduleIdSet.has(task.schedule_id)) {
         scheduleIdSet.add(task.schedule_id)
         deduplicatedTasks.push(task)
@@ -610,14 +598,13 @@ function ScheduleContent() {
     const filteredOptimisticTasks = optimisticTasksForDate.filter(task => !realTaskIds.has(task.task_id))
     
     return [...filteredTasks, ...filteredOptimisticTasks]
-  }, [getPlanTasksForDate, getFreeTasksForDate, optimisticTasks])
+  }, [getAllTasksForDate, optimisticTasks])
   
   // Clean up optimistic tasks when real data comes in
   useEffect(() => {
-    const merged = { ...(planTasksWithTime || {}), ...(freeTasksWithTime || {}) }
-    if (Object.keys(merged).length > 0) {
+    if (Object.keys(allTasksWithTime || {}).length > 0) {
       // Get all real task IDs
-      const allRealTasks = Object.values(merged).flat()
+      const allRealTasks = Object.values(allTasksWithTime || {}).flat()
       const realTaskIds = new Set(allRealTasks.map(task => task.task_id))
       
       // Remove optimistic tasks that now have real data
@@ -629,15 +616,14 @@ function ScheduleContent() {
         return filtered
       })
     }
-  }, [planTasksWithTime, freeTasksWithTime])
+  }, [allTasksWithTime])
   
   // Debug logging for tasks
   useEffect(() => {
-    const mergedAll: Record<string, any[]> = { ...(planTasksWithTime || {}), ...(freeTasksWithTime || {}) }
-    if (Object.keys(mergedAll).length > 0) {
-      console.log('All tasks loaded (merged plan + free):', mergedAll)
+    if (Object.keys(allTasksWithTime || {}).length > 0) {
+      console.log('All tasks loaded (all plans + free-mode + calendar events):', allTasksWithTime)
       // Check for duplicate task names
-      const allTasks = (Object.values(mergedAll) as any[]).flat() as any[]
+      const allTasks = (Object.values(allTasksWithTime || {}) as any[]).flat() as any[]
       const taskNames = allTasks.map((t: any) => t.name)
       const duplicates = taskNames.filter((name, index) => taskNames.indexOf(name) !== index)
       if (duplicates.length > 0) {
@@ -655,16 +641,15 @@ function ScheduleContent() {
         })))
       }
     }
-  }, [planTasksWithTime, freeTasksWithTime])
+  }, [allTasksWithTime])
   
   // Aggregate active plans for current week from tasks AND check for active plan even if no tasks
   useEffect(() => {
     const fetchActivePlans = async () => {
       // First, get all unique plan_ids from current week's tasks
-      const mergedAll: Record<string, any[]> = { ...(planTasksWithTime || {}), ...(freeTasksWithTime || {}) }
-      const allTasks = (Object.values(mergedAll) as any[]).flat() as any[]
+      const allTasks = (Object.values(allTasksWithTime || {}) as any[]).flat() as any[]
       
-      // Filter out tasks with no plan_id (free-mode tasks)
+      // Filter out tasks with no plan_id (free-mode tasks and calendar events)
       const tasksWithPlans = allTasks.filter((t: any) => t.plan_id)
       const uniquePlanIds = [...new Set(tasksWithPlans.map((t: any) => t.plan_id))]
       
@@ -723,7 +708,7 @@ function ScheduleContent() {
     if (userId && !isLoadingSettings && !isLoadingPlan) {
       fetchActivePlans()
     }
-  }, [planTasksWithTime, freeTasksWithTime, userId, isLoadingSettings, isLoadingPlan, currentPlanId])
+  }, [allTasksWithTime, userId, isLoadingSettings, isLoadingPlan, currentPlanId])
   
 
 

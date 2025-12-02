@@ -1172,7 +1172,8 @@ export async function POST(req: NextRequest) {
         summary_data: {
           total_duration_days: aiContent.timeline_days,
           goal_title: safeGoalTitle,
-          plan_summary: safePlanSummary,
+          goal_summary: safePlanSummary,
+          plan_summary: safePlanSummary, // Keep for backward compatibility
           ...(timeAdjustmentWarning && { time_adjustment_warning: timeAdjustmentWarning }),
         },
       })
