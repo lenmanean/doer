@@ -65,7 +65,7 @@ export function WaitlistModal({
                   <div>
                     <h2 className="text-2xl font-bold text-[#d7d2cb]">Join the Waitlist</h2>
                     <p className="text-sm text-[#d7d2cb]/60 mt-1">
-                      Be among the first to experience DOER. Enter your goal and email to get early access.
+                      Be among the first to experience DOER. Enter your email to get early access.
                     </p>
                   </div>
                   <button
@@ -81,7 +81,7 @@ export function WaitlistModal({
                 <div className="p-6">
                   <WaitlistForm
                     source="waitlist_modal"
-                    enableGoalCapture={true}
+                    enableGoalCapture={!!initialGoal && initialGoal.trim().length >= 10}
                     initialGoal={initialGoal}
                     onSuccess={handleSuccess}
                     className=""

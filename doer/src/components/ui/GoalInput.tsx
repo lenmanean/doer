@@ -228,20 +228,20 @@ export function GoalInput({
               }}
               placeholder="Enter your email"
               disabled={isLoading || isSuccess}
-              className={`w-full px-4 py-4 pr-14 text-lg bg-white/5 border ${
+              className={`w-full px-6 py-6 pr-16 text-xl bg-white/5 border ${
                 error ? 'border-red-500/50' : isSuccess ? 'border-green-500/50' : 'border-white/10'
               } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
               {isSuccess ? (
-                <Check className="w-5 h-5 text-green-500" />
+                <Check className="w-6 h-6 text-green-500" />
               ) : (
                 <button
                   type="submit"
                   disabled={isLoading || isSuccess || !email.trim()}
-                  className="p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-6 h-6" />
                 </button>
               )}
             </div>
@@ -275,7 +275,7 @@ export function GoalInput({
             }}
             placeholder={placeholder}
             disabled={isLoading}
-            className={`w-full px-4 py-4 pr-14 text-lg bg-white/5 border ${
+            className={`w-full px-6 py-6 pr-16 text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
             } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
           />
@@ -283,9 +283,9 @@ export function GoalInput({
           <button
             type="submit"
             disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-6 h-6" />
           </button>
         </div>
         
@@ -294,13 +294,13 @@ export function GoalInput({
         )}
 
         {/* Clickable Suggestion Chips - Below input */}
-        <div className="flex flex-wrap gap-2 justify-center">
+        <div className="flex flex-wrap gap-3 justify-center mt-4">
           {goalSuggestions.map((suggestion, index) => (
             <button
               key={index}
               type="button"
               onClick={() => handleSuggestionClick(suggestion)}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#ff7f00]/50 rounded-lg text-sm font-medium text-[#d7d2cb] hover:text-white transition-all duration-200"
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#ff7f00]/50 rounded-lg text-base font-medium text-[#d7d2cb] hover:text-white transition-all duration-200"
             >
               {suggestion}
             </button>

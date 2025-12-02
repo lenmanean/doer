@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { validatePassword } from '@/lib/password-security'
@@ -18,6 +18,7 @@ function CustomSignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [usernameError, setUsernameError] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const { addToast } = useToast()
 
@@ -27,6 +28,30 @@ function CustomSignupForm() {
       router.push('/#waitlist')
     }
   }, [router])
+
+  // Check for goal from homepage (URL parameter or localStorage)
+  useEffect(() => {
+    if (IS_PRE_LAUNCH) return
+
+    // Check URL parameter first
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const goalFromUrl = urlParams.get('goal')
+      if (goalFromUrl) {
+        // Save to localStorage for onboarding
+        localStorage.setItem('pendingGoal', decodeURIComponent(goalFromUrl))
+        sessionStorage.setItem('pendingGoal', decodeURIComponent(goalFromUrl))
+        return
+      }
+
+      // Check localStorage (from GoalInput component)
+      const pendingGoal = localStorage.getItem('pendingGoal')
+      if (pendingGoal) {
+        // Already saved, ensure sessionStorage also has it
+        sessionStorage.setItem('pendingGoal', pendingGoal)
+      }
+    }
+  }, [])
 
   // Don't render signup form during pre-launch
   if (IS_PRE_LAUNCH) {

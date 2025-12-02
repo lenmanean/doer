@@ -47,16 +47,19 @@ export function WaitlistForm({
   const [error, setError] = useState('')
   const { addToast } = useToast()
 
-  // Update goal when initialGoal prop changes
+  // Track if user has manually changed step to prevent useEffect from overriding
+  const [userHasChangedStep, setUserHasChangedStep] = useState(false)
+
+  // Update goal when initialGoal prop changes (only on mount or when initialGoal changes)
   useEffect(() => {
-    if (initialGoal && initialGoal.trim()) {
+    if (initialGoal && initialGoal.trim() && !userHasChangedStep) {
       setGoal(initialGoal)
       // If goal is provided and valid, move to email step
       if (enableGoalCapture && initialGoal.trim().length >= 10) {
         setStep('email')
       }
     }
-  }, [initialGoal, enableGoalCapture])
+  }, [initialGoal, enableGoalCapture, userHasChangedStep])
 
   // New Year/resolutions themed goal suggestions
   const goalSuggestions = [
@@ -93,6 +96,7 @@ export function WaitlistForm({
 
   const handleEmailBack = () => {
     setError('')
+    setUserHasChangedStep(true)
     setStep('goal')
   }
 
@@ -142,12 +146,7 @@ export function WaitlistForm({
         trackWaitlistSignup(source)
       }
       // GA4 tracking
-      try {
-        trackGA4WaitlistSignup(source)
-      } catch (error) {
-        // GA4 tracking failed, continue without it
-        console.warn('GA4 tracking failed:', error)
-      }
+      trackGA4WaitlistSignup(source)
 
       setIsSuccess(true)
       setEmail('')
@@ -351,4 +350,3 @@ export function WaitlistForm({
     </form>
   )
 }
-

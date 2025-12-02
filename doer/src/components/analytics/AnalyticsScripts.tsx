@@ -42,6 +42,7 @@ export function AnalyticsScripts() {
 
   const hasAnalyticsConsent = consentCategories.includes('analytics')
   const hasMarketingConsent = consentCategories.includes('marketing')
+  const isDevelopment = process.env.NODE_ENV !== 'production'
 
   return (
     <>
@@ -62,6 +63,15 @@ export function AnalyticsScripts() {
                 gtag('js', new Date());
                 gtag('config', '${GA4_MEASUREMENT_ID}', {
                   page_path: window.location.pathname,
+                  page_title: document.title,
+                  // Enhanced measurement settings
+                  send_page_view: true,
+                  // Privacy settings
+                  anonymize_ip: true,
+                  allow_google_signals: false,
+                  allow_ad_personalization_signals: false,
+                  // Enhanced measurement - automatic event tracking
+                  scroll_depth_threshold: 90${isDevelopment ? ',\n                  debug_mode: true' : ''}
                 });
               `,
             }}

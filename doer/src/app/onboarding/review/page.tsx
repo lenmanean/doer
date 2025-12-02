@@ -473,9 +473,7 @@ export default function ReviewPage() {
       
       // Check if user has basic plan subscription
       try {
-        const subscriptionCheck = await fetch('/api/subscription/check', {
-          credentials: 'include'
-        })
+        const subscriptionCheck = await fetch('/api/subscription/check')
         if (subscriptionCheck.ok) {
           const subscriptionData = await subscriptionCheck.json()
           if (subscriptionData.hasBasicPlan) {
