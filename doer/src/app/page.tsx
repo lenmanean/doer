@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { WaitlistForm } from '@/components/ui/WaitlistForm'
-import { GoalInput } from '@/components/ui/GoalInput'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
@@ -698,6 +697,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Waitlist Section - Pre-launch only */}
+      {IS_PRE_LAUNCH && (
+        <section id="waitlist" className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+              Join the Waitlist
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
+              Be among the first to experience DOER. Enter your goal and email to get early access.
+            </p>
+            <WaitlistForm
+              source="homepage_waitlist_section"
+              enableGoalCapture={true}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Final CTA with Lift Effect */}
       <div className="relative min-h-screen">
         {/* CTA Background - Revealed as page lifts */}
@@ -717,11 +734,30 @@ export default function Home() {
             </p>
             <div className="max-w-xl mx-auto">
               <div className="text-center">
-                <GoalInput
-                  placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
-                  buttonText="Get Started"
-                  source="final_cta"
-                />
+                {IS_PRE_LAUNCH ? (
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="text-lg py-4 px-8"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const waitlistSection = document.getElementById('waitlist')
+                      if (waitlistSection) {
+                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                      } else {
+                        window.location.href = '/#waitlist'
+                      }
+                    }}
+                  >
+                    Join Waitlist
+                  </Button>
+                ) : (
+                  <Link href="/auth/signup">
+                    <Button variant="primary" size="lg" className="text-lg py-4 px-8">
+                      Get Started
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </div>
