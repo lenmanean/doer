@@ -385,12 +385,9 @@ export function PublicHeader() {
                     size="sm"
                     onClick={(e) => {
                       e.preventDefault()
-                      const waitlistSection = document.getElementById('waitlist')
-                      if (waitlistSection) {
-                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                      } else {
-                        // If not on homepage, navigate to homepage with hash
-                        window.location.href = '/#waitlist'
+                      // Dispatch custom event to open waitlist modal
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('openWaitlistModal', { detail: { goal: '' } }))
                       }
                     }}
                   >
@@ -510,12 +507,9 @@ export function PublicHeader() {
                       onClick={(e) => {
                         e.preventDefault()
                         setMobileMenuOpen(false)
-                        const waitlistSection = document.getElementById('waitlist')
-                        if (waitlistSection) {
-                          waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                        } else {
-                          // If not on homepage, navigate to homepage with hash
-                          window.location.href = '/#waitlist'
+                        // Dispatch custom event to open waitlist modal
+                        if (typeof window !== 'undefined') {
+                          window.dispatchEvent(new CustomEvent('openWaitlistModal', { detail: { goal: '' } }))
                         }
                       }}
                     >

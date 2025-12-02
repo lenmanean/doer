@@ -16,6 +16,7 @@ interface GoalInputProps {
   placeholder?: string
   buttonText?: string
   source?: string
+  onGoalSubmit?: (goal: string) => void // Callback when goal is submitted (pre-launch mode)
 }
 
 /**
@@ -28,6 +29,7 @@ export function GoalInput({
   placeholder = "e.g., Learn to play guitar, Start a blog, Get in shape...",
   buttonText = "Get Started",
   source = "landing_page_hero",
+  onGoalSubmit,
 }: GoalInputProps) {
   const [goal, setGoal] = useState('')
   const [email, setEmail] = useState('')
@@ -82,7 +84,12 @@ export function GoalInput({
     // If in goal step, move to email step (for pre-launch) or redirect to signup (for post-launch)
     if (step === 'goal') {
       if (IS_PRE_LAUNCH) {
-        // Pre-launch: Move to email step
+        // Pre-launch: Trigger callback to open waitlist modal
+        if (onGoalSubmit) {
+          onGoalSubmit(goal.trim())
+          return
+        }
+        // Fallback: Move to email step if no callback provided
         handleGoalNext()
         return
       } else {

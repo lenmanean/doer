@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Mail, Check, ArrowRight, ArrowLeft } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
+import { trackWaitlistSignup as trackGA4WaitlistSignup } from '@/lib/analytics/analytics-service'
 
 interface WaitlistFormProps {
   source: string
@@ -13,18 +14,20 @@ interface WaitlistFormProps {
   buttonText?: string
   className?: string
   enableGoalCapture?: boolean // If true, shows two-step flow (Goal → Email)
+  initialGoal?: string // Optional initial goal value
+  onSuccess?: () => void // Callback when waitlist signup succeeds
 }
 
 /**
- * WaitlistForm component for email signup with Meta Pixel tracking
+ * WaitlistForm component for email signup with analytics tracking
  * 
  * Two-step flow (if enableGoalCapture is true):
  * Step 1: User enters their goal/dream
  * Step 2: User enters email to join waitlist
  * 
- * Fires WaitlistSignup event after successful signup
- * Event name: WaitlistSignup
- * Payload: { source: string }
+ * Fires tracking events after successful signup:
+ * - Facebook Pixel: WaitlistSignup custom event with source parameter
+ * - GA4: sign_up event with method: 'waitlist' and source parameter
  */
 export function WaitlistForm({
   source,
@@ -33,14 +36,27 @@ export function WaitlistForm({
   buttonText = 'Join Waitlist',
   className = '',
   enableGoalCapture = false, // Default to false for backward compatibility
+  initialGoal = '',
+  onSuccess,
 }: WaitlistFormProps) {
   const [step, setStep] = useState<'goal' | 'email'>(enableGoalCapture ? 'goal' : 'email')
-  const [goal, setGoal] = useState('')
+  const [goal, setGoal] = useState(initialGoal)
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState('')
   const { addToast } = useToast()
+
+  // Update goal when initialGoal prop changes
+  useEffect(() => {
+    if (initialGoal && initialGoal.trim()) {
+      setGoal(initialGoal)
+      // If goal is provided and valid, move to email step
+      if (enableGoalCapture && initialGoal.trim().length >= 10) {
+        setStep('email')
+      }
+    }
+  }, [initialGoal, enableGoalCapture])
 
   // New Year/resolutions themed goal suggestions
   const goalSuggestions = [
@@ -120,10 +136,13 @@ export function WaitlistForm({
         throw new Error(data.error || 'Failed to join waitlist')
       }
 
-      // Success - fire Meta Pixel event
+      // Success - fire tracking events
+      // Facebook Pixel tracking
       if (typeof window !== 'undefined' && window.fbq) {
         trackWaitlistSignup(source)
       }
+      // GA4 tracking
+      trackGA4WaitlistSignup(source)
 
       setIsSuccess(true)
       setEmail('')
@@ -138,6 +157,13 @@ export function WaitlistForm({
         description: 'We\'ll notify you when DOER is ready.',
         duration: 5000,
       })
+
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess()
+        }, 1500)
+      }
 
       // Reset success state after a delay
       setTimeout(() => {

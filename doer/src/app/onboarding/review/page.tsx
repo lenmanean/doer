@@ -10,6 +10,7 @@ import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2, 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useToast } from '@/components/ui/Toast'
+import { PlanSelectionModal } from '@/components/ui/PlanSelectionModal'
 import type { ReviewPlanData } from '@/lib/types/roadmap'
 
 export default function ReviewPage() {
@@ -37,6 +38,8 @@ export default function ReviewPage() {
   const [isRegenerating, setIsRegenerating] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const isRequestInFlightRef = useRef(false)
+  const [showPlanSelectionModal, setShowPlanSelectionModal] = useState(false)
+  const [hasBasicPlan, setHasBasicPlan] = useState(false)
 
   const wrapSortTasksChronologically = (items: Task[]) => {
     return [...items].sort((a, b) => {
@@ -468,6 +471,23 @@ export default function ReviewPage() {
       const healthData = await healthCheck.json()
       console.log('[Review] Health check passed:', healthData)
       
+      // Check if user has basic plan subscription
+      try {
+        const subscriptionCheck = await fetch('/api/subscription/check')
+        if (subscriptionCheck.ok) {
+          const subscriptionData = await subscriptionCheck.json()
+          if (subscriptionData.hasBasicPlan) {
+            // Show plan selection modal instead of redirecting
+            setHasBasicPlan(true)
+            setShowPlanSelectionModal(true)
+            return
+          }
+        }
+      } catch (error) {
+        console.error('[Review] Error checking subscription:', error)
+        // Continue to dashboard if check fails
+      }
+      
       // Clear session storage and redirect
       sessionStorage.removeItem('generatedPlan')
       
@@ -481,6 +501,12 @@ export default function ReviewPage() {
       console.error('[Review] Error validating session:', error)
       alert('There was an error transitioning to the dashboard. Please try again.')
     }
+  }
+
+  const handleContinueToDashboard = () => {
+    // Clear session storage and redirect
+    sessionStorage.removeItem('generatedPlan')
+    router.push('/dashboard')
   }
 
   const handleStrengthenPlan = async () => {
@@ -1696,6 +1722,15 @@ export default function ReviewPage() {
         </div>
         )}
       </AnimatePresence>
+
+      {/* Plan Selection Modal - Shows for basic plan users after accepting plan */}
+      {hasBasicPlan && (
+        <PlanSelectionModal
+          isOpen={showPlanSelectionModal}
+          onClose={() => setShowPlanSelectionModal(false)}
+          onContinue={handleContinueToDashboard}
+        />
+      )}
 
       {/* Floating Strengthen Plan Button - Fixed at bottom of viewport */}
       {showStrengthenButton && plan?.id && (

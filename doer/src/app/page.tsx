@@ -9,7 +9,8 @@ import { useSupabase } from '@/components/providers/supabase-provider'
 import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
-import { WaitlistForm } from '@/components/ui/WaitlistForm'
+import { WaitlistModal } from '@/components/ui/WaitlistModal'
+import { LaunchCountdownBanner } from '@/components/ui/LaunchCountdownBanner'
 import { GoalInput } from '@/components/ui/GoalInput'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
@@ -34,6 +35,23 @@ export default function Home() {
   const { user, loading, sessionReady } = useSupabase()
   const t = useTranslations()
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
+  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
+  const [waitlistInitialGoal, setWaitlistInitialGoal] = useState<string>('')
+
+  // Listen for custom event from PublicHeader to open waitlist modal
+  useEffect(() => {
+    if (!IS_PRE_LAUNCH) return
+
+    const handleOpenWaitlistModal = (event: CustomEvent) => {
+      setWaitlistInitialGoal(event.detail?.goal || '')
+      setWaitlistModalOpen(true)
+    }
+
+    window.addEventListener('openWaitlistModal' as any, handleOpenWaitlistModal as EventListener)
+    return () => {
+      window.removeEventListener('openWaitlistModal' as any, handleOpenWaitlistModal as EventListener)
+    }
+  }, [])
 
   // Debug: Log feature flag values
   useEffect(() => {
@@ -95,6 +113,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col">
+      {/* Launch Countdown Banner - Pre-launch only */}
+      {IS_PRE_LAUNCH && <LaunchCountdownBanner />}
       <PublicHeader />
 
       {/* Hero Section */}
@@ -121,6 +141,10 @@ export default function Home() {
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               buttonText="Get Started"
               source="landing_page_hero"
+              onGoalSubmit={(goal) => {
+                setWaitlistInitialGoal(goal)
+                setWaitlistModalOpen(true)
+              }}
             />
             {!IS_PRE_LAUNCH && (
               <p className="mt-4 text-center text-gray-600 dark:text-gray-400">
@@ -583,6 +607,10 @@ export default function Home() {
                 buttonText="Join Waitlist"
                 buttonHref="#waitlist"
                 delay={0}
+                onWaitlistClick={() => {
+                  setWaitlistInitialGoal('')
+                  setWaitlistModalOpen(true)
+                }}
               />
               {/* Paid Plans Card */}
               <PricingCard
@@ -698,23 +726,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Waitlist Section - Pre-launch only */}
-      {IS_PRE_LAUNCH && (
-        <section id="waitlist" className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-              Join the Waitlist
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
-              Be among the first to experience DOER. Enter your goal and email to get early access.
-            </p>
-            <WaitlistForm
-              source="homepage_waitlist_section"
-              enableGoalCapture={true}
-            />
-          </div>
-        </section>
-      )}
 
       {/* Final CTA with Lift Effect */}
       <div className="relative min-h-screen">
@@ -742,12 +753,8 @@ export default function Home() {
                     className="text-lg py-4 px-8"
                     onClick={(e) => {
                       e.preventDefault()
-                      const waitlistSection = document.getElementById('waitlist')
-                      if (waitlistSection) {
-                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                      } else {
-                        window.location.href = '/#waitlist'
-                      }
+                      setWaitlistInitialGoal('')
+                      setWaitlistModalOpen(true)
                     }}
                   >
                     Join Waitlist
@@ -769,6 +776,15 @@ export default function Home() {
           <PublicFooter />
         </div>
       </div>
+
+      {/* Waitlist Modal - Pre-launch only */}
+      {IS_PRE_LAUNCH && (
+        <WaitlistModal
+          isOpen={waitlistModalOpen}
+          onClose={() => setWaitlistModalOpen(false)}
+          initialGoal={waitlistInitialGoal}
+        />
+      )}
     </div>
   )
 }
@@ -894,7 +910,8 @@ function PricingCard({
   features,
   buttonText,
   buttonHref,
-  delay = 0
+  delay = 0,
+  onWaitlistClick
 }: {
   title: string
   price?: string
@@ -904,6 +921,7 @@ function PricingCard({
   buttonText: string
   buttonHref: string
   delay?: number
+  onWaitlistClick?: () => void
 }) {
   const { ref, isVisible } = useScrollAnimation({ delay, triggerOnce: true })
   return (
@@ -950,8 +968,7 @@ function PricingCard({
           className="w-full text-lg py-4"
           onClick={(e) => {
             e.preventDefault()
-            const waitlistSection = document.getElementById('waitlist')
-            waitlistSection?.scrollIntoView({ behavior: 'smooth' })
+            onWaitlistClick?.()
           }}
         >
           {buttonText}
