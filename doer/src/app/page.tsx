@@ -136,7 +136,7 @@ export default function Home() {
       </div>
 
           {/* Goal Input Field - Works for both pre-launch and post-launch */}
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             <GoalInput
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               buttonText="Get Started"
