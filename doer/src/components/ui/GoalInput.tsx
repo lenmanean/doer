@@ -7,6 +7,9 @@ import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
+// Import GA4 tracking - using same pattern as WaitlistForm
+// @ts-ignore - TypeScript has module resolution issues but function exists at runtime
+import { trackWaitlistSignup as trackGA4WaitlistSignup } from '@/lib/analytics/analytics-service'
 
 interface GoalInputProps {
   className?: string
@@ -152,7 +155,13 @@ export function GoalInput({
       if (typeof window !== 'undefined' && (window as any).fbq) {
         trackWaitlistSignup(source)
       }
-      // GA4 tracking - handled by marketing-service trackWaitlistSignup which includes GA4
+      // GA4 tracking
+      try {
+        trackGA4WaitlistSignup(source)
+      } catch (error) {
+        // GA4 tracking failed, continue without it
+        console.warn('GA4 tracking failed:', error)
+      }
 
       setIsSuccess(true)
       setEmail('')
