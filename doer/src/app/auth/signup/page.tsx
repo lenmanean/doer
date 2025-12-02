@@ -18,7 +18,6 @@ function CustomSignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [usernameError, setUsernameError] = useState('')
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   const { addToast } = useToast()
 
