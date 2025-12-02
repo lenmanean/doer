@@ -1282,19 +1282,36 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   }
 
   // Retry tasks that were skipped due to unscheduled prerequisites
-  const retryTasks = tasksSkippedDueToDependencies.filter(skipped => {
-    // Check if all prerequisites are now scheduled
-    if (!skipped.task.idx || !taskDependencies.has(skipped.task.idx)) return false
-    const dependentTaskIdxs = taskDependencies.get(skipped.task.idx) || []
-    return dependentTaskIdxs.every(depIdx => {
-      const depTask = tasks.find(t => t.idx === depIdx)
-      if (!depTask) return false
-      return placements.some(p => p.task_id === depTask.id)
+  // Use iterative retry: keep retrying until no more tasks can be scheduled
+  // This handles cases where Task A depends on Task B, and Task B depends on Task C
+  // After C is scheduled, B gets retried. After B is scheduled, A should get retried.
+  let retryPass = 0
+  const maxRetryPasses = 10 // Safety limit to prevent infinite loops
+  let tasksScheduledInLastPass = true
+  
+  while (tasksScheduledInLastPass && retryPass < maxRetryPasses) {
+    retryPass++
+    tasksScheduledInLastPass = false
+    
+    const retryTasks = tasksSkippedDueToDependencies.filter(skipped => {
+      // Skip if already scheduled
+      if (placements.some(p => p.task_id === skipped.task.id)) return false
+      
+      // Check if all prerequisites are now scheduled
+      if (!skipped.task.idx || !taskDependencies.has(skipped.task.idx)) return false
+      const dependentTaskIdxs = taskDependencies.get(skipped.task.idx) || []
+      return dependentTaskIdxs.every(depIdx => {
+        const depTask = tasks.find(t => t.idx === depIdx)
+        if (!depTask) return false
+        return placements.some(p => p.task_id === depTask.id)
+      })
     })
-  })
 
-  if (retryTasks.length > 0) {
-    console.log(`🔄 Retrying ${retryTasks.length} task(s) that were skipped due to unscheduled prerequisites`)
+    if (retryTasks.length === 0) {
+      break // No more tasks to retry
+    }
+
+    console.log(`🔄 Retry pass ${retryPass}: Retrying ${retryTasks.length} task(s) that were skipped due to unscheduled prerequisites`)
     
     for (const skipped of retryTasks) {
       const task = skipped.task
@@ -1629,6 +1646,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           if (unscheduledIndex !== -1) {
             unscheduledTasks.splice(unscheduledIndex, 1)
           }
+          tasksScheduledInLastPass = true // Mark that we scheduled a task this pass
           break
         }
       }
@@ -1638,6 +1656,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         unscheduledTasks.push(task.id)
       }
     }
+    
+    // If no tasks were scheduled in this pass, stop retrying
+    if (!tasksScheduledInLastPass) {
+      console.log(`🔄 Retry pass ${retryPass}: No tasks scheduled, stopping retry loop`)
+      break
+    }
+  }
+  
+  if (retryPass >= maxRetryPasses) {
+    console.warn(`⚠️ Retry loop reached maximum passes (${maxRetryPasses}), stopping to prevent infinite loop`)
   }
 
   console.log('🔧 Final placements order:', placements.map(p => ({ 
