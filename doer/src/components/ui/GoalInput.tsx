@@ -7,7 +7,7 @@ import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
-import { trackWaitlistSignup as trackGA4WaitlistSignup } from '@/lib/analytics/analytics-service'
+import * as analyticsService from '@/lib/analytics/analytics-service'
 
 interface GoalInputProps {
   className?: string
@@ -154,7 +154,9 @@ export function GoalInput({
         trackWaitlistSignup(source)
       }
       // GA4 tracking
-      trackGA4WaitlistSignup(source)
+      if (analyticsService.trackWaitlistSignup) {
+        analyticsService.trackWaitlistSignup(source)
+      }
 
       setIsSuccess(true)
       setEmail('')
