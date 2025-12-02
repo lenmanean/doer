@@ -204,8 +204,9 @@ export function WaitlistForm({
         <div className="space-y-4">
           {/* Input field with arrow button */}
           <div className="relative">
-            <textarea
+            <input
               id="waitlist-goal"
+              type="text"
               value={goal}
               onChange={(e) => {
                 setGoal(e.target.value)
@@ -213,16 +214,15 @@ export function WaitlistForm({
               }}
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               disabled={isLoading || isSuccess}
-              rows={4}
               className={`w-full px-4 py-4 pr-14 text-lg bg-white/5 border ${
                 error ? 'border-red-500/50' : 'border-white/10'
-              } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed`}
+              } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             />
-            {/* Arrow button at right-end */}
+            {/* Arrow button at right-end - vertically centered */}
             <button
               type="submit"
               disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-              className="absolute right-3 bottom-3 p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
