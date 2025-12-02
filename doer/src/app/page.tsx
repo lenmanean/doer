@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { WaitlistForm } from '@/components/ui/WaitlistForm'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
   SiGooglecalendar, 
@@ -530,7 +531,7 @@ export default function Home() {
       </section>
 
       {/* Pricing Preview Section - Hidden until launch */}
-      {false && (
+      {!IS_PRE_LAUNCH && (
         <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">

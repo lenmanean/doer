@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 import { WaitlistForm } from '@/components/ui/WaitlistForm'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -106,7 +107,7 @@ export default function LandingPage() {
               <a href="#features" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Features</a>
               <a href="#testimonials" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Testimonials</a>
               {/* Pricing link hidden until launch */}
-              {false && (
+              {!IS_PRE_LAUNCH && (
                 <a href="#pricing" className="text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
               )}
               <Link href="/login">
@@ -151,7 +152,7 @@ export default function LandingPage() {
               <a href="#features" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Features</a>
               <a href="#testimonials" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Testimonials</a>
               {/* Pricing link hidden until launch */}
-              {false && (
+              {!IS_PRE_LAUNCH && (
                 <a href="#pricing" className="block text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors">Pricing</a>
               )}
               <div className="flex flex-col space-y-2 pt-4 border-t border-white/10">

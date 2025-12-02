@@ -10,9 +10,10 @@ import { PublicFooter } from '@/components/ui/PublicFooter'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { Button } from '@/components/ui/Button'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 
-// Hide pricing page until launch - redirect to homepage
-const SHOW_PRICING_PAGE = false
+// Hide pricing page during pre-launch - redirect to homepage
+const SHOW_PRICING_PAGE = !IS_PRE_LAUNCH
 
 type CreditTooltipProps = {
   text: string

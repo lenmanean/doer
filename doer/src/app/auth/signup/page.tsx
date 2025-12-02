@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { validatePassword } from '@/lib/password-security'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 
 function CustomSignupForm() {
   const [email, setEmail] = useState('')
@@ -19,6 +20,24 @@ function CustomSignupForm() {
   const router = useRouter()
 
   const { addToast } = useToast()
+
+  // Redirect to waitlist during pre-launch
+  useEffect(() => {
+    if (IS_PRE_LAUNCH) {
+      router.push('/#waitlist')
+    }
+  }, [router])
+
+  // Don't render signup form during pre-launch
+  if (IS_PRE_LAUNCH) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[#d7d2cb] text-lg">Redirecting to waitlist...</p>
+        </div>
+      </div>
+    )
+  }
 
   const validateUsername = (username: string): boolean => {
     // Reset error

@@ -9,6 +9,7 @@ import { Languages, ChevronDown, Menu, X, Sun, Moon, User, LogOut } from 'lucide
 import { Button } from './Button'
 import { locales, localeNames, type Locale } from '@/i18n/config'
 import { signOutClient } from '@/lib/auth/sign-out-client'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 
 export function PublicHeader() {
   const t = useTranslations()
@@ -229,7 +230,7 @@ export function PublicHeader() {
                   {t('header.features')}
                 </Link>
                 {/* Pricing link hidden until launch */}
-                {false && (
+                {!IS_PRE_LAUNCH && (
                   <Link
                     href="/pricing"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white dark:hover:bg-gray-700 transition-colors"
@@ -462,7 +463,7 @@ export function PublicHeader() {
               <div className="flex flex-col space-y-1 ml-4">
                 <Link href="/features" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.features')}</Link>
                 {/* Pricing link hidden until launch */}
-                {false && (
+                {!IS_PRE_LAUNCH && (
                   <Link href="/pricing" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.pricing')}</Link>
                 )}
                 <Link href="/features/integrations" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.integrations')}</Link>
