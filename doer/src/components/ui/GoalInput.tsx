@@ -154,8 +154,8 @@ export function GoalInput({
       }
       // GA4 tracking - using dynamic import to avoid build issues
       if (typeof window !== 'undefined') {
-        import('@/lib/analytics/analytics-service').then((analytics) => {
-          if (analytics.trackWaitlistSignup) {
+        import('@/lib/analytics/analytics-service').then((analytics: any) => {
+          if (analytics && typeof analytics.trackWaitlistSignup === 'function') {
             analytics.trackWaitlistSignup(source)
           }
         }).catch(() => {
