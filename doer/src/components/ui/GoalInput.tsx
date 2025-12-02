@@ -149,9 +149,11 @@ export function GoalInput({
       }
 
       // Success - fire tracking events
-      if (typeof window !== 'undefined' && window.fbq) {
+      // Facebook Pixel tracking
+      if (typeof window !== 'undefined' && (window as any).fbq) {
         trackWaitlistSignup(source)
       }
+      // GA4 tracking
       trackGA4WaitlistSignup(source)
 
       setIsSuccess(true)
