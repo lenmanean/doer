@@ -5,7 +5,7 @@ This guide walks you through setting up separate pre-launch and post-launch depl
 ## Overview
 
 We use two branches to maintain separate code states:
-- **`main`** branch: Pre-launch mode (waitlist only, pricing hidden)
+- **`pre-launch`** branch: Pre-launch mode (waitlist only, pricing hidden)
 - **`post-launch`** branch: Post-launch mode (open signup, pricing visible)
 
 Both branches share the same codebase with a feature flag that controls behavior based on the `NEXT_PUBLIC_APP_LAUNCH_STATUS` environment variable.
@@ -47,11 +47,11 @@ NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch
 
 2. Add environment variable for **each branch**:
 
-   **For `main` branch (Pre-Launch):**
+   **For `pre-launch` branch (Pre-Launch):**
    - Name: `NEXT_PUBLIC_APP_LAUNCH_STATUS`
    - Value: `pre-launch`
    - Environment: Select "Production", "Preview", "Development"
-   - Branch: Select "main" or "Apply to specific branches" → `main`
+   - Branch: Select "pre-launch" or "Apply to specific branches" → `pre-launch`
 
    **For `post-launch` branch (Post-Launch):**
    - Name: `NEXT_PUBLIC_APP_LAUNCH_STATUS`
@@ -68,11 +68,11 @@ NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch
 ### Option A: Create from Current Main (Recommended)
 
 ```bash
-# Ensure you're on main and up to date
-git checkout main
-git pull origin main
+# Ensure you're on pre-launch and up to date
+git checkout pre-launch
+git pull origin pre-launch
 
-# Create post-launch branch from current main
+# Create post-launch branch from current pre-launch
 git checkout -b post-launch
 
 # Push the new branch to remote
@@ -101,7 +101,7 @@ git rm -rf .
 1. Go to **Vercel Dashboard** → Your Project → **Settings** → **Git**
 
 2. **Production Branch:**
-   - Currently: `main`
+   - Currently: `pre-launch` (or previously `main`)
    - Change to: `post-launch`
    - This means deployments from `post-launch` branch will be your production deployments
 
@@ -119,12 +119,12 @@ git rm -rf .
 
 ## Step 5: Configure Domain Assignments
 
-### Pre-Launch Domain (main branch)
+### Pre-Launch Domain (pre-launch branch)
 
 1. In Vercel Dashboard → **Settings** → **Domains**
-2. Add domain for `main` branch deployments:
+2. Add domain for `pre-launch` branch deployments:
    - Example: `preview.usedoer.com` or `beta.usedoer.com`
-   - Or use Vercel preview domain: `your-project-git-main.vercel.app`
+   - Or use Vercel preview domain: `your-project-git-pre-launch.vercel.app`
 
 ### Post-Launch Domain (post-launch branch)
 
@@ -155,15 +155,20 @@ All pricing and signup logic has been updated to use the `IS_PRE_LAUNCH` flag:
 
 ## Step 7: Testing the Setup
 
-### Test Pre-Launch Mode (main branch)
+### Test Pre-Launch Mode (pre-launch branch)
 
-1. Ensure `NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch` in `.env.local`
-2. Run locally:
+1. Switch to pre-launch branch:
+   ```bash
+   git checkout pre-launch
+   ```
+
+2. Ensure `NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch` in `.env.local`
+3. Run locally:
    ```bash
    cd doer
    npm run dev
    ```
-3. Verify:
+4. Verify:
    - ✅ Pricing section is hidden
    - ✅ Pricing links are hidden
    - ✅ Signup redirects to waitlist
@@ -198,20 +203,20 @@ All pricing and signup logic has been updated to use the `IS_PRE_LAUNCH` flag:
 
 ### Making Pre-Launch Changes
 
-1. Ensure you're on `main` branch:
+1. Ensure you're on `pre-launch` branch:
    ```bash
-   git checkout main
-   git pull origin main
+   git checkout pre-launch
+   git pull origin pre-launch
    ```
 
 2. Make your changes and commit:
    ```bash
    git add .
    git commit -m "feat: Your pre-launch change"
-   git push origin main
+   git push origin pre-launch
    ```
 
-3. Vercel automatically deploys `main` branch (pre-launch mode)
+3. Vercel automatically deploys `pre-launch` branch (pre-launch mode)
 
 ### Making Post-Launch Changes
 
@@ -235,22 +240,22 @@ All pricing and signup logic has been updated to use the `IS_PRE_LAUNCH` flag:
 **Pre-Launch → Post-Launch (one-way merge):**
 ```bash
 git checkout post-launch
-git merge main
+git merge pre-launch
 # Resolve any conflicts
 git push origin post-launch
 ```
 
 **Shared Changes (merge to both):**
 ```bash
-# Make changes on main
-git checkout main
+# Make changes on pre-launch
+git checkout pre-launch
 # ... make changes ...
 git commit -m "fix: Shared bug fix"
-git push origin main
+git push origin pre-launch
 
 # Merge to post-launch
 git checkout post-launch
-git merge main
+git merge pre-launch
 git push origin post-launch
 ```
 
@@ -264,7 +269,7 @@ When ready to launch:
    ```bash
    git checkout post-launch
    git pull origin post-launch
-   git merge main
+   git merge pre-launch
    # Resolve conflicts if any
    git push origin post-launch
    ```
@@ -311,8 +316,8 @@ git push origin post-launch --force  # ⚠️ Use with caution
 ### Switch Back to Pre-Launch Mode Temporarily
 
 1. In Vercel Dashboard → Settings → Git
-2. Change Production Branch back to `main`
-3. Or manually redeploy from `main` branch
+2. Change Production Branch back to `pre-launch`
+3. Or manually redeploy from `pre-launch` branch
 
 ---
 
@@ -344,7 +349,7 @@ git push origin post-launch --force  # ⚠️ Use with caution
 
 | Branch | Purpose | Domain | Launch Status |
 |--------|---------|--------|---------------|
-| `main` | Pre-launch development | `preview.usedoer.com` | `pre-launch` |
+| `pre-launch` | Pre-launch development | `preview.usedoer.com` | `pre-launch` |
 | `post-launch` | Production/Post-launch | `usedoer.com` | `post-launch` |
 
 ### Environment Variable Values
@@ -356,12 +361,12 @@ git push origin post-launch --force  # ⚠️ Use with caution
 
 ```bash
 # Switch branches
-git checkout main
+git checkout pre-launch
 git checkout post-launch
 
 # Merge pre-launch → post-launch
 git checkout post-launch
-git merge main
+git merge pre-launch
 
 # View current branch
 git branch
