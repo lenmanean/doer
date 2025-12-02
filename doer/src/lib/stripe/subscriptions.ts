@@ -44,37 +44,74 @@ async function getStripeCustomerId(userId: string): Promise<string | null> {
 
 /**
  * Infer plan slug and billing cycle from Stripe subscription
+ * Uses the same priority order as inferPlanFromSubscription in subscription-sync.ts:
+ * 1. Metadata (most reliable)
+ * 2. Price ID from environment variables
+ * 3. Interval-based fallback (least reliable)
  */
 function inferPlanFromStripeSubscription(subscription: Stripe.Subscription): {
   planSlug: 'basic' | 'pro'
   billingCycle: BillingCycle
 } {
-  // First, try metadata
+  const subscriptionId = subscription.id
+  
+  // Priority 1: Check metadata (most reliable source)
   const metadata = subscription.metadata || {}
   if (metadata.planSlug && metadata.billingCycle) {
+    logger.info('[subscriptions] Inferred plan from metadata', {
+      subscriptionId,
+      planSlug: metadata.planSlug,
+      billingCycle: metadata.billingCycle,
+      method: 'metadata',
+    })
     return {
       planSlug: metadata.planSlug as 'basic' | 'pro',
       billingCycle: metadata.billingCycle as BillingCycle,
     }
   }
 
-  // Try to infer from price ID
+  // Priority 2: Check price ID against environment variables
   const priceId = subscription.items.data[0]?.price?.id
   if (priceId) {
     if (priceId === process.env.STRIPE_PRICE_PRO_MONTHLY) {
+      logger.info('[subscriptions] Inferred plan from env var (Pro Monthly)', {
+        subscriptionId,
+        priceId,
+        method: 'env_var',
+      })
       return { planSlug: 'pro', billingCycle: 'monthly' }
     }
     if (priceId === process.env.STRIPE_PRICE_PRO_ANNUAL) {
+      logger.info('[subscriptions] Inferred plan from env var (Pro Annual)', {
+        subscriptionId,
+        priceId,
+        method: 'env_var',
+      })
       return { planSlug: 'pro', billingCycle: 'annual' }
     }
     if (priceId === process.env.STRIPE_PRICE_BASIC) {
+      logger.info('[subscriptions] Inferred plan from env var (Basic)', {
+        subscriptionId,
+        priceId,
+        method: 'env_var',
+      })
       return { planSlug: 'basic', billingCycle: 'monthly' }
     }
   }
 
-  // Try to infer from interval
+  // Priority 3: Fallback to interval-based detection (least reliable)
   const interval = subscription.items.data[0]?.price?.recurring?.interval
   const billingCycle: BillingCycle = interval === 'year' ? 'annual' : 'monthly'
+  
+  logger.warn('[subscriptions] Inferred plan from interval fallback (metadata and price lookup failed)', {
+    subscriptionId,
+    priceId: priceId || 'missing',
+    interval: interval || 'missing',
+    planSlug: 'pro',
+    billingCycle,
+    method: 'interval_fallback',
+    metadata: subscription.metadata || {},
+  })
   
   // Default to pro if we can't determine
   return { planSlug: 'pro', billingCycle }

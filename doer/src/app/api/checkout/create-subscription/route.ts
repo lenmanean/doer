@@ -260,9 +260,17 @@ export async function POST(request: NextRequest) {
             },
           })
           console.log('[Create Subscription] Metadata updated separately after subscription update')
+          
+          // Re-fetch the subscription from Stripe to get the complete updated object with metadata
+          // This ensures sync has access to the correct billing cycle information
+          subscription = await stripe.subscriptions.retrieve(existingStripeSubscription.id, {
+            expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+          })
+          console.log('[Create Subscription] Re-fetched subscription with updated metadata')
         } catch (metadataError) {
           console.warn('[Create Subscription] Failed to update metadata separately:', metadataError)
           // Non-critical - metadata update can fail without breaking the subscription
+          // Continue with the subscription object from the initial update
         }
 
         console.log('[Create Subscription] Subscription updated (upgrade):', {
@@ -284,6 +292,7 @@ export async function POST(request: NextRequest) {
           // Continue to invoice processing below - the payment intent will be extracted and returned
         } else if (subscription.status === 'active') {
           // Payment succeeded automatically - sync to database immediately
+          // Now subscription has updated metadata and items, so sync will detect correct billing cycle
           console.log('[Create Subscription] Subscription is active after update, syncing to database')
           try {
             await syncSubscriptionSnapshot(subscription, { userId: user.id })
