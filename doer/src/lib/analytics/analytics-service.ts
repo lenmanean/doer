@@ -137,3 +137,21 @@ export function trackConversion(eventName: string, value?: number, currency: str
   })
 }
 
+/**
+ * Track waitlist signup event
+ * Fires GA4 sign_up event with waitlist-specific parameters
+ * 
+ * @param source - Source of the waitlist signup (e.g., 'landing_page_hero', 'final_cta')
+ */
+export function trackWaitlistSignup(source: string): void {
+  if (typeof window === 'undefined') return
+  if (!hasConsent('analytics')) return
+  if (!window.gtag || !GA4_MEASUREMENT_ID) return
+
+  // Use standard GA4 sign_up event
+  window.gtag('event', 'sign_up', {
+    method: 'waitlist',
+    source: source,
+  })
+}
+
