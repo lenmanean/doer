@@ -42,7 +42,7 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Schedule', href: '/schedule', icon: Calendar },
-    { name: 'Data', href: '/data', icon: BarChart3 },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Integrations', href: '/integrations', icon: Zap },
     { name: 'Community', href: '/community', icon: Users },
     { name: 'Settings', href: '/settings', icon: Cog },
