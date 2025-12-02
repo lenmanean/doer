@@ -1,12 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
+import { WaitlistModal } from '@/components/ui/WaitlistModal'
+import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import Link from 'next/link'
 
 export default function FeaturesPage() {
   const t = useTranslations()
+  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
 
   const featureSections = [
     {
@@ -91,6 +95,30 @@ export default function FeaturesPage() {
                               className="w-full h-full object-contain"
                             />
                           </div>
+                        ) : feature.id === 'smart-scheduling' ? (
+                          <div className="relative aspect-video">
+                            <img 
+                              src="/smart-scheduling-preview.png" 
+                              alt={`${feature.title} preview`}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        ) : feature.id === 'automation-integrations' ? (
+                          <div className="relative aspect-video">
+                            <img 
+                              src="/automations-preview.png" 
+                              alt={`${feature.title} preview`}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        ) : feature.id === 'progress-analytics' ? (
+                          <div className="relative aspect-video">
+                            <img 
+                              src="/analytics-preview.png" 
+                              alt={`${feature.title} preview`}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
                         ) : (
                           <div className="flex aspect-video items-center justify-center px-10 text-center">
                             <div>
@@ -117,18 +145,39 @@ export default function FeaturesPage() {
               <p className="text-lg text-slate-600 dark:text-slate-300 transition-colors max-w-2xl mx-auto">
                 {t('pages.features.moreComingDescription')}
               </p>
-              <Link
-                href="/auth/signup"
-                className="inline-flex items-center justify-center rounded-full bg-orange-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
-              >
-                {t('pages.features.moreComingCta')}
-              </Link>
+              {IS_PRE_LAUNCH ? (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setWaitlistModalOpen(true)
+                  }}
+                  className="inline-flex items-center justify-center rounded-full bg-orange-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                >
+                  Join Waitlist
+                </button>
+              ) : (
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex items-center justify-center rounded-full bg-orange-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                >
+                  {t('pages.features.moreComingCta')}
+                </Link>
+              )}
             </section>
           </div>
         </div>
       </main>
 
       <PublicFooter />
+
+      {/* Waitlist Modal - Pre-launch only */}
+      {IS_PRE_LAUNCH && (
+        <WaitlistModal
+          isOpen={waitlistModalOpen}
+          onClose={() => setWaitlistModalOpen(false)}
+          initialGoal=""
+        />
+      )}
     </div>
   )
 }

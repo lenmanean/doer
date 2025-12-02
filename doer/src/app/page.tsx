@@ -888,23 +888,13 @@ function StepCardContent({
                         </p>
                       </div>
                       
-                      {/* Plan Preview - Image for AI Plan Generator */}
-                      {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-4 border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
-                          <img 
-                            src="/ai-plan-preview.png" 
-                            alt="AI Plan Generator Preview" 
-                            className="w-full h-auto rounded-lg object-contain"
-                          />
+                      {/* Plan Preview - Video will be embedded here */}
+                      <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
+                        <div className="text-center space-y-4">
+                          <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
                         </div>
-                      ) : (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
-                          <div className="text-center space-y-4">
-                            <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
-                            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
     </>
