@@ -113,21 +113,27 @@ export default function LandingPage() {
               <Link href="/login">
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault()
-                  const waitlistSection = document.getElementById('waitlist')
-                  if (waitlistSection) {
-                    waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                  } else {
-                    window.location.href = '/#waitlist'
-                  }
-                }}
-              >
-                Join Waitlist
-              </Button>
+              {IS_PRE_LAUNCH ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    const waitlistSection = document.getElementById('waitlist')
+                    if (waitlistSection) {
+                      waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                    } else {
+                      window.location.href = '/#waitlist'
+                    }
+                  }}
+                >
+                  Join Waitlist
+                </Button>
+              ) : (
+                <Link href="/auth/signup">
+                  <Button variant="primary" size="sm">Get Started</Button>
+                </Link>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -159,23 +165,29 @@ export default function LandingPage() {
                 <Link href="/login">
                   <Button variant="outline" size="sm" className="w-full">Sign In</Button>
                 </Link>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-full"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setMobileMenuOpen(false)
-                    const waitlistSection = document.getElementById('waitlist')
-                    if (waitlistSection) {
-                      waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                    } else {
-                      window.location.href = '/#waitlist'
-                    }
-                  }}
-                >
-                  Join Waitlist
-                </Button>
+                {IS_PRE_LAUNCH ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setMobileMenuOpen(false)
+                      const waitlistSection = document.getElementById('waitlist')
+                      if (waitlistSection) {
+                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                      } else {
+                        window.location.href = '/#waitlist'
+                      }
+                    }}
+                  >
+                    Join Waitlist
+                  </Button>
+                ) : (
+                  <Link href="/auth/signup">
+                    <Button variant="primary" size="sm" className="w-full">Get Started</Button>
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>
@@ -202,12 +214,25 @@ export default function LandingPage() {
                 actionable plans you can actually follow.
               </p>
               <div className="max-w-xl mx-auto mb-12">
-                <WaitlistForm
-                  source="landing_page_hero"
-                  variant="compact"
-                  placeholder="Enter your email"
-                  buttonText="Join Waitlist"
-                />
+                {IS_PRE_LAUNCH ? (
+                  <WaitlistForm
+                    source="landing_page_hero"
+                    variant="compact"
+                    placeholder="Enter your email"
+                    buttonText="Join Waitlist"
+                  />
+                ) : (
+                  <Link href="/auth/signup">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="text-xl px-8 py-6"
+                    >
+                      Get Started
+                      <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </Link>
+                )}
               </div>
               
               {/* Template Suggestions */}
@@ -293,23 +318,36 @@ export default function LandingPage() {
                     <p className="text-xl text-[#d7d2cb]/70 leading-relaxed mb-6">
                       {feature.description}
                     </p>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="group"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        const waitlistSection = document.getElementById('waitlist')
-                        if (waitlistSection) {
-                          waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                        } else {
-                          window.location.href = '/#waitlist'
-                        }
-                      }}
-                    >
-                      Join Waitlist
-                      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Button>
+                    {IS_PRE_LAUNCH ? (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="group"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const waitlistSection = document.getElementById('waitlist')
+                          if (waitlistSection) {
+                            waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                          } else {
+                            window.location.href = '/#waitlist'
+                          }
+                        }}
+                      >
+                        Join Waitlist
+                        <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    ) : (
+                      <Link href="/auth/signup">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="group"
+                        >
+                          Get Started
+                          <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </div>
               </FadeInWrapper>
@@ -459,12 +497,25 @@ export default function LandingPage() {
             </p>
             <div className="flex justify-center">
               <div className="max-w-xl w-full">
-                <WaitlistForm
-                  source="landing_page_cta"
-                  variant="compact"
-                  placeholder="Enter your email"
-                  buttonText="Join Waitlist"
-                />
+                {IS_PRE_LAUNCH ? (
+                  <WaitlistForm
+                    source="landing_page_cta"
+                    variant="compact"
+                    placeholder="Enter your email"
+                    buttonText="Join Waitlist"
+                  />
+                ) : (
+                  <Link href="/auth/signup">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="text-xl px-8 py-6"
+                    >
+                      Get Started
+                      <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </FadeInWrapper>

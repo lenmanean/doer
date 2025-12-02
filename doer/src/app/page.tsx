@@ -103,16 +103,37 @@ export default function Home() {
             </p>
       </div>
 
-          {/* Waitlist Form with Goal Capture */}
-          <div id="waitlist" className="max-w-2xl mx-auto">
-            <WaitlistForm
-              source="landing_page_hero"
-              variant="default"
-              placeholder="Enter your email to join the waitlist"
-              buttonText="Join Waitlist"
-              enableGoalCapture={true}
-            />
-          </div>
+          {/* Pre-launch: Waitlist Form with Goal Capture | Post-launch: Get Started Button */}
+          {IS_PRE_LAUNCH ? (
+            <div id="waitlist" className="max-w-2xl mx-auto">
+              <WaitlistForm
+                source="landing_page_hero"
+                variant="default"
+                placeholder="Enter your email to join the waitlist"
+                buttonText="Join Waitlist"
+                enableGoalCapture={true}
+              />
+            </div>
+          ) : (
+            <div className="max-w-2xl mx-auto text-center">
+              <Link href="/auth/signup">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="text-xl px-8 py-6"
+                >
+                  Get Started
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+              </Link>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Already have an account?{' '}
+                <Link href="/login" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300">
+                  Log in
+                </Link>
+              </p>
+            </div>
+          )}
                         </div>
       </section>
 
@@ -698,12 +719,25 @@ export default function Home() {
               >{t('cta.doer')}</span>{t('cta.question')}
             </p>
             <div className="max-w-xl mx-auto">
-              <WaitlistForm
-                source="final_cta"
-                variant="compact"
-                placeholder="Enter your email"
-                buttonText="Join Waitlist"
-              />
+              {IS_PRE_LAUNCH ? (
+                <WaitlistForm
+                  source="final_cta"
+                  variant="compact"
+                  placeholder="Enter your email"
+                  buttonText="Join Waitlist"
+                />
+              ) : (
+                <Link href="/auth/signup">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="text-xl px-8 py-6"
+                  >
+                    Get Started
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

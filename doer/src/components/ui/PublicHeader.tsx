@@ -378,25 +378,38 @@ export function PublicHeader() {
           {/* CTA Button */}
           {!isAuthenticated ? (
             <div className="hidden md:flex items-center space-x-3">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault()
-                  const waitlistSection = document.getElementById('waitlist')
-                  if (waitlistSection) {
-                    waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                  } else {
-                    // If not on homepage, navigate to homepage with hash
-                    window.location.href = '/#waitlist'
-                  }
-                }}
-              >
-                Join Waitlist
-              </Button>
-              <Link href="/login">
-                <Button variant="outline" size="sm">{t('common.logIn')}</Button>
-              </Link>
+              {IS_PRE_LAUNCH ? (
+                <>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const waitlistSection = document.getElementById('waitlist')
+                      if (waitlistSection) {
+                        waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                      } else {
+                        // If not on homepage, navigate to homepage with hash
+                        window.location.href = '/#waitlist'
+                      }
+                    }}
+                  >
+                    Join Waitlist
+                  </Button>
+                  <Link href="/login">
+                    <Button variant="outline" size="sm">{t('common.logIn')}</Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/auth/signup">
+                    <Button variant="primary" size="sm">Get Started</Button>
+                  </Link>
+                  <Link href="/login">
+                    <Button variant="outline" size="sm">{t('common.logIn')}</Button>
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -488,27 +501,40 @@ export function PublicHeader() {
             </div>
             {!user ? (
               <div className="flex flex-col space-y-2 px-4 pt-4">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-full"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setMobileMenuOpen(false)
-                    const waitlistSection = document.getElementById('waitlist')
-                    if (waitlistSection) {
-                      waitlistSection.scrollIntoView({ behavior: 'smooth' })
-                    } else {
-                      // If not on homepage, navigate to homepage with hash
-                      window.location.href = '/#waitlist'
-                    }
-                  }}
-                >
-                  Join Waitlist
-                </Button>
-                <Link href="/login">
-                  <Button variant="outline" size="sm" className="w-full">{t('common.logIn')}</Button>
-                </Link>
+                {IS_PRE_LAUNCH ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setMobileMenuOpen(false)
+                        const waitlistSection = document.getElementById('waitlist')
+                        if (waitlistSection) {
+                          waitlistSection.scrollIntoView({ behavior: 'smooth' })
+                        } else {
+                          // If not on homepage, navigate to homepage with hash
+                          window.location.href = '/#waitlist'
+                        }
+                      }}
+                    >
+                      Join Waitlist
+                    </Button>
+                    <Link href="/login">
+                      <Button variant="outline" size="sm" className="w-full">{t('common.logIn')}</Button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/auth/signup">
+                      <Button variant="primary" size="sm" className="w-full">Get Started</Button>
+                    </Link>
+                    <Link href="/login">
+                      <Button variant="outline" size="sm" className="w-full">{t('common.logIn')}</Button>
+                    </Link>
+                  </>
+                )}
               </div>
             ) : (
               <div className="flex flex-col space-y-2 px-4 pt-4">

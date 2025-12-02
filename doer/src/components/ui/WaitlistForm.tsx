@@ -233,7 +233,7 @@ export function WaitlistForm({
           )}
 
           {/* Clickable Suggestion Chips - Below input */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 justify-center">
             {goalSuggestions.map((suggestion, index) => (
               <button
                 key={index}

@@ -1,4 +1,4 @@
-# Branch-Based Deployment Implementation Summary
+# Single-Branch Deployment Implementation Summary
 
 ## ✅ What Was Completed
 
@@ -9,6 +9,19 @@
 
 ### 2. Code Updated to Use Feature Flags
 
+**Homepage Conditional Logic:**
+- ✅ `src/app/page.tsx` - Hero section: Waitlist form (pre-launch) vs Get Started button (post-launch)
+- ✅ `src/app/page.tsx` - Final CTA: Waitlist form (pre-launch) vs Get Started button (post-launch)
+
+**Header Navigation:**
+- ✅ `src/components/ui/PublicHeader.tsx` - Desktop CTA: Join Waitlist (pre-launch) vs Get Started (post-launch)
+- ✅ `src/components/ui/PublicHeader.tsx` - Mobile menu CTA: Conditional based on launch status
+
+**Landing Page:**
+- ✅ `src/app/landing.tsx` - Hero section: Conditional waitlist/signup buttons
+- ✅ `src/app/landing.tsx` - Navigation buttons: Conditional based on launch status
+- ✅ `src/app/landing.tsx` - CTA sections: Conditional waitlist/signup buttons
+
 **Pricing Visibility:**
 - ✅ `src/app/page.tsx` - Homepage pricing section
 - ✅ `src/components/ui/PublicHeader.tsx` - Pricing links (desktop & mobile)
@@ -18,134 +31,167 @@
 **Signup Access:**
 - ✅ `src/app/auth/signup/page.tsx` - Redirects to waitlist during pre-launch
 
-### 3. Environment Variable Added
-- ✅ `doer/.env.local` - Added `NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch`
+**UI Improvements:**
+- ✅ `src/components/ui/WaitlistForm.tsx` - Center-aligned suggestion buttons
 
-### 4. Git Branches Created
-- ✅ `pre-launch` branch - Pre-launch mode (committed and pushed)
-- ✅ `post-launch` branch - Created from pre-launch (ready for post-launch work)
+### 3. Environment Variable Configuration
+- ✅ `doer/.env.local` - Added `NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch`
+- ✅ Local development configured for pre-launch mode
+
+### 4. Single-Branch Deployment System
+- ✅ Consolidated to single `main` branch
+- ✅ All code changes committed to main branch
+- ✅ Feature flags control all conditional behavior
 
 ### 5. Documentation Created
-- ✅ `docs/LAUNCH_BRANCH_SETUP.md` - Comprehensive setup guide
-- ✅ `docs/BRANCH_QUICK_REFERENCE.md` - Quick command reference
-- ✅ `docs/VERCEL_DOMAIN_SETUP.md` - Domain configuration guide
+- ✅ `docs/SINGLE_BRANCH_DEPLOYMENT.md` - Main deployment guide
+- ✅ `docs/MANUAL_STEPS_SINGLE_BRANCH.md` - Detailed manual setup steps
+- ✅ `docs/IMPLEMENTATION_SUMMARY.md` - This summary (updated for single-branch)
 
 ## 🎯 Next Steps: Vercel Configuration
 
-### Step 1: Configure Production Branch
+### Step 1: Verify Production Branch
 
 1. Go to **Vercel Dashboard** → Your Project → **Settings** → **Git**
-2. Under **Production Branch**, change from `pre-launch` to `post-launch`
-3. Click **Save**
+2. Under **Production Branch**, verify it's set to `main`
+3. If different, change to `main` and click **Save**
 
-### Step 2: Configure Environment Variables
+### Step 2: Configure Environment Variable
 
 1. Go to **Vercel Dashboard** → Your Project → **Settings** → **Environment Variables**
 
-2. **For `pre-launch` branch (Pre-Launch):**
-   - Click **Add New**
-   - Name: `NEXT_PUBLIC_APP_LAUNCH_STATUS`
-   - Value: `pre-launch`
-   - Environment: Select all (Production, Preview, Development)
-   - Under "Apply to specific branches", select `pre-launch`
-   - Click **Save**
+2. Add or update the variable:
+   - **Key**: `NEXT_PUBLIC_APP_LAUNCH_STATUS`
+   - **Value**: `pre-launch` (for current pre-launch state)
+   - **Environment**: Select all (Production, Preview, Development)
+   - **Note**: No branch restriction needed (single-branch setup)
 
-3. **For `post-launch` branch (Post-Launch):**
-   - Click **Add New**
-   - Name: `NEXT_PUBLIC_APP_LAUNCH_STATUS`
-   - Value: `post-launch`
-   - Environment: Select all (Production, Preview, Development)
-   - Under "Apply to specific branches", select `post-launch`
-   - Click **Save**
+3. Click **Save**
 
-### Step 3: Configure Domain Assignments
+4. Vercel will automatically trigger a new deployment
 
-**Pre-Launch Domain (pre-launch branch):**
-- Settings → Domains
-- Add domain: `preview.usedoer.com` (or your preferred preview domain)
-- Assign to `pre-launch` branch deployments (automatic preview deployments)
+### Step 3: Verify Deployment
 
-**Post-Launch Domain (post-launch branch):**
-- Settings → Domains
-- Ensure production domain (`usedoer.com`) is assigned
-
-**Auto-assign Setting:**
-- Settings → Domains → "Auto-assign Custom Production Domains"
-- **Recommendation: Keep DISABLED** (more control, safer)
-- With it disabled: You manually promote deployments to production
-- With it enabled: Production domain auto-assigns on every `post-launch` merge
-
-### Step 4: Verify Setup
-
-1. **Check Deployments:**
-   - Vercel Dashboard → Deployments
-   - You should see deployments for both `pre-launch` and `post-launch` branches
-
-2. **Test Pre-Launch Mode:**
-   - Visit deployment URL for `pre-launch` branch
-   - Verify: Pricing hidden, signup redirects to waitlist
-
-3. **Test Post-Launch Mode:**
-   - Visit deployment URL for `post-launch` branch
-   - Verify: Pricing visible, signup works
+1. Wait for deployment to complete
+2. Visit your production URL
+3. Verify pre-launch mode:
+   - ✅ Homepage shows "Join Waitlist" form/button
+   - ✅ Pricing links are hidden
+   - ✅ Signup page redirects to waitlist
+   - ✅ Header shows "Join Waitlist" button
 
 ## 🔄 Daily Workflow
 
-### Making Pre-Launch Changes
+### Making Changes (Single Branch)
 
 ```bash
-git checkout pre-launch
-git pull origin pre-launch
+git checkout main
+git pull origin main
 # Make your changes
 git add .
-git commit -m "feat: Your pre-launch change"
-git push origin pre-launch
-# Vercel auto-deploys pre-launch branch
+git commit -m "feat: Your change description"
+git push origin main
+# Vercel auto-deploys from main branch
 ```
 
-### Making Post-Launch Changes
+### Switching Between Modes
 
+**To Switch to Pre-Launch Mode:**
+1. Go to Vercel Dashboard → Settings → Environment Variables
+2. Edit `NEXT_PUBLIC_APP_LAUNCH_STATUS`
+3. Set value to `pre-launch`
+4. Save (automatic redeploy occurs)
+
+**To Switch to Post-Launch Mode:**
+1. Go to Vercel Dashboard → Settings → Environment Variables
+2. Edit `NEXT_PUBLIC_APP_LAUNCH_STATUS`
+3. Set value to `post-launch`
+4. Save (automatic redeploy occurs)
+
+### Testing Locally
+
+**Test Pre-Launch Mode:**
 ```bash
-git checkout post-launch
-git pull origin post-launch
-# Make your changes
-git add .
-git commit -m "feat: Your post-launch change"
-git push origin post-launch
-# Vercel auto-deploys post-launch branch
+# In .env.local
+NEXT_PUBLIC_APP_LAUNCH_STATUS=pre-launch
+npm run dev
 ```
 
-### Merging Changes Between Branches
-
-**Merge pre-launch → post-launch:**
+**Test Post-Launch Mode:**
 ```bash
-git checkout post-launch
-git merge pre-launch
-# Resolve conflicts if any
-git push origin post-launch
+# In .env.local
+NEXT_PUBLIC_APP_LAUNCH_STATUS=post-launch
+npm run dev
 ```
 
 ## 🚀 Launch Day Checklist
 
-- [ ] Merge all pre-launch work into post-launch branch
-- [ ] Verify environment variable is set correctly in Vercel for `post-launch` branch
-- [ ] Verify production domain is assigned to `post-launch` branch
-- [ ] Test post-launch deployment thoroughly
-- [ ] Monitor Vercel logs for errors
-- [ ] Verify analytics tracking
+When ready to launch:
+
+- [ ] Set `NEXT_PUBLIC_APP_LAUNCH_STATUS=post-launch` in Vercel
+- [ ] Verify production deployment completes successfully
+- [ ] Test signup flow end-to-end
+- [ ] Verify pricing page is accessible
+- [ ] Check all "Get Started" buttons work correctly
+- [ ] Verify pricing links appear in navigation
+- [ ] Test signup page (should no longer redirect)
+- [ ] Monitor analytics for signups
+- [ ] Verify Meta Pixel tracking works
 
 ## 📚 Documentation Files
 
-- **Full Setup Guide**: `docs/LAUNCH_BRANCH_SETUP.md`
-- **Quick Reference**: `docs/BRANCH_QUICK_REFERENCE.md`
-- **Domain Setup**: `docs/VERCEL_DOMAIN_SETUP.md`
-- **This Summary**: `docs/IMPLEMENTATION_SUMMARY.md`
+- **Main Deployment Guide**: `docs/SINGLE_BRANCH_DEPLOYMENT.md`
+- **Manual Setup Steps**: `docs/MANUAL_STEPS_SINGLE_BRANCH.md`
+- **Implementation Summary**: `docs/IMPLEMENTATION_SUMMARY.md` (this file)
 
-## 🎉 Benefits
+## 🎉 Benefits of Single-Branch Approach
 
-✅ **Safe**: Independent branches prevent cross-contamination  
-✅ **Flexible**: Can make different changes to each branch  
-✅ **Simple**: One env var controls all behavior  
-✅ **Reversible**: Easy to switch back if needed  
-✅ **Testable**: Can test post-launch mode before launch
+✅ **Simpler Workflow**: No branch switching or merging required  
+✅ **Instant Switching**: Change mode in seconds via environment variable  
+✅ **No Code Duplication**: Single codebase for both modes  
+✅ **Easier Testing**: Test both modes locally by changing `.env.local`  
+✅ **Lower Risk**: No merge conflicts or branch synchronization issues  
+✅ **Consistent History**: All changes in one branch timeline  
+✅ **Faster Iteration**: Make changes once, test both modes immediately
 
+## 🔄 Migration from Branch-Based System
+
+If you were previously using a branch-based system (`pre-launch` and `post-launch` branches):
+
+1. ✅ All code changes have been merged to `main` branch
+2. ✅ Feature flags now control all conditional behavior
+3. ✅ Environment variable replaces branch-specific deployments
+4. ✅ Old branches can be archived or deleted after verification
+
+## 🛠️ Technical Details
+
+### Feature Flag Implementation
+
+```typescript
+// src/lib/feature-flags.ts
+export const FEATURE_FLAGS = {
+  IS_LAUNCHED: process.env.NEXT_PUBLIC_APP_LAUNCH_STATUS === 'post-launch',
+} as const
+
+export const IS_PRE_LAUNCH = !FEATURE_FLAGS.IS_LAUNCHED
+export const IS_POST_LAUNCH = FEATURE_FLAGS.IS_LAUNCHED
+```
+
+### Conditional Rendering Pattern
+
+All conditional logic follows this pattern:
+
+```typescript
+{IS_PRE_LAUNCH ? (
+  // Pre-launch UI (waitlist, hidden pricing, etc.)
+) : (
+  // Post-launch UI (signup buttons, visible pricing, etc.)
+)}
+```
+
+## 📝 Notes
+
+- **Environment Variable**: Must be `NEXT_PUBLIC_` prefix for client-side access
+- **Build Time**: Environment variables are read at build time, not runtime
+- **Redeploy Required**: Changes to env vars require a new deployment
+- **Default Behavior**: If env var is not set, defaults to pre-launch mode (safer)
