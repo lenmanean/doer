@@ -79,6 +79,7 @@ export function WaitlistForm({
   const handleSuggestionClick = (suggestion: string) => {
     setGoal(suggestion)
     setError('')
+    setUserHasChangedStep(true) // Mark that user has interacted with goal
   }
 
   const handleGoalNext = () => {
@@ -94,7 +95,11 @@ export function WaitlistForm({
     setStep('email')
   }
 
-  const handleEmailBack = () => {
+  const handleEmailBack = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setError('')
     setUserHasChangedStep(true)
     setStep('goal')
@@ -241,6 +246,7 @@ export function WaitlistForm({
               onChange={(e) => {
                 setGoal(e.target.value)
                 setError('')
+                setUserHasChangedStep(true) // Mark that user has interacted with goal
               }}
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               disabled={isLoading || isSuccess}
@@ -292,7 +298,7 @@ export function WaitlistForm({
             </div>
             <button
               type="button"
-              onClick={handleEmailBack}
+              onClick={(e) => handleEmailBack(e)}
               className="text-sm text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 flex items-center gap-1 flex-shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
