@@ -142,7 +142,12 @@ export function WaitlistForm({
         trackWaitlistSignup(source)
       }
       // GA4 tracking
-      trackGA4WaitlistSignup(source)
+      try {
+        trackGA4WaitlistSignup(source)
+      } catch (error) {
+        // GA4 tracking failed, continue without it
+        console.warn('GA4 tracking failed:', error)
+      }
 
       setIsSuccess(true)
       setEmail('')
