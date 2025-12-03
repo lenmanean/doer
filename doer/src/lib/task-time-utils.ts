@@ -187,6 +187,102 @@ export function isValidTimeFormat(time: string): boolean {
   return timeRegex.test(time)
 }
 
+/**
+ * Task duration validation constants
+ */
+export const TASK_DURATION_MIN_MINUTES = 5
+export const TASK_DURATION_MAX_MINUTES = 360 // 6 hours for regular tasks
+
+/**
+ * Validate task duration
+ * @param durationMinutes - Duration in minutes to validate
+ * @param isCalendarEvent - Whether this is a calendar event (has no maximum)
+ * @returns Object with isValid flag and error message if invalid
+ */
+export function validateTaskDuration(
+  durationMinutes: number,
+  isCalendarEvent: boolean = false
+): { isValid: boolean; error?: string } {
+  if (durationMinutes < TASK_DURATION_MIN_MINUTES) {
+    return {
+      isValid: false,
+      error: `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Current duration: ${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}.`
+    }
+  }
+  
+  if (!isCalendarEvent && durationMinutes > TASK_DURATION_MAX_MINUTES) {
+    return {
+      isValid: false,
+      error: `Task duration must not exceed ${TASK_DURATION_MAX_MINUTES} minutes (6 hours) for regular tasks. Current duration: ${formatDuration(durationMinutes)}.`
+    }
+  }
+  
+  return { isValid: true }
+}
+
+/**
+ * Clamp duration to valid range
+ * @param durationMinutes - Duration in minutes to clamp
+ * @param isCalendarEvent - Whether this is a calendar event (has no maximum)
+ * @returns Clamped duration in minutes
+ */
+export function clampTaskDuration(
+  durationMinutes: number,
+  isCalendarEvent: boolean = false
+): number {
+  const min = TASK_DURATION_MIN_MINUTES
+  const max = isCalendarEvent ? Infinity : TASK_DURATION_MAX_MINUTES
+  return Math.max(min, Math.min(durationMinutes, max))
+}
+
+/**
+ * Calculate end time that ensures minimum duration
+ * @param startTime - Start time (HH:MM)
+ * @param currentEndTime - Current end time (HH:MM), optional
+ * @param minDurationMinutes - Minimum duration in minutes (default: 5)
+ * @returns End time that meets minimum duration requirement
+ */
+export function calculateMinimumEndTime(
+  startTime: string,
+  currentEndTime?: string,
+  minDurationMinutes: number = TASK_DURATION_MIN_MINUTES
+): string {
+  const startMinutes = parseTimeToMinutes(startTime)
+  let endMinutes = currentEndTime ? parseTimeToMinutes(currentEndTime) : startMinutes + minDurationMinutes
+  
+  // Handle cross-day scenarios
+  if (endMinutes <= startMinutes) {
+    endMinutes += 24 * 60 // Add 24 hours for cross-day
+  }
+  
+  // Ensure minimum duration
+  const currentDuration = endMinutes - startMinutes
+  if (currentDuration < minDurationMinutes) {
+    endMinutes = startMinutes + minDurationMinutes
+    
+    // Handle overflow to next day
+    if (endMinutes >= 24 * 60) {
+      endMinutes = endMinutes % (24 * 60)
+    }
+  }
+  
+  return minutesToTimeString(endMinutes)
+}
+
+/**
+ * Get suggested end time message for invalid duration
+ * @param startTime - Start time (HH:MM)
+ * @param currentEndTime - Current end time (HH:MM)
+ * @returns Human-readable suggestion message
+ */
+export function getDurationSuggestion(
+  startTime: string,
+  currentEndTime: string
+): string {
+  const suggestedEndTime = calculateMinimumEndTime(startTime, currentEndTime)
+  return `Consider setting end time to ${suggestedEndTime} to meet the minimum ${TASK_DURATION_MIN_MINUTES}-minute requirement.`
+}
+
 
 
 

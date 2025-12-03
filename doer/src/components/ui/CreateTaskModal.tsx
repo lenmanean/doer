@@ -7,7 +7,15 @@ import { Button } from '@/components/ui/Button'
 import { ThemeAwareInput } from '@/components/ui/ThemeAwareInput'
 import { TimePicker } from './TimePicker'
 import { supabase } from '@/lib/supabase/client'
-import { calculateDuration, formatDuration, isValidTimeFormat, parseTimeToMinutes } from '@/lib/task-time-utils'
+import { 
+  calculateDuration, 
+  formatDuration, 
+  isValidTimeFormat, 
+  parseTimeToMinutes,
+  validateTaskDuration,
+  getDurationSuggestion,
+  TASK_DURATION_MIN_MINUTES
+} from '@/lib/task-time-utils'
 import { formatDateForDB } from '@/lib/date-utils'
 import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
 import { convertUrlsToLinks } from '@/lib/url-utils'
@@ -978,11 +986,17 @@ export function CreateTaskModal({
         throw new Error('Please add at least one valid task with name, start time, and end time')
       }
 
-      // Create each task
+      // First pass: Validate all tasks before creating any
+      const tasksWithErrors: Array<{ task: any; error: string }> = []
+      const tasksToCreate: Array<{ taskData: any; duration: number; isCrossDay: boolean }> = []
+      
       for (const taskData of validTasks) {
         // Calculate duration
         if (!taskData.startTime || !taskData.endTime) {
-          console.warn(`Skipping task "${taskData.name}" - missing start or end time`)
+          tasksWithErrors.push({
+            task: taskData,
+            error: 'Missing start or end time'
+          })
           continue
         }
         
@@ -998,10 +1012,38 @@ export function CreateTaskModal({
         }
 
         if (duration <= 0) {
-          console.warn(`Skipping task "${taskData.name}" - invalid duration`)
+          tasksWithErrors.push({
+            task: taskData,
+            error: 'Invalid duration: end time must be after start time'
+          })
           continue
         }
 
+        // Validate duration meets minimum requirement (5 minutes)
+        const validation = validateTaskDuration(duration, false)
+        if (!validation.isValid) {
+          const suggestion = getDurationSuggestion(taskData.startTime, taskData.endTime)
+          tasksWithErrors.push({
+            task: taskData,
+            error: `${validation.error} ${suggestion}`
+          })
+          continue
+        }
+
+        // Task is valid, add to creation list
+        tasksToCreate.push({ taskData, duration, isCrossDay })
+      }
+
+      // If there are validation errors, show them and stop
+      if (tasksWithErrors.length > 0) {
+        const errorMessages = tasksWithErrors.map(({ task, error }) => 
+          `"${task.name}": ${error}`
+        ).join('\n')
+        throw new Error(`Please fix the following errors:\n${errorMessages}`)
+      }
+
+      // Second pass: Create all valid tasks
+      for (const { taskData, duration, isCrossDay } of tasksToCreate) {
         // Create task
         const baseInsert = {
           plan_id: null as string | null,
@@ -1147,7 +1189,32 @@ export function CreateTaskModal({
       setTimeout(() => onClose(), 100)
     } catch (err) {
       console.error('Error creating manual tasks:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create tasks')
+      
+      // Parse database constraint violation errors and show user-friendly messages
+      let errorMessage = 'Failed to create tasks'
+      
+      if (err instanceof Error) {
+        errorMessage = err.message
+        
+        // Check for duration constraint violation
+        if (err.message.includes('tasks_duration_check') || 
+            err.message.includes('violates check constraint') ||
+            (err as any).code === '23514') {
+          errorMessage = `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start or end time to meet this requirement.`
+        }
+        
+        // Check for other common constraint violations
+        if (err.message.includes('tasks_priority_check')) {
+          errorMessage = 'Task priority must be between 1 and 4. Please select a valid priority.'
+        }
+      } else if (typeof err === 'object' && err !== null) {
+        const errObj = err as any
+        if (errObj.code === '23514' && errObj.message?.includes('duration')) {
+          errorMessage = `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start or end time.`
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
       setIsCreating(false)
