@@ -106,7 +106,7 @@ function OnboardingContent() {
 
   const handleGeneratePlan = async () => {
     if (!goal.trim() || !startDate) {
-      setErrorMessage('Please fill in all fields before generating your roadmap.')
+      setErrorMessage('Please fill in all fields before generating your plan.')
       return
     }
 
@@ -173,7 +173,7 @@ function OnboardingContent() {
         >
               <div className="text-center mb-8">
                 <h1 className="text-4xl font-bold text-[#d7d2cb] mb-4">
-                  Let's Create Your Roadmap
+                  Let's Create Your Plan
                 </h1>
                 <p className="text-xl text-[#d7d2cb]/70">
                   Tell us your goal and we'll generate a personalized action plan
@@ -238,10 +238,13 @@ function OnboardingContent() {
                       size="lg"
                     >
                       {isGenerating ? (
-                        'Generating Your Plan...'
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Generating Your Plan...
+                        </>
                       ) : (
                         <>
-                          Generate My Roadmap
+                          Generate My Plan
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
