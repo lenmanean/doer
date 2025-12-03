@@ -888,13 +888,28 @@ function StepCardContent({
                         </p>
                       </div>
                       
-                      {/* Plan Preview - Video will be embedded here */}
-                      <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
-                        <div className="text-center space-y-4">
-                          <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
-                          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
+                      {/* Plan Preview - Video embedded for step 1 */}
+                      {step.id === 'step1' ? (
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-4 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
+                          <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-full max-w-full max-h-[600px] rounded-lg object-contain"
+                          >
+                            <source src="/doer_tut1.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                          </video>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
+                          <div className="text-center space-y-4">
+                            <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
+                            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
     </>
