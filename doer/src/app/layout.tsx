@@ -27,7 +27,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "DOER - AI-Powered Goal Achievement Platform",
-  description: "Transform your goals into reality with AI-powered roadmaps, milestone tracking, and intelligent planning designed for achievers.",
+  description: "Transform your goals into reality with AI-powered plans, progress tracking, and intelligent planning designed for achievers.",
 };
 
 // Force dynamic rendering since we use cookies for auth and locale

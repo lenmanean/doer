@@ -143,7 +143,7 @@ Ready to transform your goals into reality? [Get started with DOER today](/auth/
     category: 'ai-technology',
     tags: ['AI', 'goal-setting', 'productivity', 'planning'],
     readingTime: 6,
-    metaDescription: 'Learn how AI-powered planning can transform your goal-setting process and help you achieve more with structured, intelligent roadmaps.',
+    metaDescription: 'Learn how AI-powered planning can transform your goal-setting process and help you achieve more with structured, intelligent plans.',
     featured: true,
   },
   {
@@ -726,7 +726,7 @@ As AI improves, goal completion rates will increase as plans become more realist
 
 AI will work invisibly in the background, coordinating across all your tools and platforms.
 
-## DOER's Roadmap
+## DOER's Plan
 
 We're working on:
 - Enhanced AI capabilities

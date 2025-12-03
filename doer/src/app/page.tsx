@@ -369,7 +369,7 @@ export default function Home() {
                   handle: '@elenarod',
                   platform: 'Twitter',
                   avatar: '👩‍🎨',
-                  text: 'I went from feeling overwhelmed to actually completing my certification course. The milestone tracking kept me motivated throughout.',
+                  text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
                   date: '3 days ago'
                 },
                 {
@@ -443,7 +443,7 @@ export default function Home() {
                   handle: '@elenarod',
                   platform: 'Twitter',
                   avatar: '👩‍🎨',
-                  text: 'I went from feeling overwhelmed to actually completing my certification course. The milestone tracking kept me motivated throughout.',
+                  text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
                   date: '3 days ago'
                 },
                 {
@@ -517,7 +517,7 @@ export default function Home() {
                   handle: '@elenarod',
                   platform: 'Twitter',
                   avatar: '👩‍🎨',
-                  text: 'I went from feeling overwhelmed to actually completing my certification course. The milestone tracking kept me motivated throughout.',
+                  text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
                   date: '3 days ago'
                 },
                 {

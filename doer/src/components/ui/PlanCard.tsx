@@ -160,7 +160,7 @@ export function PlanCard({
           {plan.milestone_count !== undefined && (
             <div className="flex items-center gap-1">
               <Target className="w-3 h-3" />
-              <span>{plan.milestone_count} milestones</span>
+              <span>{plan.milestone_count} checkpoints</span>
             </div>
           )}
           {plan.task_count !== undefined && (

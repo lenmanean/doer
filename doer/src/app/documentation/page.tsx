@@ -161,7 +161,7 @@ export default function DocumentationPage() {
                       <li>Sign up for a free account at <Link href="/auth/signup" className="text-orange-500 hover:underline">doer.ai/signup</Link></li>
                       <li>Enter your goal in natural language - anything from "Learn to play guitar" to "Run a marathon"</li>
                       <li>Answer a few clarification questions to help our AI understand your context</li>
-                      <li>Review and customize your AI-generated plan with milestones and tasks</li>
+                      <li>Review and customize your AI-generated plan with tasks and checkpoints</li>
                       <li>Start working on your tasks and track your progress in real-time</li>
                     </ol>
                   </div>
@@ -171,7 +171,7 @@ export default function DocumentationPage() {
                   <div className="space-y-4">
                     <p>
                       Creating a goal in DOER is simple. Just describe what you want to achieve in plain language. 
-                      Our AI will analyze your goal and generate a structured roadmap with milestones and tasks.
+                      Our AI will analyze your goal and generate a structured plan with tasks and checkpoints.
                     </p>
                     <Card>
                       <CardHeader>
@@ -187,10 +187,10 @@ export default function DocumentationPage() {
                   </div>
                 </DocumentationSection>
 
-                <DocumentationSection id="understanding-roadmaps" title="Understanding Roadmaps" level={2}>
+                <DocumentationSection id="understanding-plans" title="Understanding Plans" level={2}>
                   <div className="space-y-4">
                     <p>
-                      A roadmap is your personalized plan that breaks down your goal into achievable milestones and daily tasks. 
+                      A plan is your personalized strategy that breaks down your goal into achievable checkpoints and daily tasks. 
                       It's automatically generated based on your goal and timeframe, helping you stay on track every step of the way.
                     </p>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -198,12 +198,12 @@ export default function DocumentationPage() {
                         <CardHeader>
                           <CardTitle className="text-lg flex items-center gap-2">
                             <Target className="w-5 h-5 text-orange-500" />
-                            Milestones
+                            Checkpoints
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <p className="text-sm text-gray-600 dark:text-slate-400">
-                            Major checkpoints that structure your journey toward your final goal. Each milestone represents a significant achievement.
+                            Major checkpoints that structure your journey toward your final goal. Each checkpoint represents a significant achievement.
                           </p>
                         </CardContent>
                       </Card>
@@ -216,7 +216,7 @@ export default function DocumentationPage() {
                         </CardHeader>
                         <CardContent>
                           <p className="text-sm text-gray-600 dark:text-slate-400">
-                            Actionable items that lead to milestone completion. Each task is scheduled on your calendar with estimated duration.
+                            Actionable items that lead to checkpoint completion. Each task is scheduled on your calendar with estimated duration.
                           </p>
                         </CardContent>
                       </Card>
@@ -230,7 +230,7 @@ export default function DocumentationPage() {
                     <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-slate-300">
                       <li><strong>Dashboard:</strong> View your current goal, progress, and upcoming tasks</li>
                       <li><strong>Schedule:</strong> See your tasks organized by day and time</li>
-                      <li><strong>Roadmap:</strong> Visual timeline showing your milestones and progress</li>
+                      <li><strong>Plan:</strong> Visual timeline showing your checkpoints and progress</li>
                       <li><strong>Settings:</strong> Configure your preferences, integrations, and account settings</li>
                     </ul>
                   </div>
@@ -270,7 +270,7 @@ export default function DocumentationPage() {
                         <div>
                           <h4 className="font-semibold mb-1">3. Plan Generation</h4>
                           <p className="text-sm text-gray-600 dark:text-slate-400">
-                            The AI creates a structured plan with milestones, tasks, dependencies, and timelines.
+                            The AI creates a structured plan with tasks, checkpoints, dependencies, and timelines.
                           </p>
                         </div>
                       </CardContent>
@@ -326,7 +326,7 @@ export default function DocumentationPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-sm">Milestone completion tracking</span>
+                          <span className="text-sm">Checkpoint completion tracking</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
@@ -590,7 +590,7 @@ fetch('https://api.doer.ai/v1/plans/{goalId}/generate', {
                         method: 'POST',
                         path: '/plans/{goalId}/generate',
                         summary: 'Generate a plan draft for a goal',
-                        description: 'Creates a structured plan with milestones and tasks based on goal requirements',
+                        description: 'Creates a structured plan with tasks and checkpoints based on goal requirements',
                         example: {
                           request: JSON.stringify({
                             goal_text: "Run a marathon",
@@ -599,8 +599,8 @@ fetch('https://api.doer.ai/v1/plans/{goalId}/generate', {
                             budget_cents: 15000,
                             answers: {},
                             constraints: {
-                              max_milestones: 6,
-                              min_tasks_per_milestone: 2,
+                              max_checkpoints: 6,
+                              min_tasks_per_checkpoint: 2,
                               max_total_tasks: 40
                             }
                           }, null, 2)

@@ -409,7 +409,7 @@ export function SwitchPlanModal({
             }
           } else {
             // Regular plan
-            return `Are you sure you want to delete "${planToDelete?.summary_data?.goal_title || planToDelete?.goal_text}"? This will permanently remove all tasks, milestones, and progress data for this plan.`
+            return `Are you sure you want to delete "${planToDelete?.summary_data?.goal_title || planToDelete?.goal_text}"? This will permanently remove all tasks, checkpoints, and progress data for this plan.`
           }
         })()}
         confirmText="Delete Plan"

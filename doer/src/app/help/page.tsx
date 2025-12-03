@@ -32,20 +32,20 @@ const faqs: FAQ[] = [
   {
     id: '2',
     category: 'Getting Started',
-    question: 'What is a roadmap?',
-    answer: 'A roadmap is your personalized plan that breaks down your goal into achievable milestones and daily tasks. It\'s automatically generated based on your goal and timeframe, helping you stay on track every step of the way.'
+    question: 'What is a plan?',
+    answer: 'A plan is your personalized strategy that breaks down your goal into achievable checkpoints and daily tasks. It\'s automatically generated based on your goal and timeframe, helping you stay on track every step of the way.'
   },
   {
     id: '3',
-    category: 'Tasks & Milestones',
+    category: 'Tasks & Checkpoints',
     question: 'How do I complete a task?',
-    answer: 'Simply click on any task in your dashboard or roadmap to mark it as complete. Completed tasks will show a green checkmark and contribute to your overall progress and health score.'
+    answer: 'Simply click on any task in your dashboard or plan to mark it as complete. Completed tasks will show a green checkmark and contribute to your overall progress and health score.'
   },
   {
     id: '4',
-    category: 'Tasks & Milestones',
-    question: 'What happens when I complete a milestone?',
-    answer: 'Completing a milestone is a significant achievement! Your progress bar will update, your health score may improve, and you\'ll see visual feedback celebrating your accomplishment. Milestones help structure your journey toward your final goal.'
+    category: 'Tasks & Checkpoints',
+    question: 'What happens when I complete a checkpoint?',
+    answer: 'Completing a checkpoint is a significant achievement! Your progress bar will update, your health score may improve, and you\'ll see visual feedback celebrating your accomplishment. Checkpoints help structure your journey toward your final goal.'
   },
   {
     id: '5',

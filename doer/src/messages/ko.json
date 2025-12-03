@@ -117,7 +117,7 @@
     "aboutUs": "회사 소개",
     "affiliateProgram": "제휴 프로그램",
     "careers": "채용",
-    "roadmap": "로드맵",
+    "roadmap": "계획",
     "featureRequest": "기능 요청",
     "docsAndFAQs": "문서 및 FAQ",
     "privacyPolicy": "개인정보 보호정책",
@@ -293,11 +293,11 @@
           },
           "firstGoal": {
             "title": "Creating Your First Goal",
-            "description": "Learn how to create your first goal and generate a roadmap"
+            "description": "Learn how to create your first goal and generate a plan"
           },
           "understandingRoadmaps": {
-            "title": "Understanding Roadmaps",
-            "description": "Learn what roadmaps are and how they help you achieve goals"
+            "title": "Understanding Plans",
+            "description": "Learn what plans are and how they help you achieve goals"
           },
           "navigation": {
             "title": "Navigation Basics",

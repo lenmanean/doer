@@ -22,7 +22,7 @@
   },
   "hero": {
     "headline": "Turn Your Goals Into Reality",
-    "subheadline": "Tell DOER your goal, and watch it transform into a structured plan complete with milestones, tasks, and a personalized timeline.",
+    "subheadline": "Tell DOER your goal, and watch it transform into a structured plan complete with checkpoints, tasks, and a personalized timeline.",
     "placeholder": "e.g., Learn to play guitar, Start a blog, Get in shape...",
     "inputSuggestions": "Not sure where to start? Try one of these:",
     "suggestion1": "Learn how to cook Tikka Masala",
@@ -35,15 +35,15 @@
     "step2": "Customize your plan",
     "step3": "Execute and track",
     "step1Title": "Describe your goal or specific challenge.",
-    "step1Description": "Tell DOER what you want to achieve, and we'll transform it into a structured plan with milestones, tasks, and a personalized timeline.",
+    "step1Description": "Tell DOER what you want to achieve, and we'll transform it into a structured plan with checkpoints, tasks, and a personalized timeline.",
     "step2Title": "Preview and refine your AI-generated plan.",
-    "step2Description": "Review your personalized roadmap, adjust milestones, and customize your plan to match your preferences.",
+    "step2Description": "Review your personalized plan, adjust checkpoints, and customize your plan to match your preferences.",
     "step3Title": "Launch your customized plan and track your progress.",
     "step3Description": "Activate your plan, monitor progress in real-time, and work together with others to accomplish your goals."
   },
   "features": {
     "title": "Getting started with DOER",
-    "description": "Transform your goals into actionable plans with AI-powered planning, milestone tracking, and seamless integrations."
+    "description": "Transform your goals into actionable plans with AI-powered planning, progress tracking, and seamless integrations."
   },
   "integrations": {
     "title": "Integrations",
@@ -52,13 +52,13 @@
     "cards": {
       "appleCalendar": "DOER reads every Apple Calendar commitment so the AI scheduler can tuck its plan around existing life blocks, while sending AI-generated events back to keep the calendar canonical.",
       "outlook": "Outlook meetings flow into DOER so the scheduler carves focused work sprints before each call and pushes any AI-rescheduled slots right back into your inbox-driven agenda.",
-      "googleCalendar": "Google Calendar is kept in lockstep with the AI planner—DOER mirrors milestones as events, keeps shared links updated, and leans on the calendar feed when juggling availability across teams.",
+        "googleCalendar": "Google Calendar is kept in lockstep with the AI planner—DOER mirrors checkpoints as events, keeps shared links updated, and leans on the calendar feed when juggling availability across teams.",
       "todoist": "DOER drafts tasks into Todoist complete with priorities and due dates, and when Auto-Scheduling reshuffles a session the list is updated so checklists reflect the latest AI thinking.",
-      "asana": "Map AI plan milestones into Asana projects so DOER can align its auto-scheduler with project timelines and let collaborators see which AI-scheduled task unlocks the next sprint.",
+        "asana": "Map AI plan checkpoints into Asana projects so DOER can align its auto-scheduler with project timelines and let collaborators see which AI-scheduled task unlocks the next sprint.",
       "trello": "Every task DOER generates becomes a Trello card with the estimated effort and scheduled day attached, keeping the Kanban board honest while the planner reorders work as priorities shift.",
       "notion": "Notion pages become the single source of truth for plan context—DOER uses embedded notes as prompts for new task generations and references them whenever it re-optimizes the AI schedule.",
       "evernote": "Evernote reminders turn into DOER tasks that respect your personal rhythm; the AI scheduler uses those reminders as guardrails when moving work around your day.",
-      "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a milestone.",
+        "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a checkpoint.",
       "microsoftTeams": "Meetings, rooms, and notes from Teams feed the AI scheduler, so DOER balances focus blocks with calls and posts summary cards to the right channels when plans evolve.",
       "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update.",
       "appleHealth": "Apple Health signals (sleep, heart rate, activity) teach the scheduler when to back off demanding tasks or when to drop in extra stretch goals, keeping DOER’s rhythm in sync with your energy.",
@@ -109,7 +109,7 @@
     "button": "Get Started"
   },
   "footer": {
-    "description": "DOER is the AI-powered platform that transforms your goals into structured, actionable plans. Using natural language, DOER enables anyone to turn their ambitions into personalized roadmaps with milestones, tasks, and smart scheduling.",
+    "description": "DOER is the AI-powered platform that transforms your goals into structured, actionable plans. Using natural language, DOER enables anyone to turn their ambitions into personalized plans with checkpoints, tasks, and smart scheduling.",
     "company": "COMPANY",
     "product": "PRODUCT",
     "resources": "RESOURCES",
@@ -117,7 +117,7 @@
     "aboutUs": "About Us",
     "affiliateProgram": "Affiliate Program",
     "careers": "Careers",
-    "roadmap": "Roadmap",
+    "roadmap": "Plan",
     "featureRequest": "Feature Request",
     "docsAndFAQs": "Docs & FAQs",
     "privacyPolicy": "Privacy Policy",
@@ -135,13 +135,13 @@
       "cards": {
         "appleCalendar": "DOER reads every Apple Calendar commitment so the AI scheduler can tuck its plan around existing life blocks, while sending AI-generated events back to keep the calendar canonical.",
         "outlook": "Outlook meetings flow into DOER so the scheduler carves focused work sprints before each call and pushes any AI-rescheduled slots right back into your inbox-driven agenda.",
-        "googleCalendar": "Google Calendar is kept in lockstep with the AI planner—DOER mirrors milestones as events, keeps shared links updated, and leans on the calendar feed when juggling availability across teams.",
+        "googleCalendar": "Google Calendar is kept in lockstep with the AI planner—DOER mirrors checkpoints as events, keeps shared links updated, and leans on the calendar feed when juggling availability across teams.",
         "todoist": "DOER drafts tasks into Todoist complete with priorities and due dates, and when Auto-Scheduling reshuffles a session the list is updated so checklists reflect the latest AI thinking.",
-        "asana": "Map AI plan milestones into Asana projects so DOER can align its auto-scheduler with project timelines and let collaborators see which AI-scheduled task unlocks the next sprint.",
+        "asana": "Map AI plan checkpoints into Asana projects so DOER can align its auto-scheduler with project timelines and let collaborators see which AI-scheduled task unlocks the next sprint.",
         "trello": "Every task DOER generates becomes a Trello card with the estimated effort and scheduled day attached, keeping the Kanban board honest while the planner reorders work as priorities shift.",
         "notion": "Notion pages become the single source of truth for plan context—DOER uses embedded notes as prompts for new task generations and references them whenever it re-optimizes the AI schedule.",
         "evernote": "Evernote reminders turn into DOER tasks that respect your personal rhythm; the AI scheduler uses those reminders as guardrails when moving work around your day.",
-        "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a milestone.",
+        "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a checkpoint.",
         "microsoftTeams": "Meetings, rooms, and notes from Teams feed the AI scheduler, so DOER balances focus blocks with calls and posts summary cards to the right channels when plans evolve.",
         "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update.",
         "appleHealth": "Apple Health signals (sleep, heart rate, activity) teach the scheduler when to back off demanding tasks or when to drop in extra stretch goals, keeping DOER’s rhythm in sync with your energy.",
@@ -158,8 +158,8 @@
       "sections": {
         "aiPlan": {
           "title": "AI Plan Generator",
-          "description": "Turn any goal or initiative into an actionable roadmap in seconds. DOER analyzes intent, breaks work into milestones, and estimates the effort required so teams can hit the ground running.",
-          "videoPrompt": "Embed Loom walkthrough: typing a goal and reviewing the generated milestone plan."
+          "description": "Turn any goal or initiative into an actionable plan in seconds. DOER analyzes intent, breaks work into checkpoints, and estimates the effort required so teams can hit the ground running.",
+          "videoPrompt": "Embed Loom walkthrough: typing a goal and reviewing the generated plan."
         },
         "smartScheduling": {
           "title": "Smart Scheduling & Reshuffling",
@@ -293,11 +293,11 @@
           },
           "firstGoal": {
             "title": "Creating Your First Goal",
-            "description": "Learn how to create your first goal and generate a roadmap"
+            "description": "Learn how to create your first goal and generate a plan"
           },
           "understandingRoadmaps": {
-            "title": "Understanding Roadmaps",
-            "description": "Learn what roadmaps are and how they help you achieve goals"
+            "title": "Understanding Plans",
+            "description": "Learn what plans are and how they help you achieve goals"
           },
           "navigation": {
             "title": "Navigation Basics",
@@ -308,7 +308,7 @@
           "title": "Core Features",
           "aiPlanning": {
             "title": "AI Plan Generation",
-            "description": "How DOER transforms goals into structured roadmaps"
+            "description": "How DOER transforms goals into structured plans"
           },
           "scheduling": {
             "title": "Smart Scheduling",

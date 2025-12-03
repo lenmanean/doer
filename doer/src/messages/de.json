@@ -35,9 +35,9 @@
     "step2": "Passen Sie Ihren Plan an",
     "step3": "Ausführen und verfolgen",
     "step1Title": "Beschreiben Sie Ihr Ziel oder Ihre spezifische Herausforderung.",
-    "step1Description": "Sagen Sie DOER, was Sie erreichen möchten, und wir verwandeln es in einen strukturierten Plan mit Meilensteinen, Aufgaben und einem personalisierten Zeitplan.",
+    "step1Description": "Sagen Sie DOER, was Sie erreichen möchten, und wir verwandeln es in einen strukturierten Plan mit Checkpoints, Aufgaben und einem personalisierten Zeitplan.",
     "step2Title": "Vorschau und Verfeinerung Ihres KI-generierten Plans.",
-    "step2Description": "Überprüfen Sie Ihre personalisierte Roadmap, passen Sie Meilensteine an und personalisieren Sie Ihren Plan nach Ihren Vorlieben.",
+    "step2Description": "Überprüfen Sie Ihren personalisierten Plan, passen Sie Checkpoints an und personalisieren Sie Ihren Plan nach Ihren Vorlieben.",
     "step3Title": "Starten Sie Ihren angepassten Plan und verfolgen Sie Ihren Fortschritt.",
     "step3Description": "Aktivieren Sie Ihren Plan, überwachen Sie den Fortschritt in Echtzeit und arbeiten Sie mit anderen zusammen, um Ihre Ziele zu erreichen."
   },
@@ -109,7 +109,7 @@
     "seeAllPlans": "Preisdetails anzeigen"
   },
   "footer": {
-    "description": "Doer ist die KI-gestützte Plattform, die Ihre Ziele in strukturierte, umsetzbare Pläne verwandelt. Mit natürlicher Sprache ermöglicht Doer jedem, seine Ambitionen in personalisierte Roadmaps mit Meilensteinen, Aufgaben und intelligentem Scheduling umzuwandeln.",
+    "description": "Doer ist die KI-gestützte Plattform, die Ihre Ziele in strukturierte, umsetzbare Pläne verwandelt. Mit natürlicher Sprache ermöglicht Doer jedem, seine Ambitionen in personalisierte Pläne mit Checkpoints, Aufgaben und intelligentem Scheduling umzuwandeln.",
     "company": "UNTERNEHMEN",
     "product": "PRODUKT",
     "resources": "RESSOURCEN",
@@ -117,7 +117,7 @@
     "aboutUs": "Über uns",
     "affiliateProgram": "Partnerprogramm",
     "careers": "Karriere",
-    "roadmap": "Roadmap",
+    "roadmap": "Plan",
     "featureRequest": "Funktionsanfrage",
     "docsAndFAQs": "Dokumentation & FAQs",
     "privacyPolicy": "Datenschutzerklärung",
@@ -293,11 +293,11 @@
           },
           "firstGoal": {
             "title": "Creating Your First Goal",
-            "description": "Learn how to create your first goal and generate a roadmap"
+            "description": "Learn how to create your first goal and generate a plan"
           },
           "understandingRoadmaps": {
-            "title": "Understanding Roadmaps",
-            "description": "Learn what roadmaps are and how they help you achieve goals"
+            "title": "Understanding Plans",
+            "description": "Learn what plans are and how they help you achieve goals"
           },
           "navigation": {
             "title": "Navigation Basics",

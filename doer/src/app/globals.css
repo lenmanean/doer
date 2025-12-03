@@ -180,21 +180,21 @@
   background: linear-gradient(to bottom right, #ff7f00, #9333ea) !important;
 }
 
-/* Roadmap timeline nodes fix for light theme */
+/* Plan timeline nodes fix for light theme */
 .light-theme [class*="bg-[#1a1a1a]"] {
   background-color: #f1f5f9 !important;
   border-color: #e2e8f0 !important;
   color: #64748b !important;
 }
 
-/* Roadmap milestone tooltip fix for light theme */
+/* Plan checkpoint tooltip fix for light theme */
 .light-theme .bg-black\/90 {
   background-color: rgba(255, 255, 255, 0.95) !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
-/* Roadmap tooltip text colors in light theme */
+/* Plan tooltip text colors in light theme */
 .light-theme .bg-black\/90 .text-[#d7d2cb] {
   color: #0f172a !important;
 }
@@ -203,19 +203,19 @@
   color: #64748b !important;
 }
 
-/* Additional roadmap timeline fixes for light theme */
+/* Additional plan timeline fixes for light theme */
 .light-theme [class*="bg-\\[\\#1a1a1a\\]"] {
   background-color: #f1f5f9 !important;
   border-color: #e2e8f0 !important;
   color: #64748b !important;
 }
 
-/* Fix roadmap timeline text colors in light theme */
+/* Fix plan timeline text colors in light theme */
 .light-theme [class*="text-\\[\\#d7d2cb\\]\\/60"] {
   color: #64748b !important;
 }
 
-/* Fix roadmap milestone popup panel styling */
+/* Fix plan checkpoint popup panel styling */
 .light-theme .bg-black\/90,
 .light-theme [class*="bg-black\\/90"] {
   background-color: rgba(255, 255, 255, 0.95) !important;
@@ -223,7 +223,7 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* Fix roadmap timeline connecting lines in light mode */
+/* Fix plan timeline connecting lines in light mode */
 .light-theme .bg-white\/20 {
   background-color: #e2e8f0 !important;
 }

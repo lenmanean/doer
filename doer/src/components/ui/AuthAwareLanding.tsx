@@ -166,7 +166,7 @@ export default function AuthAwareLanding() {
     {
       icon: Brain,
       title: "AI-Powered Planning",
-      description: "Transform any goal into a structured, actionable roadmap with intelligent milestone generation and task breakdown."
+      description: "Transform any goal into a structured, actionable plan with intelligent goal breakdown and task organization."
     },
     {
       icon: Calendar,
@@ -427,7 +427,7 @@ export default function AuthAwareLanding() {
                 {' '}Into Reality
               </h1>
               <p className="text-2xl md:text-3xl text-[#d7d2cb]/80 mb-10 leading-relaxed max-w-3xl mx-auto">
-                AI-powered roadmap generation that transforms your written goals into structured, 
+                AI-powered plan generation that transforms your written goals into structured, 
                 actionable plans you can actually follow.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -461,7 +461,7 @@ export default function AuthAwareLanding() {
               <div className="mt-12 mb-8">
                 <p className="text-[#d7d2cb]/60 text-sm mb-4">Not sure where to start? Try one of these:</p>
                 <div className="flex flex-wrap justify-center gap-3">
-                  {['Fitness Plan', 'Learning Roadmap', 'Career Goals', 'Project Timeline', 'Habit Tracker'].map((template, idx) => (
+                  {['Fitness Plan', 'Learning Plan', 'Career Goals', 'Project Timeline', 'Habit Tracker'].map((template, idx) => (
                     <button
                       key={idx}
                       className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-all"
@@ -598,14 +598,14 @@ export default function AuthAwareLanding() {
               },
               {
                 step: "02", 
-                title: "AI Generates Your Roadmap",
-                description: "Our AI analyzes your goal and creates a structured plan with milestones, tasks, and realistic timelines.",
+                title: "AI Generates Your Plan",
+                description: "Our AI analyzes your goal and creates a structured plan with tasks, checkpoints, and realistic timelines.",
                 icon: Brain
               },
               {
                 step: "03",
                 title: "Execute & Track Progress",
-                description: "Follow your personalized roadmap with visual progress tracking and intelligent insights along the way.",
+                description: "Follow your personalized plan with visual progress tracking and intelligent insights along the way.",
                 icon: Rocket
               }
             ].map((step, index) => (
@@ -688,8 +688,8 @@ export default function AuthAwareLanding() {
             </h2>
             <p className="text-2xl text-[#d7d2cb]/80 mb-12 leading-relaxed max-w-3xl mx-auto">
               DOER.AI is the AI-powered platform that lets users build fully functioning goal plans in minutes. 
-              Using nothing but natural language, DOER.AI enables anyone to turn their words into structured roadmaps, 
-              actionable plans, or complete achievement strategies that are ready to use.
+              Using nothing but natural language, DOER.AI enables anyone to turn their words into structured plans, 
+              actionable strategies, or complete achievement plans that are ready to use.
             </p>
             <div className="flex justify-center">
               {user ? (

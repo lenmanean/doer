@@ -117,7 +117,7 @@
     "aboutUs": "Acerca de nosotros",
     "affiliateProgram": "Programa de afiliados",
     "careers": "Carreras",
-    "roadmap": "Hoja de ruta",
+    "roadmap": "Plan",
     "featureRequest": "Solicitud de función",
     "docsAndFAQs": "Documentación y preguntas frecuentes",
     "privacyPolicy": "Política de privacidad",
@@ -293,11 +293,11 @@
           },
           "firstGoal": {
             "title": "Creating Your First Goal",
-            "description": "Learn how to create your first goal and generate a roadmap"
+            "description": "Learn how to create your first goal and generate a plan"
           },
           "understandingRoadmaps": {
-            "title": "Understanding Roadmaps",
-            "description": "Learn what roadmaps are and how they help you achieve goals"
+            "title": "Understanding Plans",
+            "description": "Learn what plans are and how they help you achieve goals"
           },
           "navigation": {
             "title": "Navigation Basics",
