@@ -1099,6 +1099,10 @@ export function CreateTaskModal({
           const endDate = new Date(startDate)
           endDate.setDate(endDate.getDate() + 1)
 
+          // Recalculate minutes for cross-day task handling
+          const startMinutes = parseTimeToMinutes(taskData.startTime)
+          const endMinutes = parseTimeToMinutes(taskData.endTime)
+          
           const startDayDuration = (24 * 60) - startMinutes
           const endDayDuration = endMinutes
 
