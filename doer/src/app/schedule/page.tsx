@@ -967,9 +967,9 @@ function ScheduleContent() {
         console.log('Task marked as incomplete:', { taskId: task.task_id, deleted: data })
       } else {
         // Mark as complete: insert a completion record
-        // Note: task_completions.plan_id is NOT NULL in schema
-        // For free-mode tasks, we need to get the plan_id from the task itself
-        // If task.plan_id is null, we might need to check the task_schedule table
+        // Note: task_completions.plan_id is now nullable (allows free-mode tasks)
+        // For free-mode tasks, plan_id can be null
+        // For plan-based tasks, we'll use the plan_id from the task
         let finalPlanId = planId
         
         // If plan_id is null, try to get it from task_schedule
