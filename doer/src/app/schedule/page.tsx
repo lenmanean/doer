@@ -923,72 +923,112 @@ function ScheduleContent() {
   }, [])
 
   const handleTaskComplete = useCallback(async (task: any) => {
-    if (!userId || !task.date) return
+    if (!userId || !task.date) {
+      console.warn('Cannot complete task: missing userId or task.date', { userId, taskDate: task.date })
+      return
+    }
 
     try {
       const isCurrentlyCompleted = task.completed
       const planId = task.plan_id || null
+      const scheduledDate = task.date // This should be in YYYY-MM-DD format
+      
+      console.log('Handling task completion:', {
+        taskId: task.task_id,
+        scheduledDate,
+        planId,
+        isCurrentlyCompleted,
+        taskDate: task.date
+      })
       
       if (isCurrentlyCompleted) {
         // Mark as incomplete: delete the completion record
-        const deleteQuery = supabase
+        let deleteQuery = supabase
           .from('task_completions')
           .delete()
           .eq('user_id', userId)
           .eq('task_id', task.task_id)
-          .eq('scheduled_date', task.date)
+          .eq('scheduled_date', scheduledDate)
         
         // Handle plan_id matching (both NULL for free-mode, or both equal)
         if (planId === null) {
-          deleteQuery.is('plan_id', null)
+          deleteQuery = deleteQuery.is('plan_id', null)
         } else {
-          deleteQuery.eq('plan_id', planId)
+          deleteQuery = deleteQuery.eq('plan_id', planId)
         }
         
-        const { error } = await deleteQuery
+        const { error, data } = await deleteQuery
         
         if (error) {
           console.error('Error removing task completion:', error)
           return
         }
+        
+        console.log('Task marked as incomplete:', { taskId: task.task_id, deleted: data })
       } else {
         // Mark as complete: insert a completion record
-        // Note: task_completions.plan_id is NOT NULL in schema, but we handle free-mode with NULL
-        // For free-mode tasks (plan_id is null), we may need to check if there's a migration allowing NULL
-        // If not, we'll need to handle this differently
-        const insertData: any = {
+        // Note: task_completions.plan_id is NOT NULL in schema
+        // For free-mode tasks, we need to get the plan_id from the task itself
+        // If task.plan_id is null, we might need to check the task_schedule table
+        let finalPlanId = planId
+        
+        // If plan_id is null, try to get it from task_schedule
+        if (finalPlanId === null) {
+          const { data: scheduleData } = await supabase
+            .from('task_schedule')
+            .select('plan_id')
+            .eq('id', task.schedule_id)
+            .eq('user_id', userId)
+            .maybeSingle()
+          
+          if (scheduleData?.plan_id) {
+            finalPlanId = scheduleData.plan_id
+          }
+        }
+        
+        // If still null, we can't create a completion (schema requires plan_id)
+        // This should not happen in normal operation, but handle gracefully
+        if (finalPlanId === null) {
+          console.error('Cannot mark free-mode task as complete: plan_id is required in task_completions table')
+          // For now, we'll skip free-mode task completions that don't have a plan_id
+          // This is a limitation of the current schema
+          return
+        }
+        
+        const insertData = {
           user_id: userId,
           task_id: task.task_id,
-          scheduled_date: task.date,
+          plan_id: finalPlanId,
+          scheduled_date: scheduledDate,
           completed_at: new Date().toISOString()
         }
         
-        // Only add plan_id if it's not null (schema may require it)
-        // If schema allows NULL, add it; if not, we'll need to handle free-mode differently
-        if (planId !== null) {
-          insertData.plan_id = planId
-        }
-        
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('task_completions')
           .insert(insertData)
         
         if (error) {
           console.error('Error inserting task completion:', error)
-          // If error is due to plan_id being required, try with a default or handle differently
-          if (error.message?.includes('plan_id') && planId === null) {
-            console.warn('Free-mode task completion: plan_id may be required in schema')
+          // Check if it's a duplicate key error (task already completed)
+          if (error.code === '23505') {
+            console.log('Task already marked as complete (duplicate key), continuing...')
+          } else {
+            return
           }
-          return
+        } else {
+          console.log('Task marked as complete:', { taskId: task.task_id, inserted: data })
         }
       }
 
       // Refresh the task list after completion update
-      refetch()
+      // Use a small delay to ensure database transaction completes
+      setTimeout(() => {
+        refetch()
+      }, 100)
     } catch (error) {
       console.error('Error updating task completion:', error)
     }
-  }, [userId, refetch])
+  }, [userId, refetch, supabase])
 
   const handleTaskDelete = useCallback(async (task: any) => {
     if (!userId) return
@@ -2049,6 +2089,12 @@ function ScheduleContent() {
               onSave={handleSaveTaskTime}
               onDelete={handleTaskDelete}
               theme={theme}
+              onRescheduleComplete={async () => {
+                // Refetch pending reschedules so the modal appears
+                await refetchPending()
+                // Also refetch tasks to update status
+                refetch()
+              }}
             />
 
             {/* Create Task Modal */}
@@ -2167,7 +2213,45 @@ function ScheduleContent() {
                   
                   // Mark each task as complete
                   for (const proposal of proposalsToComplete) {
-                    const planId = proposal.plan_id || null
+                    let planId = proposal.plan_id || null
+                    const scheduledDate = proposal.original_date // Use original_date as scheduled_date
+                    
+                    // If plan_id is null, try to get it from task_schedule or tasks table
+                    if (planId === null) {
+                      // Try to get plan_id from task_schedule
+                      const { data: scheduleData } = await supabase
+                        .from('task_schedule')
+                        .select('plan_id')
+                        .eq('task_id', proposal.task_id)
+                        .eq('date', scheduledDate)
+                        .eq('user_id', userId)
+                        .maybeSingle()
+                      
+                      if (scheduleData?.plan_id) {
+                        planId = scheduleData.plan_id
+                      } else {
+                        // Try to get plan_id from tasks table
+                        const { data: taskData } = await supabase
+                          .from('tasks')
+                          .select('plan_id')
+                          .eq('id', proposal.task_id)
+                          .eq('user_id', userId)
+                          .maybeSingle()
+                        
+                        if (taskData?.plan_id) {
+                          planId = taskData.plan_id
+                        }
+                      }
+                    }
+                    
+                    // If still null, we can't create a completion (schema requires plan_id)
+                    if (planId === null) {
+                      console.error('Cannot mark free-mode task as complete: plan_id is required in task_completions table', {
+                        taskId: proposal.task_id,
+                        scheduledDate
+                      })
+                      continue
+                    }
                     
                     // Check if task is already completed to avoid duplicate inserts
                     const { data: existingCompletion } = await supabase
@@ -2175,7 +2259,8 @@ function ScheduleContent() {
                       .select('id')
                       .eq('user_id', userId)
                       .eq('task_id', proposal.task_id)
-                      .eq('scheduled_date', proposal.original_date)
+                      .eq('scheduled_date', scheduledDate)
+                      .eq('plan_id', planId)
                       .maybeSingle()
                     
                     // Skip if already completed
@@ -2184,16 +2269,12 @@ function ScheduleContent() {
                       continue
                     }
                     
-                    const insertData: any = {
+                    const insertData = {
                       user_id: userId,
                       task_id: proposal.task_id,
-                      scheduled_date: proposal.original_date,
+                      plan_id: planId,
+                      scheduled_date: scheduledDate,
                       completed_at: new Date().toISOString()
-                    }
-                    
-                    // Only add plan_id if it's not null
-                    if (planId !== null) {
-                      insertData.plan_id = planId
                     }
                     
                     const { error: completionError } = await supabase
@@ -2210,6 +2291,12 @@ function ScheduleContent() {
                       // For other errors, log and continue with other tasks
                       continue
                     }
+                    
+                    console.log('Task marked as complete from reschedule modal:', {
+                      taskId: proposal.task_id,
+                      scheduledDate,
+                      planId
+                    })
                   }
 
                   // Reject the reschedule proposals since tasks are complete

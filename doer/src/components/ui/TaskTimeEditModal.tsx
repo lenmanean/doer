@@ -6,6 +6,7 @@ import { X, Clock, AlertCircle, Trash2, Edit3, Check, X as XIcon, RefreshCw, Cal
 import { calculateDuration, isValidTimeFormat, formatDuration } from '@/lib/task-time-utils'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { TimePicker } from './TimePicker'
+import { supabase } from '@/lib/supabase/client'
 
 const getPriorityLabel = (priority?: number | null) => {
   switch (priority) {
@@ -74,9 +75,10 @@ interface TaskTimeEditModalProps {
   onSave: (scheduleId: string, startTime: string, endTime: string, recurrenceData?: { isRecurring: boolean; isIndefinite: boolean; recurrenceDays: number[]; recurrenceStartDate?: string; recurrenceEndDate?: string }) => Promise<{ success: boolean; error?: string }>
   onDelete: (task: any) => Promise<void>
   theme: 'dark' | 'light'
+  onRescheduleComplete?: () => void
 }
 
-export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, theme }: TaskTimeEditModalProps) {
+export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, theme, onRescheduleComplete }: TaskTimeEditModalProps) {
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -94,6 +96,7 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
   const [isEditingDescription, setIsEditingDescription] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [editedDescription, setEditedDescription] = useState('')
+  const [editedPriority, setEditedPriority] = useState<number | null>(null)
   const [isRescheduling, setIsRescheduling] = useState(false)
 
   // Initialize times when task changes
@@ -127,6 +130,7 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
       // Initialize edit state
       setEditedName(task.name || '')
       setEditedDescription(task.details || '')
+      setEditedPriority(task.priority ?? null)
       setIsEditingName(false)
       setIsEditingDescription(false)
     }
@@ -152,10 +156,33 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
     setIsEditingName(true)
   }
 
-  const handleNameSave = () => {
-    setIsEditingName(false)
-    // Here you would typically save the name to the backend
-    // For now, we'll just update the local state
+  const handleNameSave = async () => {
+    if (!task || !editedName.trim()) {
+      setError('Task name cannot be empty')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ name: editedName.trim() })
+        .eq('id', task.task_id)
+
+      if (error) {
+        console.error('Error updating task name:', error)
+        setError('Failed to save task name')
+        return
+      }
+
+      setIsEditingName(false)
+      // Update local task name for immediate UI feedback
+      if (task) {
+        task.name = editedName.trim()
+      }
+    } catch (error) {
+      console.error('Error saving task name:', error)
+      setError('Failed to save task name')
+    }
   }
 
   const handleNameCancel = () => {
@@ -168,10 +195,30 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
     setIsEditingDescription(true)
   }
 
-  const handleDescriptionSave = () => {
-    setIsEditingDescription(false)
-    // Here you would typically save the description to the backend
-    // For now, we'll just update the local state
+  const handleDescriptionSave = async () => {
+    if (!task) return
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ details: editedDescription.trim() || null })
+        .eq('id', task.task_id)
+
+      if (error) {
+        console.error('Error updating task description:', error)
+        setError('Failed to save task description')
+        return
+      }
+
+      setIsEditingDescription(false)
+      // Update local task details for immediate UI feedback
+      if (task) {
+        task.details = editedDescription.trim() || undefined
+      }
+    } catch (error) {
+      console.error('Error saving task description:', error)
+      setError('Failed to save task description')
+    }
   }
 
   const handleDescriptionCancel = () => {
@@ -209,6 +256,46 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
 
     setSaving(true)
     setError(null)
+
+    // Save name and description if they were edited
+    try {
+      const updateData: any = {}
+      
+      // Update name if it changed
+      if (editedName.trim() !== (task.name || '')) {
+        updateData.name = editedName.trim()
+      }
+      
+      // Update description if it changed
+      if (editedDescription.trim() !== (task.details || '')) {
+        updateData.details = editedDescription.trim() || null
+      }
+      
+      // Update priority if it changed
+      if (editedPriority !== (task.priority ?? null)) {
+        updateData.priority = editedPriority
+      }
+      
+      // Save name/description/priority if there are changes
+      if (Object.keys(updateData).length > 0) {
+        const { error: taskError } = await supabase
+          .from('tasks')
+          .update(updateData)
+          .eq('id', task.task_id)
+
+        if (taskError) {
+          console.error('Error updating task name/description/priority:', taskError)
+          setError('Failed to save task changes')
+          setSaving(false)
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Error saving task name/description/priority:', error)
+      setError('Failed to save task changes')
+      setSaving(false)
+      return
+    }
 
     const result = await onSave(task.schedule_id, startTime, endTime, isRecurring ? {
       isRecurring,
@@ -290,6 +377,13 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
     setError(null)
     
     try {
+      console.log('Triggering reschedule for task:', {
+        taskId: task.task_id,
+        planId: task.plan_id || null,
+        date: task.date,
+        status: task.status
+      })
+
       const response = await fetch('/api/tasks/reschedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -301,17 +395,33 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
 
       const data = await response.json()
 
+      console.log('Reschedule response:', data)
+
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to trigger reschedule')
+        const errorMessage = data.error || data.message || 'Failed to trigger reschedule'
+        throw new Error(errorMessage)
       }
 
-      if (data.success && data.results && data.results.length > 0) {
-        // Reschedule proposal created successfully
-        // The RescheduleApprovalModal will show up automatically
-        // Close this modal so the user can see the reschedule proposal
-        onClose()
+      if (data.success) {
+        if (data.results && data.results.length > 0) {
+          // Reschedule proposal created successfully
+          console.log('Reschedule proposal created:', data.results)
+          
+          // Call onRescheduleComplete if provided to trigger refetch of pending reschedules
+          if (onRescheduleComplete) {
+            onRescheduleComplete()
+          }
+          
+          // Close this modal so the user can see the reschedule proposal
+          // The RescheduleApprovalModal will show up automatically via the refetch
+          onClose()
+        } else {
+          // Success but no results - task might not be overdue or already has a proposal
+          setError(data.message || 'Task is not overdue or could not be rescheduled')
+        }
       } else {
-        setError('Task is not overdue or could not be rescheduled')
+        // API returned success: false
+        setError(data.message || 'Task is not overdue or could not be rescheduled')
       }
     } catch (error) {
       console.error('Error triggering reschedule:', error)
@@ -505,6 +615,33 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
                   )}
                 </div>
               </div>
+
+              {/* Priority Selector */}
+              {!isReadOnly && (
+                <div>
+                  <label htmlFor="priority-select" className={`text-sm font-medium block mb-2 ${
+                    theme === 'dark' ? 'text-[#d7d2cb]/80' : 'text-gray-700'
+                  }`}>
+                    Priority
+                  </label>
+                  <select
+                    id="priority-select"
+                    value={editedPriority ?? ''}
+                    onChange={(e) => setEditedPriority(e.target.value ? parseInt(e.target.value) : null)}
+                    className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ff7f00] ${
+                      theme === 'dark'
+                        ? 'bg-white/5 border-white/10 text-[#d7d2cb]'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    <option value="">No Priority</option>
+                    <option value="1">Critical</option>
+                    <option value="2">High</option>
+                    <option value="3">Medium</option>
+                    <option value="4">Low</option>
+                  </select>
+                </div>
+              )}
 
               {/* Calendar Event Read-Only Warning */}
               {isReadOnly && (

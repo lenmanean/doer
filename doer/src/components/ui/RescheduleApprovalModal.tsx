@@ -185,26 +185,6 @@ export function RescheduleApprovalModal({
                     transition={{ delay: index * 0.03 }}
                     className="border border-white/10 bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-colors"
                   >
-                    {onMarkComplete && (
-                      <button
-                        onClick={() => handleMarkComplete(proposal.id)}
-                        disabled={isProcessingThis || isProcessingAny}
-                        className="text-xs text-[#d7d2cb]/60 hover:text-green-400 transition-colors mb-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                      >
-                        {isProcessingThis && actionType === 'complete' ? (
-                          <>
-                            <div className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-                            <span>Marking complete...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>I already completed this</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-
                     <div className="flex items-center gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
@@ -253,6 +233,29 @@ export function RescheduleApprovalModal({
                             </span>
                           )}
                         </div>
+
+                        {/* "I already completed this" button - positioned above Accept/Reject buttons */}
+                        {onMarkComplete && (
+                          <div className="mt-3">
+                            <button
+                              onClick={() => handleMarkComplete(proposal.id)}
+                              disabled={isProcessingThis || isProcessingAny}
+                              className="text-xs text-[#d7d2cb]/60 hover:text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                            >
+                              {isProcessingThis && actionType === 'complete' ? (
+                                <>
+                                  <div className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                                  <span>Marking complete...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>I already completed this</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
