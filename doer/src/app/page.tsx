@@ -827,6 +827,17 @@ function StepCardContent({
   onToggle: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Handle video loading and playback when step is expanded
   useEffect(() => {
@@ -836,9 +847,17 @@ function StepCardContent({
         const timer = setTimeout(() => {
           if (videoRef.current) {
             videoRef.current.load()
-            videoRef.current.play().catch((error) => {
-              console.log('Video autoplay prevented:', error)
-            })
+            // On mobile, try to play but don't fail silently - user may need to interact
+            const playPromise = videoRef.current.play()
+            if (playPromise !== undefined) {
+              playPromise.catch((error) => {
+                console.log('Video autoplay prevented (may need user interaction on mobile):', error)
+                // On mobile, if autoplay fails, ensure video is at least loaded and visible
+                if (isMobile && videoRef.current) {
+                  videoRef.current.currentTime = 0
+                }
+              })
+            }
           }
         }, 300)
         return () => clearTimeout(timer)
@@ -849,7 +868,7 @@ function StepCardContent({
         }
       }
     }
-  }, [isExpanded, step.id])
+  }, [isExpanded, step.id, isMobile])
 
   return (
     <>
@@ -915,7 +934,7 @@ function StepCardContent({
                       
                       {/* Plan Preview - Video embedded for step 1 */}
                       {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center">
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             autoPlay
@@ -924,11 +943,33 @@ function StepCardContent({
                             playsInline
                             preload="auto"
                             className="w-full h-auto rounded-lg block mx-auto"
+                            style={{ 
+                              display: 'block',
+                              maxWidth: '100%',
+                              height: 'auto'
+                            }}
                             onError={(e) => {
                               console.error('Video loading error:', e)
                             }}
                             onLoadedData={() => {
                               console.log('Video loaded successfully')
+                              // Force play on mobile after load
+                              if (isMobile && videoRef.current) {
+                                videoRef.current.play().catch(() => {
+                                  // Silently fail - user may need to interact
+                                })
+                              }
+                            }}
+                            onLoadedMetadata={() => {
+                              // Ensure video is visible and ready on mobile
+                              if (videoRef.current) {
+                                videoRef.current.style.display = 'block'
+                                // Set webkit-playsinline for iOS Safari
+                                videoRef.current.setAttribute('webkit-playsinline', 'true')
+                                videoRef.current.setAttribute('playsinline', 'true')
+                                // Set x5-playsinline for Android/WeChat browsers
+                                videoRef.current.setAttribute('x5-playsinline', 'true')
+                              }
                             }}
                           >
                             <source src="/doer_tut1.mp4" type="video/mp4" />
