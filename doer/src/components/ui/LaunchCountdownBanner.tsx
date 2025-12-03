@@ -14,25 +14,18 @@ export function LaunchCountdownBanner() {
     seconds: 0
   })
 
-  // Check if banner was previously dismissed
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const dismissed = localStorage.getItem('launchBannerDismissed')
-      if (dismissed === 'true') {
-        setIsDismissed(true)
-      }
-    }
-  }, [])
+  // Banner always shows on load - removed localStorage persistence
+  // User can dismiss it for the current session only
 
-  // Calculate countdown to January 1st, 2025 12:00 AM PST
+  // Calculate countdown to January 1st, 2026 12:00 AM PST
   useEffect(() => {
     if (isDismissed || !IS_PRE_LAUNCH) return
 
     const calculateTimeRemaining = () => {
-      // January 1st, 2025 12:00 AM PST = January 1st, 2025 08:00 AM UTC
+      // January 1st, 2026 12:00 AM PST = January 1st, 2026 08:00 AM UTC
       // PST is UTC-8, but we need to account for DST
       // For January 1st, PST is in effect (not PDT), so UTC-8
-      const targetDate = new Date('2025-01-01T08:00:00Z') // UTC time
+      const targetDate = new Date('2026-01-01T08:00:00Z') // UTC time
       const now = new Date()
       const difference = targetDate.getTime() - now.getTime()
 
@@ -59,10 +52,8 @@ export function LaunchCountdownBanner() {
   }, [isDismissed])
 
   const handleDismiss = () => {
+    // Only dismiss for current session, don't persist to localStorage
     setIsDismissed(true)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('launchBannerDismissed', 'true')
-    }
   }
 
   const handleJoinWaitlist = () => {
