@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useToast } from '@/components/ui/Toast'
 import { PlanSelectionModal } from '@/components/ui/PlanSelectionModal'
+import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 import type { ReviewPlanData } from '@/lib/types/roadmap'
 
 export default function ReviewPage() {
@@ -285,27 +286,154 @@ export default function ReviewPage() {
     }
   }
 
-  const handleTaskSave = () => {
-    if (editingTask) {
-      setTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(t => 
-          t.id === editingTask.id ? { ...t, ...editingTask } : t
-        )
-        // Update sessionStorage with modified tasks
-        const planData = sessionStorage.getItem('generatedPlan')
-        if (planData) {
-          try {
-            const parsed = JSON.parse(planData)
-            parsed.tasks = updatedTasks
-            sessionStorage.setItem('generatedPlan', JSON.stringify(parsed))
-          } catch (error) {
-            console.error('Error updating session storage:', error)
+  const handleTaskSave = async () => {
+    if (!editingTask || !user || !supabase || !plan) {
+      return
+    }
+
+    try {
+      // Check if this is a new task (temp ID)
+      const isNewTask = editingTask.id.startsWith('temp-')
+      
+      let taskId = editingTask.id
+      
+      // If new task, create it in the database first
+      if (isNewTask) {
+        const { data: newTask, error: createError } = await supabase
+          .from('tasks')
+          .insert({
+            plan_id: plan.id,
+            user_id: user.id,
+            idx: editingTask.idx || tasks.length,
+            name: editingTask.name || '',
+            details: editingTask.details || null,
+            estimated_duration_minutes: editingTask.estimated_duration_minutes || 60,
+            priority: editingTask.priority || 1,
+          })
+          .select()
+          .single()
+
+        if (createError) throw createError
+        if (!newTask) throw new Error('Failed to create task')
+        
+        taskId = newTask.id
+      } else {
+        // Update existing task metadata
+        const { error: updateError } = await supabase
+          .from('tasks')
+          .update({
+            name: editingTask.name || '',
+            details: editingTask.details || null,
+            estimated_duration_minutes: editingTask.estimated_duration_minutes || 60,
+            priority: editingTask.priority || 1,
+          })
+          .eq('id', editingTask.id)
+          .eq('user_id', user.id)
+
+        if (updateError) throw updateError
+      }
+
+      // Handle schedule updates
+      if (editingTask.scheduled_date && editingTask.start_time && editingTask.end_time) {
+        const scheduleId = (editingTask as any).schedule_id
+
+        if (scheduleId) {
+          // Update existing schedule via API
+          const response = await fetch('/api/tasks/time-schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              schedule_id: scheduleId,
+              start_time: editingTask.start_time,
+              end_time: editingTask.end_time,
+              date: editingTask.scheduled_date.includes('T') 
+                ? editingTask.scheduled_date.split('T')[0] 
+                : editingTask.scheduled_date
+            })
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to update task schedule')
           }
+        } else {
+          // Create new schedule entry
+          // First, calculate day_index from start_date
+          const startDate = parseDateFromDB(plan.start_date)
+          const scheduledDate = new Date(editingTask.scheduled_date.includes('T') 
+            ? editingTask.scheduled_date.split('T')[0] 
+            : editingTask.scheduled_date)
+          const dayIndex = Math.floor((scheduledDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+          const { error: scheduleError } = await supabase
+            .from('task_schedule')
+            .insert({
+              plan_id: plan.id,
+              user_id: user.id,
+              task_id: taskId,
+              day_index: dayIndex,
+              date: editingTask.scheduled_date.includes('T') 
+                ? editingTask.scheduled_date.split('T')[0] 
+                : editingTask.scheduled_date,
+              start_time: editingTask.start_time,
+              end_time: editingTask.end_time,
+              duration_minutes: editingTask.estimated_duration_minutes || calculateDuration(editingTask.start_time, editingTask.end_time)
+            })
+
+          if (scheduleError) throw scheduleError
         }
-        return updatedTasks
+      }
+
+      // Refresh tasks from database
+      const { data: fetchedTasks, error: tasksErr } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          task_schedule (
+            id,
+            date,
+            start_time,
+            end_time,
+            duration_minutes
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('plan_id', plan.id)
+        .order('idx', { ascending: true })
+
+      if (tasksErr) throw tasksErr
+
+      // Merge schedule data into tasks
+      const tasksWithSchedule = (Array.isArray(fetchedTasks) ? fetchedTasks : []).map((task: any) => {
+        const schedules = Array.isArray(task.task_schedule) ? task.task_schedule : []
+        const primarySchedule = schedules[0] || null
+        return {
+          ...task,
+          scheduled_date: primarySchedule?.date || null,
+          start_time: primarySchedule?.start_time || null,
+          end_time: primarySchedule?.end_time || null,
+          estimated_duration_minutes: primarySchedule?.duration_minutes || task.estimated_duration_minutes || 0,
+          schedule_id: primarySchedule?.id || null,
+          schedules: schedules
+        }
       })
+
+      setTasks(wrapSortTasksChronologically(tasksWithSchedule as any))
       setEditingTask(null)
       setExpandedTaskId(null)
+
+      addToast({
+        type: 'success',
+        title: 'Task Saved',
+        description: 'Task changes have been saved successfully.',
+      })
+    } catch (error) {
+      console.error('Error saving task:', error)
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        description: error instanceof Error ? error.message : 'Failed to save task changes. Please try again.',
+      })
     }
   }
 
@@ -399,42 +527,69 @@ export default function ReviewPage() {
     })
   }
 
-  const handlePlanSave = () => {
-    if (editedPlan) {
-      setPlan((prevPlan: any) => ({
-        ...prevPlan,
-        start_date: editedPlan.start_date,
-        end_date: editedPlan.end_date,
-        summary_data: {
-          ...prevPlan.summary_data,
-          goal_text: editedPlan.goal_text,
-          plan_summary: editedPlan.plan_summary
-        }
-      }))
-      
-      // Update sessionStorage
-      const planData = sessionStorage.getItem('generatedPlan')
-      if (planData) {
+  const handlePlanSave = async () => {
+    if (!editedPlan || !user || !supabase || !plan) {
+      return
+    }
+
+    try {
+      // Parse summary_data if it's a string
+      let summaryData: any = plan.summary_data
+      if (typeof summaryData === 'string') {
         try {
-          const parsed = JSON.parse(planData)
-          parsed.plan = {
-            ...parsed.plan,
-            start_date: editedPlan.start_date,
-            end_date: editedPlan.end_date,
-            summary_data: {
-              ...parsed.plan.summary_data,
-              goal_text: editedPlan.goal_text,
-              plan_summary: editedPlan.plan_summary
-            }
-          }
-          sessionStorage.setItem('generatedPlan', JSON.stringify(parsed))
-        } catch (error) {
-          console.error('Error updating session storage:', error)
+          summaryData = JSON.parse(summaryData)
+        } catch {
+          summaryData = {}
         }
       }
-      
+
+      // Prepare updated summary_data
+      const updatedSummaryData = {
+        ...summaryData,
+        goal_text: editedPlan.goal_text,
+        plan_summary: editedPlan.plan_summary || summaryData?.plan_summary || ''
+      }
+
+      // Update plan in database
+      const { error: updateError } = await supabase
+        .from('plans')
+        .update({
+          start_date: editedPlan.start_date,
+          end_date: editedPlan.end_date,
+          summary_data: updatedSummaryData
+        })
+        .eq('id', plan.id)
+        .eq('user_id', user.id)
+
+      if (updateError) throw updateError
+
+      // Refresh plan from database
+      const { data: refreshedPlan, error: fetchError } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('id', plan.id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (fetchError) throw fetchError
+      if (!refreshedPlan) throw new Error('Failed to refresh plan data')
+
+      setPlan(refreshedPlan as any)
       setIsEditingPlan(false)
       setEditedPlan(null)
+
+      addToast({
+        type: 'success',
+        title: 'Plan Saved',
+        description: 'Plan changes have been saved successfully.',
+      })
+    } catch (error) {
+      console.error('Error saving plan:', error)
+      addToast({
+        type: 'error',
+        title: 'Save Failed',
+        description: error instanceof Error ? error.message : 'Failed to save plan changes. Please try again.',
+      })
     }
   }
 
@@ -1010,7 +1165,8 @@ export default function ReviewPage() {
     <div className="min-h-screen bg-[#0a0a0a] p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Timeline Section with Goal Header */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+        <FadeInWrapper delay={0.1} direction="up">
+          <div className="bg-white/5 border border-white/10 rounded-lg p-6">
           {/* Goal Header */}
           <div className="mb-6">
             {!isEditingPlan ? (
@@ -1163,12 +1319,13 @@ export default function ReviewPage() {
               </div>
             </div>
           </div>
-        </div>
+        </FadeInWrapper>
 
         {/* Tasks Section with Accordion */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-[#d7d2cb]">Tasks</h2>
-          <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+        <FadeInWrapper delay={0.2} direction="up">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-[#d7d2cb]">Tasks</h2>
+            <div className="bg-white/5 border border-white/10 rounded-lg p-6">
             <div className="space-y-2">
               {tasks.map((task, index) => {
                 const isExpanded = expandedTaskId === task.id
@@ -1423,12 +1580,14 @@ export default function ReviewPage() {
               Add New Task
             </button>
           </div>
-        </div>
+          </div>
+        </FadeInWrapper>
 
 
         {/* Clarification UI */}
         {clarificationQuestions.length > 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-lg p-6 mt-4">
+          <FadeInWrapper delay={0.3} direction="up">
+            <div className="bg-white/5 border border-white/10 rounded-lg p-6 mt-4">
             {isGeneratingQuestions && (
               <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                 <p className="text-sm text-blue-300 flex items-center gap-2">
@@ -1620,10 +1779,12 @@ export default function ReviewPage() {
               </div>
             </div>
           </div>
+          </FadeInWrapper>
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-center gap-4 pt-4">
+        <FadeInWrapper delay={0.4} direction="up">
+          <div className="flex justify-center gap-4 pt-4">
           <Button
             onClick={handleRegenerate}
             variant="outline"
@@ -1641,7 +1802,8 @@ export default function ReviewPage() {
             <CheckCircle className="w-4 h-4" />
             Accept Plan
           </Button>
-        </div>
+          </div>
+        </FadeInWrapper>
       </div>
 
       {/* Delete Confirmation Modal */}
