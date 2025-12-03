@@ -915,7 +915,7 @@ function StepCardContent({
                       
                       {/* Plan Preview - Video embedded for step 1 */}
                       {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full">
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full -mx-6">
                           <video
                             ref={videoRef}
                             autoPlay
