@@ -75,64 +75,66 @@ export default function FeaturesPage() {
                   </div>
 
                   <div className={`${index % 2 !== 0 ? 'lg:order-1' : ''}`}>
-                    <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors">
-                      <div className="overflow-hidden rounded-[2.3rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-gray-900">
-                        {feature.videoUrl ? (
-                          <div className="relative aspect-video">
-                            <iframe
-                              src={feature.videoUrl}
-                              title={`${feature.title} preview`}
-                              className="absolute inset-0 h-full w-full"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        ) : feature.id === 'ai-plan-generator' ? (
-                          <div className="relative aspect-video">
-                            <img 
-                              src="/ai-plan-preview.png" 
-                              alt={`${feature.title} preview`}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        ) : feature.id === 'smart-scheduling' ? (
-                          <div className="relative aspect-video">
-                            <img 
-                              src="/smart-scheduling-preview.png" 
-                              alt={`${feature.title} preview`}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        ) : feature.id === 'automation-integrations' ? (
-                          <div className="relative aspect-video">
-                            <img 
-                              src="/automations-preview.png" 
-                              alt={`${feature.title} preview`}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        ) : feature.id === 'progress-analytics' ? (
-                          <div className="relative aspect-video">
-                            <img 
-                              src="/analytics-preview.png" 
-                              alt={`${feature.title} preview`}
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex aspect-video items-center justify-center px-10 text-center">
-                            <div>
-                              <p className="text-lg font-semibold text-white mb-2">
-                                Loom preview coming soon
-                              </p>
-                              <p className="text-sm text-slate-200/80">
-                                {feature.videoPrompt}
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                    {feature.id === 'automation-integrations' ? (
+                      <div className="relative aspect-video">
+                        <img 
+                          src="/automations-preview.png" 
+                          alt={`${feature.title} preview`}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors">
+                        <div className="overflow-hidden rounded-[2.3rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-gray-900">
+                          {feature.videoUrl ? (
+                            <div className="relative aspect-video">
+                              <iframe
+                                src={feature.videoUrl}
+                                title={`${feature.title} preview`}
+                                className="absolute inset-0 h-full w-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            </div>
+                          ) : feature.id === 'ai-plan-generator' ? (
+                            <div className="relative aspect-video">
+                              <img 
+                                src="/ai-plan-preview.png" 
+                                alt={`${feature.title} preview`}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          ) : feature.id === 'smart-scheduling' ? (
+                            <div className="relative aspect-video">
+                              <img 
+                                src="/smart-scheduling-preview.png" 
+                                alt={`${feature.title} preview`}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          ) : feature.id === 'progress-analytics' ? (
+                            <div className="relative aspect-video">
+                              <img 
+                                src="/analytics-preview.png" 
+                                alt={`${feature.title} preview`}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex aspect-video items-center justify-center px-10 text-center">
+                              <div>
+                                <p className="text-lg font-semibold text-white mb-2">
+                                  Loom preview coming soon
+                                </p>
+                                <p className="text-sm text-slate-200/80">
+                                  {feature.videoPrompt}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>
