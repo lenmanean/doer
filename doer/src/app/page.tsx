@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, Check, ChevronDown } from 'lucide-react'
@@ -826,6 +826,31 @@ function StepCardContent({
   isExpanded: boolean
   onToggle: () => void
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  // Handle video loading and playback when step is expanded
+  useEffect(() => {
+    if (step.id === 'step1' && videoRef.current) {
+      if (isExpanded) {
+        // Small delay to ensure the element is visible
+        const timer = setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.load()
+            videoRef.current.play().catch((error) => {
+              console.log('Video autoplay prevented:', error)
+            })
+          }
+        }, 300)
+        return () => clearTimeout(timer)
+      } else {
+        // Pause video when collapsed
+        if (videoRef.current) {
+          videoRef.current.pause()
+        }
+      }
+    }
+  }, [isExpanded, step.id])
+
   return (
     <>
                   {/* Step Header - Clickable */}
@@ -890,14 +915,22 @@ function StepCardContent({
                       
                       {/* Plan Preview - Video embedded for step 1 */}
                       {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-4 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-4 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700 overflow-hidden min-h-[400px]">
                           <video
+                            ref={videoRef}
                             autoPlay
                             loop
                             muted
                             playsInline
+                            preload="auto"
                             className="w-full h-auto rounded-lg"
                             style={{ maxHeight: '600px', objectFit: 'contain' }}
+                            onError={(e) => {
+                              console.error('Video loading error:', e)
+                            }}
+                            onLoadedData={() => {
+                              console.log('Video loaded successfully')
+                            }}
                           >
                             <source src="/doer_tut1.mp4" type="video/mp4" />
                             Your browser does not support the video tag.
