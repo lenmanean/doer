@@ -841,7 +841,7 @@ function StepCardContent({
 
   // Handle video loading and playback when step is expanded
   useEffect(() => {
-    if (step.id === 'step1' && videoRef.current) {
+    if ((step.id === 'step1' || step.id === 'step2') && videoRef.current) {
       if (isExpanded) {
         // Small delay to ensure the element is visible
         const timer = setTimeout(() => {
@@ -932,7 +932,7 @@ function StepCardContent({
                         </p>
                       </div>
                       
-                      {/* Plan Preview - Video embedded for step 1 */}
+                      {/* Plan Preview - Video embedded for step 1 and step 2 */}
                       {step.id === 'step1' ? (
                         <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center" style={{ minHeight: '200px' }}>
                           <video
@@ -973,6 +973,49 @@ function StepCardContent({
                             }}
                           >
                             <source src="/doer_tut1.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      ) : step.id === 'step2' ? (
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center" style={{ minHeight: '200px' }}>
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            preload="auto"
+                            className="w-full h-auto rounded-lg block mx-auto"
+                            style={{ 
+                              display: 'block',
+                              maxWidth: '100%',
+                              height: 'auto'
+                            }}
+                            onError={(e) => {
+                              console.error('Video loading error:', e)
+                            }}
+                            onLoadedData={() => {
+                              console.log('Video loaded successfully')
+                              // Force play on mobile after load
+                              if (isMobile && videoRef.current) {
+                                videoRef.current.play().catch(() => {
+                                  // Silently fail - user may need to interact
+                                })
+                              }
+                            }}
+                            onLoadedMetadata={() => {
+                              // Ensure video is visible and ready on mobile
+                              if (videoRef.current) {
+                                videoRef.current.style.display = 'block'
+                                // Set webkit-playsinline for iOS Safari
+                                videoRef.current.setAttribute('webkit-playsinline', 'true')
+                                videoRef.current.setAttribute('playsinline', 'true')
+                                // Set x5-playsinline for Android/WeChat browsers
+                                videoRef.current.setAttribute('x5-playsinline', 'true')
+                              }
+                            }}
+                          >
+                            <source src="/doer_tut2.mp4" type="video/mp4" />
                             Your browser does not support the video tag.
                           </video>
                         </div>
