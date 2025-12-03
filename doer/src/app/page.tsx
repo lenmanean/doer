@@ -890,13 +890,14 @@ function StepCardContent({
                       
                       {/* Plan Preview - Video embedded for step 1 */}
                       {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-4 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-4 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
                           <video
                             autoPlay
                             loop
                             muted
                             playsInline
-                            className="w-full h-full max-w-full max-h-[600px] rounded-lg object-contain"
+                            className="w-full h-auto rounded-lg"
+                            style={{ maxHeight: '600px', objectFit: 'contain' }}
                           >
                             <source src="/doer_tut1.mp4" type="video/mp4" />
                             Your browser does not support the video tag.
