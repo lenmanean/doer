@@ -1044,12 +1044,65 @@ export async function getPendingReschedules(
 
     if (error) throw error
 
-    return (data || []).map((proposal: any) => ({
+    const proposals = (data || []).map((proposal: any) => ({
       ...proposal,
       task_name: proposal.tasks?.name,
       task_priority: proposal.tasks?.priority,
       task_duration_minutes: proposal.tasks?.estimated_duration_minutes
     }))
+
+    // Filter out proposals for tasks that are already completed
+    // Batch query task_completions for all proposals to check completions efficiently
+    if (proposals.length === 0) {
+      return []
+    }
+
+    // Build completion check queries for all proposals
+    // We need to check each proposal's task_id, original_date, and plan_id combination
+    const completionChecks = await Promise.all(
+      proposals.map(async (proposal: any) => {
+        let completionQuery = supabase
+          .from('task_completions')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('task_id', proposal.task_id)
+          .eq('scheduled_date', proposal.original_date)
+        
+        // Handle plan_id matching (both NULL for free-mode, or both equal)
+        if (proposal.plan_id === null) {
+          completionQuery = completionQuery.is('plan_id', null)
+        } else {
+          completionQuery = completionQuery.eq('plan_id', proposal.plan_id)
+        }
+        
+        const { data: completion, error: completionError } = await completionQuery.maybeSingle()
+        
+        return {
+          proposal,
+          hasCompletion: !!completion && !completionError,
+          error: completionError
+        }
+      })
+    )
+
+    // Filter out proposals that have matching completion records
+    const filteredProposals = completionChecks
+      .filter(check => {
+        if (check.error) {
+          console.error('Error checking completion for proposal:', check.proposal.id, check.error)
+          // Include the proposal if we can't check (fail open)
+          return true
+        }
+        // Exclude if completion found, include if no completion
+        if (check.hasCompletion) {
+          console.log(`Filtering out completed task proposal: ${check.proposal.id} (task_id: ${check.proposal.task_id}, original_date: ${check.proposal.original_date})`)
+          return false
+        }
+        return true
+      })
+      .map(check => check.proposal)
+
+    return filteredProposals
   } catch (error) {
     console.error('Error fetching pending reschedules:', error)
     return []

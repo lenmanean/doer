@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Check, X, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import type { RescheduleProposal } from '@/lib/types'
-import { formatDateForDisplay } from '@/lib/date-utils'
+import { formatDateForDisplay, parseDateFromDB } from '@/lib/date-utils'
 
 interface RescheduleApprovalModalProps {
   isOpen: boolean
@@ -203,7 +203,7 @@ export function RescheduleApprovalModal({
                             <span className="text-[#d7d2cb]/60 text-xs">From:</span>
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-[#d7d2cb]/60" />
-                              <span className="text-[#d7d2cb]">{formatDateForDisplay(new Date(proposal.original_date))}</span>
+                              <span className="text-[#d7d2cb]">{formatDateForDisplay(parseDateFromDB(proposal.original_date))}</span>
                               {proposal.original_start_time && (
                                 <span className="text-[#d7d2cb]/70">
                                   {formatTimeString(proposal.original_start_time)}
@@ -218,7 +218,7 @@ export function RescheduleApprovalModal({
                             <span className="text-[#d7d2cb]/60 text-xs">To:</span>
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-[#d7d2cb]/60" />
-                              <span className="text-[#d7d2cb]">{formatDateForDisplay(new Date(proposal.proposed_date))}</span>
+                              <span className="text-[#d7d2cb]">{formatDateForDisplay(parseDateFromDB(proposal.proposed_date))}</span>
                               {proposal.proposed_start_time && (
                                 <span className="text-[#d7d2cb]/70">
                                   {formatTimeString(proposal.proposed_start_time)}
