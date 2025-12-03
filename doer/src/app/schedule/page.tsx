@@ -986,21 +986,19 @@ function ScheduleContent() {
           }
         }
         
-        // If still null, we can't create a completion (schema requires plan_id)
-        // This should not happen in normal operation, but handle gracefully
-        if (finalPlanId === null) {
-          console.error('Cannot mark free-mode task as complete: plan_id is required in task_completions table')
-          // For now, we'll skip free-mode task completions that don't have a plan_id
-          // This is a limitation of the current schema
-          return
-        }
+        // For free-mode tasks, plan_id can be null (schema now allows it)
+        // We'll proceed with null plan_id if it's still null after lookup
         
-        const insertData = {
+        const insertData: any = {
           user_id: userId,
           task_id: task.task_id,
-          plan_id: finalPlanId,
           scheduled_date: scheduledDate,
           completed_at: new Date().toISOString()
+        }
+        
+        // Only add plan_id if it's not null (schema now allows null for free-mode tasks)
+        if (finalPlanId !== null) {
+          insertData.plan_id = finalPlanId
         }
         
         const { error, data } = await supabase
@@ -2244,24 +2242,25 @@ function ScheduleContent() {
                       }
                     }
                     
-                    // If still null, we can't create a completion (schema requires plan_id)
-                    if (planId === null) {
-                      console.error('Cannot mark free-mode task as complete: plan_id is required in task_completions table', {
-                        taskId: proposal.task_id,
-                        scheduledDate
-                      })
-                      continue
-                    }
+                    // For free-mode tasks, plan_id can be null (schema now allows it)
+                    // We'll proceed with null plan_id if it's still null after lookup
                     
                     // Check if task is already completed to avoid duplicate inserts
-                    const { data: existingCompletion } = await supabase
+                    let existingCompletionQuery = supabase
                       .from('task_completions')
                       .select('id')
                       .eq('user_id', userId)
                       .eq('task_id', proposal.task_id)
                       .eq('scheduled_date', scheduledDate)
-                      .eq('plan_id', planId)
-                      .maybeSingle()
+                    
+                    // Handle plan_id matching (both NULL for free-mode, or both equal)
+                    if (planId === null) {
+                      existingCompletionQuery = existingCompletionQuery.is('plan_id', null)
+                    } else {
+                      existingCompletionQuery = existingCompletionQuery.eq('plan_id', planId)
+                    }
+                    
+                    const { data: existingCompletion } = await existingCompletionQuery.maybeSingle()
                     
                     // Skip if already completed
                     if (existingCompletion) {
@@ -2269,12 +2268,16 @@ function ScheduleContent() {
                       continue
                     }
                     
-                    const insertData = {
+                    const insertData: any = {
                       user_id: userId,
                       task_id: proposal.task_id,
-                      plan_id: planId,
                       scheduled_date: scheduledDate,
                       completed_at: new Date().toISOString()
+                    }
+                    
+                    // Only add plan_id if it's not null (schema now allows null for free-mode tasks)
+                    if (planId !== null) {
+                      insertData.plan_id = planId
                     }
                     
                     const { error: completionError } = await supabase
