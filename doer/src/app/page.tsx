@@ -915,7 +915,7 @@ function StepCardContent({
                       
                       {/* Plan Preview - Video embedded for step 1 */}
                       {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full -mx-6 flex items-center justify-center">
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center">
                           <video
                             ref={videoRef}
                             autoPlay
@@ -923,8 +923,7 @@ function StepCardContent({
                             muted
                             playsInline
                             preload="auto"
-                            className="w-full h-auto rounded-lg block"
-                            style={{ display: 'block' }}
+                            className="w-full h-auto rounded-lg block mx-auto"
                             onError={(e) => {
                               console.error('Video loading error:', e)
                             }}
