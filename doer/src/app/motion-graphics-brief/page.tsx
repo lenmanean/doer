@@ -59,10 +59,10 @@ export default function MotionGraphicsBriefPage() {
                 <strong className="text-white">Primary Focus:</strong> New Year's resolution season and consumers seeking structured goal planning for their aspirations and ambitions for the upcoming year.
               </p>
               <p className="text-lg leading-relaxed">
-                <strong className="text-white">Target Audience:</strong> Achievement-oriented individuals who want to transform their goals into actionable, structured plans. These are people transitioning from intention to execution—those who don't just want to plan, but want to actually achieve their goals.
+                <strong className="text-white">Target Audience:</strong> Achievement-oriented individuals who want to transform their goals into actionable, structured plans. These are people transitioning from intention to execution, those who don't just want to plan but want to actually achieve their goals.
               </p>
               <p className="text-lg leading-relaxed">
-                <strong className="text-white">Market Context:</strong> The New Year brings a natural momentum for goal-setting. Consumers are actively seeking tools and solutions that can help them create comprehensive plans for their 2025 goals and aspirations. DOER.AI positions itself as the platform that bridges the gap between setting goals and executing them.
+                <strong className="text-white">Market Context:</strong> The New Year brings a natural momentum for goal-setting. Consumers are actively seeking tools and solutions that can help them create comprehensive plans for their 2026 goals and aspirations. DOER.AI positions itself as the platform that bridges the gap between setting goals and executing them.
               </p>
             </CardContent>
           </Card>
@@ -79,7 +79,7 @@ export default function MotionGraphicsBriefPage() {
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-2">AI-Powered Plan Generation</h3>
                   <p className="text-lg leading-relaxed">
-                    DOER transforms written goals into structured, actionable plans with milestones and tasks. Users simply describe their goal, answer a few clarification questions, and receive a personalized roadmap.
+                    DOER transforms written goals into structured, actionable plans with tasks. Users simply describe their goal, answer a few clarification questions, and receive a personalized roadmap.
                   </p>
                 </div>
                 <div>
@@ -116,10 +116,10 @@ export default function MotionGraphicsBriefPage() {
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-2">Goal-to-Execution Flow</h3>
                   <p className="text-lg leading-relaxed mb-3">
-                    Simple, streamlined onboarding where users enter a goal description, answer a few AI-generated clarification questions (if needed), select a start date, and receive a personalized roadmap with milestones, tasks, and schedules.
+                    Simple, streamlined onboarding where users enter a goal description, answer a few AI-generated clarification questions (if needed), select a start date, and receive a personalized roadmap with tasks and schedules.
                   </p>
                   <p className="text-lg leading-relaxed">
-                    The experience is designed to be visual and motivating rather than technical. Users can preview and refine their AI-generated plan before activation, adjusting milestones, dates, or tasks as needed. Once activated, the plan becomes a living roadmap that adapts as users progress, with the AI scheduler automatically managing task placement and conflict resolution.
+                    The experience is designed to be visual and motivating rather than technical. Users can preview and refine their AI-generated plan before activation, adjusting dates or tasks as needed. Once activated, the plan becomes a living roadmap that adapts as users progress, with the AI scheduler automatically managing task placement and conflict resolution.
                   </p>
                 </div>
                 <div>
@@ -149,7 +149,7 @@ export default function MotionGraphicsBriefPage() {
               <ul className="list-disc list-inside space-y-2 ml-4 text-lg">
                 <li>"Turn your goals into reality"</li>
                 <li>"From intention to execution"</li>
-                <li>"Start planning your 2025 goals today"</li>
+                <li>"Start planning your 2026 goals today"</li>
                 <li>"Turn your New Year's resolutions into actionable plans"</li>
               </ul>
               <p className="text-lg leading-relaxed">
@@ -181,7 +181,7 @@ export default function MotionGraphicsBriefPage() {
                   </div>
                   <div className="flex-1 space-y-3">
                     <p className="text-[#d7d2cb]">
-                      <strong className="text-white">Transparent Logo</strong> - Use this version for all motion graphics work.
+                      <strong className="text-white">Transparent Logo</strong>
                     </p>
                     <Button
                       onClick={handleDownloadLogo}
@@ -224,12 +224,12 @@ export default function MotionGraphicsBriefPage() {
                     <div className="space-y-2 text-[#d7d2cb]">
                       <p className="text-lg font-semibold text-white">Color Values:</p>
                       <ul className="list-disc list-inside space-y-1 ml-4">
-                        <li><strong className="text-white">Orange:</strong> #ff7f00 (Primary brand color)</li>
-                        <li><strong className="text-white">Black:</strong> #000000</li>
-                        <li><strong className="text-white">Grey:</strong> #353839 (Charcoal)</li>
-                        <li><strong className="text-white">Navy Blue:</strong> Dark blue shade</li>
-                        <li><strong className="text-white">Light Gray:</strong> Light gray shade</li>
-                        <li><strong className="text-white">Red:</strong> Red accent color</li>
+                        <li><strong className="text-white">Orange:</strong> #f97316 (Primary brand color)</li>
+                        <li><strong className="text-white">Black:</strong> #0a0a0a</li>
+                        <li><strong className="text-white">Grey:</strong> #161616 (Charcoal)</li>
+                        <li><strong className="text-white">Navy Blue:</strong> #111827</li>
+                        <li><strong className="text-white">Light Gray:</strong> #454545</li>
+                        <li><strong className="text-white">Red:</strong> #591717</li>
                       </ul>
                     </div>
                   </div>
@@ -282,7 +282,7 @@ export default function MotionGraphicsBriefPage() {
                 The motion graphics should emphasize the transformation from goal-setting to execution, with particular focus on the New Year's momentum and the journey from intention to achievement.
               </p>
               <p className="text-lg leading-relaxed">
-                Visual style should align with the clean, modern aesthetic of the platform—professional yet approachable, with the orange (#ff7f00) as the primary accent color throughout.
+                Visual style should align with the clean, modern aesthetic of the platform—professional yet approachable, with the orange (#f97316) as the primary accent color throughout.
               </p>
             </CardContent>
           </Card>
