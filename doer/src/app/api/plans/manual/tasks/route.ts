@@ -56,23 +56,28 @@ export async function POST(req: NextRequest) {
 
     // Insert tasks
     const tasksToInsert = tasks.map((task: any, index: number) => {
-      // Convert priority to complexity_score if provided
-      // Priority 1-4 maps to complexity 8, 6, 4, 2
-      let complexity_score = task.complexity_score
-      if (!complexity_score && task.priority) {
-        complexity_score = (5 - task.priority) * 2
+      // Map priority to category if needed
+      // Priority 1-2 -> category A (high priority), 3 -> B (medium), 4 -> C (low)
+      let category = task.category
+      if (!category && task.priority) {
+        if (task.priority <= 2) {
+          category = 'A'
+        } else if (task.priority === 3) {
+          category = 'B'
+        } else {
+          category = 'C'
+        }
       }
       
       return {
         plan_id,
         user_id: user.id,
-        milestone_id: task.milestone_id || null,
         idx: index + 1,
         name: task.name,
         details: task.details || null,
         estimated_duration_minutes: task.estimated_duration_minutes || 60,
         priority: task.priority || 1,
-        complexity_score: complexity_score || 5,
+        category: category || 'B', // Default to medium priority/difficulty
       }
     })
 
