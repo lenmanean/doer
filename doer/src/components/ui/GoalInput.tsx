@@ -160,9 +160,15 @@ export function GoalInput({
 
       // Success - fire tracking events
       // Facebook Pixel tracking
-      if (typeof window !== 'undefined' && (window as any).fbq) {
-        trackWaitlistSignup(source)
+      try {
+        if (typeof window !== 'undefined' && (window as any).fbq) {
+          trackWaitlistSignup(source)
+        }
+      } catch (error) {
+        // Facebook Pixel tracking failed, continue without it
+        console.warn('Facebook Pixel tracking failed:', error)
       }
+      
       // GA4 tracking
       try {
         trackGA4WaitlistSignup(source)

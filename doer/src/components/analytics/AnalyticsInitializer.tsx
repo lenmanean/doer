@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { getConsentCategories } from '@/lib/cookies/cookie-utils'
 import { initializeAnalytics, trackPageView } from '@/lib/analytics/analytics-service'
-import { initializeMarketing } from '@/lib/analytics/marketing-service'
+import { initializeMarketing, trackPageView as trackMarketingPageView } from '@/lib/analytics/marketing-service'
 
 /**
  * Client component that initializes analytics and marketing services
@@ -28,12 +28,19 @@ export function AnalyticsInitializer() {
     }
   }, [])
 
-  // Track page views on route changes
+  // Track page views on route changes for both platforms
   useEffect(() => {
     const consentCategories = getConsentCategories()
+    const url = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
+    
+    // Track GA4 page view
     if (consentCategories.includes('analytics')) {
-      const url = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
       trackPageView(url, document.title)
+    }
+    
+    // Track Facebook Pixel page view
+    if (consentCategories.includes('marketing')) {
+      trackMarketingPageView()
     }
   }, [pathname, searchParams])
 

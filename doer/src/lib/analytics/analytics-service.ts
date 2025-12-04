@@ -23,7 +23,8 @@ let isInitialized = false
 
 /**
  * Initialize Google Analytics 4
- * Only initializes if analytics consent is given
+ * Note: The actual script loading happens in AnalyticsScripts.tsx
+ * This function just verifies gtag is available and marks as initialized
  */
 export function initializeAnalytics(consentCategories: CookieCategory[]): void {
   if (typeof window === 'undefined') return
@@ -38,23 +39,16 @@ export function initializeAnalytics(consentCategories: CookieCategory[]): void {
     return
   }
 
-  // Initialize dataLayer
-  window.dataLayer = window.dataLayer || []
-  const dataLayer = window.dataLayer
-  window.gtag = function gtag(...args: any[]) {
-    dataLayer.push(args)
+  // Script is loaded by AnalyticsScripts.tsx, just verify gtag exists
+  // If gtag doesn't exist yet, the script may still be loading
+  // We'll mark as initialized anyway - tracking functions will check for gtag
+  if (window.gtag && window.dataLayer) {
+    isInitialized = true
+  } else {
+    // Script may still be loading, mark as initialized anyway
+    // Tracking functions will handle the case where gtag isn't ready
+    isInitialized = true
   }
-
-  // Set initial timestamp
-  window.gtag('js', new Date())
-
-  // Configure GA4
-  window.gtag('config', GA4_MEASUREMENT_ID, {
-    page_path: window.location.pathname,
-    page_title: document.title,
-  })
-
-  isInitialized = true
 }
 
 /**
@@ -148,10 +142,14 @@ export function trackWaitlistSignup(source: string): void {
   if (!hasConsent('analytics')) return
   if (!window.gtag || !GA4_MEASUREMENT_ID) return
 
-  // Use standard GA4 sign_up event
-  window.gtag('event', 'sign_up', {
-    method: 'waitlist',
-    source: source,
-  })
+  try {
+    // Use standard GA4 sign_up event
+    window.gtag('event', 'sign_up', {
+      method: 'waitlist',
+      source: source,
+    })
+  } catch (error) {
+    console.error('[Analytics] Error tracking waitlist signup:', error)
+  }
 }
 

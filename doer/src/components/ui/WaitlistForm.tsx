@@ -147,11 +147,22 @@ export function WaitlistForm({
 
       // Success - fire tracking events
       // Facebook Pixel tracking
-      if (typeof window !== 'undefined' && window.fbq) {
-        trackWaitlistSignup(source)
+      try {
+        if (typeof window !== 'undefined' && window.fbq) {
+          trackWaitlistSignup(source)
+        }
+      } catch (error) {
+        // Facebook Pixel tracking failed, continue without it
+        console.warn('Facebook Pixel tracking failed:', error)
       }
+      
       // GA4 tracking
-      trackGA4WaitlistSignup(source)
+      try {
+        trackGA4WaitlistSignup(source)
+      } catch (error) {
+        // GA4 tracking failed, continue without it
+        console.warn('GA4 tracking failed:', error)
+      }
 
       setIsSuccess(true)
       setEmail('')

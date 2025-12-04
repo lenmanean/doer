@@ -30,7 +30,8 @@ let googleAdsInitialized = false
 
 /**
  * Initialize Facebook Pixel
- * Only initializes if marketing consent is given
+ * Note: The actual script loading happens in AnalyticsScripts.tsx
+ * This function just verifies fbq is available and marks as initialized
  */
 export function initializeFacebookPixel(consentCategories: CookieCategory[]): void {
   if (typeof window === 'undefined') return
@@ -45,24 +46,16 @@ export function initializeFacebookPixel(consentCategories: CookieCategory[]): vo
     return
   }
 
-  // Initialize Facebook Pixel
-  if (!window.fbq) {
-    const fbqQueue: any[] = []
-    const fbqFunction = function fbq(...args: any[]) {
-      fbqQueue.push(args)
-    } as any
-    fbqFunction.q = fbqQueue
-    window.fbq = fbqFunction
+  // Script is loaded by AnalyticsScripts.tsx, just verify fbq exists
+  // If fbq doesn't exist yet, the script may still be loading
+  // We'll mark as initialized anyway - tracking functions will check for fbq
+  if (window.fbq) {
+    facebookPixelInitialized = true
+  } else {
+    // Script may still be loading, mark as initialized anyway
+    // Tracking functions will handle the case where fbq isn't ready
+    facebookPixelInitialized = true
   }
-  const fbq = window.fbq
-  if (fbq) {
-    (fbq as any).l = +new Date()
-    // Initialize pixel
-    fbq('init', FACEBOOK_PIXEL_ID)
-    fbq('track', 'PageView')
-  }
-
-  facebookPixelInitialized = true
 }
 
 /**
@@ -195,16 +188,26 @@ export function trackPurchase(value: number, currency: string = 'USD', additiona
  * Fires a custom Meta Pixel event when a user successfully joins the waitlist
  * Event name: WaitlistSignup
  * 
+ * Note: Advanced Matching is handled automatically by Facebook Pixel through:
+ * - Automatic email detection from form fields
+ * - Server-side matching (if configured in Events Manager)
+ * We do not pass email directly to maintain privacy compliance.
+ * 
  * @param source - Source of the waitlist signup (e.g., 'landing_page_hero', 'pricing_card', 'header_button')
  */
 export function trackWaitlistSignup(source: string): void {
   if (typeof window === 'undefined') return
+  if (!hasConsent('marketing')) return
   
   // Fire the custom event to Meta Pixel
-  if (window.fbq && FACEBOOK_PIXEL_ID) {
-    window.fbq('trackCustom', 'WaitlistSignup', {
-      source: source,
-    })
+  try {
+    if (window.fbq && FACEBOOK_PIXEL_ID) {
+      window.fbq('trackCustom', 'WaitlistSignup', {
+        source: source,
+      })
+    }
+  } catch (error) {
+    console.error('[Marketing] Error tracking WaitlistSignup:', error)
   }
 }
 
