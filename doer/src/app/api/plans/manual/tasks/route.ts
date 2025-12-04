@@ -54,6 +54,15 @@ export async function POST(req: NextRequest) {
 
     console.log('Adding tasks to manual plan:', plan_id, 'count:', tasks.length)
 
+    // Validate task names (database constraint requires non-empty names)
+    const invalidTasks = tasks.filter((task: any, index: number) => !task.name || !task.name.trim())
+    if (invalidTasks.length > 0) {
+      return NextResponse.json(
+        { error: 'All tasks must have a name. Please fill in task names before creating the plan.' },
+        { status: 400 }
+      )
+    }
+
     // Insert tasks
     const tasksToInsert = tasks.map((task: any, index: number) => {
       // Map priority to category if needed
@@ -73,7 +82,7 @@ export async function POST(req: NextRequest) {
         plan_id,
         user_id: user.id,
         idx: index + 1,
-        name: task.name,
+        name: task.name.trim(), // Trim whitespace to ensure it passes the constraint
         details: task.details || null,
         estimated_duration_minutes: task.estimated_duration_minutes || 60,
         priority: task.priority || 1,

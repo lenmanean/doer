@@ -339,6 +339,13 @@ export default function ManualOnboardingPage() {
       return
     }
     
+    // Validate that all tasks have names
+    const tasksWithoutNames = tasks.filter(task => !task.name || !task.name.trim())
+    if (tasksWithoutNames.length > 0) {
+      setError('All tasks must have a name. Please fill in task names before creating the plan.')
+      return
+    }
+    
     setIsSubmitting(true)
     
     try {
