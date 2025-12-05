@@ -243,18 +243,18 @@ export async function generateRoadmapContent(request: ExtendedAIModelRequest): P
   // Build fixed schedule context if applicable
   let fixedScheduleContext = ''
   if (request.goalStructure && request.goalStructure.fixedSchedules.length > 0) {
+    // Convert 24-hour format to 12-hour for display
+    const formatTimeForDisplay = (time24: string) => {
+      const [hourStr, minuteStr] = time24.split(':')
+      const hour = parseInt(hourStr, 10)
+      const minute = parseInt(minuteStr, 10)
+      const period = hour >= 12 ? 'pm' : 'am'
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+      return `${displayHour}:${minuteStr}${period}`
+    }
+    
     const scheduleLines = request.goalStructure.fixedSchedules.map(schedule => {
-      // Convert 24-hour format to 12-hour for display
-      const formatTimeForDisplay = (time24: string) => {
-        const [hourStr, minuteStr] = time24.split(':')
-        const hour = parseInt(hourStr, 10)
-        const minute = parseInt(minuteStr, 10)
-        const period = hour >= 12 ? 'pm' : 'am'
-        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-        return `${displayHour}:${minuteStr}${period}`
-      }
       return `- ${schedule.name}: ${formatTimeForDisplay(schedule.startTime)} - ${formatTimeForDisplay(schedule.endTime)}`
-    }) as string[]
     })
     
     fixedScheduleContext = `\nFIXED SCHEDULE REQUIREMENTS:
