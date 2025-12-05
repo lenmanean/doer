@@ -148,6 +148,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     // Exclude static files, Next.js internals, and public assets from middleware
-    '/((?!_next/static|_next/image|favicon.ico|auth|api|.*\\.(ico|png|jpg|jpeg|svg|webp|css|js|mp4|webm|ogg|mp3|wav|mov|avi)$).*)',
+    // Use non-capturing group (?:...) instead of capturing group (...) for file extensions
+    '/((?!_next/static|_next/image|favicon.ico|auth|api|.*\\.(?:ico|png|jpg|jpeg|svg|webp|css|js|mp4|webm|ogg|mp3|wav|mov|avi)$).*)',
   ],
 }
