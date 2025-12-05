@@ -590,14 +590,18 @@ export function detectCustomTimeWindow(
   const lowerText = combinedText.toLowerCase()
   
   // Patterns for custom time windows
+  // Prioritize "fill" patterns first, then other patterns
   // "fill X:XXam to Y:YYpm", "from X:XX to Y:YY", "between X:XX and Y:YY"
   const patterns = [
+    // Most specific: "fill the schedule from X to Y" or "fill from X to Y"
     /fill\s+(?:the\s+)?(?:schedule\s+)?(?:from\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:to|until)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
-    /from\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:to|until)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
-    /between\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+and\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
+    // "for the rest... from X to Y" - common pattern for custom windows
+    /for\s+(?:the\s+)?(?:rest\s+of\s+)?(?:each\s+day\s*)?(?:,?\s*)?from\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:to|until)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
+    // "X to Y fill" or "X to Y schedule"
     /(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+to\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:fill|schedule)/i,
   ]
   
+  // First, try patterns that are clearly for custom time windows
   for (const pattern of patterns) {
     const match = lowerText.match(pattern)
     if (match) {
@@ -605,11 +609,47 @@ export function detectCustomTimeWindow(
       const endTime = parseTimeTo24Hour(match[2])
       
       if (startTime && endTime) {
-        return {
-          customStartHour: startTime.hour,
-          customStartMinute: startTime.minute,
-          customEndHour: endTime.hour,
-          customEndMinute: endTime.minute,
+        // Validate: end time should be after start time (or wrap around midnight)
+        // For now, assume end > start (no midnight wrap-around for workday windows)
+        if (endTime.hour > startTime.hour || (endTime.hour === startTime.hour && endTime.minute > startTime.minute)) {
+          console.log('🕐 Detected custom time window:', {
+            matched: match[0],
+            start: `${startTime.hour}:${startTime.minute}`,
+            end: `${endTime.hour}:${endTime.minute}`,
+          })
+          return {
+            customStartHour: startTime.hour,
+            customStartMinute: startTime.minute,
+            customEndHour: endTime.hour,
+            customEndMinute: endTime.minute,
+          }
+        }
+      }
+    }
+  }
+  
+  // Fallback: look for "from X to Y" but exclude fixed schedule patterns
+  // Check if the match is NOT part of a fixed schedule (sleep, workout, breakfast, etc.)
+  const genericPattern = /from\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:to|until)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/gi
+  let genericMatch
+  while ((genericMatch = genericPattern.exec(lowerText)) !== null) {
+    // Check if this match is part of a fixed schedule (look backwards for schedule keywords)
+    const beforeMatch = lowerText.substring(Math.max(0, genericMatch.index - 100), genericMatch.index)
+    const isFixedSchedule = /(?:sleep|workout|breakfast|meal|wake|bed|exercise|gym|school|kids|take\s+kids)/i.test(beforeMatch)
+    
+    if (!isFixedSchedule) {
+      const startTime = parseTimeTo24Hour(genericMatch[1])
+      const endTime = parseTimeTo24Hour(genericMatch[2])
+      
+      if (startTime && endTime) {
+        // Validate: end time should be after start time
+        if (endTime.hour > startTime.hour || (endTime.hour === startTime.hour && endTime.minute > startTime.minute)) {
+          return {
+            customStartHour: startTime.hour,
+            customStartMinute: startTime.minute,
+            customEndHour: endTime.hour,
+            customEndMinute: endTime.minute,
+          }
         }
       }
     }
