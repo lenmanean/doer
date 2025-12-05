@@ -356,9 +356,23 @@ export async function POST(req: NextRequest) {
     const customTimeWindow = detectCustomTimeWindow(finalGoalText, finalClarifications)
     const requiresDailyTasks = detectDailyTaskRequirement(finalGoalText, finalClarifications)
     
+    // Validate customTimeWindow has all required properties before including it
+    const validCustomTimeWindow = 
+      customTimeWindow.customStartHour !== undefined &&
+      customTimeWindow.customStartMinute !== undefined &&
+      customTimeWindow.customEndHour !== undefined &&
+      customTimeWindow.customEndMinute !== undefined
+        ? {
+            customStartHour: customTimeWindow.customStartHour,
+            customStartMinute: customTimeWindow.customStartMinute,
+            customEndHour: customTimeWindow.customEndHour,
+            customEndMinute: customTimeWindow.customEndMinute,
+          }
+        : undefined
+    
     const goalStructure = {
       fixedSchedules: fixedSchedulesResult.fixedSchedules,
-      customTimeWindow: Object.keys(customTimeWindow).length > 0 ? customTimeWindow : undefined,
+      customTimeWindow: validCustomTimeWindow,
       requiresDailyTasks,
     }
     
