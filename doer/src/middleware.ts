@@ -99,13 +99,23 @@ export async function middleware(req: NextRequest) {
   // Allow API routes
   const isApiRoute = pathname.startsWith('/api/')
   
-  // Allow static assets
+  // Allow static assets (including video and audio files)
   const isStaticAsset = pathname.startsWith('/_next/') || 
                         pathname.startsWith('/favicon') ||
-                        pathname.match(/\.(ico|png|jpg|jpeg|svg|webp|css|js)$/)
+                        pathname.match(/\.(ico|png|jpg|jpeg|svg|webp|css|js|mp4|webm|ogg|mp3|wav|mov|avi)$/i)
 
   // If it's a public route, auth route, API route, or static asset, allow access
   if (isPublicRoute || isAuthRoute || isApiRoute || isStaticAsset) {
+    // Add proper headers for video files
+    if (pathname.match(/\.(mp4|webm|ogg|mov|avi)$/i)) {
+      const response = NextResponse.next()
+      response.headers.set('Content-Type', pathname.endsWith('.mp4') ? 'video/mp4' : 
+                          pathname.endsWith('.webm') ? 'video/webm' : 
+                          pathname.endsWith('.ogg') ? 'video/ogg' : 'video/quicktime')
+      response.headers.set('Accept-Ranges', 'bytes')
+      response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      return response
+    }
     return res
   }
 
@@ -131,6 +141,7 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth|api).*)',
+    // Exclude static files, Next.js internals, and public assets from middleware
+    '/((?!_next/static|_next/image|favicon.ico|auth|api|.*\\.(ico|png|jpg|jpeg|svg|webp|css|js|mp4|webm|ogg|mp3|wav|mov|avi)$).*)',
   ],
 }

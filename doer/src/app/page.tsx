@@ -965,14 +965,21 @@ function StepCardContent({
                             onError={(e) => {
                               const video = e.currentTarget
                               const error = video.error
-                              console.error('Video loading error:', {
+                              const errorDetails = {
                                 code: error?.code,
                                 message: error?.message,
                                 networkState: video.networkState,
                                 readyState: video.readyState,
                                 src: video.src,
                                 currentSrc: video.currentSrc
-                              })
+                              }
+                              console.error('Video loading error:', errorDetails)
+                              
+                              // Error code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED
+                              // This usually means the file format is not supported or file is corrupted
+                              if (error?.code === 4) {
+                                console.error('Video format not supported or file corrupted. Please check the video file encoding.')
+                              }
                             }}
                             onLoadedData={() => {
                               console.log('Video loaded successfully')
@@ -1016,14 +1023,21 @@ function StepCardContent({
                             onError={(e) => {
                               const video = e.currentTarget
                               const error = video.error
-                              console.error('Video loading error:', {
+                              const errorDetails = {
                                 code: error?.code,
                                 message: error?.message,
                                 networkState: video.networkState,
                                 readyState: video.readyState,
                                 src: video.src,
                                 currentSrc: video.currentSrc
-                              })
+                              }
+                              console.error('Video loading error:', errorDetails)
+                              
+                              // Error code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED
+                              // This usually means the file format is not supported or file is corrupted
+                              if (error?.code === 4) {
+                                console.error('Video format not supported or file corrupted. Please check the video file encoding.')
+                              }
                             }}
                             onLoadedData={() => {
                               console.log('Video loaded successfully')
