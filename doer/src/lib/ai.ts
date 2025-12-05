@@ -15,6 +15,26 @@ export const openai = new OpenAI({
 import { AIModelRequest } from './types'
 import { combineGoalWithClarifications, detectAvailabilityPatterns } from './goal-analysis'
 
+// Local types for goal structure analysis
+interface FixedSchedule {
+  name: string
+  startTime: string // "HH:MM" format (24-hour)
+  endTime: string   // "HH:MM" format (24-hour)
+}
+
+interface CustomTimeWindow {
+  customStartHour: number
+  customStartMinute: number
+  customEndHour: number
+  customEndMinute: number
+}
+
+interface GoalStructureAnalysis {
+  fixedSchedules: FixedSchedule[]
+  customTimeWindow?: CustomTimeWindow
+  requiresDailyTasks: boolean
+}
+
 /**
  * Evaluates whether a goal is realistically achievable within the 21-day cap
  * Includes clarifications for full contextual awareness
@@ -158,7 +178,11 @@ Return JSON format:
  * Generate roadmap structure with duration estimates and priority assignments
  * AI focuses on CONTENT and DURATION ESTIMATION - no dates or scheduling
  */
-export async function generateRoadmapContent(request: AIModelRequest): Promise<{
+interface ExtendedAIModelRequest extends AIModelRequest {
+  goalStructure?: GoalStructureAnalysis
+}
+
+export async function generateRoadmapContent(request: ExtendedAIModelRequest): Promise<{
   timeline_days: number
   goal_text: string
   goal_title: string
@@ -168,6 +192,8 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
     details: string
     estimated_duration_minutes: number
     priority: 1 | 2 | 3 | 4
+    is_recurring?: boolean
+    recurrence_pattern?: string
   }>
 }> {
   const formatSlot = (slot: { start: string; end: string; source?: string }) => {
@@ -213,6 +239,61 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
     availabilityContextLines.length > 0
       ? `\nAVAILABILITY CONTEXT:\n${availabilityContextLines.join('\n')}\n\n`
       : ''
+
+  // Build fixed schedule context if applicable
+  let fixedScheduleContext = ''
+  if (request.goalStructure && request.goalStructure.fixedSchedules.length > 0) {
+    const scheduleLines = request.goalStructure.fixedSchedules.map(schedule => {
+      // Convert 24-hour format to 12-hour for display
+      const formatTimeForDisplay = (time24: string) => {
+        const [hourStr, minuteStr] = time24.split(':')
+        const hour = parseInt(hourStr, 10)
+        const minute = parseInt(minuteStr, 10)
+        const period = hour >= 12 ? 'pm' : 'am'
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+        return `${displayHour}:${minuteStr}${period}`
+      }
+      return `- ${schedule.name}: ${formatTimeForDisplay(schedule.startTime)} - ${formatTimeForDisplay(schedule.endTime)}`
+    }) as string[]
+    })
+    
+    fixedScheduleContext = `\nFIXED SCHEDULE REQUIREMENTS:
+The user has specified the following fixed daily schedule (these times are blocked and tasks cannot be scheduled during them):
+${scheduleLines.join('\n')}
+
+IMPORTANT: Do NOT create tasks for these fixed schedule items. They are already committed time blocks. Generate tasks only for the remaining available time windows.\n\n`
+  }
+
+  // Build custom time window context if applicable
+  let customTimeWindowContext = ''
+  if (request.goalStructure && request.goalStructure.customTimeWindow) {
+    const { customStartHour, customStartMinute, customEndHour, customEndMinute } = request.goalStructure.customTimeWindow
+    
+    const formatTimeForDisplay = (hour: number, minute: number) => {
+      const period = hour >= 12 ? 'pm' : 'am'
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+      return `${displayHour}:${minute.toString().padStart(2, '0')}${period}`
+    }
+    
+    customTimeWindowContext = `\nCUSTOM TIME WINDOW:
+Tasks should be scheduled between ${formatTimeForDisplay(customStartHour, customStartMinute)} and ${formatTimeForDisplay(customEndHour, customEndMinute)} (not the default 9am-5pm).
+Generate tasks to fill this entire window across all days. The available time window is ${customEndHour * 60 + customEndMinute - (customStartHour * 60 + customStartMinute)} minutes per day.\n\n`
+  }
+
+  // Build daily task requirement context if applicable
+  let dailyTaskContext = ''
+  if (request.goalStructure && request.goalStructure.requiresDailyTasks) {
+    dailyTaskContext = `\nDAILY TASK REQUIREMENT:
+The user has explicitly requested DAILY TASKS that repeat every single day.
+- Generate tasks that should be performed EVERY DAY during the specified time window
+- Each task should be marked with "is_recurring": true in your response
+- Set "recurrence_pattern": "daily" for all recurring tasks
+- Generate enough tasks to fill the available time window each day
+- Tasks should be varied and realistic (personal, household, errands, administrative, light productivity)
+- Avoid milestones - make everything daily actionable tasks
+- The total duration of all daily tasks should approximately fill the available time window each day
+- Mix task types: some short (15-30 min), some medium (30-60 min), some longer (60-90 min) to create a balanced daily routine\n\n`
+  }
 
   // Build time constraint context if applicable
   let timeConstraintContext = ''
@@ -261,7 +342,7 @@ IMPORTANT: Use these clarifications to tailor the plan. Adjust timeline and task
 
 ${clarificationsSection}
 
-${availabilityContext}${timeConstraintContext}DURATION ESTIMATION:
+${availabilityContext}${fixedScheduleContext}${customTimeWindowContext}${dailyTaskContext}${timeConstraintContext}DURATION ESTIMATION:
 • AI determines EXACT duration for each task based on complexity
 • NO hardcoded durations - analyze the specific task context
 • Consider user's goal and realistic completion time
@@ -446,7 +527,9 @@ JSON FORMAT:
       "name": "Specific action",
       "details": "clear steps",
       "estimated_duration_minutes": <15-360>,
-      "priority": 1|2|3|4
+      "priority": 1|2|3|4,
+      "is_recurring": <true|false>,  // OPTIONAL: true if task repeats daily
+      "recurrence_pattern": "daily"  // OPTIONAL: only include if is_recurring is true
     }
   ]
 }

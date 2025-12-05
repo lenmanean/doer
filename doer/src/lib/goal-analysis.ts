@@ -460,6 +460,197 @@ function checkForWorkdayEnd(clarifications?: Record<string, any> | string[]): bo
 }
 
 /**
+ * Convert time string to 24-hour format (HH:MM)
+ * Handles formats like "9:00am", "9:00 am", "9am", "21:00", "9:00pm"
+ */
+function parseTimeTo24Hour(timeStr: string): { hour: number; minute: number } | null {
+  const trimmed = timeStr.trim().toLowerCase()
+  
+  // Pattern for 12-hour format with AM/PM
+  const twelveHourPattern = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/
+  const match12 = trimmed.match(twelveHourPattern)
+  
+  if (match12) {
+    let hour = parseInt(match12[1], 10)
+    const minute = match12[2] ? parseInt(match12[2], 10) : 0
+    const period = match12[3]
+    
+    if (period === 'pm' && hour !== 12) {
+      hour += 12
+    } else if (period === 'am' && hour === 12) {
+      hour = 0
+    }
+    
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return { hour, minute }
+    }
+  }
+  
+  // Pattern for 24-hour format (HH:MM or HH)
+  const twentyFourHourPattern = /(\d{1,2})(?::(\d{2}))?/
+  const match24 = trimmed.match(twentyFourHourPattern)
+  
+  if (match24) {
+    const hour = parseInt(match24[1], 10)
+    const minute = match24[2] ? parseInt(match24[2], 10) : 0
+    
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return { hour, minute }
+    }
+  }
+  
+  return null
+}
+
+/**
+ * Format hour and minute to HH:MM string
+ */
+function formatTime24Hour(hour: number, minute: number): string {
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+}
+
+/**
+ * Detect fixed schedules from goal text and clarifications
+ * Parses patterns like "Sleep from 9:00pm to 6:00am", "Workout from 4:00am to 6:00am"
+ */
+export function detectFixedSchedules(
+  goalText: string,
+  clarifications?: Record<string, any> | string[]
+): { fixedSchedules: Array<{ name: string; startTime: string; endTime: string }> } {
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const fixedSchedules: Array<{ name: string; startTime: string; endTime: string }> = []
+  
+  // Pattern: "Activity from TIME to TIME" or "Activity TIME to TIME"
+  // Examples: "Sleep from 9:00pm to 6:00am", "Workout 4:00am to 6:00am"
+  const schedulePattern = /([A-Za-z\s]+?)\s+from\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+to\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/gi
+  const schedulePattern2 = /([A-Za-z\s]+?)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+to\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/gi
+  
+  let match
+  const processed = new Set<string>() // Track processed schedules to avoid duplicates
+  
+  // Try pattern 1: "Activity from TIME to TIME"
+  while ((match = schedulePattern.exec(combinedText)) !== null) {
+    const name = match[1].trim()
+    const startTimeStr = match[2]
+    const endTimeStr = match[3]
+    
+    const startTime = parseTimeTo24Hour(startTimeStr)
+    const endTime = parseTimeTo24Hour(endTimeStr)
+    
+    if (startTime && endTime && name) {
+      const key = `${name}-${startTime.hour}-${endTime.hour}`
+      if (!processed.has(key)) {
+        fixedSchedules.push({
+          name,
+          startTime: formatTime24Hour(startTime.hour, startTime.minute),
+          endTime: formatTime24Hour(endTime.hour, endTime.minute),
+        })
+        processed.add(key)
+      }
+    }
+  }
+  
+  // Try pattern 2: "Activity TIME to TIME" (without "from")
+  while ((match = schedulePattern2.exec(combinedText)) !== null) {
+    const name = match[1].trim()
+    const startTimeStr = match[2]
+    const endTimeStr = match[3]
+    
+    // Skip if this looks like it's part of a "from X to Y" pattern (already captured)
+    if (name.toLowerCase().includes('from')) continue
+    
+    const startTime = parseTimeTo24Hour(startTimeStr)
+    const endTime = parseTimeTo24Hour(endTimeStr)
+    
+    if (startTime && endTime && name) {
+      const key = `${name}-${startTime.hour}-${endTime.hour}`
+      if (!processed.has(key)) {
+        fixedSchedules.push({
+          name,
+          startTime: formatTime24Hour(startTime.hour, startTime.minute),
+          endTime: formatTime24Hour(endTime.hour, endTime.minute),
+        })
+        processed.add(key)
+      }
+    }
+  }
+  
+  return { fixedSchedules }
+}
+
+/**
+ * Detect custom time window from goal text and clarifications
+ * Parses patterns like "fill 8:30am to 9:00pm", "from 8:30am to 9:00pm", "between 8:30am and 9:00pm"
+ */
+export function detectCustomTimeWindow(
+  goalText: string,
+  clarifications?: Record<string, any> | string[]
+): { customStartHour?: number; customStartMinute?: number; customEndHour?: number; customEndMinute?: number } {
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const lowerText = combinedText.toLowerCase()
+  
+  // Patterns for custom time windows
+  // "fill X:XXam to Y:YYpm", "from X:XX to Y:YY", "between X:XX and Y:YY"
+  const patterns = [
+    /fill\s+(?:the\s+)?(?:schedule\s+)?(?:from\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:to|until)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
+    /from\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:to|until)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
+    /between\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+and\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i,
+    /(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+to\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+(?:fill|schedule)/i,
+  ]
+  
+  for (const pattern of patterns) {
+    const match = lowerText.match(pattern)
+    if (match) {
+      const startTime = parseTimeTo24Hour(match[1])
+      const endTime = parseTimeTo24Hour(match[2])
+      
+      if (startTime && endTime) {
+        return {
+          customStartHour: startTime.hour,
+          customStartMinute: startTime.minute,
+          customEndHour: endTime.hour,
+          customEndMinute: endTime.minute,
+        }
+      }
+    }
+  }
+  
+  return {}
+}
+
+/**
+ * Detect if user wants daily recurring tasks
+ * Patterns: "daily tasks", "every day", "each day", "fill the schedule", "structured daily routine"
+ */
+export function detectDailyTaskRequirement(
+  goalText: string,
+  clarifications?: Record<string, any> | string[]
+): boolean {
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const lowerText = combinedText.toLowerCase()
+  
+  // Patterns indicating daily task requirement
+  const dailyPatterns = [
+    /\bdaily\s+tasks?\b/i,
+    /\bevery\s+day\b/i,
+    /\beach\s+day\b/i,
+    /\bfill\s+(?:the\s+)?schedule\b/i,
+    /\bstructured\s+daily\s+routine\b/i,
+    /\bdaily\s+routine\b/i,
+    /\brepeat\s+(?:every\s+)?day\b/i,
+    /\bsame\s+tasks?\s+(?:every|each)\s+day\b/i,
+  ]
+  
+  for (const pattern of dailyPatterns) {
+    if (pattern.test(lowerText)) {
+      return true
+    }
+  }
+  
+  return false
+}
+
+/**
  * Detect task dependencies based on semantic patterns in task names
  * Returns a map of task idx -> array of dependent task idxs
  * (e.g., if task 3 depends on task 2, map will have: 3 -> [2])

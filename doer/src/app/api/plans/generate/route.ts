@@ -7,7 +7,7 @@ import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
-import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications } from '@/lib/goal-analysis'
+import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications, detectFixedSchedules, detectCustomTimeWindow, detectDailyTaskRequirement } from '@/lib/goal-analysis'
 import { calculateRemainingTime, calculateDaysNeeded } from '@/lib/time-constraints'
 import { NormalizedAvailability, BusySlot } from '@/lib/types'
 
@@ -351,6 +351,23 @@ export async function POST(req: NextRequest) {
     const urgencyAnalysis = detectUrgencyIndicators(finalGoalText, finalClarifications)
     console.log('🔍 Urgency analysis:', urgencyAnalysis)
 
+    // Detect goal structure: fixed schedules, custom time window, daily task requirement
+    const fixedSchedulesResult = detectFixedSchedules(finalGoalText, finalClarifications)
+    const customTimeWindow = detectCustomTimeWindow(finalGoalText, finalClarifications)
+    const requiresDailyTasks = detectDailyTaskRequirement(finalGoalText, finalClarifications)
+    
+    const goalStructure = {
+      fixedSchedules: fixedSchedulesResult.fixedSchedules,
+      customTimeWindow: Object.keys(customTimeWindow).length > 0 ? customTimeWindow : undefined,
+      requiresDailyTasks,
+    }
+    
+    console.log('📋 Goal structure analysis:', {
+      fixedSchedulesCount: goalStructure.fixedSchedules.length,
+      hasCustomTimeWindow: !!goalStructure.customTimeWindow,
+      requiresDailyTasks: goalStructure.requiresDailyTasks,
+    })
+
     // Fetch user's workday settings to pass to availability detection
     const { data: settings } = await supabase
       .from('user_settings')
@@ -519,6 +536,7 @@ export async function POST(req: NextRequest) {
         clarificationQuestions: finalClarificationQuestions,
         availability,
         timeConstraints,
+        goalStructure,
       })
 
       console.log('✅ AI content generated successfully')
@@ -1236,6 +1254,10 @@ export async function POST(req: NextRequest) {
       details: task.details,
       estimated_duration_minutes: task.estimated_duration_minutes || 30,
       priority: task.priority || 3,
+      // Handle recurring tasks
+      is_recurring: task.is_recurring === true,
+      recurrence_pattern: task.is_recurring === true ? (task.recurrence_pattern || 'daily') : null,
+      recurrence_end_date: task.is_recurring === true ? endDate : null,
     }))
 
     console.log('Inserting tasks:', {
@@ -1255,13 +1277,62 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Extract custom workday hours from custom time window if detected
+      let customWorkdayStartHour: number | undefined = eveningWorkdayStartHour
+      let customWorkdayStartMinute: number | undefined = undefined
+      let customWorkdayEndHour: number | undefined = eveningWorkdayEndHour
+      let customWorkdayEndMinute: number | undefined = undefined
+      
+      if (goalStructure.customTimeWindow) {
+        customWorkdayStartHour = goalStructure.customTimeWindow.customStartHour
+        customWorkdayStartMinute = goalStructure.customTimeWindow.customStartMinute
+        customWorkdayEndHour = goalStructure.customTimeWindow.customEndHour
+        customWorkdayEndMinute = goalStructure.customTimeWindow.customEndMinute
+        console.log('🕐 Using custom time window for scheduling:', {
+          start: `${customWorkdayStartHour}:${customWorkdayStartMinute}`,
+          end: `${customWorkdayEndHour}:${customWorkdayEndMinute}`,
+        })
+      }
+      
+      // Convert fixed schedules to busy slots format for scheduler
+      const fixedScheduleSlots: Array<{ date: string; start_time: string; end_time: string }> = []
+      if (goalStructure.fixedSchedules.length > 0) {
+        // Generate busy slots for each day in the timeline
+        for (let dayOffset = 0; dayOffset < timelineDays; dayOffset++) {
+          const currentDate = new Date(parsedStartDate)
+          currentDate.setDate(currentDate.getDate() + dayOffset)
+          const dateStr = formatDateForDB(currentDate)
+          
+          for (const fixedSchedule of goalStructure.fixedSchedules) {
+            fixedScheduleSlots.push({
+              date: dateStr,
+              start_time: fixedSchedule.startTime,
+              end_time: fixedSchedule.endTime,
+            })
+          }
+        }
+        console.log(`🔒 Created ${fixedScheduleSlots.length} fixed schedule blocks (${goalStructure.fixedSchedules.length} schedules × ${timelineDays} days)`)
+      }
+      
       // Pass userLocalTime to scheduler for accurate timezone handling
       // userLocalTime is always calculated (line 309) even if not used in timeConstraints
       const schedulerUserLocalTime = timeConstraints?.userLocalTime || userLocalTime
       // Pass requireStartDate flag if user explicitly required today
       const requireStartDate = timeConstraints?.requiresToday && timeConstraints?.urgencyLevel === 'high'
-      // Pass evening workday hours if availability patterns detected
-      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate, eveningWorkdayStartHour, eveningWorkdayEndHour)
+      // Pass custom workday hours (from custom time window or evening availability)
+      await generateTaskSchedule(
+        plan.id,
+        parsedStartDate,
+        endDate,
+        timezoneOffset,
+        schedulerUserLocalTime,
+        requireStartDate,
+        customWorkdayStartHour,
+        customWorkdayEndHour,
+        customWorkdayStartMinute,
+        customWorkdayEndMinute,
+        fixedScheduleSlots
+      )
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
     } catch (scheduleError) {
       console.error('Error generating task schedule:', scheduleError)

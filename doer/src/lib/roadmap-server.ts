@@ -9,7 +9,19 @@ import { detectTaskDependencies } from '@/lib/goal-analysis'
  * Generate time-block schedule for all tasks in a plan.
  * Persists entries into task_schedule.
  */
-export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date, timezoneOffset?: number, userLocalTime?: Date, requireStartDate?: boolean, workdayStartHourOverride?: number, workdayEndHourOverride?: number) {
+export async function generateTaskSchedule(
+  planId: string,
+  startDateInput: Date,
+  endDateInput: Date,
+  timezoneOffset?: number,
+  userLocalTime?: Date,
+  requireStartDate?: boolean,
+  workdayStartHourOverride?: number,
+  workdayEndHourOverride?: number,
+  workdayStartMinuteOverride?: number,
+  workdayEndMinuteOverride?: number,
+  fixedScheduleSlots?: Array<{ date: string; start_time: string; end_time: string }>
+) {
   const supabase = await createClient()
 
   // Fetch plan (to get user_id and canonical dates)
@@ -52,10 +64,11 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
   const prefs = (settings?.preferences as any) ?? {}
   const workdayPrefs = prefs.workday || {}
 
-  // Use overrides if provided (e.g., for evening availability), otherwise use user settings
+  // Use overrides if provided (e.g., for evening availability or custom time window), otherwise use user settings
   const workdayStartHour = workdayStartHourOverride ?? Number(workdayPrefs.workday_start_hour ?? prefs.workday_start_hour ?? 9)
-  const workdayStartMinute = Number(workdayPrefs.workday_start_minute ?? prefs.workday_start_minute ?? 0)
+  const workdayStartMinute = workdayStartMinuteOverride !== undefined ? workdayStartMinuteOverride : Number(workdayPrefs.workday_start_minute ?? prefs.workday_start_minute ?? 0)
   const workdayEndHour = workdayEndHourOverride ?? Number(workdayPrefs.workday_end_hour ?? prefs.workday_end_hour ?? 17)
+  const workdayEndMinute = workdayEndMinuteOverride !== undefined ? workdayEndMinuteOverride : Number(workdayPrefs.workday_end_minute ?? prefs.workday_end_minute ?? 0)
   const lunchStartHour = Number(workdayPrefs.lunch_start_hour ?? prefs.lunch_start_hour ?? 12)
   const lunchEndHour = Number(workdayPrefs.lunch_end_hour ?? prefs.lunch_end_hour ?? 13)
   const allowWeekends = Boolean(workdayPrefs.allow_weekends ?? prefs.allow_weekends ?? false)
@@ -191,11 +204,17 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     // Continue without busy slots if fetch fails
   }
 
-  // Combine existing task schedules with calendar busy slots
+  // Combine existing task schedules with calendar busy slots and fixed schedule slots
   const existingSchedules = [...existingTaskSchedules, ...calendarBusySlots]
   
+  // Add fixed schedule slots if provided
+  if (fixedScheduleSlots && fixedScheduleSlots.length > 0) {
+    existingSchedules.push(...fixedScheduleSlots)
+    console.log(`[generateTaskSchedule] Added ${fixedScheduleSlots.length} fixed schedule blocks`)
+  }
+  
   if (existingSchedules.length > 0) {
-    console.log(`[generateTaskSchedule] Total existing schedules (tasks + calendar): ${existingSchedules.length}`)
+    console.log(`[generateTaskSchedule] Total existing schedules (tasks + calendar + fixed): ${existingSchedules.length}`)
   }
 
   // Run scheduler
@@ -217,11 +236,12 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     workdayStartHour,
     workdayStartMinute,
     workdayEndHour,
+    // Note: workdayEndMinute is not yet supported by scheduler, using hour-level precision
     lunchStartHour,
     lunchEndHour,
     allowWeekends: effectiveAllowWeekends,
     currentTime,
-    existingSchedules, // Pass busy slots to avoid conflicts
+    existingSchedules, // Pass busy slots (including fixed schedules) to avoid conflicts
     forceStartDate, // Force using start date when appropriate
     taskDependencies, // Pass detected dependencies to enforce ordering
     requireStartDate // If true, schedule tasks on day 0 starting from workday start, even if current time is after workday end
