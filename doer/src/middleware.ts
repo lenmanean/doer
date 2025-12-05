@@ -3,6 +3,30 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
+  const url = new URL(req.url)
+  const pathname = url.pathname
+
+  // Check for static assets FIRST, before any other processing
+  // This includes video and audio files from the public directory
+  const isStaticAsset = pathname.startsWith('/_next/') || 
+                        pathname.startsWith('/favicon') ||
+                        pathname.match(/\.(ico|png|jpg|jpeg|svg|webp|css|js|mp4|webm|ogg|mp3|wav|mov|avi)$/i)
+
+  // If it's a static asset, return immediately with proper headers
+  if (isStaticAsset) {
+    // Add proper headers for video files
+    if (pathname.match(/\.(mp4|webm|ogg|mov|avi)$/i)) {
+      const response = NextResponse.next()
+      response.headers.set('Content-Type', pathname.endsWith('.mp4') ? 'video/mp4' : 
+                          pathname.endsWith('.webm') ? 'video/webm' : 
+                          pathname.endsWith('.ogg') ? 'video/ogg' : 'video/quicktime')
+      response.headers.set('Accept-Ranges', 'bytes')
+      response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      return response
+    }
+    return NextResponse.next()
+  }
+
   let res = NextResponse.next({
     request: {
       headers: req.headers,
@@ -58,9 +82,6 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  const url = new URL(req.url)
-  const pathname = url.pathname
-
   // Define public routes that don't require authentication
   const publicRoutes = [
     '/', // Homepage
@@ -98,24 +119,9 @@ export async function middleware(req: NextRequest) {
   
   // Allow API routes
   const isApiRoute = pathname.startsWith('/api/')
-  
-  // Allow static assets (including video and audio files)
-  const isStaticAsset = pathname.startsWith('/_next/') || 
-                        pathname.startsWith('/favicon') ||
-                        pathname.match(/\.(ico|png|jpg|jpeg|svg|webp|css|js|mp4|webm|ogg|mp3|wav|mov|avi)$/i)
 
-  // If it's a public route, auth route, API route, or static asset, allow access
-  if (isPublicRoute || isAuthRoute || isApiRoute || isStaticAsset) {
-    // Add proper headers for video files
-    if (pathname.match(/\.(mp4|webm|ogg|mov|avi)$/i)) {
-      const response = NextResponse.next()
-      response.headers.set('Content-Type', pathname.endsWith('.mp4') ? 'video/mp4' : 
-                          pathname.endsWith('.webm') ? 'video/webm' : 
-                          pathname.endsWith('.ogg') ? 'video/ogg' : 'video/quicktime')
-      response.headers.set('Accept-Ranges', 'bytes')
-      response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-      return response
-    }
+  // If it's a public route, auth route, or API route, allow access
+  if (isPublicRoute || isAuthRoute || isApiRoute) {
     return res
   }
 
