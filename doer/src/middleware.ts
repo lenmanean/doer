@@ -107,6 +107,7 @@ export async function middleware(req: NextRequest) {
     '/integrations', // Public integrations page
     '/checkout', // Checkout page
     '/health', // Health check
+    '/motion-graphics-brief', // Motion graphics brief page (public, no auth required)
   ]
 
   // Allow public routes
