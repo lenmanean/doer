@@ -312,7 +312,6 @@ export interface AIModelRequest {
       timelinePhrase?: string
     }
   }
-  goalStructure?: GoalStructureAnalysis // NEW: fixed schedules, custom time window, daily task requirement
 }
 
 export interface AITaskOutput {
@@ -320,8 +319,6 @@ export interface AITaskOutput {
   details: string
   estimated_duration_minutes: number
   priority: 1 | 2 | 3 | 4
-  is_recurring?: boolean // NEW: indicates daily recurring task
-  recurrence_pattern?: string // NEW: 'daily', 'weekly', 'monthly'
 }
 
 export interface AIModelResponse {
@@ -403,25 +400,5 @@ export interface AvailabilityValidationResult {
   errors: string[]
   warnings: string[]
   normalized: NormalizedAvailability
-}
-
-// Goal structure analysis types
-export interface FixedSchedule {
-  name: string
-  startTime: string // "HH:MM" format (24-hour)
-  endTime: string   // "HH:MM" format (24-hour)
-}
-
-export interface CustomTimeWindow {
-  customStartHour: number
-  customStartMinute: number
-  customEndHour: number
-  customEndMinute: number
-}
-
-export interface GoalStructureAnalysis {
-  fixedSchedules: FixedSchedule[]
-  customTimeWindow?: CustomTimeWindow
-  requiresDailyTasks: boolean
 }
 

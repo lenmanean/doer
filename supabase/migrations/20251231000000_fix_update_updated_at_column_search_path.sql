@@ -20,3 +20,11 @@ COMMENT ON FUNCTION public.update_updated_at_column() IS
   'Trigger function that automatically updates the updated_at column to the current timestamp. 
    Security: search_path is set to prevent search path injection attacks.';
 
+
+
+
+
+
+
+
+
