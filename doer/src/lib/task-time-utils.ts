@@ -197,11 +197,13 @@ export const TASK_DURATION_MAX_MINUTES = 360 // 6 hours for regular tasks
  * Validate task duration
  * @param durationMinutes - Duration in minutes to validate
  * @param isCalendarEvent - Whether this is a calendar event (has no maximum)
+ * @param isManualTask - Whether this is a manually created task (has no maximum, only applies to AI-generated tasks)
  * @returns Object with isValid flag and error message if invalid
  */
 export function validateTaskDuration(
   durationMinutes: number,
-  isCalendarEvent: boolean = false
+  isCalendarEvent: boolean = false,
+  isManualTask: boolean = false
 ): { isValid: boolean; error?: string } {
   if (durationMinutes < TASK_DURATION_MIN_MINUTES) {
     return {
@@ -210,7 +212,9 @@ export function validateTaskDuration(
     }
   }
   
-  if (!isCalendarEvent && durationMinutes > TASK_DURATION_MAX_MINUTES) {
+  // Manual tasks and calendar events have no maximum duration limit
+  // Only AI-generated tasks are limited to 6 hours
+  if (!isCalendarEvent && !isManualTask && durationMinutes > TASK_DURATION_MAX_MINUTES) {
     return {
       isValid: false,
       error: `Task duration must not exceed ${TASK_DURATION_MAX_MINUTES} minutes (6 hours) for regular tasks. Current duration: ${formatDuration(durationMinutes)}.`
@@ -224,14 +228,17 @@ export function validateTaskDuration(
  * Clamp duration to valid range
  * @param durationMinutes - Duration in minutes to clamp
  * @param isCalendarEvent - Whether this is a calendar event (has no maximum)
+ * @param isManualTask - Whether this is a manually created task (has no maximum)
  * @returns Clamped duration in minutes
  */
 export function clampTaskDuration(
   durationMinutes: number,
-  isCalendarEvent: boolean = false
+  isCalendarEvent: boolean = false,
+  isManualTask: boolean = false
 ): number {
   const min = TASK_DURATION_MIN_MINUTES
-  const max = isCalendarEvent ? Infinity : TASK_DURATION_MAX_MINUTES
+  // Manual tasks and calendar events have no maximum duration limit
+  const max = (isCalendarEvent || isManualTask) ? Infinity : TASK_DURATION_MAX_MINUTES
   return Math.max(min, Math.min(durationMinutes, max))
 }
 

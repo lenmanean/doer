@@ -1020,7 +1020,8 @@ export function CreateTaskModal({
         }
 
         // Validate duration meets minimum requirement (5 minutes)
-        const validation = validateTaskDuration(duration, false)
+        // Manual tasks have no maximum duration limit (only AI-generated tasks are limited to 6 hours)
+        const validation = validateTaskDuration(duration, false, true)
         if (!validation.isValid) {
           const suggestion = getDurationSuggestion(taskData.startTime, taskData.endTime)
           tasksWithErrors.push({
