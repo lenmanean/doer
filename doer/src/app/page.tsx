@@ -840,12 +840,15 @@ function StepCardContent({
   }, [])
 
   // Handle video loading and playback when step is expanded
+  // This works for both step1 and step2 - each has its own videoRef instance
+  // Videos should always render regardless of auth state
   useEffect(() => {
     if ((step.id === 'step1' || step.id === 'step2') && videoRef.current) {
       if (isExpanded) {
         // Small delay to ensure the element is visible
         const timer = setTimeout(() => {
           if (videoRef.current) {
+            // Always load the video, regardless of auth state
             videoRef.current.load()
             // On mobile, try to play but don't fail silently - user may need to interact
             const playPromise = videoRef.current.play()
@@ -869,6 +872,17 @@ function StepCardContent({
       }
     }
   }, [isExpanded, step.id, isMobile])
+
+  // Ensure video is always visible and loaded, even when auth state changes
+  useEffect(() => {
+    if ((step.id === 'step1' || step.id === 'step2') && videoRef.current && isExpanded) {
+      // Force video to be visible and loaded
+      videoRef.current.style.display = 'block'
+      if (videoRef.current.readyState === 0) {
+        videoRef.current.load()
+      }
+    }
+  }, [step.id, isExpanded])
 
   return (
     <>
@@ -1020,12 +1034,12 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
-                          <div className="text-center space-y-4">
-                            <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
-                            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
-                          </div>
+                      <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
+                        <div className="text-center space-y-4">
+                          <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
                         </div>
+                      </div>
                       )}
                     </div>
                   </div>
