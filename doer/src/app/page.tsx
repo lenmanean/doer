@@ -956,14 +956,24 @@ function StepCardContent({
                             muted
                             playsInline
                             preload="auto"
-                            className="w-full h-auto rounded-lg block mx-auto"
+                            className="max-w-full h-auto rounded-lg block"
                             style={{ 
                               display: 'block',
+                              width: 'auto',
                               maxWidth: '100%',
-                              height: 'auto'
+                              height: 'auto',
+                              margin: '0 auto'
                             }}
                             onError={(e) => {
-                              console.error('Video loading error:', e)
+                              const video = e.currentTarget
+                              const error = video.error
+                              console.error('Video loading error:', {
+                                code: error?.code,
+                                message: error?.message,
+                                networkState: video.networkState,
+                                readyState: video.readyState,
+                                src: video.src
+                              })
                             }}
                             onLoadedData={() => {
                               console.log('Video loaded successfully')
@@ -999,14 +1009,24 @@ function StepCardContent({
                             muted
                             playsInline
                             preload="auto"
-                            className="w-full h-auto rounded-lg block mx-auto"
+                            className="max-w-full h-auto rounded-lg block"
                             style={{ 
                               display: 'block',
+                              width: 'auto',
                               maxWidth: '100%',
-                              height: 'auto'
+                              height: 'auto',
+                              margin: '0 auto'
                             }}
                             onError={(e) => {
-                              console.error('Video loading error:', e)
+                              const video = e.currentTarget
+                              const error = video.error
+                              console.error('Video loading error:', {
+                                code: error?.code,
+                                message: error?.message,
+                                networkState: video.networkState,
+                                readyState: video.readyState,
+                                src: video.src
+                              })
                             }}
                             onLoadedData={() => {
                               console.log('Video loaded successfully')
