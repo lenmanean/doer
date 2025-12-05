@@ -36,6 +36,7 @@ export default function ManualOnboardingPage() {
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [createdPlanId, setCreatedPlanId] = useState<string | null>(null) // Track plan ID for cleanup
   
   // Check if there's unsaved data
   const hasUnsavedData = useMemo(() => {
@@ -48,11 +49,42 @@ export default function ManualOnboardingPage() {
     )
   }, [goalTitle, goalDescription, startDate, endDate, tasks.length])
   
+  // Cleanup: Delete plan if component unmounts with an incomplete plan
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount: delete plan if it was created but not completed
+      if (createdPlanId) {
+        // Use fetch with keepalive for reliable cleanup even if page is closing
+        fetch('/api/plans/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: createdPlanId }),
+          keepalive: true, // Ensures request completes even if page is closing
+        }).catch(err => {
+          console.error('Failed to cleanup plan on unmount:', err)
+        })
+      }
+    }
+  }, [createdPlanId])
+  
   // Handle browser navigation (back button, closing tab, etc.)
   useEffect(() => {
     if (!hasUnsavedData || isSubmitting) return
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // If a plan was created, delete it before leaving
+      if (createdPlanId) {
+        // Use fetch with keepalive for reliable cleanup
+        fetch('/api/plans/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: createdPlanId }),
+          keepalive: true, // Ensures request completes even if page is closing
+        }).catch(err => {
+          console.error('Failed to cleanup plan on beforeunload:', err)
+        })
+      }
+      
       e.preventDefault()
       e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
       return e.returnValue
@@ -82,7 +114,7 @@ export default function ManualOnboardingPage() {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [hasUnsavedData, isSubmitting])
+  }, [hasUnsavedData, isSubmitting, createdPlanId])
   
   // Intercept router navigation
   const handleNavigation = (navigationFn: () => void) => {
@@ -367,7 +399,11 @@ export default function ManualOnboardingPage() {
       }
 
       const planData = await planResponse.json()
-      console.log('Manual plan created successfully:', planData.plan.id)
+      const planId = planData.plan.id
+      console.log('Manual plan created successfully:', planId)
+      
+      // Track the created plan ID for cleanup if needed
+      setCreatedPlanId(planId)
 
       // Step 2: Add tasks to the plan
       if (tasks.length > 0) {
@@ -375,7 +411,7 @@ export default function ManualOnboardingPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            plan_id: planData.plan.id,
+            plan_id: planId,
             tasks: tasks.map(task => ({
               name: task.name,
               details: task.details,
@@ -390,12 +426,18 @@ export default function ManualOnboardingPage() {
 
         if (!tasksResponse.ok) {
           const errorData = await tasksResponse.json()
+          // Clean up the plan since task creation failed
+          await deletePlan(planId)
+          setCreatedPlanId(null)
           throw new Error(errorData.error || 'Failed to create tasks')
         }
 
         console.log('Tasks created successfully')
       }
 
+      // Clear the created plan ID since everything succeeded
+      setCreatedPlanId(null)
+      
       // Redirect to dashboard
       router.push('/dashboard')
     } catch (error: any) {
@@ -406,7 +448,31 @@ export default function ManualOnboardingPage() {
     }
   }
 
-  const handleCancel = () => {
+  const deletePlan = async (planId: string) => {
+    try {
+      const response = await fetch('/api/plans/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_id: planId }),
+      })
+      
+      if (!response.ok) {
+        console.error('Failed to delete plan:', planId)
+      } else {
+        console.log('Successfully deleted plan:', planId)
+      }
+    } catch (error) {
+      console.error('Error deleting plan:', error)
+    }
+  }
+
+  const handleCancel = async () => {
+    // If a plan was created but not completed, delete it
+    if (createdPlanId) {
+      await deletePlan(createdPlanId)
+      setCreatedPlanId(null)
+    }
+    
     handleNavigation(() => router.push('/dashboard'))
   }
 
