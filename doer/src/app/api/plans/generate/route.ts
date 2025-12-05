@@ -1270,7 +1270,7 @@ export async function POST(req: NextRequest) {
       priority: task.priority || 3,
       // Handle recurring tasks
       is_recurring: task.is_recurring === true,
-      recurrence_pattern: task.is_recurring === true ? (task.recurrence_pattern || 'daily') : null,
+      // Note: recurrence_pattern column was removed - recurring tasks are handled via is_recurring flag
       recurrence_end_date: task.is_recurring === true ? endDate : null,
     }))
 
