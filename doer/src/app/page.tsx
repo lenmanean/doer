@@ -948,7 +948,7 @@ function StepCardContent({
                       
                       {/* Plan Preview - Video embedded for step 1 and step 2 */}
                       {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <video
                             ref={videoRef}
                             autoPlay
@@ -956,13 +956,14 @@ function StepCardContent({
                             muted
                             playsInline
                             preload="auto"
-                            className="max-w-full h-auto rounded-lg block"
+                            className="rounded-lg"
                             style={{ 
                               display: 'block',
-                              width: 'auto',
                               maxWidth: '100%',
+                              maxHeight: '100%',
+                              width: 'auto',
                               height: 'auto',
-                              margin: '0 auto'
+                              objectFit: 'contain'
                             }}
                             onError={(e) => {
                               const video = e.currentTarget
@@ -993,6 +994,13 @@ function StepCardContent({
                                 videoRef.current.setAttribute('playsinline', 'true')
                                 // Set x5-playsinline for Android/WeChat browsers
                                 videoRef.current.setAttribute('x5-playsinline', 'true')
+                                // Ensure source is set
+                                if (!videoRef.current.src && videoRef.current.querySelector('source')) {
+                                  const source = videoRef.current.querySelector('source')
+                                  if (source && source.src) {
+                                    videoRef.current.src = source.src
+                                  }
+                                }
                               }
                             }}
                           >
@@ -1001,7 +1009,7 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : step.id === 'step2' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto flex items-center justify-center" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <video
                             ref={videoRef}
                             autoPlay
@@ -1009,13 +1017,14 @@ function StepCardContent({
                             muted
                             playsInline
                             preload="auto"
-                            className="max-w-full h-auto rounded-lg block"
+                            className="rounded-lg"
                             style={{ 
                               display: 'block',
-                              width: 'auto',
                               maxWidth: '100%',
+                              maxHeight: '100%',
+                              width: 'auto',
                               height: 'auto',
-                              margin: '0 auto'
+                              objectFit: 'contain'
                             }}
                             onError={(e) => {
                               const video = e.currentTarget
@@ -1046,6 +1055,13 @@ function StepCardContent({
                                 videoRef.current.setAttribute('playsinline', 'true')
                                 // Set x5-playsinline for Android/WeChat browsers
                                 videoRef.current.setAttribute('x5-playsinline', 'true')
+                                // Ensure source is set
+                                if (!videoRef.current.src && videoRef.current.querySelector('source')) {
+                                  const source = videoRef.current.querySelector('source')
+                                  if (source && source.src) {
+                                    videoRef.current.src = source.src
+                                  }
+                                }
                               }
                             }}
                           >
