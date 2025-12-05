@@ -947,22 +947,19 @@ function StepCardContent({
                       </div>
                       
                       {/* Plan Preview - Video embedded for step 1 and step 2 */}
-                      {step.id === 'step1' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {step.id === 'step1' && isExpanded ? (
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
+                            src="/doer_tut1.mp4"
                             autoPlay
                             loop
                             muted
                             playsInline
                             preload="auto"
-                            className="rounded-lg"
+                            className="w-full h-auto rounded-lg"
                             style={{ 
                               display: 'block',
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              width: 'auto',
-                              height: 'auto',
                               objectFit: 'contain'
                             }}
                             onError={(e) => {
@@ -973,7 +970,8 @@ function StepCardContent({
                                 message: error?.message,
                                 networkState: video.networkState,
                                 readyState: video.readyState,
-                                src: video.src
+                                src: video.src,
+                                currentSrc: video.currentSrc
                               })
                             }}
                             onLoadedData={() => {
@@ -994,36 +992,25 @@ function StepCardContent({
                                 videoRef.current.setAttribute('playsinline', 'true')
                                 // Set x5-playsinline for Android/WeChat browsers
                                 videoRef.current.setAttribute('x5-playsinline', 'true')
-                                // Ensure source is set
-                                if (!videoRef.current.src && videoRef.current.querySelector('source')) {
-                                  const source = videoRef.current.querySelector('source')
-                                  if (source && source.src) {
-                                    videoRef.current.src = source.src
-                                  }
-                                }
                               }
                             }}
                           >
-                            <source src="/doer_tut1.mp4" type="video/mp4" />
                             Your browser does not support the video tag.
                           </video>
                         </div>
-                      ) : step.id === 'step2' ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      ) : step.id === 'step2' && isExpanded ? (
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
+                            src="/doer_tut2.mp4"
                             autoPlay
                             loop
                             muted
                             playsInline
                             preload="auto"
-                            className="rounded-lg"
+                            className="w-full h-auto rounded-lg"
                             style={{ 
                               display: 'block',
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              width: 'auto',
-                              height: 'auto',
                               objectFit: 'contain'
                             }}
                             onError={(e) => {
@@ -1034,7 +1021,8 @@ function StepCardContent({
                                 message: error?.message,
                                 networkState: video.networkState,
                                 readyState: video.readyState,
-                                src: video.src
+                                src: video.src,
+                                currentSrc: video.currentSrc
                               })
                             }}
                             onLoadedData={() => {
@@ -1055,17 +1043,9 @@ function StepCardContent({
                                 videoRef.current.setAttribute('playsinline', 'true')
                                 // Set x5-playsinline for Android/WeChat browsers
                                 videoRef.current.setAttribute('x5-playsinline', 'true')
-                                // Ensure source is set
-                                if (!videoRef.current.src && videoRef.current.querySelector('source')) {
-                                  const source = videoRef.current.querySelector('source')
-                                  if (source && source.src) {
-                                    videoRef.current.src = source.src
-                                  }
-                                }
                               }
                             }}
                           >
-                            <source src="/doer_tut2.mp4" type="video/mp4" />
                             Your browser does not support the video tag.
                           </video>
                         </div>
