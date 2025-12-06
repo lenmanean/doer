@@ -1255,8 +1255,10 @@ export function CreateTaskModal({
       
       setError(errorMessage)
     } finally {
+      console.log('🧹 Finally block executing - clearing loading state')
       setIsLoading(false)
       setIsCreating(false)
+      console.log('✅ Loading state cleared')
     }
   }
 
