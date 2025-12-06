@@ -57,11 +57,11 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
     supabase,
     stripe,
     userId,
-    email,
-    metadata: {
+        email,
+        metadata: {
       autoAssigned: 'true',
-    },
-  })
+        },
+      })
 
   // Update customer profile if we have name info
   if (firstName || lastName) {
@@ -136,24 +136,24 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
       subscription = await stripeWithRetry(() =>
         stripe!.subscriptions.create(
           {
-            customer: stripeCustomerId,
-            items: [
-              {
-                price: basicPriceId,
-              },
-            ],
-            metadata: {
-              userId,
-              planSlug: 'basic',
-              billingCycle: 'monthly',
-              autoAssigned: 'true',
-            },
+        customer: stripeCustomerId,
+        items: [
+          {
+            price: basicPriceId,
+          },
+        ],
+        metadata: {
+          userId,
+          planSlug: 'basic',
+          billingCycle: 'monthly',
+          autoAssigned: 'true',
+        },
           },
           {
             idempotencyKey,
           }
         )
-      )
+    )
     } catch (createError: any) {
       // If idempotency key collision, subscription was already created
       // Check for existing subscription with our metadata

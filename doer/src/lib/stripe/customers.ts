@@ -60,11 +60,11 @@ export async function ensureStripeCustomer({
   try {
     customer = await stripe.customers.create(
       {
-        email: email || undefined,
-        metadata: {
-          userId,
-          ...metadata,
-        },
+    email: email || undefined,
+    metadata: {
+      userId,
+      ...metadata,
+    },
       },
       {
         idempotencyKey,
@@ -117,9 +117,9 @@ export async function ensureStripeCustomer({
   if (upsertError) {
     // If upsert failed, check if another request already set the customer ID
     const { data: checkSettings } = await supabase
-      .from('user_settings')
+    .from('user_settings')
       .select('stripe_customer_id')
-      .eq('user_id', userId)
+    .eq('user_id', userId)
       .maybeSingle()
 
     if (checkSettings?.stripe_customer_id) {
