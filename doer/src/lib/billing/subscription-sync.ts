@@ -287,6 +287,29 @@ export async function syncSubscriptionSnapshot(
       
       await supabase.from('user_plan_subscriptions').update(basePayload).eq('id', existing.id)
     } else {
+      // Check if subscription with this external_subscription_id already exists
+      // This prevents duplicate inserts from concurrent webhook calls
+      const { data: existingByExternalId } = await supabase
+        .from('user_plan_subscriptions')
+        .select('id, status')
+        .eq('external_subscription_id', subscription.id)
+        .maybeSingle()
+
+      if (existingByExternalId) {
+        // Subscription already exists in database, just update it
+        logger.info('[subscription-sync] Subscription already exists, updating instead of inserting', {
+          subscriptionId: subscription.id,
+          userId,
+          existingId: existingByExternalId.id,
+        })
+        
+        await supabase
+          .from('user_plan_subscriptions')
+          .update(basePayload)
+          .eq('id', existingByExternalId.id)
+        return
+      }
+
       // Only cancel other active/trialing subscriptions if the new one is active/trialing
       // Don't cancel existing subscriptions if the new one is incomplete (payment might be pending)
       // Also don't cancel if the new subscription is already canceled (might be a cleanup)
@@ -308,12 +331,27 @@ export async function syncSubscriptionSnapshot(
       }
 
       // Insert new subscription record
-      await supabase
+      // Use upsert with external_subscription_id as unique constraint to prevent duplicates
+      const { error: insertError } = await supabase
         .from('user_plan_subscriptions')
         .insert({
           ...basePayload,
           created_at: new Date().toISOString(),
         })
+
+      // If insert fails due to unique constraint violation, another request already inserted it
+      if (insertError) {
+        if (insertError.code === '23505') { // Unique violation
+          logger.info('[subscription-sync] Subscription already inserted by concurrent request', {
+            subscriptionId: subscription.id,
+            userId,
+          })
+          // Subscription was already inserted, that's fine
+          return
+        }
+        // Other errors should be thrown
+        throw insertError
+      }
     }
 
     for (const metric of METRICS) {
