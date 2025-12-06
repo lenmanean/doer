@@ -1044,7 +1044,9 @@ export function CreateTaskModal({
       }
 
       // Second pass: Create all valid tasks
+      console.log(`🚀 Starting task creation for ${tasksToCreate.length} task(s)`)
       for (const { taskData, duration, isCrossDay } of tasksToCreate) {
+        console.log(`📝 Processing task: ${taskData.name}`, { isRecurring: taskData.isRecurring, isIndefinite: taskData.isIndefinite, isCrossDay })
         // Create task
         const baseInsert = {
           plan_id: null as string | null,
@@ -1085,11 +1087,17 @@ export function CreateTaskModal({
           }
         }
 
-        if (!task) continue
+        if (!task) {
+          console.error('Failed to create task:', taskData.name)
+          continue
+        }
+
+        console.log('✅ Task created successfully:', { taskId: task.id, name: taskData.name, isRecurring: taskData.isRecurring, isIndefinite: taskData.isIndefinite })
 
         // Handle recurring tasks
         if (taskData.isRecurring && taskData.isIndefinite) {
           // Indefinite recurring - skip schedule creation (API will synthesize)
+          console.log('⏭️ Skipping schedule creation for indefinite recurring task:', taskData.name)
           continue
         }
 
@@ -1189,7 +1197,15 @@ export function CreateTaskModal({
         }
       }
 
-      onTaskCreated()
+      console.log('✅ All tasks processed, calling onTaskCreated callback')
+      try {
+        onTaskCreated()
+        console.log('✅ onTaskCreated called successfully')
+      } catch (callbackErr) {
+        console.error('❌ Error in onTaskCreated callback:', callbackErr)
+        // Don't throw - we still want to close the modal
+      }
+      console.log('✅ Closing modal')
       setTimeout(() => onClose(), 100)
     } catch (err) {
       console.error('Error creating manual tasks:', err)
