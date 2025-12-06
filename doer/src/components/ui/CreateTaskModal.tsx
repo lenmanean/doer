@@ -15,7 +15,7 @@ import {
   validateTaskDuration,
   getDurationSuggestion,
   TASK_DURATION_MIN_MINUTES,
-  isCrossDayTask,
+  isCrossDayTask as checkIsCrossDayTask,
   splitCrossDayScheduleEntry
 } from '@/lib/task-time-utils'
 import { formatDateForDB } from '@/lib/date-utils'
@@ -546,9 +546,7 @@ export function CreateTaskModal({
   // Check if task spans across midnight
   const isCrossDayTask = useMemo(() => {
     if (!formData.startTime || !formData.endTime) return false
-    const startMinutes = parseTimeToMinutes(formData.startTime)
-    const endMinutes = parseTimeToMinutes(formData.endTime)
-    return endMinutes <= startMinutes
+    return checkIsCrossDayTask(formData.startTime, formData.endTime)
   }, [formData.startTime, formData.endTime])
 
   // Calculate duration when start time or end time changes
@@ -1121,7 +1119,7 @@ export function CreateTaskModal({
           const scheduleEntries = []
 
           // Check if this recurring task is cross-day
-          const recurringIsCrossDay = isCrossDayTask(taskData.startTime, taskData.endTime)
+          const recurringIsCrossDay = checkIsCrossDayTask(taskData.startTime, taskData.endTime)
 
           for (let week = 0; week < weeksToGenerate; week++) {
             const currentWeekStart = new Date(weekStart)
