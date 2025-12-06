@@ -1106,7 +1106,8 @@ export function CreateTaskModal({
             0 // day_index
           )
           
-          await supabase.from('task_schedule').insert(splitEntries)
+          const { error: splitError } = await supabase.from('task_schedule').insert(splitEntries)
+          if (splitError) throw splitError
         } else if (taskData.isRecurring && !taskData.isIndefinite) {
           // Recurring with date range
           const startDate = new Date(taskData.recurrenceStartDate)
@@ -1166,13 +1167,14 @@ export function CreateTaskModal({
           }
 
           if (scheduleEntries.length > 0) {
-            await supabase.from('task_schedule').insert(scheduleEntries)
+            const { error: scheduleError } = await supabase.from('task_schedule').insert(scheduleEntries)
+            if (scheduleError) throw scheduleError
           }
         } else {
           // Single non-recurring task
           // Note: Cross-day single tasks are handled above at line 1099
           // This case only handles non-cross-day single tasks
-          await supabase.from('task_schedule').insert({
+          const { error: singleTaskError } = await supabase.from('task_schedule').insert({
             plan_id: null,
             user_id: user.id,
             task_id: task.id,
@@ -1183,6 +1185,7 @@ export function CreateTaskModal({
             duration_minutes: duration,
             status: 'scheduled'
           })
+          if (singleTaskError) throw singleTaskError
         }
       }
 
