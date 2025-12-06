@@ -328,26 +328,6 @@ export default function MotionGraphicsBriefPage() {
             </CardContent>
           </Card>
         </FadeInWrapper>
-
-        {/* Additional Notes */}
-        <FadeInWrapper delay={0.5}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-3xl text-white">Additional Notes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-[#d7d2cb]">
-              <p className="text-lg leading-relaxed">
-                All feature descriptions and functionality mentioned in this brief are accurate and reflect the actual implementation of DOER.AI. No features have been fabricated or exaggerated.
-              </p>
-              <p className="text-lg leading-relaxed">
-                The motion graphics should emphasize the transformation from goal-setting to execution, with particular focus on the New Year's momentum and the journey from intention to achievement.
-              </p>
-              <p className="text-lg leading-relaxed">
-                Visual style should align with the clean, modern aesthetic of the platform—professional yet approachable, with the orange (#f97316) as the primary accent color throughout.
-              </p>
-            </CardContent>
-          </Card>
-        </FadeInWrapper>
       </div>
     </div>
   )
