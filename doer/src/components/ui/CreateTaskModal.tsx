@@ -991,6 +991,24 @@ export function CreateTaskModal({
       const tasksToCreate: Array<{ taskData: any; duration: number; isCrossDay: boolean }> = []
       
       for (const taskData of validTasks) {
+        // Validate recurring task date range if not indefinite
+        if (taskData.isRecurring && !taskData.isIndefinite) {
+          if (!taskData.recurrenceStartDate || !taskData.recurrenceEndDate) {
+            tasksWithErrors.push({
+              task: taskData,
+              error: 'Please select start and end dates for recurring tasks'
+            })
+            continue
+          }
+          
+          if (new Date(taskData.recurrenceStartDate) >= new Date(taskData.recurrenceEndDate)) {
+            tasksWithErrors.push({
+              task: taskData,
+              error: 'End date must be after start date'
+            })
+            continue
+          }
+        }
         // Calculate duration
         if (!taskData.startTime || !taskData.endTime) {
           tasksWithErrors.push({
@@ -1011,7 +1029,18 @@ export function CreateTaskModal({
           duration = endMinutes - startMinutes
         }
 
+        console.log(`🔍 Duration calculation for "${taskData.name}":`, {
+          startTime: taskData.startTime,
+          endTime: taskData.endTime,
+          startMinutes,
+          endMinutes,
+          isCrossDay,
+          calculatedDuration: duration,
+          durationHours: (duration / 60).toFixed(1)
+        })
+
         if (duration <= 0) {
+          console.error(`❌ Invalid duration (<= 0) for task: ${taskData.name}`, { duration, startMinutes, endMinutes, isCrossDay })
           tasksWithErrors.push({
             task: taskData,
             error: 'Invalid duration: end time must be after start time'
@@ -1023,6 +1052,11 @@ export function CreateTaskModal({
         // Manual tasks have no maximum duration limit (only AI-generated tasks are limited to 6 hours)
         const validation = validateTaskDuration(duration, false, true)
         if (!validation.isValid) {
+          console.error(`❌ Duration validation failed for task: ${taskData.name}`, {
+            duration,
+            validation,
+            minRequired: TASK_DURATION_MIN_MINUTES
+          })
           const suggestion = getDurationSuggestion(taskData.startTime, taskData.endTime)
           tasksWithErrors.push({
             task: taskData,
@@ -1030,6 +1064,8 @@ export function CreateTaskModal({
           })
           continue
         }
+        
+        console.log(`✅ Duration validation passed for task: ${taskData.name}`, { duration })
 
         // Task is valid, add to creation list
         tasksToCreate.push({ taskData, duration, isCrossDay })
