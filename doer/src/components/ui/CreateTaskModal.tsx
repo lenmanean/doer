@@ -14,7 +14,9 @@ import {
   parseTimeToMinutes,
   validateTaskDuration,
   getDurationSuggestion,
-  TASK_DURATION_MIN_MINUTES
+  TASK_DURATION_MIN_MINUTES,
+  isCrossDayTask,
+  splitCrossDayScheduleEntry
 } from '@/lib/task-time-utils'
 import { formatDateForDB } from '@/lib/date-utils'
 import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
@@ -1095,43 +1097,18 @@ export function CreateTaskModal({
 
         // Handle cross-day tasks
         if (isCrossDay && !taskData.isRecurring) {
-          const [startYear, startMonth, startDay] = taskData.date.split('-').map(Number)
-          const startDate = new Date(startYear, startMonth - 1, startDay)
-          const endDate = new Date(startDate)
-          endDate.setDate(endDate.getDate() + 1)
-
-          // Recalculate minutes for cross-day task handling
-          const startMinutes = parseTimeToMinutes(taskData.startTime)
-          const endMinutes = parseTimeToMinutes(taskData.endTime)
+          // Use helper function to split cross-day task across two days
+          const splitEntries = splitCrossDayScheduleEntry(
+            taskData.date,
+            taskData.startTime,
+            taskData.endTime,
+            task.id,
+            user.id,
+            null, // plan_id
+            0 // day_index
+          )
           
-          const startDayDuration = (24 * 60) - startMinutes
-          const endDayDuration = endMinutes
-
-          // Create schedule entries for both days
-          await supabase.from('task_schedule').insert([
-            {
-              plan_id: null,
-              user_id: user.id,
-              task_id: task.id,
-              day_index: 0,
-              date: taskData.date,
-              start_time: taskData.startTime,
-              end_time: '23:59',
-              duration_minutes: startDayDuration,
-              status: 'scheduled'
-            },
-            {
-              plan_id: null,
-              user_id: user.id,
-              task_id: task.id,
-              day_index: 0,
-              date: formatDateForDB(endDate),
-              start_time: '00:00',
-              end_time: taskData.endTime,
-              duration_minutes: endDayDuration,
-              status: 'scheduled'
-            }
-          ])
+          await supabase.from('task_schedule').insert(splitEntries)
         } else if (taskData.isRecurring && !taskData.isIndefinite) {
           // Recurring with date range
           const startDate = new Date(taskData.recurrenceStartDate)
@@ -1142,6 +1119,9 @@ export function CreateTaskModal({
           const diffWeeks = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7))
           const weeksToGenerate = Math.max(1, diffWeeks)
           const scheduleEntries = []
+
+          // Check if this recurring task is cross-day
+          const recurringIsCrossDay = isCrossDayTask(taskData.startTime, taskData.endTime)
 
           for (let week = 0; week < weeksToGenerate; week++) {
             const currentWeekStart = new Date(weekStart)
@@ -1156,17 +1136,33 @@ export function CreateTaskModal({
               if (taskData.recurrenceDays.includes(dayOfWeek) &&
                   taskDateStr >= taskData.recurrenceStartDate &&
                   taskDateStr <= taskData.recurrenceEndDate) {
-                scheduleEntries.push({
-                  plan_id: null,
-                  user_id: user.id,
-                  task_id: task.id,
-                  day_index: i + (week * 7),
-                  date: taskDateStr,
-                  start_time: taskData.startTime,
-                  end_time: taskData.endTime,
-                  duration_minutes: duration,
-                  status: 'scheduled'
-                })
+                
+                if (recurringIsCrossDay) {
+                  // Split cross-day recurring task across two days
+                  const splitEntries = splitCrossDayScheduleEntry(
+                    taskDateStr,
+                    taskData.startTime,
+                    taskData.endTime,
+                    task.id,
+                    user.id,
+                    null, // plan_id
+                    i + (week * 7) // day_index
+                  )
+                  scheduleEntries.push(...splitEntries)
+                } else {
+                  // Non-cross-day recurring task
+                  scheduleEntries.push({
+                    plan_id: null,
+                    user_id: user.id,
+                    task_id: task.id,
+                    day_index: i + (week * 7),
+                    date: taskDateStr,
+                    start_time: taskData.startTime,
+                    end_time: taskData.endTime,
+                    duration_minutes: duration,
+                    status: 'scheduled'
+                  })
+                }
               }
             }
           }
@@ -1175,7 +1171,9 @@ export function CreateTaskModal({
             await supabase.from('task_schedule').insert(scheduleEntries)
           }
         } else {
-          // Single task
+          // Single non-recurring task
+          // Note: Cross-day single tasks are handled above at line 1099
+          // This case only handles non-cross-day single tasks
           await supabase.from('task_schedule').insert({
             plan_id: null,
             user_id: user.id,
@@ -1201,21 +1199,40 @@ export function CreateTaskModal({
       if (err instanceof Error) {
         errorMessage = err.message
         
+        // Check for time order constraint violation (start_time must be before end_time)
+        if (err.message.includes('task_schedule_time_order_check') || 
+            err.message.includes('time_order_check')) {
+          errorMessage = 'Invalid time range: end time must be after start time. For tasks that span midnight, they will be automatically split across two days.'
+        }
+        
         // Check for duration constraint violation
-        if (err.message.includes('tasks_duration_check') || 
-            err.message.includes('violates check constraint') ||
-            (err as any).code === '23514') {
+        else if (err.message.includes('tasks_duration_check') || 
+                 err.message.includes('duration_check') ||
+                 (err.message.includes('violates check constraint') && err.message.includes('duration'))) {
           errorMessage = `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start or end time to meet this requirement.`
         }
         
         // Check for other common constraint violations
-        if (err.message.includes('tasks_priority_check')) {
+        else if (err.message.includes('tasks_priority_check')) {
           errorMessage = 'Task priority must be between 1 and 4. Please select a valid priority.'
+        }
+        // Generic constraint violation
+        else if (err.message.includes('violates check constraint') || (err as any).code === '23514') {
+          // Try to extract more specific error message
+          if (err.message.includes('time')) {
+            errorMessage = 'Invalid time range detected. Please check your start and end times.'
+          } else if (err.message.includes('duration')) {
+            errorMessage = `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start or end time.`
+          }
         }
       } else if (typeof err === 'object' && err !== null) {
         const errObj = err as any
-        if (errObj.code === '23514' && errObj.message?.includes('duration')) {
-          errorMessage = `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start or end time.`
+        if (errObj.code === '23514') {
+          if (errObj.message?.includes('time_order') || errObj.message?.includes('time')) {
+            errorMessage = 'Invalid time range: end time must be after start time. For tasks that span midnight, they will be automatically split across two days.'
+          } else if (errObj.message?.includes('duration')) {
+            errorMessage = `Task duration must be at least ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start or end time.`
+          }
         }
       }
       

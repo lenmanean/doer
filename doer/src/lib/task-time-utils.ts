@@ -97,8 +97,9 @@ export function calculateDuration(startTime: string, endTime: string): number {
   const startMinutes = parseTimeToMinutes(startTime)
   const endMinutes = parseTimeToMinutes(endTime)
   
-  // Handle cross-day tasks: if end time is before start time, add 24 hours
-  if (endMinutes < startMinutes) {
+  // Handle cross-day tasks: if end time is before or equal to start time, add 24 hours
+  // Using <= ensures consistency with isCrossDayTask() and handles edge cases
+  if (endMinutes <= startMinutes) {
     return (24 * 60) - startMinutes + endMinutes
   }
   
@@ -288,6 +289,100 @@ export function getDurationSuggestion(
 ): string {
   const suggestedEndTime = calculateMinimumEndTime(startTime, currentEndTime)
   return `Consider setting end time to ${suggestedEndTime} to meet the minimum ${TASK_DURATION_MIN_MINUTES}-minute requirement.`
+}
+
+/**
+ * Check if a task spans across midnight (cross-day task)
+ * @param startTime - Start time (HH:MM)
+ * @param endTime - End time (HH:MM)
+ * @returns True if task spans across midnight
+ */
+export function isCrossDayTask(startTime: string, endTime: string): boolean {
+  const startMinutes = parseTimeToMinutes(startTime)
+  const endMinutes = parseTimeToMinutes(endTime)
+  return endMinutes <= startMinutes
+}
+
+/**
+ * Split a cross-day schedule entry into two entries (start day and next day)
+ * @param date - Date string (YYYY-MM-DD) for the start day
+ * @param startTime - Start time (HH:MM)
+ * @param endTime - End time (HH:MM)
+ * @param taskId - Task ID
+ * @param userId - User ID
+ * @param planId - Plan ID (optional)
+ * @param dayIndex - Day index for start day
+ * @returns Array of two schedule entry objects for start day and next day
+ * @throws Error if split segments don't meet minimum duration requirements
+ */
+export function splitCrossDayScheduleEntry(
+  date: string,
+  startTime: string,
+  endTime: string,
+  taskId: string,
+  userId: string,
+  planId: string | null = null,
+  dayIndex: number = 0
+): Array<{
+  plan_id: string | null
+  user_id: string
+  task_id: string
+  day_index: number
+  date: string
+  start_time: string
+  end_time: string
+  duration_minutes: number
+  status: string
+}> {
+  const startMinutes = parseTimeToMinutes(startTime)
+  const endMinutes = parseTimeToMinutes(endTime)
+  
+  // Calculate durations for each segment
+  const startDayDuration = (24 * 60) - startMinutes
+  const endDayDuration = endMinutes
+  
+  // Validate that each segment meets minimum duration requirement
+  if (startDayDuration < TASK_DURATION_MIN_MINUTES) {
+    throw new Error(`Start day segment duration (${startDayDuration} minutes) is less than the minimum required ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your start time.`)
+  }
+  
+  if (endDayDuration < TASK_DURATION_MIN_MINUTES) {
+    throw new Error(`End day segment duration (${endDayDuration} minutes) is less than the minimum required ${TASK_DURATION_MIN_MINUTES} minutes. Please adjust your end time.`)
+  }
+  
+  // Calculate next day date
+  const [year, month, day] = date.split('-').map(Number)
+  const startDate = new Date(year, month - 1, day)
+  const nextDate = new Date(startDate)
+  nextDate.setDate(startDate.getDate() + 1)
+  
+  // Format next day as YYYY-MM-DD (consistent with formatDateForDB logic)
+  const nextDateStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`
+  
+  return [
+    {
+      plan_id: planId,
+      user_id: userId,
+      task_id: taskId,
+      day_index: dayIndex,
+      date: date,
+      start_time: startTime,
+      end_time: '23:59',
+      duration_minutes: startDayDuration,
+      status: 'scheduled'
+    },
+    {
+      plan_id: planId,
+      user_id: userId,
+      task_id: taskId,
+      day_index: dayIndex,
+      date: nextDateStr,
+      start_time: '00:00',
+      end_time: endTime,
+      duration_minutes: endDayDuration,
+      status: 'scheduled'
+    }
+  ]
 }
 
 
