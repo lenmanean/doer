@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -10,16 +10,79 @@ import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 export default function MotionGraphicsBriefPage() {
   const [downloadingLogo, setDownloadingLogo] = useState(false)
   const [downloadingSwatches, setDownloadingSwatches] = useState(false)
+  const logoCanvasRef = useRef<HTMLCanvasElement>(null)
 
-  const handleDownloadLogo = () => {
+  // Generate the text logo on canvas
+  useEffect(() => {
+    const canvas = logoCanvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Wait for fonts to load before rendering
+    const renderLogo = () => {
+      // Set canvas size (high resolution for better quality)
+      const width = 1024
+      const height = 1024
+      canvas.width = width
+      canvas.height = height
+
+      // Clear canvas with transparent background
+      ctx.clearRect(0, 0, width, height)
+
+      // Set text properties
+      const fontSize = 240
+      const fontFamily = 'Inter, ui-sans-serif, system-ui, sans-serif'
+      ctx.font = `700 ${fontSize}px ${fontFamily}`
+      ctx.fillStyle = '#ffffff'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+
+      // Draw the text
+      ctx.fillText('DOER', width / 2, height / 2)
+    }
+
+    // Check if fonts are already loaded
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        renderLogo()
+      })
+    } else {
+      // Fallback: wait a bit for fonts to load
+      setTimeout(renderLogo, 100)
+    }
+  }, [])
+
+  const handleDownloadLogo = async () => {
     setDownloadingLogo(true)
-    const link = document.createElement('a')
-    link.href = '/images_videos/vyrstudio/logo_transparent.png'
-    link.download = 'doer-logo-transparent.png'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => setDownloadingLogo(false), 500)
+    try {
+      const canvas = logoCanvasRef.current
+      if (!canvas) {
+        throw new Error('Canvas not found')
+      }
+
+      // Convert canvas to blob
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          throw new Error('Failed to create blob')
+        }
+
+        // Create download link
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'doer-logo-transparent.png'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        setTimeout(() => setDownloadingLogo(false), 500)
+      }, 'image/png')
+    } catch (error) {
+      console.error('Error downloading logo:', error)
+      setDownloadingLogo(false)
+    }
   }
 
   const handleDownloadSwatches = () => {
@@ -170,13 +233,11 @@ export default function MotionGraphicsBriefPage() {
               <div className="space-y-4">
                 <h3 className="text-2xl font-semibold text-white">Logo</h3>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 bg-white/5 rounded-lg border border-white/10">
-                  <div className="relative w-64 h-64 flex-shrink-0 bg-transparent">
-                    <Image
-                      src="/images_videos/vyrstudio/logo_transparent.png"
-                      alt="DOER Logo - Transparent"
-                      fill
-                      className="object-contain"
-                      priority
+                  <div className="relative w-64 h-64 flex-shrink-0 bg-transparent flex items-center justify-center">
+                    <canvas
+                      ref={logoCanvasRef}
+                      className="w-full h-full object-contain"
+                      style={{ maxWidth: '100%', maxHeight: '100%' }}
                     />
                   </div>
                   <div className="flex-1 space-y-3">
