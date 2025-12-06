@@ -1,12 +1,17 @@
 /**
- * Analytics Hook
- * Provides easy access to analytics tracking functions with automatic consent checking
+ * Analytics Hook (GA4-only)
+ * Provides easy access to GA4-specific tracking functions
+ * 
+ * Note: For multi-platform tracking (GA4 + Vercel + Pixel), use the unified tracking service.
+ * This hook is for GA4-specific features like user actions, feature usage, and performance metrics.
+ * 
+ * Page view tracking is handled automatically by AnalyticsInitializer via unified service.
+ * 
+ * @see unified-tracking-service.ts for multi-platform tracking
  */
 
 import { useCallback, useEffect } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  trackPageView as analyticsTrackPageView,
   trackEvent,
   trackUserAction,
   trackFeatureUsage,
@@ -16,9 +21,6 @@ import {
 import { getConsentCategories } from '@/lib/cookies/cookie-utils'
 
 export function useAnalytics() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-
   // Initialize analytics on mount if consent given
   useEffect(() => {
     const consentCategories = getConsentCategories()
@@ -27,18 +29,8 @@ export function useAnalytics() {
     }
   }, [])
 
-  // Track page view when route changes
-  useEffect(() => {
-    const consentCategories = getConsentCategories()
-    if (consentCategories.includes('analytics')) {
-      const url = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
-      analyticsTrackPageView(url, document.title)
-    }
-  }, [pathname, searchParams])
-
-  const trackPageView = useCallback((url: string, title?: string) => {
-    analyticsTrackPageView(url, title)
-  }, [])
+  // Note: Page view tracking is handled by AnalyticsInitializer via unified service
+  // to avoid duplicates and ensure multi-platform tracking
 
   const trackCustomEvent = useCallback((eventName: string, eventParams?: Record<string, any>) => {
     trackEvent(eventName, eventParams)
@@ -57,7 +49,6 @@ export function useAnalytics() {
   }, [])
 
   return {
-    trackPageView,
     trackEvent: trackCustomEvent,
     trackUserAction: trackAction,
     trackFeatureUsage: trackFeature,

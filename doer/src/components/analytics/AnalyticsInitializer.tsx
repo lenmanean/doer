@@ -3,8 +3,9 @@
 import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { getConsentCategories } from '@/lib/cookies/cookie-utils'
-import { initializeAnalytics, trackPageView } from '@/lib/analytics/analytics-service'
-import { initializeMarketing, trackPageView as trackMarketingPageView } from '@/lib/analytics/marketing-service'
+import { initializeAnalytics } from '@/lib/analytics/analytics-service'
+import { initializeMarketing } from '@/lib/analytics/marketing-service'
+import { trackPageView } from '@/lib/analytics/unified-tracking-service'
 
 /**
  * Client component that initializes analytics and marketing services
@@ -28,20 +29,12 @@ export function AnalyticsInitializer() {
     }
   }, [])
 
-  // Track page views on route changes for both platforms
+  // Track page views on route changes across all platforms (GA4, Pixel, Vercel Analytics)
   useEffect(() => {
-    const consentCategories = getConsentCategories()
     const url = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
     
-    // Track GA4 page view
-    if (consentCategories.includes('analytics')) {
-      trackPageView(url, document.title)
-    }
-    
-    // Track Facebook Pixel page view
-    if (consentCategories.includes('marketing')) {
-      trackMarketingPageView()
-    }
+    // Unified tracking service handles all platforms with proper consent checks
+    trackPageView(url, document.title)
   }, [pathname, searchParams])
 
   return null

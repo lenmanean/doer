@@ -2,6 +2,7 @@
 
 import Script from 'next/script'
 import { useEffect, useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { getConsentCategories } from '@/lib/cookies/cookie-utils'
 
 const GA4_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID
@@ -63,10 +64,8 @@ export function AnalyticsScripts() {
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
                 gtag('config', '${GA4_MEASUREMENT_ID}', {
-                  page_path: window.location.pathname,
-                  page_title: document.title,
-                  // Enhanced measurement settings
-                  send_page_view: true,
+                  // Page view tracking is handled manually via unified service to avoid duplicates
+                  send_page_view: false,
                   // Privacy settings
                   anonymize_ip: true,
                   allow_google_signals: false,
@@ -97,7 +96,8 @@ export function AnalyticsScripts() {
                 s=b.getElementsByTagName(e)[0];
                 s.parentNode.insertBefore(t,s)}(window, document,'script');
                 fbq('init', '${FACEBOOK_PIXEL_ID}');
-                fbq('track', 'PageView');
+                // PageView tracking is handled by unified service via AnalyticsInitializer
+                // Removed automatic PageView to avoid duplicates and ensure consistency
               `,
             }}
           />
@@ -135,6 +135,9 @@ export function AnalyticsScripts() {
           }}
         />
       )}
+
+      {/* Vercel Web Analytics */}
+      {hasAnalyticsConsent && <Analytics />}
     </>
   )
 }

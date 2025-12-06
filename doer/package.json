@@ -21,6 +21,7 @@
     "@stripe/stripe-js": "^8.4.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.44.4",
+    "@vercel/analytics": "^1.6.1",
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
     "class-variance-authority": "^0.7.0",

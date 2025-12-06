@@ -1,6 +1,9 @@
 /**
  * Analytics Service
  * Google Analytics 4 integration with consent management
+ * 
+ * Note: For multi-platform tracking (GA4 + Vercel Analytics + Pixel), use the unified tracking service:
+ * @see unified-tracking-service.ts
  */
 
 import type { CookieCategory } from '@/components/ui/CookieConsent'
@@ -52,7 +55,9 @@ export function initializeAnalytics(consentCategories: CookieCategory[]): void {
 }
 
 /**
- * Track a page view
+ * Track a page view in GA4
+ * 
+ * Note: For multi-platform tracking (GA4 + Vercel + Pixel), use unified-tracking-service.trackPageView()
  */
 export function trackPageView(url: string, title?: string): void {
   if (typeof window === 'undefined') return
@@ -66,7 +71,9 @@ export function trackPageView(url: string, title?: string): void {
 }
 
 /**
- * Track a custom event
+ * Track a custom event in GA4
+ * 
+ * Note: For multi-platform tracking (GA4 + Vercel + Pixel), use unified-tracking-service.trackEvent()
  */
 export function trackEvent(eventName: string, eventParams?: Record<string, any>): void {
   if (typeof window === 'undefined') return
@@ -111,6 +118,8 @@ export function trackPerformance(metric: string, value: number, unit?: string): 
 
 /**
  * Set user properties (anonymized - no PII)
+ * 
+ * Note: Currently unused but available for future user segmentation
  */
 export function setUserProperties(properties: Record<string, any>): void {
   if (typeof window === 'undefined') return
@@ -122,6 +131,8 @@ export function setUserProperties(properties: Record<string, any>): void {
 
 /**
  * Track conversion events
+ * 
+ * Note: Currently unused but available for future conversion tracking
  */
 export function trackConversion(eventName: string, value?: number, currency: string = 'USD'): void {
   trackEvent('conversion', {

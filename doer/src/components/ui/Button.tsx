@@ -1,7 +1,10 @@
+'use client'
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import { useTrackButtonClick } from "@/lib/analytics/button-tracking"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:pointer-events-none disabled:opacity-50 micro-animate gpu-accelerated",
@@ -37,17 +40,47 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  /** Optional: Enable button click tracking */
+  trackClick?: boolean
+  /** Optional: Button ID for tracking (auto-generated if not provided) */
+  trackId?: string
+  /** Optional: Location context for tracking (e.g., 'header', 'hero', 'pricing') */
+  trackLocation?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, trackClick, trackId, trackLocation, onClick, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // Set up button click tracking if enabled
+    const buttonText = typeof children === 'string' ? children : trackId || 'button'
+    const location = trackLocation || 'unknown'
+    const buttonId = trackId || `button-${buttonText.toLowerCase().replace(/\s+/g, '-')}`
+    const trackClickHandler = useTrackButtonClick(
+      buttonId,
+      buttonText,
+      location,
+      { variant, size }
+    )
+    
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      // Track click if enabled
+      if (trackClick) {
+        trackClickHandler(e)
+      }
+      // Call original onClick handler
+      onClick?.(e)
+    }
+    
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        onClick={handleClick}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     )
   }
 )

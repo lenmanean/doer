@@ -383,6 +383,9 @@ export function PublicHeader() {
                   <Button
                     variant="primary"
                     size="sm"
+                    trackClick
+                    trackId="header-join-waitlist"
+                    trackLocation="header"
                     onClick={(e) => {
                       e.preventDefault()
                       // Dispatch custom event to open waitlist modal
@@ -394,16 +397,16 @@ export function PublicHeader() {
                     Join Waitlist
                   </Button>
                   <Link href="/login">
-                    <Button variant="outline" size="sm">{t('common.logIn')}</Button>
+                    <Button variant="outline" size="sm" trackClick trackId="header-login" trackLocation="header">{t('common.logIn')}</Button>
                   </Link>
                 </>
               ) : (
                 <>
                   <Link href="/auth/signup">
-                    <Button variant="primary" size="sm">Get Started</Button>
+                    <Button variant="primary" size="sm" trackClick trackId="header-get-started" trackLocation="header">Get Started</Button>
                   </Link>
                   <Link href="/login">
-                    <Button variant="outline" size="sm">{t('common.logIn')}</Button>
+                    <Button variant="outline" size="sm" trackClick trackId="header-login" trackLocation="header">{t('common.logIn')}</Button>
                   </Link>
                 </>
               )}
@@ -412,7 +415,7 @@ export function PublicHeader() {
             <>
               {showAuthedCta && (
                 <Link href="/dashboard" className="hidden md:block">
-                  <Button variant="primary" size="sm">{t('common.startPlanning')}</Button>
+                  <Button variant="primary" size="sm" trackClick trackId="header-start-planning" trackLocation="header">{t('common.startPlanning')}</Button>
                 </Link>
               )}
               <div ref={profileRef} className="relative hidden md:block">

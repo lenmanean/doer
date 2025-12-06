@@ -150,13 +150,14 @@ export function trackCustomEvent(eventName: string, params?: Record<string, any>
 
 /**
  * Track page view for marketing
+ * All page views are tracked via unified service for consistency
  */
 export function trackPageView(): void {
   if (typeof window === 'undefined') return
   if (!hasConsent('marketing')) return
 
-  // Facebook Pixel automatically tracks PageView on init
-  // But we can track it again if needed
+  // Track PageView in Facebook Pixel
+  // Note: This is called by unified service on initial load and route changes
   if (window.fbq && FACEBOOK_PIXEL_ID) {
     window.fbq('track', 'PageView')
   }
@@ -164,6 +165,8 @@ export function trackPageView(): void {
 
 /**
  * Track lead event (signup, form submission, etc.)
+ * 
+ * Note: Currently unused but available for future marketing campaigns
  */
 export function trackLead(value?: number, currency: string = 'USD'): void {
   trackConversion('Lead', value, currency)
@@ -171,6 +174,8 @@ export function trackLead(value?: number, currency: string = 'USD'): void {
 
 /**
  * Track complete registration (user completes onboarding)
+ * 
+ * Note: Currently unused but available for future marketing campaigns
  */
 export function trackCompleteRegistration(value?: number, currency: string = 'USD'): void {
   trackConversion('CompleteRegistration', value, currency)
@@ -178,6 +183,8 @@ export function trackCompleteRegistration(value?: number, currency: string = 'US
 
 /**
  * Track purchase event (if applicable)
+ * 
+ * Note: Currently unused but available for future e-commerce tracking
  */
 export function trackPurchase(value: number, currency: string = 'USD', additionalParams?: Record<string, any>): void {
   trackConversion('Purchase', value, currency, additionalParams)

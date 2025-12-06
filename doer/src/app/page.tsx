@@ -751,6 +751,9 @@ export default function Home() {
                     variant="primary"
                     size="lg"
                     className="text-lg py-4 px-8"
+                    trackClick
+                    trackId="final-cta-join-waitlist"
+                    trackLocation="final_cta"
                     onClick={(e) => {
                       e.preventDefault()
                       setWaitlistInitialGoal('')
@@ -761,7 +764,14 @@ export default function Home() {
                   </Button>
                 ) : (
                   <Link href="/auth/signup">
-                    <Button variant="primary" size="lg" className="text-lg py-4 px-8">
+                    <Button 
+                      variant="primary" 
+                      size="lg" 
+                      className="text-lg py-4 px-8"
+                      trackClick
+                      trackId="final-cta-get-started"
+                      trackLocation="final_cta"
+                    >
                       Get Started
                     </Button>
                   </Link>
@@ -1142,6 +1152,9 @@ function PricingCard({
           variant="primary"
           size="lg"
           className="w-full text-lg py-4"
+          trackClick
+          trackId={`pricing-${title.toLowerCase().replace(/\s+/g, '-')}-waitlist`}
+          trackLocation="pricing"
           onClick={(e) => {
             e.preventDefault()
             onWaitlistClick?.()
@@ -1151,7 +1164,14 @@ function PricingCard({
         </Button>
       ) : (
         <Link href={buttonHref}>
-          <Button variant="primary" size="lg" className="w-full text-lg py-4">
+          <Button 
+            variant="primary" 
+            size="lg" 
+            className="w-full text-lg py-4"
+            trackClick
+            trackId={`pricing-${title.toLowerCase().replace(/\s+/g, '-')}-cta`}
+            trackLocation="pricing"
+          >
             {buttonText}
           </Button>
         </Link>

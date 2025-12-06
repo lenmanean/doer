@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { Mail, Check, ArrowRight, ArrowLeft } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
-import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
-import { trackWaitlistSignup as trackGA4WaitlistSignup } from '@/lib/analytics/analytics-service'
+import { trackWaitlistSignup } from '@/lib/analytics/unified-tracking-service'
 
 interface WaitlistFormProps {
   source: string
@@ -28,6 +27,7 @@ interface WaitlistFormProps {
  * Fires tracking events after successful signup:
  * - Facebook Pixel: WaitlistSignup custom event with source parameter
  * - GA4: sign_up event with method: 'waitlist' and source parameter
+ * - Vercel Analytics: waitlist_signup event with source parameter
  */
 export function WaitlistForm({
   source,
@@ -145,23 +145,12 @@ export function WaitlistForm({
         throw new Error(data.error || 'Failed to join waitlist')
       }
 
-      // Success - fire tracking events
-      // Facebook Pixel tracking
+      // Success - fire tracking events across all platforms (GA4, Pixel, Vercel Analytics)
       try {
-        if (typeof window !== 'undefined' && window.fbq) {
-          trackWaitlistSignup(source)
-        }
+        trackWaitlistSignup(source)
       } catch (error) {
-        // Facebook Pixel tracking failed, continue without it
-        console.warn('Facebook Pixel tracking failed:', error)
-      }
-      
-      // GA4 tracking
-      try {
-        trackGA4WaitlistSignup(source)
-      } catch (error) {
-        // GA4 tracking failed, continue without it
-        console.warn('GA4 tracking failed:', error)
+        // Tracking failed, continue without it
+        console.warn('Analytics tracking failed:', error)
       }
 
       setIsSuccess(true)

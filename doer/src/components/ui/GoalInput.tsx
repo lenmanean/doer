@@ -6,10 +6,7 @@ import { ArrowUp, ArrowRight, ArrowLeft, Mail, Check } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
-import { trackWaitlistSignup } from '@/lib/analytics/marketing-service'
-// Import GA4 tracking - using same pattern as WaitlistForm
-// @ts-ignore - TypeScript has module resolution issues but function exists at runtime
-import { trackWaitlistSignup as trackGA4WaitlistSignup } from '@/lib/analytics/analytics-service'
+import { trackWaitlistSignup } from '@/lib/analytics/unified-tracking-service'
 
 interface GoalInputProps {
   className?: string
@@ -158,23 +155,12 @@ export function GoalInput({
         throw new Error(data.error || 'Failed to join waitlist')
       }
 
-      // Success - fire tracking events
-      // Facebook Pixel tracking
+      // Success - fire tracking events across all platforms (GA4, Pixel, Vercel Analytics)
       try {
-        if (typeof window !== 'undefined' && (window as any).fbq) {
-          trackWaitlistSignup(source)
-        }
+        trackWaitlistSignup(source)
       } catch (error) {
-        // Facebook Pixel tracking failed, continue without it
-        console.warn('Facebook Pixel tracking failed:', error)
-      }
-      
-      // GA4 tracking
-      try {
-        trackGA4WaitlistSignup(source)
-      } catch (error) {
-        // GA4 tracking failed, continue without it
-        console.warn('GA4 tracking failed:', error)
+        // Tracking failed, continue without it
+        console.warn('Analytics tracking failed:', error)
       }
 
       setIsSuccess(true)
