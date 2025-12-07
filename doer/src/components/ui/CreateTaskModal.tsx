@@ -26,6 +26,7 @@ import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useUsageSummary } from '@/hooks/useUsageSummary'
+import { ConfirmDeleteModal } from './ConfirmDeleteModal'
 
 interface CreateTaskModalProps {
   isOpen: boolean
@@ -480,16 +481,132 @@ export function CreateTaskModal({
   const [showPastDateWarning, setShowPastDateWarning] = useState(false)
   const [pastDateTaskData, setPastDateTaskData] = useState<any>(null)
   
+  // Unsaved changes protection
+  const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false)
+  const [isIntentionalCancel, setIsIntentionalCancel] = useState(false)
+  const initialStateRef = useRef<any>(null)
+  
   // AI generation hook
   const { generateTask, isLoading: isAILoading, error: aiError, clearError } = useAITaskGeneration()
+
+  // Helper function to check if there are unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialStateRef.current) return false
+    
+    const initialState = initialStateRef.current
+    
+    // Check AI mode changes
+    if (mode === 'ai') {
+      const hasAIDescription = aiDescription.trim().length > 0
+      const hasAIStartTime = aiStartTime.trim().length > 0
+      const hasAIGeneratedTask = aiGeneratedTask !== null
+      const hasShowAIPreview = showAIPreview !== initialState.showAIPreview
+      const hasFollowUp = aiFollowUp !== null || showFollowUp !== initialState.showFollowUp
+      const isEditing = isEditingAITask !== initialState.isEditingAITask
+      
+      return hasAIDescription || hasAIStartTime || hasAIGeneratedTask || hasShowAIPreview || hasFollowUp || isEditing
+    }
+    
+    // Check Manual mode changes
+    if (mode === 'manual') {
+      // Check if any manual task has non-empty data
+      const hasManualTaskData = manualTasks.some(task => {
+        return task.name.trim().length > 0 ||
+               task.details.trim().length > 0 ||
+               task.startTime.trim().length > 0 ||
+               task.endTime.trim().length > 0 ||
+               task.date.trim().length > 0 ||
+               task.recurrenceDays.length > 0 ||
+               task.recurrenceStartDate.trim().length > 0 ||
+               task.recurrenceEndDate.trim().length > 0 ||
+               task.isRecurring !== (initialState.manualTasks?.[0]?.isRecurring ?? false) ||
+               task.isIndefinite !== (initialState.manualTasks?.[0]?.isIndefinite ?? false) ||
+               task.priority !== (initialState.manualTasks?.[0]?.priority ?? 3)
+      })
+      
+      // Also check if number of tasks changed
+      const taskCountChanged = manualTasks.length !== (initialState.manualTasks?.length || 1)
+      
+      return hasManualTaskData || taskCountChanged
+    }
+    
+    // Check Todo List mode changes
+    if (mode === 'todo-list') {
+      const hasTodoListData = todoListTasks.some(task => task.name.trim().length > 0)
+      const hasTodoListPreview = todoListPreview !== null
+      const taskCountChanged = todoListTasks.length !== (initialState.todoListTasks?.length || 1)
+      
+      return hasTodoListData || hasTodoListPreview || taskCountChanged
+    }
+    
+    return false
+  }, [
+    mode,
+    aiDescription,
+    aiStartTime,
+    aiGeneratedTask,
+    showAIPreview,
+    aiFollowUp,
+    showFollowUp,
+    isEditingAITask,
+    manualTasks,
+    todoListTasks,
+    todoListPreview
+  ])
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      // If selectedTime is provided (clicked in time slot), use it for start time
-      // If selectedTime is empty (Add Task button), leave start time empty
+      // Reset intentional cancel flag and unsaved changes warning
+      setIsIntentionalCancel(false)
+      setShowUnsavedChangesWarning(false)
+      
+      // Save initial state for comparison
       const startTime = selectedTime || ''
       
+      const initial = {
+        mode: 'ai',
+        formData: {
+          name: '',
+          details: '',
+          startTime: startTime,
+          endTime: '',
+          date: selectedDate || '',
+          priority: 3,
+          isRecurring: false,
+          recurrenceDays: [],
+          recurrenceInterval: 1,
+          recurrenceStartDate: '',
+          recurrenceEndDate: '',
+          isIndefinite: false
+        },
+        manualTasks: [{
+          id: `manual-task-${Date.now()}`,
+          name: '',
+          details: '',
+          startTime: startTime,
+          endTime: '',
+          date: selectedDate || '',
+          priority: 3,
+          isRecurring: false,
+          recurrenceDays: [],
+          recurrenceInterval: 1,
+          recurrenceStartDate: '',
+          recurrenceEndDate: '',
+          isIndefinite: false
+        }],
+        aiDescription: '',
+        aiStartTime: '',
+        aiGeneratedTask: null,
+        showAIPreview: false,
+        aiFollowUp: null,
+        showFollowUp: false,
+        isEditingAITask: false,
+        todoListTasks: [{ id: `task-${Date.now()}`, name: '', priority: 3 }],
+        todoListPreview: null
+      }
+      
+      initialStateRef.current = initial
       
       setFormData({
         name: '',
@@ -549,6 +666,54 @@ export function CreateTaskModal({
       clearError()
     }
   }, [isOpen, selectedTime, selectedDate, clearError])
+
+  // Handle modal close attempts with unsaved changes protection
+  const handleCloseAttempt = () => {
+    // If intentional cancel was clicked, close immediately without warning
+    if (isIntentionalCancel) {
+      setIsIntentionalCancel(false)
+      onClose()
+      return
+    }
+
+    // If there are unsaved changes, show warning
+    if (hasUnsavedChanges) {
+      setShowUnsavedChangesWarning(true)
+    } else {
+      // No unsaved changes, close immediately
+      onClose()
+    }
+  }
+
+  // Handle intentional cancel button click - bypass warning
+  const handleCancelClick = () => {
+    setIsIntentionalCancel(true)
+    onClose()
+  }
+
+  // Handle confirmation to discard unsaved changes
+  const handleConfirmDiscard = () => {
+    setShowUnsavedChangesWarning(false)
+    setIsIntentionalCancel(false)
+    onClose()
+  }
+
+  // Handle browser navigation/refresh with unsaved changes
+  useEffect(() => {
+    if (!isOpen || !hasUnsavedChanges) return
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+      return e.returnValue
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [isOpen, hasUnsavedChanges])
 
   // Check if task spans across midnight
   const isCrossDayTask = useMemo(() => {
@@ -2309,7 +2474,7 @@ export function CreateTaskModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          onClick={onClose}
+          onClick={handleCloseAttempt}
         >
           <motion.div
             key="create-task-modal-content"
@@ -2354,7 +2519,7 @@ export function CreateTaskModal({
                 )}
                 
                 <button
-                  onClick={onClose}
+                  onClick={handleCloseAttempt}
                   className={`p-2 rounded-lg transition-colors ${
                     currentTheme === 'dark'
                       ? 'bg-white/5 hover:bg-white/10 text-[#d7d2cb]'
@@ -3408,7 +3573,7 @@ export function CreateTaskModal({
             }`}>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleCancelClick}
                 disabled={isLoading}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   currentTheme === 'dark'
@@ -3652,6 +3817,17 @@ export function CreateTaskModal({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Unsaved Changes Warning Modal */}
+      <ConfirmDeleteModal
+        isOpen={showUnsavedChangesWarning}
+        onClose={() => setShowUnsavedChangesWarning(false)}
+        onConfirm={handleConfirmDiscard}
+        title="Discard Unsaved Changes?"
+        description="You have unsaved changes that will be lost if you close this window. Are you sure you want to discard these changes?"
+        confirmText="Discard Changes"
+        isDeleting={false}
+      />
     </AnimatePresence>
   )
 }
