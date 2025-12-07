@@ -280,13 +280,16 @@ export async function GET(request: NextRequest) {
       for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
         const dateKey = fmtLocal(d)
         
-        // Skip past dates entirely
+        // Skip past dates entirely (only dates strictly before today)
         if (dateKey < todayStr) continue
         
         const dow = d.getDay()
-        const prev = new Date(d)
-        prev.setDate(d.getDate() - 1)
-        const prevDow = prev.getDay()
+        // Calculate previous day's date and day-of-week for cross-day task end portions
+        const prevDate = new Date(d)
+        prevDate.setDate(d.getDate() - 1)
+        const prevDateKey = fmtLocal(prevDate)
+        const prevDow = prevDate.getDay()
+        
         for (const t of indefTasks) {
           const days: number[] = (t.recurrence_days || []).map((v: any) => typeof v === 'string' ? parseInt(v, 10) : v)
           const startT = trimSeconds(t.default_start_time)
@@ -295,16 +298,28 @@ export async function GET(request: NextRequest) {
           const isCrossDay = isCrossDayTask(startT, endT)
           const startMin = parseTimeToMinutes(startT)
           const endMin = parseTimeToMinutes(endT)
-          const ensure = (key: string, s: string, e: string, dur: number) => {
+          
+          const ensure = (key: string, s: string, e: string, dur: number, debugContext?: string) => {
             // Skip if this task instance is in the past
-            if (shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)) {
+            const shouldSkip = shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)
+            if (shouldSkip) {
+              console.log(`[CrossDayTask] Skipping past instance: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`, {
+                dateKey: key,
+                endTime: e,
+                todayStr,
+                currentTimeStr,
+                taskId: t.id
+              })
               return
             }
             
             const setKey = `${t.id}-${key}`
             const haveSame = scheduledRangesByTaskDate.get(setKey)?.has(`${s}-${e}`) ||
               (tasksByDate[key] || []).some(x => x.task_id === t.id && x.start_time === s && x.end_time === e)
-            if (haveSame) return
+            if (haveSame) {
+              console.log(`[CrossDayTask] Duplicate detected: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`)
+              return
+            }
             if (!tasksByDate[key]) tasksByDate[key] = []
             tasksByDate[key].push({
               schedule_id: `synthetic-${t.id}-${key}-${s}-${e}`,
@@ -324,28 +339,50 @@ export async function GET(request: NextRequest) {
               recurrence_days: days,
               plan_id: t.plan_id // Add plan_id from task
             })
+            console.log(`[CrossDayTask] Generated instance: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`)
           }
+          
           if (!isCrossDay) {
+            // Regular non-cross-day task
             if (days.includes(dow)) {
-              ensure(dateKey, startT, endT, endMin - startMin)
+              ensure(dateKey, startT, endT, endMin - startMin, 'regular')
             }
           } else {
             // For cross-day tasks, we need to check both parts
+            // Part 1: Start day portion (from startT to 23:59 on the start day)
             if (days.includes(dow)) {
               // Start day part: from startT to 23:59
               // Check if the actual end time (on next day) has passed
               const nextDayDateStr = fmtLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
-              // Only generate if the task hasn't finished yet (next day's end time hasn't passed)
-              if (!shouldSkipPastTaskInstance(nextDayDateStr, endT, todayStr, currentTimeStr)) {
-                ensure(dateKey, startT, '23:59', 1440 - startMin)
+              const skipStartPart = shouldSkipPastTaskInstance(nextDayDateStr, endT, todayStr, currentTimeStr)
+              if (!skipStartPart) {
+                ensure(dateKey, startT, '23:59', 1440 - startMin, `start-day-part (ends ${nextDayDateStr} ${endT})`)
+              } else {
+                console.log(`[CrossDayTask] Skipping start-day part: ${t.name} on ${dateKey} (end time ${nextDayDateStr} ${endT} has passed)`)
               }
             }
+            
+            // Part 2: End day portion (from 00:00 to endT on the end day)
+            // This represents the continuation of a task that started on the previous day
             if (days.includes(prevDow)) {
               // End day part: from 00:00 to endT
               // Check if today's end time has passed
-              if (!shouldSkipPastTaskInstance(dateKey, endT, todayStr, currentTimeStr)) {
-                ensure(dateKey, '00:00', endT, endMin)
+              const skipEndPart = shouldSkipPastTaskInstance(dateKey, endT, todayStr, currentTimeStr)
+              if (!skipEndPart) {
+                ensure(dateKey, '00:00', endT, endMin, `end-day-part (started ${prevDateKey} ${startT})`)
+              } else {
+                console.log(`[CrossDayTask] Skipping end-day part: ${t.name} on ${dateKey} 00:00-${endT} (end time has passed)`, {
+                  dateKey,
+                  endTime: endT,
+                  todayStr,
+                  currentTimeStr,
+                  prevDateKey,
+                  prevDow,
+                  taskId: t.id
+                })
               }
+            } else {
+              console.log(`[CrossDayTask] End-day part not in recurrence: ${t.name} on ${dateKey} (prevDow=${prevDow}, days=[${days.join(',')}])`)
             }
           }
         }
