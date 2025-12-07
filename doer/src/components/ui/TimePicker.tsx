@@ -17,6 +17,12 @@ interface TimePickerProps {
 export function TimePicker({ value, onChange, theme, id, className = '', timeFormat = '12h', disabled = false }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  // Track which fields have been explicitly selected in the current session
+  const [selectedFields, setSelectedFields] = useState<{ hour: boolean; minute: boolean; period: boolean }>({
+    hour: false,
+    minute: false,
+    period: false
+  })
 
   // Parse the time value (HH:MM format from input)
   const parseTime = (timeStr: string) => {
@@ -82,11 +88,15 @@ export function TimePicker({ value, onChange, theme, id, className = '', timeFor
     const newValue = `${hour24Value.toString().padStart(2, '0')}:${minuteStr}`
     onChange(newValue)
     
-    // Only close if all required fields are now complete
-    const willBeComplete = timeFormat === '24h' 
-      ? minute !== null 
-      : minute !== null && period !== null
-    if (willBeComplete) {
+    // Mark hour as selected in this session
+    const newSelectedFields = { ...selectedFields, hour: true }
+    setSelectedFields(newSelectedFields)
+    
+    // Only close if all required fields have been explicitly selected in this session
+    const allSelected = timeFormat === '24h' 
+      ? newSelectedFields.hour && newSelectedFields.minute
+      : newSelectedFields.hour && newSelectedFields.minute && newSelectedFields.period
+    if (allSelected) {
       setIsOpen(false)
     }
   }
@@ -96,11 +106,15 @@ export function TimePicker({ value, onChange, theme, id, className = '', timeFor
     const newValue = `${hourStr}:${newMinute.toString().padStart(2, '0')}`
     onChange(newValue)
     
-    // Only close if all required fields are now complete
-    const willBeComplete = timeFormat === '24h'
-      ? hour !== null
-      : hour !== null && period !== null
-    if (willBeComplete) {
+    // Mark minute as selected in this session
+    const newSelectedFields = { ...selectedFields, minute: true }
+    setSelectedFields(newSelectedFields)
+    
+    // Only close if all required fields have been explicitly selected in this session
+    const allSelected = timeFormat === '24h'
+      ? newSelectedFields.hour && newSelectedFields.minute
+      : newSelectedFields.hour && newSelectedFields.minute && newSelectedFields.period
+    if (allSelected) {
       setIsOpen(false)
     }
   }
@@ -111,11 +125,24 @@ export function TimePicker({ value, onChange, theme, id, className = '', timeFor
     const newValue = `${newHour24.toString().padStart(2, '0')}:${minuteStr}`
     onChange(newValue)
     
-    // Only close if all required fields are now complete (hour and minute should already be set)
-    if (hour !== null && minute !== null) {
+    // Mark period as selected in this session
+    const newSelectedFields = { ...selectedFields, period: true }
+    setSelectedFields(newSelectedFields)
+    
+    // Only close if all required fields have been explicitly selected in this session
+    // For 12h format: hour, minute, and period must all be selected
+    if (newSelectedFields.hour && newSelectedFields.minute && newSelectedFields.period) {
       setIsOpen(false)
     }
   }
+
+  // Reset selected fields when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      // Reset tracking when dropdown opens - user must select all fields in this session
+      setSelectedFields({ hour: false, minute: false, period: false })
+    }
+  }, [isOpen])
 
   // Close dropdown when clicking outside
   useEffect(() => {
