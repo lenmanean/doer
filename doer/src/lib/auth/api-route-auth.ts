@@ -3,17 +3,17 @@
  * Supports both API token authentication and session authentication (fallback)
  */
 
-import { Headers } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { authenticateApiRequest, ApiTokenError, type ApiAuthContext, type ApiAuthOptions } from '@/lib/auth/api-token-auth'
 import { CreditService } from '@/lib/usage/credit-service'
+import type { UsageMetric } from '@/lib/billing/plans'
 
 export interface RouteAuthContext extends ApiAuthContext {
   reserved: boolean
 }
 
 export interface RouteAuthOptions extends ApiAuthOptions {
-  creditMetric?: string
+  creditMetric?: UsageMetric
   creditCost?: number
   routeName?: string
 }
