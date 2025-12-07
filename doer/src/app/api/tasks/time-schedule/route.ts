@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { checkTimeOverlap, calculateDuration, isValidTimeFormat, shouldSkipPastTaskInstance, getCurrentDateTime, isCrossDayTask } from '@/lib/task-time-utils'
+import { checkTimeOverlap, calculateDuration, isValidTimeFormat, shouldSkipPastTaskInstance, getCurrentDateTime, isCrossDayTask, parseTimeToMinutes } from '@/lib/task-time-utils'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -293,6 +293,8 @@ export async function GET(request: NextRequest) {
           const endT = trimSeconds(t.default_end_time)
           if (!startT || !endT) continue
           const isCrossDay = isCrossDayTask(startT, endT)
+          const startMin = parseTimeToMinutes(startT)
+          const endMin = parseTimeToMinutes(endT)
           const ensure = (key: string, s: string, e: string, dur: number) => {
             // Skip if this task instance is in the past
             if (shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)) {
