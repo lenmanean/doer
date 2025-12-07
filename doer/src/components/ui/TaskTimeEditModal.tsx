@@ -6,6 +6,7 @@ import { X, Clock, AlertCircle, Trash2, Edit3, Check, X as XIcon, RefreshCw, Cal
 import { calculateDuration, isValidTimeFormat, formatDuration } from '@/lib/task-time-utils'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { TimePicker } from './TimePicker'
+import { ConfirmDeleteModal } from './ConfirmDeleteModal'
 import { supabase } from '@/lib/supabase/client'
 
 const getPriorityLabel = (priority?: number | null) => {
@@ -98,6 +99,7 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
   const [editedDescription, setEditedDescription] = useState('')
   const [editedPriority, setEditedPriority] = useState<number | null>(null)
   const [isRescheduling, setIsRescheduling] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Initialize times when task changes
   useEffect(() => {
@@ -314,29 +316,34 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!task) return
     
     // Check if this is an indefinite recurring task (synthetic task)
     const isSynthetic = task.schedule_id && task.schedule_id.startsWith('synthetic-')
     const isIndefiniteRecurring = task.is_indefinite && task.is_recurring
     
-    // For indefinite recurring tasks, warn that deleting one instance deletes the entire recurring task
+    // For indefinite recurring tasks, show confirmation modal
     if (isSynthetic || isIndefiniteRecurring) {
-      const confirmed = window.confirm(
-        `This is a recurring task that repeats indefinitely. Deleting this instance will permanently delete the entire recurring task "${task.name}" and all its future occurrences.\n\nAre you sure you want to delete this recurring task?`
-      )
-      if (!confirmed) {
-        return
-      }
+      setShowDeleteConfirm(true)
+      return
     }
+    
+    // For regular tasks, delete immediately
+    performDelete()
+  }
+
+  const performDelete = async () => {
+    if (!task) return
     
     setSaving(true)
     try {
       await onDelete(task)
+      setShowDeleteConfirm(false)
       onClose()
     } catch (error) {
       setError('Failed to delete task')
+      setShowDeleteConfirm(false)
     } finally {
       setSaving(false)
     }
@@ -1009,6 +1016,17 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
           </motion.div>
         </motion.div>
       )}
+      
+      {/* Delete Confirmation Modal for Recurring Tasks */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={performDelete}
+        title="Delete Recurring Task"
+        description={`This is a recurring task that repeats indefinitely. Deleting this instance will permanently delete the entire recurring task "${task?.name || ''}" and all its future occurrences.`}
+        confirmText="Delete Task"
+        isDeleting={saving}
+      />
     </AnimatePresence>
   )
 }
