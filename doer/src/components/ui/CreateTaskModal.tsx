@@ -626,6 +626,10 @@ export function CreateTaskModal({
       setIsIndefinite(false)
       setError(null)
       
+      // Reset loading states
+      setIsLoading(false)
+      setIsCreating(false)
+      
       // Reset mode and state
       setMode('ai') // Always start in AI mode
       setAiDescription('')
@@ -664,6 +668,11 @@ export function CreateTaskModal({
       }])
       
       clearError()
+    } else {
+      // Modal is closing - reset all loading states as safety measure
+      setIsLoading(false)
+      setIsCreating(false)
+      setIsAnalyzingTodoList(false)
     }
   }, [isOpen, selectedTime, selectedDate, clearError])
 
@@ -1108,11 +1117,14 @@ export function CreateTaskModal({
         onTaskCreated(optimisticStartDay)
         onTaskCreated(optimisticEndDay)
       }
+      // Reset loading states before closing
+      setIsLoading(false)
+      setIsCreating(false)
+      setCrossDayTaskData(null)
       onClose()
     } catch (err) {
       console.error('Error creating cross-day task:', err)
       setError(err instanceof Error ? err.message : 'Failed to create task')
-    } finally {
       setIsLoading(false)
       setIsCreating(false)
       setCrossDayTaskData(null)
@@ -1153,15 +1165,20 @@ export function CreateTaskModal({
       })
       if (singleTaskError) throw singleTaskError
 
+      // Reset loading states before closing
+      setIsLoading(false)
+      setIsCreating(false)
+      setPastDateTaskData(null)
+      
       // Continue with callback and close
       onTaskCreated()
       setTimeout(() => onClose(), 100)
-      setPastDateTaskData(null)
     } catch (err: any) {
       console.error('Error creating past date task:', err)
       setError(err.message || 'Failed to create task')
       setIsLoading(false)
       setIsCreating(false)
+      setPastDateTaskData(null)
     }
   }
 
@@ -1470,6 +1487,11 @@ export function CreateTaskModal({
       }
 
       console.log('✅ All tasks processed, calling onTaskCreated callback')
+      
+      // Reset loading states before closing
+      setIsLoading(false)
+      setIsCreating(false)
+      
       try {
         onTaskCreated()
         console.log('✅ onTaskCreated called successfully')
@@ -1814,12 +1836,14 @@ export function CreateTaskModal({
         if (scheduleError) throw scheduleError
       }
 
+      // Reset loading state before closing
+      setIsLoading(false)
+      
       onTaskCreated()
       setTimeout(() => onClose(), 100)
     } catch (err) {
       console.error('Error scheduling todo list:', err)
       setTodoListError(err instanceof Error ? err.message : 'Failed to schedule tasks')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -1993,6 +2017,8 @@ export function CreateTaskModal({
       if (isRecurring && isIndefinite) {
         // Trigger UI refresh
         onTaskCreated()
+        setIsLoading(false)
+        setIsCreating(false)
         setTimeout(() => onClose(), 50)
         return
       }
@@ -2065,6 +2091,8 @@ export function CreateTaskModal({
         
         // Trigger UI refresh
         onTaskCreated()
+        setIsLoading(false)
+        setIsCreating(false)
         setTimeout(() => onClose(), 50)
         return
       }
@@ -2086,12 +2114,15 @@ export function CreateTaskModal({
         completed: false,
       })
 
+      // Reset loading states before closing
+      setIsLoading(false)
+      setIsCreating(false)
+      
       // Close modal
       onClose()
     } catch (e: any) {
       console.error('Error creating AI task:', e)
       setError(e.message || 'Failed to create task')
-    } finally {
       setIsLoading(false)
       setIsCreating(false)
     }
@@ -2269,6 +2300,8 @@ export function CreateTaskModal({
         // For indefinite recurring, do not insert schedule rows — API will synthesize occurrences
         if (formData.isIndefinite) {
           // Optimistic: let realtime/API refresh show items; close immediately
+          setIsLoading(false)
+          setIsCreating(false)
           onTaskCreated()
           setTimeout(() => onClose(), 50)
           return
@@ -2371,6 +2404,8 @@ export function CreateTaskModal({
 
         // Trigger UI refresh after recurring creation
         onTaskCreated()
+        setIsLoading(false)
+        setIsCreating(false)
         setTimeout(() => onClose(), 50)
         return
       } else {
@@ -2448,9 +2483,13 @@ export function CreateTaskModal({
         recurrence_end_date: formData.recurrenceEndDate
       }
       
+      // Reset loading states before closing
+      setIsLoading(false)
+      setIsCreating(false)
+      
       // Call the callback to refresh the schedule view with task data
       onTaskCreated(taskData)
-      
+
       // Close modal after a brief delay to ensure the callback completes
       setTimeout(() => {
         onClose()
@@ -3306,10 +3345,10 @@ export function CreateTaskModal({
                                     : 'bg-white border-gray-300 text-gray-900'
                                 }`}
                               >
-                                <option value={1}>1 - Critical</option>
-                                <option value={2}>2 - High</option>
-                                <option value={3}>3 - Medium</option>
-                                <option value={4}>4 - Low</option>
+                                <option value={1}>Critical</option>
+                                <option value={2}>High</option>
+                                <option value={3}>Medium</option>
+                                <option value={4}>Low</option>
                               </select>
                             </div>
 
