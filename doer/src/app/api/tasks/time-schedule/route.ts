@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { checkTimeOverlap, calculateDuration, isValidTimeFormat } from '@/lib/task-time-utils'
+import { checkTimeOverlap, calculateDuration, isValidTimeFormat, shouldSkipPastTaskInstance, getCurrentDateTime, isCrossDayTask } from '@/lib/task-time-utils'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -201,7 +201,6 @@ export async function GET(request: NextRequest) {
           task_id: task.id,
           name: task.name,
           details: task.details,
-          milestone_id: null, // milestone_id doesn't exist in tasks table
           estimated_duration_minutes: task.estimated_duration_minutes,
           priority: task.priority,
           start_time: trimSeconds(schedule.start_time as any),
@@ -274,9 +273,16 @@ export async function GET(request: NextRequest) {
     const rangeEndPlus1 = new Date(rangeEnd)
     rangeEndPlus1.setDate(rangeEnd.getDate() + 1)
 
+    // Get current date/time for filtering past tasks
+    const { todayStr, currentTimeStr } = getCurrentDateTime()
+
     if (indefTasks && indefTasks.length > 0) {
       for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
         const dateKey = fmtLocal(d)
+        
+        // Skip past dates entirely
+        if (dateKey < todayStr) continue
+        
         const dow = d.getDay()
         const prev = new Date(d)
         prev.setDate(d.getDate() - 1)
@@ -286,12 +292,13 @@ export async function GET(request: NextRequest) {
           const startT = trimSeconds(t.default_start_time)
           const endT = trimSeconds(t.default_end_time)
           if (!startT || !endT) continue
-          const [sh, sm] = startT.split(':').map(Number)
-          const [eh, em] = endT.split(':').map(Number)
-          const startMin = sh * 60 + sm
-          const endMin = eh * 60 + em
-          const isCrossDay = endMin <= startMin
+          const isCrossDay = isCrossDayTask(startT, endT)
           const ensure = (key: string, s: string, e: string, dur: number) => {
+            // Skip if this task instance is in the past
+            if (shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)) {
+              return
+            }
+            
             const setKey = `${t.id}-${key}`
             const haveSame = scheduledRangesByTaskDate.get(setKey)?.has(`${s}-${e}`) ||
               (tasksByDate[key] || []).some(x => x.task_id === t.id && x.start_time === s && x.end_time === e)
@@ -302,7 +309,6 @@ export async function GET(request: NextRequest) {
               task_id: t.id,
               name: t.name,
               details: t.details,
-              milestone_id: null,
               estimated_duration_minutes: null,
               priority: t.priority,
               start_time: s,
@@ -322,11 +328,22 @@ export async function GET(request: NextRequest) {
               ensure(dateKey, startT, endT, endMin - startMin)
             }
           } else {
+            // For cross-day tasks, we need to check both parts
             if (days.includes(dow)) {
-              ensure(dateKey, startT, '23:59', 1440 - startMin)
+              // Start day part: from startT to 23:59
+              // Check if the actual end time (on next day) has passed
+              const nextDayDateStr = fmtLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
+              // Only generate if the task hasn't finished yet (next day's end time hasn't passed)
+              if (!shouldSkipPastTaskInstance(nextDayDateStr, endT, todayStr, currentTimeStr)) {
+                ensure(dateKey, startT, '23:59', 1440 - startMin)
+              }
             }
             if (days.includes(prevDow)) {
-              ensure(dateKey, '00:00', endT, endMin)
+              // End day part: from 00:00 to endT
+              // Check if today's end time has passed
+              if (!shouldSkipPastTaskInstance(dateKey, endT, todayStr, currentTimeStr)) {
+                ensure(dateKey, '00:00', endT, endMin)
+              }
             }
           }
         }

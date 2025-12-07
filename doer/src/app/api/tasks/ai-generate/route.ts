@@ -4,6 +4,7 @@ import { openai } from '@/lib/ai'
 import { formatDateForDB } from '@/lib/date-utils'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
+import { isTaskInPast, getCurrentDateTime, calculateDuration } from '@/lib/task-time-utils'
 
 // Force dynamic rendering since we use cookies for authentication (session auth fallback)
 export const dynamic = 'force-dynamic'
@@ -192,14 +193,7 @@ async function handleRecurringTaskFollowUp(
   if (followUpData.parsedStartTime && followUpData.parsedEndTime) {
     startTime = followUpData.parsedStartTime
     endTime = followUpData.parsedEndTime
-    const [startHour, startMinute] = startTime.split(':').map(Number)
-    const [endHour, endMinute] = endTime.split(':').map(Number)
-    const startMinutes = startHour * 60 + startMinute
-    const endMinutes = endHour * 60 + endMinute
-    let duration = endMinutes - startMinutes
-    // Handle next day (e.g., 11pm to 7am = 8 hours)
-    if (duration < 0) duration += 24 * 60
-    durationMinutes = duration
+    durationMinutes = calculateDuration(startTime, endTime)
   } else if (followUpData.inferredDuration) {
     // Use inferred duration if available
     durationMinutes = followUpData.inferredDuration
@@ -276,8 +270,12 @@ FOLLOW-UP PROCESSING RULES:
 3. Use inferred duration when available (for quick tasks like "take out trash")
 
 4. Generate recurring task schedule for the next 12 weeks
+   - ABSOLUTE REQUIREMENT: NEVER generate tasks for dates in the past
+   - Start generating from the current date (${formatDateForDB(today)}) forward only
+   - If a recurring pattern would fall on a past date, skip it and start from the next occurrence
 
 5. Find optimal time slots that don't conflict with existing tasks
+   - NEVER suggest times in the past, even if they fit the recurring pattern
 
 6. For PRIORITY DETERMINATION:
    - Analyze the recurring task's urgency and complexity
@@ -661,11 +659,14 @@ ANALYSIS RULES:
      - If the user's description mentions a different time within the same day, use that time (e.g., if user says "12:30-1pm" but selected 12:00pm slot, use 12:30-1pm)
      - Only adjust duration if needed
      - If time conflicts, suggest the closest available slot on that day
+     - ABSOLUTE REQUIREMENT: NEVER suggest dates or times in the past. If ${constrainedDate} is today (${formatDateForDB(today)}) and the selected time has passed, you MUST reject the request or suggest a future time.
      - CRITICAL: If ${constrainedDate} is today (${formatDateForDB(today)}), the suggested_time MUST be AFTER the current time (${today.getHours()}:${today.getMinutes().toString().padStart(2, '0')}). Do NOT suggest times in the past.
      - In your reasoning, explain why you're using the selected date (${constrainedDate}) and how you balanced it with the user's stated time preferences` :
      `- Find the NEXT AVAILABLE slot from today onward
+     - ABSOLUTE REQUIREMENT: NEVER suggest dates or times in the past. This is strictly forbidden.
      - CRITICAL: Current time is ${today.getHours()}:${today.getMinutes().toString().padStart(2, '0')} on ${formatDateForDB(today)}. You MUST NOT suggest times in the past.
      - If scheduling for today, suggested_time MUST be AFTER ${today.getHours()}:${today.getMinutes().toString().padStart(2, '0')}
+     - If the user mentions a past time, ignore it and suggest the next available future time instead
      - Prefer work hours (${workdayStartHour}:00-${workdayEndHour}:00) when possible
      - Avoid scheduling during existing tasks
      - If no slots available today, suggest the earliest possible time tomorrow or later`}
@@ -773,13 +774,10 @@ CRITICAL VALIDATION:
       }
       if (explicitTime.endTime) {
         // Calculate duration from explicit end time
-        const [startHour, startMinute] = (explicitTime.startTime || aiResponse.suggested_time).split(':').map(Number)
-        const [endHour, endMinute] = explicitTime.endTime.split(':').map(Number)
-        const startMinutes = startHour * 60 + startMinute
-        const endMinutes = endHour * 60 + endMinute
-        let duration = endMinutes - startMinutes
-        if (duration < 0) duration += 24 * 60 // Handle next day
-        aiResponse.duration_minutes = duration
+        aiResponse.duration_minutes = calculateDuration(
+          explicitTime.startTime || aiResponse.suggested_time,
+          explicitTime.endTime
+        )
       }
     }
     
@@ -797,14 +795,7 @@ CRITICAL VALIDATION:
         
         // Calculate duration if both times are available
         if (parsedStartTime && parsedEndTime) {
-          const [startHour, startMinute] = parsedStartTime.split(':').map(Number)
-          const [endHour, endMinute] = parsedEndTime.split(':').map(Number)
-          const startMinutes = startHour * 60 + startMinute
-          const endMinutes = endHour * 60 + endMinute
-          let duration = endMinutes - startMinutes
-          // Handle next day (e.g., 11pm to 7am = 8 hours)
-          if (duration < 0) duration += 24 * 60
-          inferredDuration = duration
+          inferredDuration = calculateDuration(parsedStartTime, parsedEndTime)
         }
       }
       
@@ -831,48 +822,33 @@ CRITICAL VALIDATION:
       aiResponse.duration_minutes = Math.max(5, Math.min(360, aiResponse.duration_minutes))
     }
 
-    // Validate that suggested time is not in the past (if scheduling for today)
-    const suggestedDate = new Date(aiResponse.suggested_date + 'T00:00:00')
-    const todayDate = new Date(formatDateForDB(today) + 'T00:00:00')
+    // Calculate end time first to validate the complete task
     let startTime = aiResponse.suggested_time
-    
-    if (suggestedDate.getTime() === todayDate.getTime()) {
-      // Same day - check if time is in the past
-      const [suggestedHour, suggestedMinute] = startTime.split(':').map(Number)
-      const suggestedTimeMinutes = suggestedHour * 60 + suggestedMinute
-      const currentTimeMinutes = today.getHours() * 60 + today.getMinutes()
-      
-      if (suggestedTimeMinutes < currentTimeMinutes) {
-        // Time is in the past - adjust to current time or next available slot
-        console.log(`AI suggested past time (${startTime}), adjusting to current time`)
-        
-        // If current time is before workday end, use current time
-        if (currentTimeMinutes < workdayEndHour * 60) {
-          const adjustedHour = today.getHours()
-          const adjustedMinute = today.getMinutes()
-          startTime = `${adjustedHour.toString().padStart(2, '0')}:${adjustedMinute.toString().padStart(2, '0')}`
-        } else {
-          // Past workday end, suggest tomorrow at workday start
-          const tomorrow = new Date(today)
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          aiResponse.suggested_date = formatDateForDB(tomorrow)
-          startTime = `${workdayStartHour.toString().padStart(2, '0')}:00`
-        }
-      }
-    }
-
-    // Calculate end time - use explicit end time if available, otherwise calculate from duration
     let endTime: string
     if (explicitTime?.endTime) {
       endTime = explicitTime.endTime
     } else {
-    const duration = aiResponse.duration_minutes
-    const [startHour, startMinute] = startTime.split(':').map(Number)
-    const startMinutes = startHour * 60 + startMinute
-    const endMinutes = startMinutes + duration
+      const duration = aiResponse.duration_minutes
+      const [startHour, startMinute] = startTime.split(':').map(Number)
+      const startMinutes = startHour * 60 + startMinute
+      const endMinutes = startMinutes + duration
       const endHour = Math.floor(endMinutes / 60) % 24
-    const endMinute = endMinutes % 60
+      const endMinute = endMinutes % 60
       endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
+    }
+
+    // HARD VALIDATION: AI must NEVER generate tasks in the past
+    // Reject any task with past dates or overdue times
+    const { todayStr, currentTimeStr } = getCurrentDateTime()
+    if (isTaskInPast(aiResponse.suggested_date, endTime, todayStr, currentTimeStr)) {
+      console.error('AI attempted to generate task in the past:', {
+        suggested_date: aiResponse.suggested_date,
+        suggested_time: startTime,
+        end_time: endTime,
+        current_date: todayStr,
+        current_time: currentTimeStr
+      })
+      throw new Error('AI cannot generate tasks in the past. The suggested date/time has already passed.')
     }
 
     // Validate and default priority

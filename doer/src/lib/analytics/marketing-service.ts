@@ -27,6 +27,8 @@ const GOOGLE_ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID
 
 let facebookPixelInitialized = false
 let googleAdsInitialized = false
+let hasWarnedAboutFacebookPixel = false
+let hasWarnedAboutGoogleAds = false
 
 /**
  * Initialize Facebook Pixel
@@ -37,7 +39,13 @@ export function initializeFacebookPixel(consentCategories: CookieCategory[]): vo
   if (typeof window === 'undefined') return
   if (facebookPixelInitialized) return
   if (!FACEBOOK_PIXEL_ID) {
-    console.warn('[Marketing] FACEBOOK_PIXEL_ID not configured')
+    // Only warn once to avoid console spam (Facebook Pixel is optional)
+    if (!hasWarnedAboutFacebookPixel) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Marketing] FACEBOOK_PIXEL_ID not configured - Facebook Pixel tracking will be disabled')
+      }
+      hasWarnedAboutFacebookPixel = true
+    }
     return
   }
 
@@ -61,12 +69,21 @@ export function initializeFacebookPixel(consentCategories: CookieCategory[]): vo
 /**
  * Initialize Google Ads conversion tracking
  * Only initializes if marketing consent is given
+ * 
+ * Note: Google Ads is optional - the service will continue to work without it.
+ * Only Facebook Pixel tracking will be active if GOOGLE_ADS_ID is not configured.
  */
 export function initializeGoogleAds(consentCategories: CookieCategory[]): void {
   if (typeof window === 'undefined') return
   if (googleAdsInitialized) return
   if (!GOOGLE_ADS_ID) {
-    console.warn('[Marketing] GOOGLE_ADS_ID not configured')
+    // Only warn once to avoid console spam (Google Ads is optional)
+    if (!hasWarnedAboutGoogleAds) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Marketing] GOOGLE_ADS_ID not configured - Google Ads conversion tracking will be disabled')
+      }
+      hasWarnedAboutGoogleAds = true
+    }
     return
   }
 

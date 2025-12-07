@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { toLocalMidnight, formatDateForDB, parseDateFromDB, getDayNumber } from '@/lib/date-utils'
+import { isCrossDayTask, calculateDuration, splitCrossDayScheduleEntry, validateTaskDuration } from '@/lib/task-time-utils'
+import { validateTaskDate, validateTaskTimes } from '@/lib/validation/task-validation'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -109,16 +111,6 @@ export async function POST(req: NextRequest) {
     // Convert plan dates to local midnight to avoid timezone issues
     const planStartDate = toLocalMidnight(plan.start_date)
     
-    // Helper function to check if task is cross-day (end time < start time)
-    const isCrossDayTask = (startTime: string | null, endTime: string | null): boolean => {
-      if (!startTime || !endTime) return false
-      const [startHour, startMin] = startTime.split(':').map(Number)
-      const [endHour, endMin] = endTime.split(':').map(Number)
-      const startMinutes = startHour * 60 + startMin
-      const endMinutes = endHour * 60 + endMin
-      return endMinutes < startMinutes
-    }
-    
     // Create task schedule entries using user's selected dates
     const taskScheduleEntries = []
     
@@ -127,52 +119,109 @@ export async function POST(req: NextRequest) {
       const insertedTask = insertedTasks[i]
       
       if (task.scheduled_date && insertedTask) {
+        // Validate task scheduled date is within plan range
+        const dateValidation = validateTaskDate(task.scheduled_date, {
+          isManualTask: true,
+          planStartDate: formatDateForDB(planStartDate),
+          planEndDate: formatDateForDB(toLocalMidnight(plan.end_date)),
+          allowPastDates: true, // Manual tasks can be in the past
+        })
+        
+        if (!dateValidation.valid) {
+          console.error(`Task "${task.name}" date validation failed:`, dateValidation.errors)
+          return NextResponse.json({
+            error: `Task "${task.name}" validation failed`,
+            details: dateValidation.errors.join('; ')
+          }, { status: 400 })
+        }
+        
+        // Validate task times and duration if provided
+        if (task.start_time || task.end_time) {
+          const timesValidation = validateTaskTimes(task.start_time, task.end_time, {
+            isManualTask: true,
+          })
+          
+          if (!timesValidation.valid) {
+            console.error(`Task "${task.name}" time validation failed:`, timesValidation.errors)
+            return NextResponse.json({
+              error: `Task "${task.name}" validation failed`,
+              details: timesValidation.errors.join('; ')
+            }, { status: 400 })
+          }
+        }
+        
         // Use toLocalMidnight to handle the date string properly
         const scheduledDate = toLocalMidnight(task.scheduled_date)
         const dayIndex = getDayNumber(scheduledDate, planStartDate)
         
-        // Check if this is a cross-day task
-        const crossDay = isCrossDayTask(task.start_time, task.end_time)
-        
-        // Calculate duration properly for cross-day tasks
-        let durationMinutes = task.estimated_duration_minutes || insertedTask.estimated_duration_minutes
-        if (task.start_time && task.end_time) {
-          const [startHour, startMin] = task.start_time.split(':').map(Number)
-          const [endHour, endMin] = task.end_time.split(':').map(Number)
-          const startMinutes = startHour * 60 + startMin
-          let endMinutes = endHour * 60 + endMin
-          
-          // Handle cross-day: if end is before start, add 24 hours
-          if (endMinutes < startMinutes) {
-            endMinutes += 24 * 60
+        // Check if this is a cross-day task and handle accordingly
+        if (task.start_time && task.end_time && isCrossDayTask(task.start_time, task.end_time)) {
+          // Split cross-day task into two schedule entries
+          try {
+            const splitEntries = splitCrossDayScheduleEntry(
+              formatDateForDB(scheduledDate),
+              task.start_time,
+              task.end_time,
+              insertedTask.id,
+              user.id,
+              plan_id,
+              dayIndex
+            )
+            
+            // Calculate day index for the second entry (next day)
+            const nextDayDate = toLocalMidnight(splitEntries[1].date)
+            const nextDayIndex = getDayNumber(nextDayDate, planStartDate)
+            
+            // Update the second entry with correct day_index
+            splitEntries[1].day_index = nextDayIndex
+            
+            taskScheduleEntries.push(...splitEntries)
+            
+            console.log('Scheduling cross-day task (split):', {
+              name: insertedTask.name,
+              scheduled_date: task.scheduled_date,
+              formatted_date: formatDateForDB(scheduledDate),
+              day_index: dayIndex,
+              next_day_index: nextDayIndex,
+              start_time: task.start_time,
+              end_time: task.end_time,
+              split_entries: 2
+            })
+          } catch (error: any) {
+            console.error('Error splitting cross-day task:', error)
+            return NextResponse.json({
+              error: 'Failed to create cross-day task',
+              details: error.message || 'Invalid cross-day task configuration'
+            }, { status: 400 })
           }
+        } else {
+          // Non-cross-day task - create single schedule entry
+          const durationMinutes = (task.start_time && task.end_time)
+            ? calculateDuration(task.start_time, task.end_time)
+            : (task.estimated_duration_minutes || insertedTask.estimated_duration_minutes)
           
-          durationMinutes = endMinutes - startMinutes
+          taskScheduleEntries.push({
+            plan_id,
+            user_id: user.id,
+            task_id: insertedTask.id,
+            date: formatDateForDB(scheduledDate),
+            day_index: dayIndex,
+            start_time: task.start_time || null,
+            end_time: task.end_time || null,
+            duration_minutes: durationMinutes,
+            status: 'scheduled'
+          })
+          
+          console.log('Scheduling task:', {
+            name: insertedTask.name,
+            scheduled_date: task.scheduled_date,
+            formatted_date: formatDateForDB(scheduledDate),
+            day_index: dayIndex,
+            start_time: task.start_time,
+            end_time: task.end_time,
+            duration_minutes: durationMinutes
+          })
         }
-        
-        taskScheduleEntries.push({
-          plan_id,
-          user_id: user.id,
-          task_id: insertedTask.id,
-          // milestone_id removed from system
-          date: formatDateForDB(scheduledDate),
-          day_index: dayIndex,
-          start_time: task.start_time || null,
-          end_time: task.end_time || null,
-          duration_minutes: durationMinutes,
-          status: 'scheduled' // Explicitly set status for new tasks
-        })
-        
-        console.log('Scheduling task:', {
-          name: insertedTask.name,
-          scheduled_date: task.scheduled_date,
-          formatted_date: formatDateForDB(scheduledDate),
-          day_index: dayIndex,
-          start_time: task.start_time,
-          end_time: task.end_time,
-          is_cross_day: crossDay,
-          duration_minutes: durationMinutes
-        })
       } else {
         console.warn('Task missing scheduled_date:', task.name)
       }

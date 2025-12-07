@@ -385,9 +385,131 @@ export function splitCrossDayScheduleEntry(
   ]
 }
 
+/**
+ * Get current date string and time string in local timezone
+ * @returns Object with todayStr (YYYY-MM-DD) and currentTimeStr (HH:MM in 24h format)
+ */
+export function getCurrentDateTime(): { todayStr: string; currentTimeStr: string; currentDate: Date } {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return { todayStr, currentTimeStr, currentDate: now }
+}
 
+/**
+ * Check if a date is in the past
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param currentDateStr - Optional current date string (defaults to today)
+ * @returns True if date is before today
+ */
+export function isDateInPast(dateStr: string, currentDateStr?: string): boolean {
+  if (!currentDateStr) {
+    const now = new Date()
+    currentDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
+  return dateStr < currentDateStr
+}
 
+/**
+ * Check if a time on a specific date is in the past
+ * Handles cross-day tasks correctly
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param endTimeStr - End time string in HH:MM format
+ * @param currentDateStr - Optional current date string (defaults to today)
+ * @param currentTimeStr - Optional current time string in HH:MM format (defaults to current time)
+ * @returns True if the task date/time is in the past or overdue
+ */
+export function isTimeInPast(
+  dateStr: string,
+  endTimeStr: string,
+  currentDateStr?: string,
+  currentTimeStr?: string
+): boolean {
+  const { todayStr, currentTimeStr: nowTimeStr } = getCurrentDateTime()
+  const checkDateStr = currentDateStr || todayStr
+  const checkTimeStr = currentTimeStr || nowTimeStr
 
+  // If date is in the past, time is definitely in the past
+  if (dateStr < checkDateStr) {
+    return true
+  }
+
+  // If date is today, check if end time has passed
+  if (dateStr === checkDateStr) {
+    const endMinutes = parseTimeToMinutes(endTimeStr)
+    const currentMinutes = parseTimeToMinutes(checkTimeStr)
+    return endMinutes < currentMinutes
+  }
+
+  // Future date, not in past
+  return false
+}
+
+/**
+ * Check if a task (date + end time) is in the past or would be overdue
+ * This is the main validation function for checking if a task should be skipped or requires confirmation
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param endTimeStr - End time string in HH:MM format
+ * @param currentDateStr - Optional current date string (defaults to today)
+ * @param currentTimeStr - Optional current time string in HH:MM format (defaults to current time)
+ * @returns True if task is in the past or overdue
+ */
+export function isTaskInPast(
+  dateStr: string,
+  endTimeStr: string,
+  currentDateStr?: string,
+  currentTimeStr?: string
+): boolean {
+  return isTimeInPast(dateStr, endTimeStr, currentDateStr, currentTimeStr)
+}
+
+/**
+ * Check if a task would be overdue (same as isTaskInPast, alias for clarity)
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param endTimeStr - End time string in HH:MM format
+ * @param currentDateStr - Optional current date string (defaults to today)
+ * @param currentTimeStr - Optional current time string in HH:MM format (defaults to current time)
+ * @returns True if task would be overdue
+ */
+export function isTaskOverdue(
+  dateStr: string,
+  endTimeStr: string,
+  currentDateStr?: string,
+  currentTimeStr?: string
+): boolean {
+  return isTaskInPast(dateStr, endTimeStr, currentDateStr, currentTimeStr)
+}
+
+/**
+ * Check if a date should be skipped when generating recurring tasks
+ * Returns true if the date is in the past (should be skipped)
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param currentDateStr - Optional current date string (defaults to today)
+ * @returns True if date should be skipped (is in past)
+ */
+export function shouldSkipPastDate(dateStr: string, currentDateStr?: string): boolean {
+  return isDateInPast(dateStr, currentDateStr)
+}
+
+/**
+ * Check if a task instance should be skipped when generating recurring tasks
+ * Returns true if the date/time combination is in the past (should be skipped)
+ * Handles both past dates and overdue times on current date
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param endTimeStr - End time string in HH:MM format
+ * @param currentDateStr - Optional current date string (defaults to today)
+ * @param currentTimeStr - Optional current time string in HH:MM format (defaults to current time)
+ * @returns True if task instance should be skipped
+ */
+export function shouldSkipPastTaskInstance(
+  dateStr: string,
+  endTimeStr: string,
+  currentDateStr?: string,
+  currentTimeStr?: string
+): boolean {
+  return isTaskInPast(dateStr, endTimeStr, currentDateStr, currentTimeStr)
+}
 
 
 

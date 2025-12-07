@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { formatDateForDB, toLocalMidnight } from '@/lib/date-utils'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
+import { validateDateRange } from '@/lib/validation/date-validation'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -39,23 +40,28 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Validate and convert dates to local midnight to avoid timezone issues
+    // Validate date range using unified validation utility
+    // Manual plans allow past dates (user can create historical plans)
+    const dateValidation = validateDateRange(start_date, end_date, {
+      allowPastDates: true, // Manual plans can have past dates
+      maxPastDays: 365, // Allow up to 1 year in past for historical plans
+      maxFutureDays: 365, // Allow up to 1 year in future
+      warnOnPastDates: false, // Don't warn for manual plans
+    })
+    
+    if (!dateValidation.valid) {
+      return NextResponse.json(
+        { 
+          error: dateValidation.errors[0] || 'Invalid date range',
+          details: dateValidation.errors.join('; ')
+        },
+        { status: 400 }
+      )
+    }
+
+    // Convert dates to local midnight to avoid timezone issues
     const startDate = toLocalMidnight(start_date)
     const endDate = toLocalMidnight(end_date)
-    
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format' },
-        { status: 400 }
-      )
-    }
-    
-    if (endDate <= startDate) {
-      return NextResponse.json(
-        { error: 'End date must be after start date' },
-        { status: 400 }
-      )
-    }
 
     // Calculate timeline days using local dates
     const timelineDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
@@ -67,72 +73,53 @@ export async function POST(req: NextRequest) {
       timeline_days: timelineDays
     })
 
-    // ✅ Check for existing active plan and set it to 'paused'
-    const { data: existingPlans, error: fetchError } = await supabase
-      .from('plans')
-      .select('id, status')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-
-    if (fetchError) {
-      console.error('Error fetching existing active plans:', fetchError)
-      return NextResponse.json({ 
-        error: 'Failed to check for existing plans',
-        details: fetchError.message 
-      }, { status: 500 })
-    }
-
-    if (existingPlans && existingPlans.length > 0) {
-      console.log(`Found ${existingPlans.length} existing active plan(s), setting to paused`)
-      
-      for (const plan of existingPlans) {
-        const { error: pauseError } = await supabase
-          .from('plans')
-          .update({ status: 'paused' })
-          .eq('id', plan.id)
-          .eq('user_id', user.id)
-        
-        if (pauseError) {
-          console.error('Error pausing existing plan:', pauseError)
-          return NextResponse.json({ 
-            error: 'Failed to pause existing plan',
-            details: pauseError.message
-          }, { status: 500 })
-        }
+    // ✅ Create manual plan transactionally (pauses existing plans + creates new plan)
+    const { data: result, error: rpcError } = await supabase.rpc('create_manual_plan_transactional', {
+      p_user_id: user.id,
+      p_goal_text: goal_text,
+      p_start_date: formatDateForDB(startDate),
+      p_end_date: formatDateForDB(endDate),
+      p_summary_data: {
+        total_duration_days: timelineDays,
+        goal_title: goal_text,
+        goal_summary: goal_description || null
       }
-      
-      console.log('✅ Successfully paused all existing active plans')
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
+    })
 
-    // ✅ Insert manual plan record
-    const { data: plan, error: planError } = await supabase
-      .from('plans')
-      .insert({
-        user_id: user.id,
-        goal_text,
-        start_date: formatDateForDB(startDate),
-        end_date: formatDateForDB(endDate),
-        status: 'active',
-        plan_type: 'manual',
-        summary_data: {
-          total_duration_days: timelineDays,
-          goal_title: goal_text,
-          goal_summary: goal_description || null
-        }
-      })
-      .select()
-      .single()
-
-    if (planError) {
-      console.error('Plan insert error:', planError)
+    if (rpcError) {
+      console.error('Error creating manual plan:', rpcError)
       return NextResponse.json({ 
         error: 'Failed to create manual plan',
-        details: planError.message 
+        details: rpcError.message 
       }, { status: 500 })
     }
 
-    console.log('✅ Manual plan created successfully:', plan.id)
+    if (!result || !result.success) {
+      console.error('Plan creation failed:', result)
+      return NextResponse.json({ 
+        error: result?.error || 'Failed to create manual plan',
+        details: result?.error_detail || 'Unknown error'
+      }, { status: 500 })
+    }
+
+    // Fetch the created plan
+    const { data: plan, error: planFetchError } = await supabase
+      .from('plans')
+      .select()
+      .eq('id', result.plan_id)
+      .single()
+
+    if (planFetchError || !plan) {
+      console.error('Error fetching created plan:', planFetchError)
+      return NextResponse.json({ 
+        error: 'Plan created but failed to retrieve',
+        details: planFetchError?.message || 'Unknown error'
+      }, { status: 500 })
+    }
+
+    console.log('✅ Manual plan created successfully:', plan.id, {
+      plans_paused: result.plans_paused || 0
+    })
 
     return NextResponse.json({
       success: true,

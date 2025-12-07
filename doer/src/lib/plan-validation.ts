@@ -2,13 +2,14 @@
 // Provides comprehensive validation for plan generation
 // Validates inputs before calling AI or creating database records
 
+import { AvailabilityPayload, AvailabilityValidationResult, NormalizedAvailability, BusySlot } from '@/lib/types'
+import { validateDate } from '@/lib/validation/date-validation'
+
 export interface ValidationResult {
   valid: boolean
   errors: string[]
   warnings: string[]
 }
-
-import { AvailabilityPayload, AvailabilityValidationResult, NormalizedAvailability, BusySlot } from '@/lib/types'
 
 export interface PlanValidationInput {
   goal_text: string
@@ -44,40 +45,16 @@ export function validatePlanInput(input: PlanValidationInput): ValidationResult 
     errors.push('Goal text is too long (max 1000 characters)')
   }
 
-  // Validate start date
-  if (!input.start_date) {
-    errors.push('Start date is required')
-  } else {
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/
-    if (!datePattern.test(input.start_date)) {
-      errors.push('Start date must be in YYYY-MM-DD format')
-    } else {
-      const [year, month, day] = input.start_date.split('-').map(Number)
-      const startDate = new Date(year, month - 1, day)
-      
-      // Check if date is valid
-      if (isNaN(startDate.getTime())) {
-        errors.push('Start date is invalid')
-      } else {
-        // Check if date is too far in the past
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const daysAgo = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-        
-        if (daysAgo > 7) {
-          errors.push('Start date cannot be more than 7 days in the past')
-        } else if (daysAgo > 0 && daysAgo <= 7) {
-          warnings.push(`Start date is ${daysAgo} day(s) in the past`)
-        }
-        
-        // Check if date is too far in the future
-        const daysAhead = Math.floor((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-        if (daysAhead > 90) {
-          warnings.push('Start date is more than 90 days in the future')
-        }
-      }
-    }
-  }
+  // Validate start date using unified validation utility
+  const dateValidation = validateDate(input.start_date, {
+    allowPastDates: false, // AI plans should not allow past dates
+    maxPastDays: 7,
+    maxFutureDays: 90,
+    warnOnPastDates: true,
+  })
+  
+  errors.push(...dateValidation.errors)
+  warnings.push(...dateValidation.warnings)
 
   // Validate timeline days
   if (input.timeline_days !== undefined) {

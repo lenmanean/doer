@@ -4,9 +4,10 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
-import { formatDateForDB } from '@/lib/date-utils'
+import { formatDateForDB, addDays } from '@/lib/date-utils'
 import { logger } from '@/lib/logger'
 import type { CalendarEvent } from '@/lib/calendar/types'
+import { isCrossDayTask, splitCrossDayScheduleEntry } from '@/lib/task-time-utils'
 
 export interface SyncCalendarEventsResult {
   tasks_created: number
@@ -177,13 +178,18 @@ export async function syncCalendarEventsToTasks(
         const endTimeInTz = new Date(endYear, endMonth, endDay)
         
         const eventDate = formatDateForDB(startTimeInTz)
+        const endEventDate = formatDateForDB(endTimeInTz)
         
-        // Check if event spans multiple days (cross-day event)
-        const isCrossDay = startTimeInTz.getTime() !== endTimeInTz.getTime()
+        // Check if event spans multiple calendar days
+        const spansMultipleDays = eventDate !== endEventDate
         
-        // For cross-day events, set end_time to null to avoid constraint violation
-        // The duration_minutes will still be accurate
-        const endTimeStr: string | null = isCrossDay ? null : endTimeStrRaw
+        // Check if this is a cross-day event (spans midnight within 2 days)
+        // For calendar events, if dates differ by exactly 1 day, it's a cross-day event
+        // Also check if times cross midnight for same-day events
+        const daysDifference = Math.floor((endTimeInTz.getTime() - startTimeInTz.getTime()) / (24 * 60 * 60 * 1000))
+        const isCrossDayEvent = spansMultipleDays && daysDifference === 1
+        const isTimeCrossDay = !spansMultipleDays && isCrossDayTask(startTimeStr, endTimeStrRaw)
+        const shouldSplit = isCrossDayEvent || isTimeCrossDay
 
         if (existingTask) {
           // Update existing task (calendar events are always synced, never detached)
@@ -219,161 +225,225 @@ export async function syncCalendarEventsToTasks(
           })
 
           // Update task schedule - handle date/time changes
-          const { data: existingSchedules } = await supabase
-            .from('task_schedule')
-            .select('id, date')
-            .eq('task_id', existingTask.id)
-            .is('plan_id', null)
-            .order('date', { ascending: false })
-
-          const scheduleOnCurrentDate = existingSchedules?.find(s => s.date === eventDate)
-          const scheduleOnDifferentDate = existingSchedules?.find(s => s.date !== eventDate)
-
-          if (scheduleOnCurrentDate) {
-            // Update existing schedule on the same date
-            const { error: scheduleUpdateError } = await supabase
+          // For cross-day events, delete all existing schedules and recreate as split entries
+          if (shouldSplit && startTimeStr && endTimeStrRaw) {
+            // Delete all existing schedules for this task
+            const { error: deleteError } = await supabase
               .from('task_schedule')
-              .update({
-                start_time: startTimeStr,
-                end_time: endTimeStr,
-                duration_minutes: finalDuration,
-              })
-              .eq('id', scheduleOnCurrentDate.id)
+              .delete()
+              .eq('task_id', existingTask.id)
+              .is('plan_id', null)
 
-            if (scheduleUpdateError) {
-              logger.error('Failed to update task schedule', scheduleUpdateError as Error, {
-                scheduleId: scheduleOnCurrentDate.id,
+            if (deleteError) {
+              logger.warn('Failed to delete existing schedules before creating split schedules', {
                 taskId: existingTask.id,
                 eventId: event.id,
-                eventDate,
-                errorCode: scheduleUpdateError.code,
-                errorMessage: scheduleUpdateError.message,
-              })
-              errors.push(`Failed to update schedule for event ${event.summary}: ${scheduleUpdateError.message}`)
-            } else {
-              logger.info('Updated task schedule (same date)', {
-                scheduleId: scheduleOnCurrentDate.id,
-                taskId: existingTask.id,
-                eventId: event.id,
-                eventDate,
-                startTime: startTimeStr,
-                endTime: endTimeStr,
+                error: deleteError.message,
               })
             }
 
-            // Remove schedules on different dates (event moved)
-            if (scheduleOnDifferentDate) {
-              const { error: deleteError } = await supabase
+            // Create split schedule entries
+            try {
+              const splitEntries = splitCrossDayScheduleEntry(
+                eventDate,
+                startTimeStr,
+                endTimeStrRaw,
+                existingTask.id,
+                userId,
+                null, // plan_id
+                0 // day_index
+              )
+              
+              const { error: scheduleInsertError } = await supabase
                 .from('task_schedule')
-                .delete()
-                .eq('task_id', existingTask.id)
-                .is('plan_id', null)
-                .neq('date', eventDate)
+                .insert(splitEntries)
 
-              if (deleteError) {
-                logger.warn('Failed to delete old schedules after event date change', {
+              if (scheduleInsertError) {
+                logger.error('Failed to create split task schedule', scheduleInsertError as Error, {
                   taskId: existingTask.id,
                   eventId: event.id,
-                  error: deleteError.message,
+                  eventSummary: event.summary,
+                  userId,
+                  eventDate,
+                  errorCode: scheduleInsertError.code,
+                  errorMessage: scheduleInsertError.message,
                 })
+                errors.push(`Failed to create split schedule for event ${event.summary}: ${scheduleInsertError.message}`)
               } else {
-                logger.info('Deleted old schedules after event date change', {
+                logger.info('Created split task schedule for cross-day calendar event', {
                   taskId: existingTask.id,
                   eventId: event.id,
-                  deletedDates: existingSchedules?.filter(s => s.date !== eventDate).map(s => s.date),
+                  eventDate,
+                  splitEntries: 2
                 })
               }
-            }
-          } else if (scheduleOnDifferentDate) {
-            // Event moved to a different date - update the existing schedule
-            const { error: scheduleUpdateError } = await supabase
-              .from('task_schedule')
-              .update({
-                date: eventDate,
-                start_time: startTimeStr,
-                end_time: endTimeStr,
-                duration_minutes: finalDuration,
-              })
-              .eq('id', scheduleOnDifferentDate.id)
-
-            if (scheduleUpdateError) {
-              logger.error('Failed to update task schedule (date change)', scheduleUpdateError as Error, {
-                scheduleId: scheduleOnDifferentDate.id,
+            } catch (splitError: any) {
+              logger.error('Error splitting cross-day calendar event', splitError as Error, {
                 taskId: existingTask.id,
                 eventId: event.id,
-                oldDate: scheduleOnDifferentDate.date,
-                newDate: eventDate,
-                errorCode: scheduleUpdateError.code,
-                errorMessage: scheduleUpdateError.message,
+                eventSummary: event.summary,
               })
-              errors.push(`Failed to update schedule date for event ${event.summary}: ${scheduleUpdateError.message}`)
-            } else {
-              logger.info('Updated task schedule (date changed)', {
-                scheduleId: scheduleOnDifferentDate.id,
-                taskId: existingTask.id,
-                eventId: event.id,
-                oldDate: scheduleOnDifferentDate.date,
-                newDate: eventDate,
-                startTime: startTimeStr,
-                endTime: endTimeStr,
-              })
-            }
-
-            // Remove any other schedules
-            if (existingSchedules && existingSchedules.length > 1) {
-              const { error: deleteError } = await supabase
-                .from('task_schedule')
-                .delete()
-                .eq('task_id', existingTask.id)
-                .is('plan_id', null)
-                .neq('id', scheduleOnDifferentDate.id)
-
-              if (deleteError) {
-                logger.warn('Failed to delete duplicate schedules', {
-                  taskId: existingTask.id,
-                  error: deleteError.message,
-                })
-              }
+              errors.push(`Failed to split cross-day event ${event.summary}: ${splitError.message || 'Unknown error'}`)
             }
           } else {
-            // No schedule exists - create new one
-            // For calendar events (plan_id = null), day_index is set to 0 since there's no plan start date
-            const { error: scheduleInsertError, data: newSchedule } = await supabase
+            // Regular event - use existing update logic
+            const { data: existingSchedules } = await supabase
               .from('task_schedule')
-              .insert({
-                plan_id: null,
-                user_id: userId,
-                task_id: existingTask.id,
-                day_index: 0, // Calendar events don't have a plan, so day_index is 0
-                date: eventDate,
-                start_time: startTimeStr,
-                end_time: endTimeStr,
-                duration_minutes: finalDuration,
-                status: 'scheduled',
-              })
-              .select('id')
-              .single()
+              .select('id, date')
+              .eq('task_id', existingTask.id)
+              .is('plan_id', null)
+              .order('date', { ascending: false })
 
-            if (scheduleInsertError) {
-              logger.error('Failed to create task schedule', scheduleInsertError as Error, {
-                taskId: existingTask.id,
-                eventId: event.id,
-                eventDate,
-                errorCode: scheduleInsertError.code,
-                errorMessage: scheduleInsertError.message,
-                errorDetails: scheduleInsertError.details,
-                errorHint: scheduleInsertError.hint,
-              })
-              errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError.message}`)
+            const scheduleOnCurrentDate = existingSchedules?.find(s => s.date === eventDate)
+            const scheduleOnDifferentDate = existingSchedules?.find(s => s.date !== eventDate)
+            const endTimeForSchedule = spansMultipleDays && daysDifference > 1 ? null : endTimeStrRaw
+
+            if (scheduleOnCurrentDate) {
+              // Update existing schedule on the same date
+              const { error: scheduleUpdateError } = await supabase
+                .from('task_schedule')
+                .update({
+                  start_time: startTimeStr,
+                  end_time: endTimeForSchedule,
+                  duration_minutes: finalDuration,
+                })
+                .eq('id', scheduleOnCurrentDate.id)
+
+              if (scheduleUpdateError) {
+                logger.error('Failed to update task schedule', scheduleUpdateError as Error, {
+                  scheduleId: scheduleOnCurrentDate.id,
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  eventDate,
+                  errorCode: scheduleUpdateError.code,
+                  errorMessage: scheduleUpdateError.message,
+                })
+                errors.push(`Failed to update schedule for event ${event.summary}: ${scheduleUpdateError.message}`)
+              } else {
+                logger.info('Updated task schedule (same date)', {
+                  scheduleId: scheduleOnCurrentDate.id,
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  eventDate,
+                  startTime: startTimeStr,
+                  endTime: endTimeForSchedule,
+                })
+              }
+
+              // Remove schedules on different dates (event moved)
+              if (scheduleOnDifferentDate) {
+                const { error: deleteError } = await supabase
+                  .from('task_schedule')
+                  .delete()
+                  .eq('task_id', existingTask.id)
+                  .is('plan_id', null)
+                  .neq('date', eventDate)
+
+                if (deleteError) {
+                  logger.warn('Failed to delete old schedules after event date change', {
+                    taskId: existingTask.id,
+                    eventId: event.id,
+                    error: deleteError.message,
+                  })
+                } else {
+                  logger.info('Deleted old schedules after event date change', {
+                    taskId: existingTask.id,
+                    eventId: event.id,
+                    deletedDates: existingSchedules?.filter(s => s.date !== eventDate).map(s => s.date),
+                  })
+                }
+              }
+            } else if (scheduleOnDifferentDate) {
+              // Event moved to a different date - update the existing schedule
+              const { error: scheduleUpdateError } = await supabase
+                .from('task_schedule')
+                .update({
+                  date: eventDate,
+                  start_time: startTimeStr,
+                  end_time: endTimeForSchedule,
+                  duration_minutes: finalDuration,
+                })
+                .eq('id', scheduleOnDifferentDate.id)
+
+              if (scheduleUpdateError) {
+                logger.error('Failed to update task schedule (date change)', scheduleUpdateError as Error, {
+                  scheduleId: scheduleOnDifferentDate.id,
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  oldDate: scheduleOnDifferentDate.date,
+                  newDate: eventDate,
+                  errorCode: scheduleUpdateError.code,
+                  errorMessage: scheduleUpdateError.message,
+                })
+                errors.push(`Failed to update schedule date for event ${event.summary}: ${scheduleUpdateError.message}`)
+              } else {
+                logger.info('Updated task schedule (date changed)', {
+                  scheduleId: scheduleOnDifferentDate.id,
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  oldDate: scheduleOnDifferentDate.date,
+                  newDate: eventDate,
+                  startTime: startTimeStr,
+                  endTime: endTimeForSchedule,
+                })
+              }
+
+              // Remove any other schedules
+              if (existingSchedules && existingSchedules.length > 1) {
+                const { error: deleteError } = await supabase
+                  .from('task_schedule')
+                  .delete()
+                  .eq('task_id', existingTask.id)
+                  .is('plan_id', null)
+                  .neq('id', scheduleOnDifferentDate.id)
+
+                if (deleteError) {
+                  logger.warn('Failed to delete duplicate schedules', {
+                    taskId: existingTask.id,
+                    error: deleteError.message,
+                  })
+                }
+              }
             } else {
-              logger.info('Created task schedule for existing task', {
-                scheduleId: newSchedule?.id,
-                taskId: existingTask.id,
-                eventId: event.id,
-                eventDate,
-                startTime: startTimeStr,
-                endTime: endTimeStr,
-              })
+              // No schedule exists - create new one
+              // For calendar events (plan_id = null), day_index is set to 0 since there's no plan start date
+              const { error: scheduleInsertError, data: newSchedule } = await supabase
+                .from('task_schedule')
+                .insert({
+                  plan_id: null,
+                  user_id: userId,
+                  task_id: existingTask.id,
+                  day_index: 0, // Calendar events don't have a plan, so day_index is 0
+                  date: eventDate,
+                  start_time: startTimeStr,
+                  end_time: endTimeForSchedule,
+                  duration_minutes: finalDuration,
+                  status: 'scheduled',
+                })
+                .select('id')
+                .single()
+
+              if (scheduleInsertError) {
+                logger.error('Failed to create task schedule', scheduleInsertError as Error, {
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  eventDate,
+                  errorCode: scheduleInsertError.code,
+                  errorMessage: scheduleInsertError.message,
+                  errorDetails: scheduleInsertError.details,
+                  errorHint: scheduleInsertError.hint,
+                })
+                errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError.message}`)
+              } else {
+                logger.info('Created task schedule for existing task', {
+                  scheduleId: newSchedule?.id,
+                  taskId: existingTask.id,
+                  eventId: event.id,
+                  eventDate,
+                  startTime: startTimeStr,
+                  endTime: endTimeForSchedule,
+                })
+              }
             }
           }
 
@@ -418,46 +488,99 @@ export async function syncCalendarEventsToTasks(
             userId,
           })
 
-          // Create task schedule
+          // Create task schedule(s)
           // For calendar events (plan_id = null), day_index is set to 0 since there's no plan start date
-          const { data: newSchedule, error: scheduleInsertError } = await supabase
-            .from('task_schedule')
-            .insert({
-              plan_id: null,
-              user_id: userId,
-              task_id: newTask.id,
-              day_index: 0, // Calendar events don't have a plan, so day_index is 0
-              date: eventDate,
-              start_time: startTimeStr,
-              end_time: endTimeStr,
-              duration_minutes: finalDuration,
-              status: 'scheduled',
-            })
-            .select('id')
-            .single()
+          if (shouldSplit && startTimeStr && endTimeStrRaw) {
+            // Split cross-day event into two schedule entries
+            try {
+              const splitEntries = splitCrossDayScheduleEntry(
+                eventDate,
+                startTimeStr,
+                endTimeStrRaw,
+                newTask.id,
+                userId,
+                null, // plan_id
+                0 // day_index
+              )
+              
+              const { error: scheduleInsertError } = await supabase
+                .from('task_schedule')
+                .insert(splitEntries)
 
-          if (scheduleInsertError || !newSchedule) {
-            logger.error('Failed to create task schedule', scheduleInsertError as Error, {
+              if (scheduleInsertError) {
+                logger.error('Failed to create split task schedule', scheduleInsertError as Error, {
+                  taskId: newTask.id,
+                  eventId: event.id,
+                  eventSummary: event.summary,
+                  userId,
+                  eventDate,
+                  errorCode: scheduleInsertError.code,
+                  errorMessage: scheduleInsertError.message,
+                  errorDetails: scheduleInsertError.details,
+                  errorHint: scheduleInsertError.hint,
+                })
+                errors.push(`Failed to create split schedule for event ${event.summary}: ${scheduleInsertError.message || 'Unknown error'}`)
+                continue
+              }
+
+              logger.info('Created split task schedule from cross-day calendar event', {
+                taskId: newTask.id,
+                eventId: event.id,
+                eventDate,
+                splitEntries: 2
+              })
+            } catch (splitError: any) {
+              logger.error('Error splitting cross-day calendar event', splitError as Error, {
+                taskId: newTask.id,
+                eventId: event.id,
+                eventSummary: event.summary,
+              })
+              errors.push(`Failed to split cross-day event ${event.summary}: ${splitError.message || 'Unknown error'}`)
+              continue
+            }
+          } else {
+            // Single-day event or multi-day event (>2 days) - create single schedule entry
+            const endTimeForSchedule = spansMultipleDays && daysDifference > 1 ? null : endTimeStrRaw
+            
+            const { data: newSchedule, error: scheduleInsertError } = await supabase
+              .from('task_schedule')
+              .insert({
+                plan_id: null,
+                user_id: userId,
+                task_id: newTask.id,
+                day_index: 0, // Calendar events don't have a plan, so day_index is 0
+                date: eventDate,
+                start_time: startTimeStr,
+                end_time: endTimeForSchedule,
+                duration_minutes: finalDuration,
+                status: 'scheduled',
+              })
+              .select('id')
+              .single()
+
+            if (scheduleInsertError || !newSchedule) {
+              logger.error('Failed to create task schedule', scheduleInsertError as Error, {
+                taskId: newTask.id,
+                eventId: event.id,
+                eventSummary: event.summary,
+                userId,
+                eventDate,
+                errorCode: scheduleInsertError?.code,
+                errorMessage: scheduleInsertError?.message,
+                errorDetails: scheduleInsertError?.details,
+                errorHint: scheduleInsertError?.hint,
+              })
+              errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError?.message || 'Unknown error'}`)
+              continue
+            }
+
+            logger.info('Created task schedule from calendar event', {
+              scheduleId: newSchedule.id,
               taskId: newTask.id,
               eventId: event.id,
-              eventSummary: event.summary,
-              userId,
               eventDate,
-              errorCode: scheduleInsertError?.code,
-              errorMessage: scheduleInsertError?.message,
-              errorDetails: scheduleInsertError?.details,
-              errorHint: scheduleInsertError?.hint,
             })
-            errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError?.message || 'Unknown error'}`)
-            continue
           }
-
-          logger.info('Created task schedule from calendar event', {
-            scheduleId: newSchedule.id,
-            taskId: newTask.id,
-            eventId: event.id,
-            eventDate,
-          })
 
           tasksCreated++
         }

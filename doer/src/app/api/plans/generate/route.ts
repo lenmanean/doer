@@ -1223,7 +1223,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Use the unified tasks array from AI content
-    // All tasks are inserted without milestone associations (milestones are legacy - column removed)
     // Note: We intentionally omit the "category" column here. The database enforces
     // a CHECK constraint that only allows 'A', 'B', or 'C' for category, and it is
     // nullable. By not setting it, we let the column default to NULL, which passes
@@ -1287,7 +1286,7 @@ export async function POST(req: NextRequest) {
         timeline: {
           days: aiContent.timeline_days,
         },
-        // Legacy milestone fields removed; the new AI returns a single unified tasks array.
+        // Tasks array from AI content
         tasks: {
           total: allTasks.length,
         },

@@ -301,6 +301,18 @@ export async function POST(request: NextRequest) {
             console.error('[Create Subscription] Error syncing updated subscription:', syncError)
             // Continue - webhook will handle it
           }
+          
+          // Payment already succeeded, return early to avoid processing invoice again
+          // This prevents duplicate transactions from being created
+          return NextResponse.json(
+            {
+              subscriptionId: subscription.id,
+              clientSecret: null,
+              status: subscription.status,
+              message: 'Subscription upgraded successfully. Payment processed automatically.',
+            },
+            { status: 200 }
+          )
         }
       }
     }
@@ -437,8 +449,7 @@ export async function POST(request: NextRequest) {
           return date.toISOString().split('T')[0] // Format as YYYY-MM-DD
         }
         
-        // Use syncSubscriptionSnapshot instead of deprecated assignSubscription
-        // This properly handles incomplete subscriptions and payment status
+        // Sync subscription snapshot to handle incomplete subscriptions and payment status
         await syncSubscriptionSnapshot(subscription, { userId: user.id })
         
         console.log('[Create Subscription] Successfully synced subscription to database', {
@@ -777,8 +788,7 @@ export async function POST(request: NextRequest) {
       const periodStart = formatDate((subscription as any).current_period_start)
       const periodEnd = formatDate((subscription as any).current_period_end)
       
-      // Use syncSubscriptionSnapshot instead of deprecated assignSubscription
-      // This properly handles incomplete subscriptions and payment status
+      // Sync subscription snapshot to handle incomplete subscriptions and payment status
       const { syncSubscriptionSnapshot } = await import('@/lib/billing/subscription-sync')
       await syncSubscriptionSnapshot(subscription, { userId: user.id })
       

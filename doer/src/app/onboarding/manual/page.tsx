@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { Task } from '@/lib/types'
 import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Trash2, Copy, Clipboard, CopyPlus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { calculateDuration } from '@/lib/task-time-utils'
+import { calculateDuration, isCrossDayTask } from '@/lib/task-time-utils'
+import { toLocalMidnight } from '@/lib/date-utils'
 
 export default function ManualOnboardingPage() {
   const router = useRouter()
@@ -156,19 +157,11 @@ export default function ManualOnboardingPage() {
   const getEffectiveEndDate = (task: Task): string => {
     if (!task.scheduled_date) return ''
     
-    // Check if task is cross-day (end time < start time)
-    if (task.start_time && task.end_time) {
-      const [startHour, startMin] = task.start_time.split(':').map(Number)
-      const [endHour, endMin] = task.end_time.split(':').map(Number)
-      const startMinutes = startHour * 60 + startMin
-      const endMinutes = endHour * 60 + endMin
-      
-      // If end time is before start time, task spans to next day
-      if (endMinutes < startMinutes) {
-        const taskDate = new Date(task.scheduled_date)
-        taskDate.setDate(taskDate.getDate() + 1)
-        return taskDate.toISOString().split('T')[0]
-      }
+    // Check if task is cross-day using utility function
+    if (task.start_time && task.end_time && isCrossDayTask(task.start_time, task.end_time)) {
+      const taskDate = new Date(task.scheduled_date)
+      taskDate.setDate(taskDate.getDate() + 1)
+      return taskDate.toISOString().split('T')[0]
     }
     
     return task.scheduled_date
@@ -357,12 +350,12 @@ export default function ManualOnboardingPage() {
       return
     }
     // Compare dates (normalize to midnight to avoid timezone issues)
-    const start = new Date(startDate)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(endDate)
-    end.setHours(0, 0, 0, 0)
+    // Use toLocalMidnight for consistent date comparison with backend
+    const start = toLocalMidnight(startDate)
+    const end = toLocalMidnight(endDate)
     
-    if (start > end) {
+    // Backend uses endDate <= startDate, so frontend should match (end must be >= start)
+    if (end < start) {
       setError('End date must be on or after start date')
       return
     }

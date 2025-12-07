@@ -16,9 +16,12 @@ import {
   getDurationSuggestion,
   TASK_DURATION_MIN_MINUTES,
   isCrossDayTask as checkIsCrossDayTask,
-  splitCrossDayScheduleEntry
+  splitCrossDayScheduleEntry,
+  shouldSkipPastTaskInstance,
+  getCurrentDateTime,
+  isTaskInPast
 } from '@/lib/task-time-utils'
-import { formatDateForDB } from '@/lib/date-utils'
+import { formatDateForDB, getToday } from '@/lib/date-utils'
 import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { useSupabase } from '@/components/providers/supabase-provider'
@@ -473,6 +476,10 @@ export function CreateTaskModal({
   const [showCrossDayWarning, setShowCrossDayWarning] = useState(false)
   const [crossDayTaskData, setCrossDayTaskData] = useState<any>(null)
   
+  // Past date warning handling
+  const [showPastDateWarning, setShowPastDateWarning] = useState(false)
+  const [pastDateTaskData, setPastDateTaskData] = useState<any>(null)
+  
   // AI generation hook
   const { generateTask, isLoading: isAILoading, error: aiError, clearError } = useAITaskGeneration()
 
@@ -552,16 +559,10 @@ export function CreateTaskModal({
   // Calculate duration when start time or end time changes
   const calculatedDuration = useMemo(() => {
     if (formData.startTime && formData.endTime) {
-      if (isCrossDayTask) {
-        // For cross-day tasks, add 24 hours (1440 minutes) to the end time
-        const startMinutes = parseTimeToMinutes(formData.startTime)
-        const endMinutes = parseTimeToMinutes(formData.endTime)
-        return (24 * 60) - startMinutes + endMinutes
-      }
       return calculateDuration(formData.startTime, formData.endTime)
     }
     return 0
-  }, [formData.startTime, formData.endTime, isCrossDayTask])
+  }, [formData.startTime, formData.endTime])
 
   // Set default recurring days when recurring is enabled
   useEffect(() => {
@@ -903,7 +904,6 @@ export function CreateTaskModal({
           name: crossDayTaskData.name,
           details: crossDayTaskData.details,
           priority: formData.priority || 3,
-          milestone_id: null,
           estimated_duration_minutes: startDayDuration,
           complexity_score: null,
           start_time: crossDayTaskData.startTime,
@@ -925,7 +925,6 @@ export function CreateTaskModal({
           name: crossDayTaskData.name,
           details: crossDayTaskData.details,
           priority: formData.priority || 3,
-          milestone_id: null,
           estimated_duration_minutes: endDayDuration,
           complexity_score: null,
           start_time: '00:00',
@@ -958,6 +957,56 @@ export function CreateTaskModal({
   const handleCrossDayCancel = () => {
     setShowCrossDayWarning(false)
     setCrossDayTaskData(null)
+  }
+
+  // Past date warning handlers
+  const handlePastDateConfirm = async () => {
+    if (!pastDateTaskData) return
+
+    setIsLoading(true)
+    setIsCreating(true)
+    setError(null)
+    setShowPastDateWarning(false)
+
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) {
+        throw new Error('You must be logged in to create tasks')
+      }
+
+      // Proceed with creating the task schedule (task already created)
+      const { error: singleTaskError } = await supabase.from('task_schedule').insert({
+        plan_id: null,
+        user_id: user.id,
+        task_id: pastDateTaskData.taskId,
+        day_index: 0,
+        date: pastDateTaskData.taskData.date,
+        start_time: pastDateTaskData.taskData.startTime,
+        end_time: pastDateTaskData.taskData.endTime,
+        duration_minutes: pastDateTaskData.duration,
+        status: 'scheduled'
+      })
+      if (singleTaskError) throw singleTaskError
+
+      // Continue with callback and close
+      onTaskCreated()
+      setTimeout(() => onClose(), 100)
+      setPastDateTaskData(null)
+    } catch (err: any) {
+      console.error('Error creating past date task:', err)
+      setError(err.message || 'Failed to create task')
+      setIsLoading(false)
+      setIsCreating(false)
+    }
+  }
+
+  const handlePastDateCancel = () => {
+    setShowPastDateWarning(false)
+    setPastDateTaskData(null)
+    setIsLoading(false)
+    setIsCreating(false)
+    // Note: The task was already created, so we might want to delete it
+    // For now, we'll leave it as a task without a schedule entry
   }
 
   // Manual mode multi-task submit handler
@@ -1018,29 +1067,19 @@ export function CreateTaskModal({
           continue
         }
         
-        const startMinutes = parseTimeToMinutes(taskData.startTime)
-        const endMinutes = parseTimeToMinutes(taskData.endTime)
-        let duration = 0
-        const isCrossDay = endMinutes <= startMinutes
-        
-        if (isCrossDay) {
-          duration = (24 * 60) - startMinutes + endMinutes
-        } else {
-          duration = endMinutes - startMinutes
-        }
+        const duration = calculateDuration(taskData.startTime, taskData.endTime)
+        const isCrossDay = checkIsCrossDayTask(taskData.startTime, taskData.endTime)
 
         console.log(`🔍 Duration calculation for "${taskData.name}":`, {
           startTime: taskData.startTime,
           endTime: taskData.endTime,
-          startMinutes,
-          endMinutes,
           isCrossDay,
           calculatedDuration: duration,
           durationHours: (duration / 60).toFixed(1)
         })
 
         if (duration <= 0) {
-          console.error(`❌ Invalid duration (<= 0) for task: ${taskData.name}`, { duration, startMinutes, endMinutes, isCrossDay })
+          console.error(`❌ Invalid duration (<= 0) for task: ${taskData.name}`, { duration, isCrossDay })
           tasksWithErrors.push({
             task: taskData,
             error: 'Invalid duration: end time must be after start time'
@@ -1166,6 +1205,9 @@ export function CreateTaskModal({
           // Check if this recurring task is cross-day
           const recurringIsCrossDay = checkIsCrossDayTask(taskData.startTime, taskData.endTime)
 
+          // Get current date/time for filtering past tasks
+          const { todayStr, currentTimeStr } = getCurrentDateTime()
+
           for (let week = 0; week < weeksToGenerate; week++) {
             const currentWeekStart = new Date(weekStart)
             currentWeekStart.setDate(weekStart.getDate() + (week * 7))
@@ -1180,18 +1222,29 @@ export function CreateTaskModal({
                   taskDateStr >= taskData.recurrenceStartDate &&
                   taskDateStr <= taskData.recurrenceEndDate) {
                 
+                // Skip past dates/times
+                if (shouldSkipPastTaskInstance(taskDateStr, taskData.endTime, todayStr, currentTimeStr)) {
+                  continue
+                }
+
                 if (recurringIsCrossDay) {
                   // Split cross-day recurring task across two days
-                  const splitEntries = splitCrossDayScheduleEntry(
-                    taskDateStr,
-                    taskData.startTime,
-                    taskData.endTime,
-                    task.id,
-                    user.id,
-                    null, // plan_id
-                    i + (week * 7) // day_index
-                  )
-                  scheduleEntries.push(...splitEntries)
+                  // For cross-day tasks, we need to check both parts
+                  const nextDayDateStr = formatDateForDB(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1))
+                  
+                  // Only create entries if the task hasn't finished yet
+                  if (!shouldSkipPastTaskInstance(nextDayDateStr, taskData.endTime, todayStr, currentTimeStr)) {
+                    const splitEntries = splitCrossDayScheduleEntry(
+                      taskDateStr,
+                      taskData.startTime,
+                      taskData.endTime,
+                      task.id,
+                      user.id,
+                      null, // plan_id
+                      i + (week * 7) // day_index
+                    )
+                    scheduleEntries.push(...splitEntries)
+                  }
                 } else {
                   // Non-cross-day recurring task
                   scheduleEntries.push({
@@ -1218,6 +1271,24 @@ export function CreateTaskModal({
           // Single non-recurring task
           // Note: Cross-day single tasks are handled above at line 1099
           // This case only handles non-cross-day single tasks
+          
+          // Check if task is in the past (but don't skip, just validate)
+          const { todayStr, currentTimeStr } = getCurrentDateTime()
+          const taskDateStr = taskData.date || formatDateForDB(new Date())
+          
+          if (isTaskInPast(taskDateStr, taskData.endTime, todayStr, currentTimeStr)) {
+            // Task is in the past - show confirmation dialog
+            setPastDateTaskData({
+              taskData,
+              duration,
+              taskId: task.id
+            })
+            setShowPastDateWarning(true)
+            setIsLoading(false)
+            setIsCreating(false)
+            return
+          }
+          
           const { error: singleTaskError } = await supabase.from('task_schedule').insert({
             plan_id: null,
             user_id: user.id,
@@ -1840,7 +1911,6 @@ export function CreateTaskModal({
         name: taskName,
         details: taskDetails,
         priority: aiPriority,
-        milestone_id: null,
         estimated_duration_minutes: duration,
         complexity_score: null,
         start_time: taskStart,
@@ -1947,6 +2017,25 @@ export function CreateTaskModal({
       }
 
       const finalEndTime = formData.endTime
+
+      // Check for past date/time for single non-recurring tasks
+      if (!formData.isRecurring && formData.date) {
+        const { todayStr, currentTimeStr } = getCurrentDateTime()
+        const taskDateStr = formData.date
+        
+        if (isTaskInPast(taskDateStr, finalEndTime, todayStr, currentTimeStr)) {
+          // Task is in the past - show confirmation dialog
+          setPastDateTaskData({
+            formData,
+            calculatedDuration,
+            finalEndTime
+          })
+          setShowPastDateWarning(true)
+          setIsLoading(false)
+          setIsCreating(false)
+          return
+        }
+      }
 
       // Validation for recurring tasks
       if (formData.isRecurring) {
@@ -2056,6 +2145,9 @@ export function CreateTaskModal({
           weeksToGenerate = Math.max(1, diffWeeks)
         }
         
+        // Get current date/time for filtering past tasks
+        const { todayStr, currentTimeStr } = getCurrentDateTime()
+        
         // Generate schedule entries for the determined number of weeks
         for (let week = 0; week < weeksToGenerate; week++) {
           const currentWeekStart = new Date(weekStart)
@@ -2065,6 +2157,7 @@ export function CreateTaskModal({
             const currentDate = new Date(currentWeekStart)
             currentDate.setDate(currentWeekStart.getDate() + i)
             const dayOfWeek = currentDate.getDay()
+            const taskDateStr = formatDateForDB(currentDate)
             
             // Check if this day should have the task
             if (formData.recurrenceDays.includes(dayOfWeek)) {
@@ -2073,17 +2166,21 @@ export function CreateTaskModal({
               let shouldInclude: boolean = formData.isIndefinite
               
               if (!formData.isIndefinite && formData.recurrenceStartDate && formData.recurrenceEndDate) {
-                const taskDate = currentDate.toISOString().split('T')[0]
-                shouldInclude = taskDate >= formData.recurrenceStartDate && taskDate <= formData.recurrenceEndDate
+                shouldInclude = taskDateStr >= formData.recurrenceStartDate && taskDateStr <= formData.recurrenceEndDate
               }
               
               if (shouldInclude) {
+                // Skip past dates/times
+                if (shouldSkipPastTaskInstance(taskDateStr, finalEndTime, todayStr, currentTimeStr)) {
+                  continue
+                }
+                
                 scheduleEntries.push({
                   plan_id: planId, // null for free mode tasks
                   user_id: user.id,
                   task_id: task.id,
                   day_index: i + (week * 7),
-                  date: currentDate.toISOString().split('T')[0],
+                  date: taskDateStr,
                   start_time: formData.startTime,
                   end_time: finalEndTime,
                   duration_minutes: calculatedDuration,
@@ -2171,7 +2268,6 @@ export function CreateTaskModal({
         name: formData.name,
         details: formData.details,
         priority: formData.priority || 3, // Use selected priority
-        milestone_id: null,
         estimated_duration_minutes: calculatedDuration,
         complexity_score: null,
         start_time: formData.startTime,
@@ -3488,6 +3584,73 @@ export function CreateTaskModal({
           </motion.div>
         </motion.div>
       )}
+      </AnimatePresence>
+
+      {/* Past Date Warning Dialog */}
+      <AnimatePresence>
+        {showPastDateWarning && pastDateTaskData && (
+          <motion.div
+            key="past-date-warning"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              key="past-date-warning-content"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`p-6 rounded-lg shadow-xl max-w-md w-full mx-4 ${
+                currentTheme === 'dark'
+                  ? 'bg-[#1a1a1a] border border-white/10'
+                  : 'bg-white border border-gray-200'
+              }`}
+            >
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <h3 className={`text-lg font-semibold mb-2 ${
+                  currentTheme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Past Date/Time Detected
+                </h3>
+                <div className={`text-sm mb-4 ${
+                  currentTheme === 'dark' ? 'text-[#d7d2cb]' : 'text-gray-600'
+                }`}>
+                  <div className="mb-2">The selected date and time is in the past.</div>
+                  <div>
+                    {pastDateTaskData.taskData?.date ? formatDateForLabel(pastDateTaskData.taskData.date) : formatDateForLabel(formatDateForDB(new Date()))} {formatTimeForDisplay(pastDateTaskData.taskData?.startTime || pastDateTaskData.formData?.startTime || '00:00')} - {formatTimeForDisplay(pastDateTaskData.taskData?.endTime || pastDateTaskData.formData?.endTime || '00:00')}
+                  </div>
+                  <div className="mt-2 text-xs">
+                    This will create an overdue task. You can still proceed if this is intentional.
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={handlePastDateCancel}
+                    disabled={isLoading}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      currentTheme === 'dark'
+                        ? 'bg-white/5 hover:bg-white/10 text-[#d7d2cb]'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePastDateConfirm}
+                    disabled={isLoading}
+                    className="px-4 py-2 rounded-lg bg-[#ff7f00] hover:bg-[#ff8c1a] text-white transition-colors disabled:opacity-50"
+                  >
+                    {isLoading ? 'Creating...' : 'Create Anyway'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </AnimatePresence>
   )
