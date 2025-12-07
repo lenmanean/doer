@@ -317,6 +317,20 @@ export function TaskTimeEditModal({ task, isOpen, onClose, onSave, onDelete, the
   const handleDelete = async () => {
     if (!task) return
     
+    // Check if this is an indefinite recurring task (synthetic task)
+    const isSynthetic = task.schedule_id && task.schedule_id.startsWith('synthetic-')
+    const isIndefiniteRecurring = task.is_indefinite && task.is_recurring
+    
+    // For indefinite recurring tasks, warn that deleting one instance deletes the entire recurring task
+    if (isSynthetic || isIndefiniteRecurring) {
+      const confirmed = window.confirm(
+        `This is a recurring task that repeats indefinitely. Deleting this instance will permanently delete the entire recurring task "${task.name}" and all its future occurrences.\n\nAre you sure you want to delete this recurring task?`
+      )
+      if (!confirmed) {
+        return
+      }
+    }
+    
     setSaving(true)
     try {
       await onDelete(task)

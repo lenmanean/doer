@@ -1033,6 +1033,11 @@ function ScheduleContent() {
     try {
       console.log('🗑️ Deleting task:', task.name, 'schedule_id:', task.schedule_id, 'task_id:', task.task_id)
       
+      // Check if this is a synthetic task (indefinite recurring task)
+      // Synthetic tasks have schedule_id starting with "synthetic-" and don't exist in task_schedule table
+      const isSynthetic = task.schedule_id && task.schedule_id.startsWith('synthetic-')
+      const isIndefiniteRecurring = task.is_indefinite && task.is_recurring
+      
       // Immediately remove from UI for instant feedback
       removeOptimisticTask(task.task_id)
       
@@ -1040,35 +1045,86 @@ function ScheduleContent() {
       setShowEditModal(false)
       setSelectedTask(null)
       
-      // Delete from task_schedule table
-      const { error: scheduleError } = await supabase
-        .from('task_schedule')
-        .delete()
-        .eq('id', task.schedule_id)
-        .eq('user_id', userId)
+      if (isSynthetic || isIndefiniteRecurring) {
+        // For synthetic/indefinite recurring tasks, delete the entire task from tasks table
+        // Individual instances can't be deleted since they're generated on-the-fly
+        console.log('🗑️ Deleting indefinite recurring task (synthetic):', task.name)
+        
+        // Delete task schedules first (if any exist for finite recurring tasks that became indefinite)
+        const { error: scheduleDeleteError } = await supabase
+          .from('task_schedule')
+          .delete()
+          .eq('task_id', task.task_id)
+          .eq('user_id', userId)
 
-      if (scheduleError) {
-        console.error('Error deleting task schedule:', scheduleError)
-        // If deletion fails, refresh to restore the task
-        refetch()
-        return
+        if (scheduleDeleteError) {
+          console.warn('Warning: Error deleting task schedules (may not exist):', scheduleDeleteError)
+          // Continue anyway - synthetic tasks don't have schedules
+        }
+
+        // Delete the recurring task itself
+        const { error: taskError } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', task.task_id)
+          .eq('user_id', userId)
+
+        if (taskError) {
+          console.error('Error deleting indefinite recurring task:', taskError)
+          // If deletion fails, refresh to restore the task
+          refetch()
+          return
+        }
+        console.log('✅ Indefinite recurring task deleted successfully')
+      } else {
+        // For regular tasks with actual schedule entries, delete schedule first, then task
+        const { error: scheduleError } = await supabase
+          .from('task_schedule')
+          .delete()
+          .eq('id', task.schedule_id)
+          .eq('user_id', userId)
+
+        if (scheduleError) {
+          console.error('Error deleting task schedule:', scheduleError)
+          // If deletion fails, refresh to restore the task
+          refetch()
+          return
+        }
+        console.log('✅ Task schedule deleted successfully')
+
+        // Check if task has other schedules - if not, delete the task itself
+        const { data: otherSchedules, error: checkError } = await supabase
+          .from('task_schedule')
+          .select('id')
+          .eq('task_id', task.task_id)
+          .eq('user_id', userId)
+          .limit(1)
+
+        if (checkError) {
+          console.warn('Warning: Could not check for other schedules:', checkError)
+        }
+
+        // If no other schedules exist and task is not recurring, delete the task
+        // If task is recurring but finite, keep the task (other instances may still exist)
+        const shouldDeleteTask = !otherSchedules || otherSchedules.length === 0
+        if (shouldDeleteTask) {
+          const { error: taskError } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', task.task_id)
+            .eq('user_id', userId)
+
+          if (taskError) {
+            console.error('Error deleting task:', taskError)
+            // If deletion fails, refresh to restore the task
+            refetch()
+            return
+          }
+          console.log('✅ Task deleted successfully')
+        } else {
+          console.log('✅ Task schedule deleted, task kept (has other schedules)')
+        }
       }
-      console.log('✅ Task schedule deleted successfully')
-
-      // Delete from tasks table
-      const { error: taskError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', task.task_id)
-        .eq('user_id', userId)
-
-      if (taskError) {
-        console.error('Error deleting task:', taskError)
-        // If deletion fails, refresh to restore the task
-        refetch()
-        return
-      }
-      console.log('✅ Task deleted successfully')
 
       // Refresh the task list to ensure UI is in sync
       console.log('🔄 Refreshing tasks after deletion...')
@@ -1080,7 +1136,7 @@ function ScheduleContent() {
       // If deletion fails, refresh to restore the task
       refetch()
     }
-  }, [userId, refetch, removeOptimisticTask])
+  }, [userId, refetch, removeOptimisticTask, supabase])
 
   const handleSaveTaskTime = useCallback(async (
     scheduleId: string,
