@@ -300,10 +300,17 @@ export async function GET(request: NextRequest) {
           const endMin = parseTimeToMinutes(endT)
           
           const ensure = (key: string, s: string, e: string, dur: number, debugContext?: string) => {
-            // Skip if this task instance is in the past
-            const shouldSkip = shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)
-            if (shouldSkip) {
-              console.log(`[CrossDayTask] Skipping past instance: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`, {
+            // Check if this task instance is overdue
+            const isOverdue = shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)
+            
+            // Check if task is completed - use same key format as completionMap
+            const completionKey = `${t.id}-${key}-${t.plan_id || 'null'}`
+            const isCompleted = completionMap.has(completionKey)
+            
+            // Only skip if task is both overdue AND completed
+            // Overdue non-completed tasks should be shown so users can mark them complete or reschedule
+            if (isOverdue && isCompleted) {
+              console.log(`[CrossDayTask] Skipping completed overdue instance: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`, {
                 dateKey: key,
                 endTime: e,
                 todayStr,
@@ -321,6 +328,10 @@ export async function GET(request: NextRequest) {
               return
             }
             if (!tasksByDate[key]) tasksByDate[key] = []
+            
+            // Set status to 'overdue' for overdue non-completed tasks
+            const taskStatus = isOverdue && !isCompleted ? 'overdue' : 'scheduled'
+            
             tasksByDate[key].push({
               schedule_id: `synthetic-${t.id}-${key}-${s}-${e}`,
               task_id: t.id,
@@ -333,13 +344,14 @@ export async function GET(request: NextRequest) {
               duration_minutes: dur,
               day_index: 0,
               date: key,
-              completed: completionMap.get(`${t.id}-${key}`) || false,
+              completed: isCompleted,
               is_recurring: true,
               is_indefinite: true,
               recurrence_days: days,
-              plan_id: t.plan_id // Add plan_id from task
+              plan_id: t.plan_id, // Add plan_id from task
+              status: taskStatus // Set overdue status for overdue non-completed tasks
             })
-            console.log(`[CrossDayTask] Generated instance: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`)
+            console.log(`[CrossDayTask] Generated instance: ${t.name} on ${key} ${s}-${e}${isOverdue ? ' (overdue)' : ''}${debugContext ? ` (${debugContext})` : ''}`)
           }
           
           if (!isCrossDay) {
@@ -353,34 +365,17 @@ export async function GET(request: NextRequest) {
             if (days.includes(dow)) {
               // Start day part: from startT to 23:59
               // Check if the actual end time (on next day) has passed
+              // The ensure function will handle overdue status and completion checks
               const nextDayDateStr = fmtLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
-              const skipStartPart = shouldSkipPastTaskInstance(nextDayDateStr, endT, todayStr, currentTimeStr)
-              if (!skipStartPart) {
-                ensure(dateKey, startT, '23:59', 1440 - startMin, `start-day-part (ends ${nextDayDateStr} ${endT})`)
-              } else {
-                console.log(`[CrossDayTask] Skipping start-day part: ${t.name} on ${dateKey} (end time ${nextDayDateStr} ${endT} has passed)`)
-              }
+              ensure(dateKey, startT, '23:59', 1440 - startMin, `start-day-part (ends ${nextDayDateStr} ${endT})`)
             }
             
             // Part 2: End day portion (from 00:00 to endT on the end day)
             // This represents the continuation of a task that started on the previous day
             if (days.includes(prevDow)) {
               // End day part: from 00:00 to endT
-              // Check if today's end time has passed
-              const skipEndPart = shouldSkipPastTaskInstance(dateKey, endT, todayStr, currentTimeStr)
-              if (!skipEndPart) {
-                ensure(dateKey, '00:00', endT, endMin, `end-day-part (started ${prevDateKey} ${startT})`)
-              } else {
-                console.log(`[CrossDayTask] Skipping end-day part: ${t.name} on ${dateKey} 00:00-${endT} (end time has passed)`, {
-                  dateKey,
-                  endTime: endT,
-                  todayStr,
-                  currentTimeStr,
-                  prevDateKey,
-                  prevDow,
-                  taskId: t.id
-                })
-              }
+              // The ensure function will handle overdue status and completion checks
+              ensure(dateKey, '00:00', endT, endMin, `end-day-part (started ${prevDateKey} ${startT})`)
             } else {
               console.log(`[CrossDayTask] End-day part not in recurrence: ${t.name} on ${dateKey} (prevDow=${prevDow}, days=[${days.join(',')}])`)
             }
