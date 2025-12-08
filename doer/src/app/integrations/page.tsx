@@ -68,7 +68,7 @@ const PROVIDER_INFO: ProviderInfo[] = [
   {
     provider: 'apple',
     name: 'Apple Calendar',
-    description: 'Sync your iCloud Calendar with DOER for seamless scheduling.',
+    description: 'Sync your iCloud Calendar events with DOER plans and automatically detect busy slots.',
     icon: (
       <Image
         src="/integrations/apple-calendar.png"
