@@ -1,4 +1,5 @@
 import { formatDateForDB, parseDateFromDB, addDays, isSameDay } from '@/lib/date-utils'
+import { isCrossDayTask, parseTimeToMinutes, getCurrentDateTime, shouldSkipPastTaskInstance, calculateDuration } from '@/lib/task-time-utils'
 import type { RescheduleProposal } from '@/lib/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -303,6 +304,273 @@ export async function detectOverdueTasks(
   
     console.log('[detectOverdueTasks] TypeScript detection result:', {
       found: overdueTasks.length,
+      tasks: overdueTasks.map((t: any) => ({
+        name: t.task_name,
+        date: t.scheduled_date,
+        end_time: t.end_time,
+        status: t.status
+      }))
+    })
+    
+    // Now check for overdue indefinite recurring tasks that don't have schedule entries
+    // Query for indefinite recurring tasks
+    let indefQuery = supabase
+      .from('tasks')
+      .select('id, name, priority, is_recurring, is_indefinite, recurrence_days, default_start_time, default_end_time, plan_id')
+      .eq('user_id', userId)
+      .eq('is_recurring', true)
+      .eq('is_indefinite', true)
+    
+    if (planId === null) {
+      indefQuery = indefQuery.is('plan_id', null)
+    } else {
+      indefQuery = indefQuery.eq('plan_id', planId)
+    }
+    
+    let indefTasks: any[] | null = null
+    try {
+      const { data: indef, error: indefError } = await indefQuery
+      if (indefError) throw indefError
+      indefTasks = indef || []
+    } catch (indefErr: any) {
+      // If default_* columns are not present yet, skip synthesizing indefinite tasks
+      if (indefErr?.code === '42703') {
+        console.warn('[detectOverdueTasks] Skipping indefinite recurring tasks: default_* columns not found')
+        indefTasks = []
+      } else {
+        console.error('[detectOverdueTasks] Error fetching indefinite recurring tasks:', indefErr)
+        indefTasks = []
+      }
+    }
+    
+    if (indefTasks && indefTasks.length > 0) {
+      console.log(`[detectOverdueTasks] Found ${indefTasks.length} indefinite recurring task(s) to check`)
+      
+      // Helper function to format date as YYYY-MM-DD
+      const fmtLocal = (d: Date) => {
+        const y = d.getFullYear()
+        const m = (d.getMonth() + 1).toString().padStart(2, '0')
+        const da = d.getDate().toString().padStart(2, '0')
+        return `${y}-${m}-${da}`
+      }
+      
+      // Helper function to trim seconds from time string
+      const trimSeconds = (t: string | null) => {
+        if (!t) return t
+        const parts = t.split(':')
+        return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : t
+      }
+      
+      // Check overdue instances for the past 7 days and today
+      // This covers recent overdue tasks without going too far back
+      const daysToCheck = 7
+      const recurringOverdueTasks: OverdueTask[] = []
+      
+      for (let dayOffset = daysToCheck; dayOffset >= 0; dayOffset--) {
+        const checkDate = new Date(localDateObj)
+        checkDate.setDate(localDateObj.getDate() - dayOffset)
+        const dateKey = fmtLocal(checkDate)
+        const dow = checkDate.getDay()
+        
+        // Skip future dates
+        if (dateKey > todayDateStr) continue
+        
+        for (const t of indefTasks) {
+          const days: number[] = (t.recurrence_days || []).map((v: any) => typeof v === 'string' ? parseInt(v, 10) : v)
+          const startT = trimSeconds(t.default_start_time)
+          const endT = trimSeconds(t.default_end_time)
+          
+          if (!startT || !endT) continue
+          
+          const isCrossDay = isCrossDayTask(startT, endT)
+          
+          // For cross-day tasks, we need to check both the start day and end day
+          // For regular tasks, check if this day is in recurrence days
+          if (!isCrossDay && !days.includes(dow)) continue
+          
+          // Determine which date to check for overdue status
+          let checkDateKey = dateKey
+          let checkEndTime = endT
+          let checkStartTime = startT
+          let checkDayOfWeek = dow
+          
+          if (isCrossDay) {
+            // For cross-day tasks, we need to check both the start day and end day
+            // Calculate previous day for end day check
+            const prevDate = new Date(checkDate)
+            prevDate.setDate(checkDate.getDate() - 1)
+            const prevDateKey = fmtLocal(prevDate)
+            const prevDow = prevDate.getDay()
+            
+            let shouldProcess = false
+            
+            // Check if this is the end day (task ends here, started yesterday)
+            if (days.includes(prevDow)) {
+              // This is the end day - task started yesterday and ends today
+              checkDateKey = dateKey
+              checkEndTime = endT
+              checkStartTime = '00:00' // End day portion starts at 00:00
+              checkDayOfWeek = dow
+              shouldProcess = true
+            }
+            
+            // Check if this is the start day (task starts today, ends tomorrow)
+            if (days.includes(dow)) {
+              // This is the start day - check if the end time (on next day) has passed
+              const nextDate = new Date(checkDate)
+              nextDate.setDate(checkDate.getDate() + 1)
+              const nextDateKey = fmtLocal(nextDate)
+              const nextDateOverdue = shouldSkipPastTaskInstance(nextDateKey, endT, todayDateStr, localTimeStr)
+              
+              if (nextDateOverdue) {
+                // The end time on the next day has passed, so this start day instance is overdue
+                checkDateKey = dateKey
+                checkEndTime = '23:59' // Start day portion ends at 23:59
+                checkStartTime = startT
+                checkDayOfWeek = dow
+                shouldProcess = true
+              }
+            }
+            
+            if (!shouldProcess) {
+              // Not a recurrence day for this cross-day task or not overdue
+              continue
+            }
+          }
+          
+          // Check if this instance is overdue
+          const isOverdue = shouldSkipPastTaskInstance(checkDateKey, checkEndTime, todayDateStr, localTimeStr)
+          if (!isOverdue) continue
+          
+          // For cross-day tasks, use the check date and times we determined
+          // For regular tasks, use the original date and times
+          const scheduleDateKey = checkDateKey
+          const scheduleStartTime = checkStartTime
+          const scheduleEndTime = isCrossDay && checkEndTime === '23:59' ? '23:59' : checkEndTime
+          
+          // Check if schedule entry already exists for this task/date/time
+          const { data: existingSchedule } = await supabase
+            .from('task_schedule')
+            .select('id, status')
+            .eq('task_id', t.id)
+            .eq('date', scheduleDateKey)
+            .eq('start_time', scheduleStartTime)
+            .eq('end_time', scheduleEndTime)
+            .eq('user_id', userId)
+            .eq('plan_id', t.plan_id)
+            .maybeSingle()
+          
+          if (existingSchedule) {
+            // Schedule entry exists, check if it's already in our overdue list
+            const alreadyIncluded = overdueTasks.some(ot => ot.schedule_id === existingSchedule.id)
+            if (!alreadyIncluded && ['scheduled', 'overdue', 'rescheduling'].includes(existingSchedule.status)) {
+              // Check completion for this existing schedule (use schedule date key)
+              const completionKey = `${t.id}-${scheduleDateKey}-${t.plan_id || 'null'}`
+              let completionQuery = supabase
+                .from('task_completions')
+                .select('id')
+                .eq('task_id', t.id)
+                .eq('scheduled_date', scheduleDateKey)
+                .eq('user_id', userId)
+              
+              if (t.plan_id === null) {
+                completionQuery = completionQuery.is('plan_id', null)
+              } else {
+                completionQuery = completionQuery.eq('plan_id', t.plan_id)
+              }
+              
+              const { data: completionData } = await completionQuery
+              const isCompleted = !!completionData?.[0]
+              
+              if (!isCompleted) {
+                // Add to overdue list (use schedule date and times)
+                recurringOverdueTasks.push({
+                  task_id: t.id,
+                  schedule_id: existingSchedule.id,
+                  task_name: t.name,
+                  scheduled_date: scheduleDateKey,
+                  start_time: scheduleStartTime,
+                  end_time: scheduleEndTime,
+                  duration_minutes: calculateDuration(scheduleStartTime, scheduleEndTime),
+                  priority: t.priority,
+                  complexity_score: null,
+                  status: existingSchedule.status === 'overdue' ? 'overdue' : 'scheduled'
+                })
+              }
+            }
+            continue
+          }
+          
+          // Check if this instance is completed (use the schedule date key for completion check)
+          const completionKey = `${t.id}-${scheduleDateKey}-${t.plan_id || 'null'}`
+          let completionQuery = supabase
+            .from('task_completions')
+            .select('id')
+            .eq('task_id', t.id)
+            .eq('scheduled_date', scheduleDateKey)
+            .eq('user_id', userId)
+          
+          if (t.plan_id === null) {
+            completionQuery = completionQuery.is('plan_id', null)
+          } else {
+            completionQuery = completionQuery.eq('plan_id', t.plan_id)
+          }
+          
+          const { data: completionData } = await completionQuery
+          const isCompleted = !!completionData?.[0]
+          
+          // Only create schedule entry if not completed
+          if (!isCompleted) {
+            // Create schedule entry for this overdue recurring task instance
+            const duration = calculateDuration(scheduleStartTime, scheduleEndTime)
+            const { data: newSchedule, error: insertError } = await supabase
+              .from('task_schedule')
+              .insert({
+                user_id: userId,
+                task_id: t.id,
+                plan_id: t.plan_id,
+                date: scheduleDateKey,
+                start_time: scheduleStartTime,
+                end_time: scheduleEndTime,
+                duration_minutes: duration,
+                day_index: 0,
+                status: 'overdue'
+              })
+              .select('id')
+              .single()
+            
+            if (insertError) {
+              console.error(`[detectOverdueTasks] Error creating schedule entry for recurring task ${t.id} on ${scheduleDateKey}:`, insertError)
+              continue
+            }
+            
+            console.log(`[detectOverdueTasks] Created schedule entry for overdue recurring task: ${t.name} on ${scheduleDateKey}${isCrossDay ? ' (cross-day)' : ''}`)
+            
+            // Add to overdue tasks list
+            recurringOverdueTasks.push({
+              task_id: t.id,
+              schedule_id: newSchedule.id,
+              task_name: t.name,
+              scheduled_date: scheduleDateKey,
+              start_time: scheduleStartTime,
+              end_time: scheduleEndTime,
+              duration_minutes: duration,
+              priority: t.priority,
+              complexity_score: null,
+              status: 'overdue'
+            })
+          }
+        }
+      }
+      
+      if (recurringOverdueTasks.length > 0) {
+        console.log(`[detectOverdueTasks] Found ${recurringOverdueTasks.length} overdue recurring task instance(s)`)
+        overdueTasks.push(...recurringOverdueTasks)
+      }
+    }
+    
+    console.log('[detectOverdueTasks] Final result:', {
+      total: overdueTasks.length,
       tasks: overdueTasks.map((t: any) => ({
         name: t.task_name,
         date: t.scheduled_date,
