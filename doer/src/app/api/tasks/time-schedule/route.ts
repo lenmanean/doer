@@ -300,6 +300,42 @@ export async function GET(request: NextRequest) {
           const endMin = parseTimeToMinutes(endT)
           
           const ensure = (key: string, s: string, e: string, dur: number, debugContext?: string) => {
+            const setKey = `${t.id}-${key}`
+            // Create range key in same format as database entries (HH:MM-HH:MM, no seconds)
+            // Both s and e are already trimmed via startT/endT from default_start_time/default_end_time
+            const rangeKey = `${s}-${e}`
+            
+            // FIRST: Check for duplicates BEFORE doing any other processing
+            // This prevents generating synthetic instances when database entries already exist
+            // Check scheduledRangesByTaskDate (includes both DB entries and previously synthesized instances)
+            const hasExistingRange = scheduledRangesByTaskDate.get(setKey)?.has(rangeKey)
+            // Also check tasksByDate array (defensive check for any missed duplicates)
+            // Check for any existing task with matching task_id, date, start_time, and end_time
+            const hasExistingTask = (tasksByDate[key] || []).some(x => 
+              x.task_id === t.id && 
+              x.start_time === s && 
+              x.end_time === e
+            )
+            
+            if (hasExistingRange || hasExistingTask) {
+              console.log(`[CrossDayTask] Duplicate detected (skipping synthetic generation): ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`, {
+                hasExistingRange,
+                hasExistingTask,
+                existingTasks: (tasksByDate[key] || []).filter(x => x.task_id === t.id && x.start_time === s && x.end_time === e).map(x => ({
+                  schedule_id: x.schedule_id,
+                  is_synthetic: x.schedule_id?.startsWith('synthetic-')
+                }))
+              })
+              return
+            }
+            
+            // Track this range immediately to prevent duplicates within the same request
+            // This must happen BEFORE we add to tasksByDate to prevent race conditions
+            if (!scheduledRangesByTaskDate.has(setKey)) {
+              scheduledRangesByTaskDate.set(setKey, new Set())
+            }
+            scheduledRangesByTaskDate.get(setKey)!.add(rangeKey)
+            
             // Check if this task instance is overdue
             const isOverdue = shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)
             
@@ -320,13 +356,6 @@ export async function GET(request: NextRequest) {
               return
             }
             
-            const setKey = `${t.id}-${key}`
-            const haveSame = scheduledRangesByTaskDate.get(setKey)?.has(`${s}-${e}`) ||
-              (tasksByDate[key] || []).some(x => x.task_id === t.id && x.start_time === s && x.end_time === e)
-            if (haveSame) {
-              console.log(`[CrossDayTask] Duplicate detected: ${t.name} on ${key} ${s}-${e}${debugContext ? ` (${debugContext})` : ''}`)
-              return
-            }
             if (!tasksByDate[key]) tasksByDate[key] = []
             
             // Set status to 'overdue' for overdue non-completed tasks
