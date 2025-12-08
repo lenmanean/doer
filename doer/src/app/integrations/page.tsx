@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
-import { Calendar, CheckCircle, XCircle, Settings, ArrowRight, Zap } from 'lucide-react'
+import { CheckCircle, XCircle, Settings, ArrowRight, Zap } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 
@@ -38,21 +39,45 @@ const PROVIDER_INFO: ProviderInfo[] = [
     provider: 'google',
     name: 'Google Calendar',
     description: 'Sync your Google Calendar events with DOER plans and automatically detect busy slots.',
-    icon: <Calendar className="w-8 h-8" />,
+    icon: (
+      <Image
+        src="/integrations/google-calendar.png"
+        alt="Google Calendar"
+        width={48}
+        height={48}
+        className="w-12 h-12 object-contain"
+      />
+    ),
     color: 'text-blue-500',
   },
   {
     provider: 'outlook',
     name: 'Microsoft Outlook',
     description: 'Sync your Outlook calendar events with DOER plans and automatically detect busy slots.',
-    icon: <Calendar className="w-8 h-8" />,
+    icon: (
+      <Image
+        src="/integrations/outlook-calendar.png"
+        alt="Microsoft Outlook"
+        width={48}
+        height={48}
+        className="w-12 h-12 object-contain"
+      />
+    ),
     color: 'text-blue-600',
   },
   {
     provider: 'apple',
     name: 'Apple Calendar',
     description: 'Sync your iCloud Calendar with DOER for seamless scheduling. (Coming Soon)',
-    icon: <Calendar className="w-8 h-8" />,
+    icon: (
+      <Image
+        src="/integrations/apple-calendar.png"
+        alt="Apple Calendar"
+        width={48}
+        height={48}
+        className="w-12 h-12 object-contain"
+      />
+    ),
     color: 'text-gray-600',
   },
 ]
@@ -171,7 +196,7 @@ export default function IntegrationsPage() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={providerInfo.color}>
+                          <div className="flex-shrink-0">
                             {providerInfo.icon}
                           </div>
                           <div>

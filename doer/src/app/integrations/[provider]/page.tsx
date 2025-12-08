@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef, useTransition } from 'react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
+import Image from 'next/image'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
-import { Calendar, CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLink, AlertCircle, ArrowLeft, ChevronDown } from 'lucide-react'
+import { CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLink, AlertCircle, ArrowLeft, ChevronDown } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { PushToCalendarPanel } from '@/components/integrations/PushToCalendarPanel'
@@ -125,15 +126,39 @@ export default function ProviderIntegrationsPage() {
   const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {
     google: {
       name: 'Google Calendar',
-      icon: <Calendar className="w-6 h-6 text-blue-500" />,
+      icon: (
+        <Image
+          src="/integrations/google-calendar.png"
+          alt="Google Calendar"
+          width={40}
+          height={40}
+          className="w-10 h-10 object-contain"
+        />
+      ),
     },
     outlook: {
       name: 'Microsoft Outlook',
-      icon: <Calendar className="w-6 h-6 text-blue-600" />,
+      icon: (
+        <Image
+          src="/integrations/outlook-calendar.png"
+          alt="Microsoft Outlook"
+          width={40}
+          height={40}
+          className="w-10 h-10 object-contain"
+        />
+      ),
     },
     apple: {
       name: 'Apple Calendar',
-      icon: <Calendar className="w-6 h-6 text-gray-600" />,
+      icon: (
+        <Image
+          src="/integrations/apple-calendar.png"
+          alt="Apple Calendar"
+          width={40}
+          height={40}
+          className="w-10 h-10 object-contain"
+        />
+      ),
     },
   }
   
@@ -756,7 +781,6 @@ export default function ProviderIntegrationsPage() {
                     Connect your {currentProviderInfo?.name} to automatically detect busy slots and sync your DOER tasks.
                   </p>
                   <Button onClick={handleConnect} className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
                     Connect {currentProviderInfo?.name}
                   </Button>
                 </div>
