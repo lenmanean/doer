@@ -850,10 +850,10 @@ function StepCardContent({
   }, [])
 
   // Handle video loading and playback when step is expanded
-  // This works for both step1 and step2 - each has its own videoRef instance
+  // This works for step1, step2, and step3 - each has its own videoRef instance
   // Videos should always render regardless of auth state
   useEffect(() => {
-    if ((step.id === 'step1' || step.id === 'step2') && videoRef.current) {
+    if ((step.id === 'step1' || step.id === 'step2' || step.id === 'step3') && videoRef.current) {
       if (isExpanded) {
         // Small delay to ensure the element is visible
         const timer = setTimeout(() => {
@@ -885,7 +885,7 @@ function StepCardContent({
 
   // Ensure video is always visible and loaded, even when auth state changes
   useEffect(() => {
-    if ((step.id === 'step1' || step.id === 'step2') && videoRef.current && isExpanded) {
+    if ((step.id === 'step1' || step.id === 'step2' || step.id === 'step3') && videoRef.current && isExpanded) {
       // Force video to be visible and loaded
       videoRef.current.style.display = 'block'
       if (videoRef.current.readyState === 0) {
@@ -956,7 +956,7 @@ function StepCardContent({
                         </p>
                       </div>
                       
-                      {/* Plan Preview - Video embedded for step 1 and step 2 */}
+                      {/* Plan Preview - Video embedded for step 1, step 2, and step 3 */}
                       {step.id === 'step1' && isExpanded ? (
                         <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
@@ -1020,6 +1020,64 @@ function StepCardContent({
                           <video
                             ref={videoRef}
                             src="/doer_tut2.mp4"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            preload="auto"
+                            className="w-full h-auto rounded-lg"
+                            style={{ 
+                              display: 'block',
+                              objectFit: 'contain'
+                            }}
+                            onError={(e) => {
+                              const video = e.currentTarget
+                              const error = video.error
+                              const errorDetails = {
+                                code: error?.code,
+                                message: error?.message,
+                                networkState: video.networkState,
+                                readyState: video.readyState,
+                                src: video.src,
+                                currentSrc: video.currentSrc
+                              }
+                              console.error('Video loading error:', errorDetails)
+                              
+                              // Error code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED
+                              // This usually means the file format is not supported or file is corrupted
+                              if (error?.code === 4) {
+                                console.error('Video format not supported or file corrupted. Please check the video file encoding.')
+                              }
+                            }}
+                            onLoadedData={() => {
+                              console.log('Video loaded successfully')
+                              // Force play on mobile after load
+                              if (isMobile && videoRef.current) {
+                                videoRef.current.play().catch(() => {
+                                  // Silently fail - user may need to interact
+                                })
+                              }
+                            }}
+                            onLoadedMetadata={() => {
+                              // Ensure video is visible and ready on mobile
+                              if (videoRef.current) {
+                                videoRef.current.style.display = 'block'
+                                // Set webkit-playsinline for iOS Safari
+                                videoRef.current.setAttribute('webkit-playsinline', 'true')
+                                videoRef.current.setAttribute('playsinline', 'true')
+                                // Set x5-playsinline for Android/WeChat browsers
+                                videoRef.current.setAttribute('x5-playsinline', 'true')
+                              }
+                            }}
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      ) : step.id === 'step3' && isExpanded ? (
+                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                          <video
+                            ref={videoRef}
+                            src="/doer_tut3.mp4"
                             autoPlay
                             loop
                             muted
