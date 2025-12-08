@@ -353,7 +353,7 @@ export default function ProviderIntegrationsPage() {
       addToast({
         type: 'info',
         title: 'Apple Calendar Integration',
-        description: 'Apple Calendar integration is currently under development and will be available soon.',
+        description: 'Apple Calendar is currently unavailable, please try again later.',
         duration: 7000,
       })
       return
