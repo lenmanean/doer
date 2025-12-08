@@ -68,7 +68,7 @@ const PROVIDER_INFO: ProviderInfo[] = [
   {
     provider: 'apple',
     name: 'Apple Calendar',
-    description: 'Sync your iCloud Calendar with DOER for seamless scheduling. (Coming Soon)',
+    description: 'Sync your iCloud Calendar with DOER for seamless scheduling.',
     icon: (
       <Image
         src="/integrations/apple-calendar.png"
@@ -185,13 +185,12 @@ export default function IntegrationsPage() {
               {PROVIDER_INFO.map((providerInfo) => {
                 const status = providers.find(p => p.provider === providerInfo.provider)
                 const isConnected = status?.connected || false
-                const isComingSoon = providerInfo.provider === 'apple'
 
                 return (
                   <Card
                     key={providerInfo.provider}
                     className="cursor-pointer hover:border-[var(--primary)] transition-colors"
-                    onClick={() => !isComingSoon && handleProviderClick(providerInfo.provider)}
+                    onClick={() => handleProviderClick(providerInfo.provider)}
                   >
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -209,15 +208,10 @@ export default function IntegrationsPage() {
                             Connected
                           </Badge>
                         )}
-                        {!isConnected && !isComingSoon && (
+                        {!isConnected && (
                           <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20">
                             <XCircle className="w-3 h-3 mr-1" />
                             Not Connected
-                          </Badge>
-                        )}
-                        {isComingSoon && (
-                          <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">
-                            Coming Soon
                           </Badge>
                         )}
                       </div>
@@ -243,19 +237,14 @@ export default function IntegrationsPage() {
                         className="w-full flex items-center justify-center gap-2"
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (!isComingSoon) {
-                            handleProviderClick(providerInfo.provider)
-                          }
+                          handleProviderClick(providerInfo.provider)
                         }}
-                        disabled={isComingSoon}
                       >
                         {isConnected ? (
                           <>
                             <Settings className="w-4 h-4" />
                             Configure
                           </>
-                        ) : isComingSoon ? (
-                          'Coming Soon'
                         ) : (
                           <>
                             <Zap className="w-4 h-4" />

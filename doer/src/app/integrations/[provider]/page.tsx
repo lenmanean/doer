@@ -348,6 +348,17 @@ export default function ProviderIntegrationsPage() {
   
   // Connect Calendar
   const handleConnect = async () => {
+    // Show notification for Apple Calendar as it's under development
+    if (provider === 'apple') {
+      addToast({
+        type: 'info',
+        title: 'Apple Calendar Integration',
+        description: 'Apple Calendar integration is currently under development and will be available soon.',
+        duration: 7000,
+      })
+      return
+    }
+
     try {
       const response = await fetch(`/api/integrations/${provider}/authorize`)
       
