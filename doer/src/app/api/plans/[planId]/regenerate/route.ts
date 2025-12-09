@@ -350,7 +350,6 @@ export async function POST(
           details: t.details || null,
           estimated_duration_minutes: t.estimated_duration_minutes || 60,
           priority: t.priority || null,
-          complexity_score: t.complexity_score || null,
           is_recurring: t.is_recurring || false,
           is_indefinite: t.is_indefinite || false,
         })))
@@ -391,7 +390,6 @@ export async function POST(
         details: task.details || null,
         estimated_duration_minutes: duration,
         priority: priority,
-        complexity_score: null, // Will be calculated by scheduler if needed
         is_recurring: false,
         is_indefinite: false,
       }
@@ -435,7 +433,6 @@ export async function POST(
           details: t.details || null,
           estimated_duration_minutes: t.estimated_duration_minutes || 60,
           priority: t.priority || null,
-          complexity_score: t.complexity_score || null,
           is_recurring: t.is_recurring || false,
           is_indefinite: t.is_indefinite || false,
         })))
