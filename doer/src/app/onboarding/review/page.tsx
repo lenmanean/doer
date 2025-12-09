@@ -1795,7 +1795,7 @@ export default function ReviewPage() {
             <RotateCcw className="w-4 h-4" />
             Regenerate Plan
           </Button>
-          {plan?.id && (showStrengthenButton || isGeneratingQuestions) && clarificationQuestions.length === 0 && (
+          {plan?.id && !(clarificationQuestions.length > 0 && !isGeneratingQuestions) && (
             <Button
               onClick={handleStrengthenPlan}
               className="relative flex items-center justify-center gap-2 px-8 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35 transition-all duration-300 animate-purple-glow"
