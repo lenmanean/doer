@@ -69,25 +69,23 @@
   "comparison": {
     "title": "为什么选择 DOER？",
     "description": "了解 DOER 如何将目标规划提升到基本日历管理之外",
+    "basicCapabilities": [
+      "手动事件安排",
+      "简单提醒",
+      "基本日历视图"
+    ],
+    "doerExclusiveFeatures": [
+      "AI 驱动的计划生成",
+      "智能自动安排",
+      "将目标分解为可执行任务",
+      "实时进度跟踪",
+      "智能冲突解决"
+    ],
     "withoutDoer": {
-      "title": "没有 DOER",
-      "features": [
-        "手动事件安排",
-        "简单提醒",
-        "基本日历视图",
-        "无目标分解",
-        "无进度跟踪"
-      ]
+      "title": "没有 DOER"
     },
     "withDoer": {
-      "title": "使用 DOER",
-      "features": [
-        "AI 驱动的计划生成",
-        "智能自动安排",
-        "将目标分解为可执行任务",
-        "实时进度跟踪",
-        "智能冲突解决"
-      ]
+      "title": "使用 DOER"
     }
   },
   "testimonials": {

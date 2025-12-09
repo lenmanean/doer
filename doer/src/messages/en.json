@@ -69,25 +69,23 @@
   "comparison": {
     "title": "Why DOER?",
     "description": "See how DOER transforms goal planning beyond basic calendar management",
+    "basicCapabilities": [
+      "Manual event scheduling",
+      "Simple reminders",
+      "Basic calendar views"
+    ],
+    "doerExclusiveFeatures": [
+      "AI-powered plan generation",
+      "Smart auto-scheduling",
+      "Goal breakdown into actionable tasks",
+      "Real-time progress tracking",
+      "Intelligent conflict resolution"
+    ],
     "withoutDoer": {
-      "title": "Without DOER",
-      "features": [
-        "Manual event scheduling",
-        "Simple reminders",
-        "Basic calendar views",
-        "No goal breakdown",
-        "No progress tracking"
-      ]
+      "title": "Without DOER"
     },
     "withDoer": {
-      "title": "With DOER",
-      "features": [
-        "AI-powered plan generation",
-        "Smart auto-scheduling",
-        "Goal breakdown into actionable tasks",
-        "Real-time progress tracking",
-        "Intelligent conflict resolution"
-      ]
+      "title": "With DOER"
     }
   },
   "testimonials": {

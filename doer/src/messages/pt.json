@@ -69,25 +69,23 @@
   "comparison": {
     "title": "Por que DOER?",
     "description": "Veja como o DOER transforma o planejamento de objetivos além do gerenciamento básico de calendário",
+    "basicCapabilities": [
+      "Agendamento manual de eventos",
+      "Lembretes simples",
+      "Visualizações básicas de calendário"
+    ],
+    "doerExclusiveFeatures": [
+      "Geração de plano alimentada por IA",
+      "Agendamento automático inteligente",
+      "Quebra de objetivos em tarefas acionáveis",
+      "Acompanhamento de progresso em tempo real",
+      "Resolução inteligente de conflitos"
+    ],
     "withoutDoer": {
-      "title": "Sem DOER",
-      "features": [
-        "Agendamento manual de eventos",
-        "Lembretes simples",
-        "Visualizações básicas de calendário",
-        "Sem quebra de objetivos",
-        "Sem acompanhamento de progresso"
-      ]
+      "title": "Sem DOER"
     },
     "withDoer": {
-      "title": "Com DOER",
-      "features": [
-        "Geração de plano alimentada por IA",
-        "Agendamento automático inteligente",
-        "Quebra de objetivos em tarefas acionáveis",
-        "Acompanhamento de progresso em tempo real",
-        "Resolução inteligente de conflitos"
-      ]
+      "title": "Com DOER"
     }
   },
   "testimonials": {

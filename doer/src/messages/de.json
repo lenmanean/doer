@@ -69,25 +69,23 @@
   "comparison": {
     "title": "Warum DOER?",
     "description": "Sehen Sie, wie DOER die Zielplanung über die grundlegende Kalenderverwaltung hinaus transformiert",
+    "basicCapabilities": [
+      "Manuelle Terminplanung",
+      "Einfache Erinnerungen",
+      "Grundlegende Kalenderansichten"
+    ],
+    "doerExclusiveFeatures": [
+      "KI-gestützte Planerstellung",
+      "Intelligente automatische Planung",
+      "Zielaufschlüsselung in umsetzbare Aufgaben",
+      "Echtzeit-Fortschrittsverfolgung",
+      "Intelligente Konfliktlösung"
+    ],
     "withoutDoer": {
-      "title": "Ohne DOER",
-      "features": [
-        "Manuelle Terminplanung",
-        "Einfache Erinnerungen",
-        "Grundlegende Kalenderansichten",
-        "Keine Zielaufschlüsselung",
-        "Keine Fortschrittsverfolgung"
-      ]
+      "title": "Ohne DOER"
     },
     "withDoer": {
-      "title": "Mit DOER",
-      "features": [
-        "KI-gestützte Planerstellung",
-        "Intelligente automatische Planung",
-        "Zielaufschlüsselung in umsetzbare Aufgaben",
-        "Echtzeit-Fortschrittsverfolgung",
-        "Intelligente Konfliktlösung"
-      ]
+      "title": "Mit DOER"
     }
   },
   "testimonials": {

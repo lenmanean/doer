@@ -69,25 +69,23 @@
   "comparison": {
     "title": "Pourquoi DOER?",
     "description": "Découvrez comment DOER transforme la planification d'objectifs au-delà de la gestion de calendrier de base",
+    "basicCapabilities": [
+      "Planification manuelle des événements",
+      "Rappels simples",
+      "Vues de calendrier de base"
+    ],
+    "doerExclusiveFeatures": [
+      "Génération de plan alimentée par l'IA",
+      "Planification automatique intelligente",
+      "Décomposition d'objectif en tâches actionnables",
+      "Suivi des progrès en temps réel",
+      "Résolution intelligente des conflits"
+    ],
     "withoutDoer": {
-      "title": "Sans DOER",
-      "features": [
-        "Planification manuelle des événements",
-        "Rappels simples",
-        "Vues de calendrier de base",
-        "Aucune décomposition d'objectif",
-        "Aucun suivi des progrès"
-      ]
+      "title": "Sans DOER"
     },
     "withDoer": {
-      "title": "Avec DOER",
-      "features": [
-        "Génération de plan alimentée par l'IA",
-        "Planification automatique intelligente",
-        "Décomposition d'objectif en tâches actionnables",
-        "Suivi des progrès en temps réel",
-        "Résolution intelligente des conflits"
-      ]
+      "title": "Avec DOER"
     }
   },
   "testimonials": {

@@ -360,10 +360,16 @@ export default function Home() {
                 {t('comparison.withoutDoer.title')}
               </h3>
               <ul className="space-y-4 flex-grow">
-                {t.raw('comparison.withoutDoer.features').map((feature: string, index: number) => (
-                  <li key={index} className="flex items-start text-gray-700 dark:text-gray-300">
-                    <XCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
+                {/* Basic capabilities - normal text */}
+                {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
+                  <li key={`basic-${index}`} className="text-gray-700 dark:text-gray-300">
+                    {feature}
+                  </li>
+                ))}
+                {/* DOER-exclusive features - greyed out */}
+                {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
+                  <li key={`exclusive-${index}`} className="text-gray-400 dark:text-gray-600">
+                    {feature}
                   </li>
                 ))}
               </ul>
@@ -380,10 +386,16 @@ export default function Home() {
                 {t('comparison.withDoer.title')}
               </h3>
               <ul className="space-y-4 flex-grow">
-                {t.raw('comparison.withDoer.features').map((feature: string, index: number) => (
-                  <li key={index} className="flex items-start text-gray-700 dark:text-gray-300">
-                    <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
+                {/* Basic capabilities - normal text */}
+                {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
+                  <li key={`basic-${index}`} className="text-gray-700 dark:text-gray-300">
+                    {feature}
+                  </li>
+                ))}
+                {/* DOER-exclusive features - normal text */}
+                {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
+                  <li key={`exclusive-${index}`} className="text-gray-700 dark:text-gray-300">
+                    {feature}
                   </li>
                 ))}
               </ul>
