@@ -376,7 +376,7 @@ export default function Home() {
             </div>
 
             {/* With DOER Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-8 flex flex-col">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-green-500 dark:border-green-500 p-8 flex flex-col animate-green-glow">
               <div className="flex items-center justify-center mb-6">
                 <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
                   <CheckCircle className="w-10 h-10 text-white" />
@@ -385,20 +385,25 @@ export default function Home() {
               <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
                 {t('comparison.withDoer.title')}
               </h3>
-              <ul className="space-y-4 flex-grow">
+              <ul className="space-y-3 flex-grow mb-4">
                 {/* Basic capabilities - normal text */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-700 dark:text-gray-300">
+                  <li key={`basic-${index}`} className="text-gray-700 dark:text-gray-300 text-sm">
                     {feature}
                   </li>
                 ))}
                 {/* DOER-exclusive features - normal text */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-700 dark:text-gray-300">
+                  <li key={`exclusive-${index}`} className="text-gray-700 dark:text-gray-300 text-sm">
                     {feature}
                   </li>
                 ))}
               </ul>
+              <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Link href="/documentation" className="flex items-center justify-center text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300 font-medium transition-colors">
+                  {t('comparison.seeMore')}
+                </Link>
+              </div>
             </div>
           </div>
         </div>

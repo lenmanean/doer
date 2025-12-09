@@ -79,14 +79,41 @@
       "Agendamento automático inteligente",
       "Quebra de objetivos em tarefas acionáveis",
       "Acompanhamento de progresso em tempo real",
-      "Resolução inteligente de conflitos"
+      "Resolução inteligente de conflitos",
+      "Gestão de tarefas baseada em prioridades (4 níveis)",
+      "Estimativa inteligente de duração",
+      "Cálculo e otimização de cronogramas",
+      "Distribuição de planos multi-dia",
+      "Agendamento consciente da disponibilidade",
+      "Posicionamento de tarefas consciente de energia",
+      "Consideração de janelas de recuperação",
+      "Gestão de blocos de foco",
+      "Capacidades de reagendamento automático",
+      "Aplicação de dependências de tarefas",
+      "Análise de progresso e pontuações de saúde",
+      "Visualização de roteiro",
+      "Visualização de calendário interativa",
+      "Personalização e edição de planos",
+      "Integrações de calendário (Google, Outlook, Apple)",
+      "Integrações de gestão de tarefas (Todoist, Asana, Trello)",
+      "Integrações de base de conhecimento (Notion, Evernote)",
+      "Integrações de comunicação (Slack, Teams)",
+      "Integrações de saúde (Strava, Apple Health)",
+      "Integrações de plataformas de aprendizado (Coursera, Udemy)",
+      "Notificações automatizadas",
+      "Suporte a comandos slash",
+      "Resumos e digests de planos",
+      "Agendamento consciente do contexto",
+      "Funcionalidades de colaboração em equipe",
+      "Arquivamento e organização de planos"
     ],
     "withoutDoer": {
       "title": "Sem DOER"
     },
     "withDoer": {
       "title": "Com DOER"
-    }
+    },
+    "seeMore": "Ver mais →"
   },
   "testimonials": {
     "title": "O que as pessoas estão dizendo",
