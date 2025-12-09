@@ -1799,36 +1799,22 @@ export default function ReviewPage() {
             <Button
               onClick={handleStrengthenPlan}
               className={`relative flex items-center justify-center gap-2 px-8 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35 transition-all duration-300 animate-purple-glow ${
-                clarificationQuestions.length > 0 ? 'hidden' : ''
+                clarificationQuestions.length > 0 && !isGeneratingQuestions ? 'hidden' : ''
               }`}
               disabled={isGeneratingQuestions || isRegenerating}
+              style={{ 
+                opacity: isGeneratingQuestions ? 1 : undefined,
+                pointerEvents: isGeneratingQuestions ? 'none' : undefined
+              }}
             >
-              <AnimatePresence mode="wait">
-                {isGeneratingQuestions ? (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center justify-center"
-                  >
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="content"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Strengthen Plan</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {isGeneratingQuestions ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Strengthen Plan</span>
+                </>
+              )}
             </Button>
           )}
           <Button
