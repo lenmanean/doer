@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Task } from '@/lib/types'
 import { formatDateForDisplay, parseDateFromDB, formatTimeForDisplay } from '@/lib/date-utils'
-import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react'
+import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Save, X, Trash2, Sparkles, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useToast } from '@/components/ui/Toast'
@@ -1798,20 +1798,35 @@ export default function ReviewPage() {
           {showStrengthenButton && plan?.id && (
             <Button
               onClick={handleStrengthenPlan}
-              className="flex items-center gap-2 px-8 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35"
+              className="relative flex items-center justify-center gap-2 px-8 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35 transition-all duration-300 animate-purple-glow"
               disabled={isGeneratingQuestions || isRegenerating}
             >
-              {isGeneratingQuestions ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Generating Questions...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Strengthen Plan
-                </>
-              )}
+              <AnimatePresence mode="wait">
+                {isGeneratingQuestions ? (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center justify-center"
+                  >
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="content"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Strengthen Plan</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </Button>
           )}
           <Button
