@@ -66,6 +66,30 @@
       "udemy": "Udemy course outlines become task stacks—DOER Auto-Schedules review time, pushes progress markers to your plan, and reminds you via the scheduler when the next module is due."
     }
   },
+  "comparison": {
+    "title": "Why DOER?",
+    "description": "See how DOER transforms goal planning beyond basic calendar management",
+    "withoutDoer": {
+      "title": "Without DOER",
+      "features": [
+        "Manual event scheduling",
+        "Simple reminders",
+        "Basic calendar views",
+        "No goal breakdown",
+        "No progress tracking"
+      ]
+    },
+    "withDoer": {
+      "title": "With DOER",
+      "features": [
+        "AI-powered plan generation",
+        "Smart auto-scheduling",
+        "Goal breakdown into actionable tasks",
+        "Real-time progress tracking",
+        "Intelligent conflict resolution"
+      ]
+    }
+  },
   "testimonials": {
     "title": "What people are saying",
     "description": "Real feedback from users who are achieving their goals with DOER"

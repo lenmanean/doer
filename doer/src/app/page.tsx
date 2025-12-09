@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowRight, Check, ChevronDown } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, XCircle, CheckCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { Button } from '@/components/ui/Button'
@@ -102,6 +102,9 @@ export default function Home() {
   const integrationsTitleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
   const integrationsDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
   const integrationsCarouselAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const comparisonTitleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const comparisonDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+  const comparisonCardsAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
   const testimonialsTitleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
   const testimonialsDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
   const testimonialsCarouselAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
@@ -319,6 +322,73 @@ export default function Home() {
               View all integrations
             </Button>
           </Link>
+        </div>
+      </section>
+
+      {/* Comparison Section */}
+      <section className="py-20 bg-white dark:bg-gray-900">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto text-center mb-16">
+            <h2
+              ref={comparisonTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
+              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${comparisonTitleAnim.isVisible ? 'visible' : ''}`}
+            >
+              {t('comparison.title')}
+            </h2>
+            <p
+              ref={comparisonDescAnim.ref as React.RefObject<HTMLParagraphElement>}
+              className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${comparisonDescAnim.isVisible ? 'visible' : ''}`}
+            >
+              {t('comparison.description')}
+            </p>
+          </div>
+        </div>
+
+        <div 
+          ref={comparisonCardsAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`px-4 sm:px-6 lg:px-8 scroll-animate-fade-up ${comparisonCardsAnim.isVisible ? 'visible' : ''}`}
+        >
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
+            {/* Without DOER Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-8 flex flex-col">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center">
+                  <XCircle className="w-10 h-10 text-white" />
+                </div>
+              </div>
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+                {t('comparison.withoutDoer.title')}
+              </h3>
+              <ul className="space-y-4 flex-grow">
+                {t.raw('comparison.withoutDoer.features').map((feature: string, index: number) => (
+                  <li key={index} className="flex items-start text-gray-700 dark:text-gray-300">
+                    <XCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* With DOER Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-8 flex flex-col">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-white" />
+                </div>
+              </div>
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+                {t('comparison.withDoer.title')}
+              </h3>
+              <ul className="space-y-4 flex-grow">
+                {t.raw('comparison.withDoer.features').map((feature: string, index: number) => (
+                  <li key={index} className="flex items-start text-gray-700 dark:text-gray-300">
+                    <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
