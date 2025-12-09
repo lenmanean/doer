@@ -729,7 +729,7 @@ function ScheduleContent() {
           .from('user_settings')
           .select('preferences')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
 
         const preferences = settingsData?.preferences || {}
         if (preferences?.time_format) {

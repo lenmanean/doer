@@ -97,7 +97,7 @@ function DashboardContent() {
           .from('user_settings')
           .select('preferences')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
 
         if (!error && data?.preferences?.time_format) {
           setTimeFormat(data.preferences.time_format)
