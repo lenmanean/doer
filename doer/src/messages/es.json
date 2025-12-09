@@ -66,6 +66,30 @@
       "udemy": "Las lecciones de Udemy se convierten en tareas fáciles de seguir, permitiendo que el scheduler reserve tiempo de aprendizaje sin choques."
     }
   },
+  "comparison": {
+    "title": "¿Por qué DOER?",
+    "description": "Vea cómo DOER transforma la planificación de objetivos más allá de la gestión básica del calendario",
+    "withoutDoer": {
+      "title": "Sin DOER",
+      "features": [
+        "Programación manual de eventos",
+        "Recordatorios simples",
+        "Vistas básicas del calendario",
+        "Sin desglose de objetivos",
+        "Sin seguimiento del progreso"
+      ]
+    },
+    "withDoer": {
+      "title": "Con DOER",
+      "features": [
+        "Generación de planes con IA",
+        "Programación automática inteligente",
+        "Desglose de objetivos en tareas accionables",
+        "Seguimiento del progreso en tiempo real",
+        "Resolución inteligente de conflictos"
+      ]
+    }
+  },
   "testimonials": {
     "title": "Lo que dice la gente",
     "description": "Comentarios reales de usuarios que están logrando sus objetivos con DOER"
