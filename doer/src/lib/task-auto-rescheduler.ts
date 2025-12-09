@@ -313,10 +313,10 @@ export async function detectOverdueTasks(
     })
     
     // Now check for overdue indefinite recurring tasks that don't have schedule entries
-    // Query for indefinite recurring tasks
+    // Query for indefinite recurring tasks (include created_at to respect task creation date)
     let indefQuery = supabase
       .from('tasks')
-      .select('id, name, priority, is_recurring, is_indefinite, recurrence_days, default_start_time, default_end_time, plan_id')
+      .select('id, name, priority, is_recurring, is_indefinite, recurrence_days, default_start_time, default_end_time, plan_id, created_at')
       .eq('user_id', userId)
       .eq('is_recurring', true)
       .eq('is_indefinite', true)
@@ -361,21 +361,35 @@ export async function detectOverdueTasks(
         return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : t
       }
       
-      // Check overdue instances for the past 7 days and today
-      // This covers recent overdue tasks without going too far back
-      const daysToCheck = 7
+      // Check overdue instances from task creation date to current date/time
+      // This ensures we don't create entries for dates before the task existed
       const recurringOverdueTasks: OverdueTask[] = []
       
-      for (let dayOffset = daysToCheck; dayOffset >= 0; dayOffset--) {
-        const checkDate = new Date(localDateObj)
-        checkDate.setDate(localDateObj.getDate() - dayOffset)
-        const dateKey = fmtLocal(checkDate)
-        const dow = checkDate.getDay()
+      for (const t of indefTasks) {
+        // Get task creation date in local timezone
+        // created_at is stored as UTC timestamp, convert to local date
+        const taskCreatedAt = t.created_at ? new Date(t.created_at) : new Date()
+        const taskCreatedLocal = new Date(taskCreatedAt.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
+        const taskCreatedDateStr = fmtLocal(taskCreatedLocal)
         
-        // Skip future dates
-        if (dateKey > todayDateStr) continue
+        // Calculate date range: from task creation date to current date
+        // Only check dates where the task actually existed
+        const startDate = new Date(Math.max(
+          taskCreatedLocal.getTime(),
+          localDateObj.getTime() - (7 * 24 * 60 * 60 * 1000) // Cap at 7 days back from today
+        ))
+        const endDate = localDateObj
         
-        for (const t of indefTasks) {
+        // Iterate through dates from creation date to today
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+          const dateKey = fmtLocal(d)
+          const dow = d.getDay()
+          
+          // Skip future dates
+          if (dateKey > todayDateStr) continue
+          
+          // Skip dates before task creation
+          if (dateKey < taskCreatedDateStr) continue
           const days: number[] = (t.recurrence_days || []).map((v: any) => typeof v === 'string' ? parseInt(v, 10) : v)
           const startT = trimSeconds(t.default_start_time)
           const endT = trimSeconds(t.default_end_time)
@@ -397,16 +411,23 @@ export async function detectOverdueTasks(
           if (isCrossDay) {
             // For cross-day tasks, we need to check both the start day and end day
             // Calculate previous day for end day check
-            const prevDate = new Date(checkDate)
-            prevDate.setDate(checkDate.getDate() - 1)
+            const prevDate = new Date(d)
+            prevDate.setDate(d.getDate() - 1)
             const prevDateKey = fmtLocal(prevDate)
             const prevDow = prevDate.getDay()
+            
+            // Skip if previous date is before task creation
+            if (prevDateKey < taskCreatedDateStr && days.includes(prevDow)) {
+              // Can't process end day if task didn't exist on previous day
+              // But we can still check start day
+            }
             
             let shouldProcess = false
             
             // Check if this is the end day (task ends here, started yesterday)
-            if (days.includes(prevDow)) {
+            if (days.includes(prevDow) && prevDateKey >= taskCreatedDateStr) {
               // This is the end day - task started yesterday and ends today
+              // Only process if task existed on previous day
               checkDateKey = dateKey
               checkEndTime = endT
               checkStartTime = '00:00' // End day portion starts at 00:00
@@ -417,8 +438,8 @@ export async function detectOverdueTasks(
             // Check if this is the start day (task starts today, ends tomorrow)
             if (days.includes(dow)) {
               // This is the start day - check if the end time (on next day) has passed
-              const nextDate = new Date(checkDate)
-              nextDate.setDate(checkDate.getDate() + 1)
+              const nextDate = new Date(d)
+              nextDate.setDate(d.getDate() + 1)
               const nextDateKey = fmtLocal(nextDate)
               const nextDateOverdue = shouldSkipPastTaskInstance(nextDateKey, endT, todayDateStr, localTimeStr)
               
@@ -439,8 +460,25 @@ export async function detectOverdueTasks(
           }
           
           // Check if this instance is overdue
+          // For current date, also verify that the task's time has actually passed
           const isOverdue = shouldSkipPastTaskInstance(checkDateKey, checkEndTime, todayDateStr, localTimeStr)
           if (!isOverdue) continue
+          
+          // Additional validation: For current date, ensure time has actually passed
+          // This prevents creating entries for future times on the current date
+          if (checkDateKey === todayDateStr) {
+            // Parse the end time to compare with current time
+            const [endHour, endMinute] = checkEndTime.split(':').map(Number)
+            const endTimeMinutes = endHour * 60 + endMinute
+            const [currentHour, currentMinute] = localTimeStr.split(':').map(Number)
+            const currentTimeMinutes = currentHour * 60 + currentMinute
+            
+            // If end time hasn't passed yet, skip this instance
+            if (endTimeMinutes >= currentTimeMinutes) {
+              console.log(`[detectOverdueTasks] Skipping future time on current date: ${t.name} on ${checkDateKey} ${checkEndTime} (current time: ${localTimeStr})`)
+              continue
+            }
+          }
           
           // For cross-day tasks, use the check date and times we determined
           // For regular tasks, use the original date and times

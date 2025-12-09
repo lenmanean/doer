@@ -229,9 +229,10 @@ export async function GET(request: NextRequest) {
 
     // Generate synthesized instances for indefinite recurring tasks without schedules
     // Only consider tasks that belong to this user and match plan filter
+    // Include created_at to respect task creation date
     let indefQuery = supabase
       .from('tasks')
-      .select('id, name, details, priority, is_recurring, is_indefinite, recurrence_days, default_start_time, default_end_time, plan_id')
+      .select('id, name, details, priority, is_recurring, is_indefinite, recurrence_days, default_start_time, default_end_time, plan_id, created_at')
       .eq('user_id', user.id)
       .eq('is_recurring', true)
       .eq('is_indefinite', true)
@@ -283,6 +284,9 @@ export async function GET(request: NextRequest) {
         // Skip past dates entirely (only dates strictly before today)
         if (dateKey < todayStr) continue
         
+        // For today's date, we need to check if the current time has passed
+        // Only generate instances for times that have actually occurred
+        
         const dow = d.getDay()
         // Calculate previous day's date and day-of-week for cross-day task end portions
         const prevDate = new Date(d)
@@ -291,6 +295,19 @@ export async function GET(request: NextRequest) {
         const prevDow = prevDate.getDay()
         
         for (const t of indefTasks) {
+          // Get task creation date in local timezone
+          // created_at is stored as UTC timestamp, convert to local date
+          const taskCreatedAt = t.created_at ? new Date(t.created_at) : new Date()
+          const taskCreatedLocal = new Date(taskCreatedAt.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
+          const taskCreatedDateStr = fmtLocal(taskCreatedLocal)
+          
+          // Skip dates before task creation - task didn't exist on those dates
+          if (dateKey < taskCreatedDateStr) {
+            // For cross-day tasks, also check if the previous day (end day) is before creation
+            // If so, skip processing this date entirely
+            continue
+          }
+          
           const days: number[] = (t.recurrence_days || []).map((v: any) => typeof v === 'string' ? parseInt(v, 10) : v)
           const startT = trimSeconds(t.default_start_time)
           const endT = trimSeconds(t.default_end_time)
@@ -300,6 +317,11 @@ export async function GET(request: NextRequest) {
           const endMin = parseTimeToMinutes(endT)
           
           const ensure = (key: string, s: string, e: string, dur: number, debugContext?: string) => {
+            // Additional validation: Ensure date is not before task creation
+            if (key < taskCreatedDateStr) {
+              console.log(`[CrossDayTask] Skipping date before task creation: ${t.name} on ${key} (task created: ${taskCreatedDateStr})`)
+              return
+            }
             const setKey = `${t.id}-${key}`
             // Create range key in same format as database entries (HH:MM-HH:MM, no seconds)
             // Both s and e are already trimmed via startT/endT from default_start_time/default_end_time
@@ -335,6 +357,22 @@ export async function GET(request: NextRequest) {
               scheduledRangesByTaskDate.set(setKey, new Set())
             }
             scheduledRangesByTaskDate.get(setKey)!.add(rangeKey)
+            
+            // For today's date, check if the time has actually passed
+            // Don't generate instances for future times on the current date
+            if (key === todayStr) {
+              // Parse the end time to compare with current time
+              const [endHour, endMinute] = e.split(':').map(Number)
+              const endTimeMinutes = endHour * 60 + endMinute
+              const [currentHour, currentMinute] = currentTimeStr.split(':').map(Number)
+              const currentTimeMinutes = currentHour * 60 + currentMinute
+              
+              // If end time hasn't passed yet, skip this instance (it's in the future)
+              if (endTimeMinutes >= currentTimeMinutes) {
+                console.log(`[CrossDayTask] Skipping future time on current date: ${t.name} on ${key} ${s}-${e} (current time: ${currentTimeStr})`)
+                return
+              }
+            }
             
             // Check if this task instance is overdue
             const isOverdue = shouldSkipPastTaskInstance(key, e, todayStr, currentTimeStr)
@@ -393,18 +431,25 @@ export async function GET(request: NextRequest) {
             // Part 1: Start day portion (from startT to 23:59 on the start day)
             if (days.includes(dow)) {
               // Start day part: from startT to 23:59
-              // Check if the actual end time (on next day) has passed
-              // The ensure function will handle overdue status and completion checks
-              const nextDayDateStr = fmtLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
-              ensure(dateKey, startT, '23:59', 1440 - startMin, `start-day-part (ends ${nextDayDateStr} ${endT})`)
+              // Only process if current date is >= task creation date
+              if (dateKey >= taskCreatedDateStr) {
+                // Check if the actual end time (on next day) has passed
+                // The ensure function will handle overdue status and completion checks
+                const nextDayDateStr = fmtLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))
+                ensure(dateKey, startT, '23:59', 1440 - startMin, `start-day-part (ends ${nextDayDateStr} ${endT})`)
+              }
             }
             
             // Part 2: End day portion (from 00:00 to endT on the end day)
             // This represents the continuation of a task that started on the previous day
             if (days.includes(prevDow)) {
               // End day part: from 00:00 to endT
-              // The ensure function will handle overdue status and completion checks
-              ensure(dateKey, '00:00', endT, endMin, `end-day-part (started ${prevDateKey} ${startT})`)
+              // Only process if previous day (start day) is >= task creation date
+              // The task must have existed on the start day for the end day portion to be valid
+              if (prevDateKey >= taskCreatedDateStr && dateKey >= taskCreatedDateStr) {
+                // The ensure function will handle overdue status and completion checks
+                ensure(dateKey, '00:00', endT, endMin, `end-day-part (started ${prevDateKey} ${startT})`)
+              }
             } else {
               console.log(`[CrossDayTask] End-day part not in recurrence: ${t.name} on ${dateKey} (prevDow=${prevDow}, days=[${days.join(',')}])`)
             }
