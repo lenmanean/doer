@@ -690,7 +690,6 @@ export default function ReviewPage() {
     isRequestInFlightRef.current = true
 
     setIsGeneratingQuestions(true)
-    setShowStrengthenButton(false)
 
     try {
       const response = await fetch(`/api/plans/${plan.id}/clarify`, {
