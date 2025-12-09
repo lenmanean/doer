@@ -366,18 +366,36 @@ export async function POST(
     }
 
     // Insert new tasks
-    const newTasks = aiContent.tasks.map((task, index) => ({
-      plan_id: planId,
-      user_id: user.id,
-      idx: index,
-      name: task.name,
-      details: task.details || null,
-      estimated_duration_minutes: task.estimated_duration_minutes,
-      priority: task.priority,
-      complexity_score: null, // Will be calculated by scheduler if needed
-      is_recurring: false,
-      is_indefinite: false,
-    }))
+    // Validate and prepare tasks with proper constraints
+    const newTasks = aiContent.tasks.map((task, index) => {
+      // Validate and sanitize task name (constraint: trim(name) != '')
+      const taskName = (task.name || '').trim()
+      if (!taskName) {
+        throw new Error(`Task at index ${index} has an empty name`)
+      }
+
+      // Validate duration (constraint: 5 <= duration <= 360)
+      const duration = Math.max(5, Math.min(360, task.estimated_duration_minutes || 60))
+
+      // Validate priority (constraint: priority IN (1, 2, 3, 4))
+      const priority = task.priority && [1, 2, 3, 4].includes(task.priority) 
+        ? task.priority 
+        : 3 // Default to medium priority if invalid
+
+      // idx must be > 0 (constraint: idx > 0)
+      return {
+        plan_id: planId,
+        user_id: user.id,
+        idx: index + 1, // Start at 1, not 0
+        name: taskName,
+        details: task.details || null,
+        estimated_duration_minutes: duration,
+        priority: priority,
+        complexity_score: null, // Will be calculated by scheduler if needed
+        is_recurring: false,
+        is_indefinite: false,
+      }
+    })
 
     const { data: insertedTasks, error: insertError } = await supabase
       .from('tasks')
@@ -385,6 +403,22 @@ export async function POST(
       .select()
 
     if (insertError || !insertedTasks) {
+      // Log detailed error for debugging
+      console.error('Task insertion error:', {
+        error: insertError,
+        errorCode: insertError?.code,
+        errorMessage: insertError?.message,
+        errorDetails: insertError?.details,
+        errorHint: insertError?.hint,
+        tasksCount: newTasks.length,
+        firstTask: newTasks[0] ? {
+          idx: newTasks[0].idx,
+          name: newTasks[0].name,
+          duration: newTasks[0].estimated_duration_minutes,
+          priority: newTasks[0].priority,
+        } : null,
+      })
+
       // Rollback: restore original plan and tasks
       await supabase
         .from('plans')
@@ -411,7 +445,11 @@ export async function POST(
         await creditService.release('api_credits', PLAN_REGENERATION_CREDIT_COST, { reason: 'task_insertion_failed' })
       }
       return NextResponse.json(
-        { error: 'TASK_INSERTION_FAILED', message: 'Failed to insert new tasks. Plan has been restored.' },
+        { 
+          error: 'TASK_INSERTION_FAILED', 
+          message: insertError?.message || 'Failed to insert new tasks. Plan has been restored.',
+          details: insertError?.details || null,
+        },
         { status: 500 }
       )
     }
