@@ -1797,15 +1797,12 @@ export default function ReviewPage() {
           </Button>
           {plan?.id && (
             <Button
+              key="strengthen-plan-button"
               onClick={handleStrengthenPlan}
               className={`relative flex items-center justify-center gap-2 px-8 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35 transition-all duration-300 animate-purple-glow ${
                 clarificationQuestions.length > 0 && !isGeneratingQuestions ? 'hidden' : ''
               }`}
               disabled={isGeneratingQuestions || isRegenerating}
-              style={{ 
-                opacity: isGeneratingQuestions ? 1 : undefined,
-                pointerEvents: isGeneratingQuestions ? 'none' : undefined
-              }}
             >
               {isGeneratingQuestions ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
