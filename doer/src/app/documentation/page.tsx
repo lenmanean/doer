@@ -38,16 +38,44 @@ export default function DocumentationPage() {
     content: string
   }>>([])
 
-  // Build search content index
+  // Build comprehensive search content index
   useEffect(() => {
     const content = [
-      { id: 'getting-started', title: 'Getting Started', section: 'Getting Started', content: 'Learn how to get started with DOER' },
-      { id: 'quick-start', title: 'Quick Start Guide', section: 'Getting Started', content: 'Get up and running with DOER in 5 minutes' },
-      { id: 'core-features', title: 'Core Features', section: 'Features', content: 'AI planning, scheduling, progress tracking, analytics' },
-      { id: 'integrations', title: 'Integrations', section: 'Integrations', content: 'Connect DOER with your favorite tools' },
-      { id: 'api-reference', title: 'API Reference', section: 'API', content: 'Integrate DOER with your applications using our API' },
-      { id: 'tutorials', title: 'Tutorials & Examples', section: 'Tutorials', content: 'Step-by-step guides and real-world examples' },
-      { id: 'troubleshooting', title: 'Troubleshooting', section: 'Support', content: 'Common issues and solutions' },
+      // Getting Started
+      { id: 'getting-started', title: 'Getting Started', section: 'Getting Started', content: 'Welcome to DOER! Learn how to get started with transforming your goals into actionable plans' },
+      { id: 'quick-start', title: 'Quick Start Guide', section: 'Getting Started', content: 'Get up and running with DOER in just 5 minutes. Sign up, enter your goal, answer questions, review your plan, and start tracking progress' },
+      { id: 'first-goal', title: 'Creating Your First Goal', section: 'Getting Started', content: 'Learn how to create a goal in DOER. Describe what you want to achieve in plain language and let AI generate a structured plan with tasks' },
+      { id: 'understanding-plans', title: 'Understanding Plans', section: 'Getting Started', content: 'A plan is your personalized strategy that breaks down your goal into achievable tasks. Automatically generated based on your goal and timeframe' },
+      { id: 'navigation', title: 'Navigation Basics', section: 'Getting Started', content: 'DOER interface overview: Dashboard, Schedule, Plan, and Settings pages' },
+      
+      // Core Features
+      { id: 'core-features', title: 'Core Features', section: 'Core Features', content: 'AI-powered tools to help you achieve your goals efficiently: AI planning, smart scheduling, progress tracking, and analytics' },
+      { id: 'ai-planning', title: 'AI Plan Generation', section: 'Core Features', content: 'AI analyzes your goal, breaks it down into actionable tasks, estimates timelines, and creates a personalized roadmap. Includes goal analysis, clarification questions, and plan generation' },
+      { id: 'scheduling', title: 'Smart Scheduling & Auto-Rescheduling', section: 'Core Features', content: 'AI-powered scheduler analyzes available time, task priorities, and dependencies to automatically place tasks in your calendar. Includes automatic scheduling and smart rescheduling' },
+      { id: 'progress-tracking', title: 'Progress Tracking & Health Scores', section: 'Core Features', content: 'Plan health score (0-100) reflects how well you maintain commitments. Real-time progress updates, task completion tracking, and health score monitoring' },
+      { id: 'analytics', title: 'Analytics & Insights', section: 'Core Features', content: 'Understand your patterns and optimize your approach with detailed performance analytics. Completion rate, progress tracking, and health score metrics' },
+      
+      // Integrations
+      { id: 'integrations', title: 'Integrations', section: 'Integrations', content: 'Connect DOER with your favorite tools and services to streamline your planning and goal achievement' },
+      { id: 'integrations-overview', title: 'Integrations Overview', section: 'Integrations', content: 'DOER integrates with tools to keep your data synchronized and workflow seamless. Each connector keeps the AI scheduler aware of calendars, tasks, and energy' },
+      { id: 'calendar-integrations', title: 'Calendar Integrations', section: 'Integrations', content: 'Connect your calendar so DOER can schedule tasks around existing commitments. Google Calendar, Outlook, and Apple Calendar integrations' },
+      { id: 'task-integrations', title: 'Task Management', section: 'Integrations', content: 'Sync tasks with task management tools for a unified workflow. Todoist, Asana, and Trello integrations' },
+      { id: 'knowledge-integrations', title: 'Knowledge Tools', section: 'Integrations', content: 'Integrate with note-taking and knowledge management tools. Notion and Evernote integrations' },
+      { id: 'communication-integrations', title: 'Communication', section: 'Integrations', content: 'Get notifications and updates in team communication tools. Slack and Microsoft Teams integrations' },
+      { id: 'wellness-integrations', title: 'Wellness & Health', section: 'Integrations', content: 'Connect fitness and health tracking apps to help DOER schedule tasks around energy levels. Strava and Apple Health integrations' },
+      
+      // API Reference
+      { id: 'api-reference', title: 'API Reference', section: 'API Reference', content: 'Integrate DOER with your applications using our REST API. All endpoints are authenticated and rate-limited based on subscription plan' },
+      { id: 'api-authentication', title: 'API Authentication', section: 'API Reference', content: 'DOER uses API tokens for authentication. Token format: Bearer doer.token_id.token_secret. Get tokens from Settings → API Tokens' },
+      { id: 'api-endpoints', title: 'API Endpoints', section: 'API Reference', content: 'API endpoints for plan generation, scheduling, and clarification questions. POST /plans/{goalId}/preflight, POST /plans/{goalId}/generate, POST /plans/{planId}/schedule' },
+      { id: 'api-examples', title: 'Code Examples', section: 'API Reference', content: 'Code examples for JavaScript/TypeScript and Python showing how to use the DOER API to generate plans and interact with endpoints' },
+      { id: 'api-errors', title: 'Error Handling', section: 'API Reference', content: 'API error format and common error codes: 400 Bad Request, 401 Unauthorized, 403 Forbidden, 429 Rate Limited, 500 Internal Server Error' },
+      
+      // Tutorials
+      { id: 'tutorials', title: 'Tutorials & Examples', section: 'Tutorials', content: 'Learn from real-world examples and best practices for achieving your goals with DOER. Training for a marathon, learning a new skill, starting a business, and best practices' },
+      
+      // Troubleshooting
+      { id: 'troubleshooting', title: 'Troubleshooting', section: 'Troubleshooting', content: 'Common issues and solutions: plan generation taking too long, tasks not showing in calendar, health score decreasing unexpectedly' },
     ]
     setSearchContent(content)
   }, [])
@@ -158,10 +186,10 @@ export default function DocumentationPage() {
                   <div className="space-y-4">
                     <p>Get up and running with DOER in just 5 minutes:</p>
                     <ol className="list-decimal list-inside space-y-3 text-gray-700 dark:text-slate-300">
-                      <li>Sign up for a free account at <Link href="/auth/signup" className="text-orange-500 hover:underline">doer.ai/signup</Link></li>
+                      <li>Sign up for a free account at <Link href="/auth/signup" className="text-orange-500 hover:underline">usedoer.com/auth/signup</Link></li>
                       <li>Enter your goal in natural language - anything from "Learn to play guitar" to "Run a marathon"</li>
                       <li>Answer a few clarification questions to help our AI understand your context</li>
-                      <li>Review and customize your AI-generated plan with tasks and checkpoints</li>
+                      <li>Review and customize your AI-generated plan with tasks</li>
                       <li>Start working on your tasks and track your progress in real-time</li>
                     </ol>
                   </div>
@@ -171,7 +199,7 @@ export default function DocumentationPage() {
                   <div className="space-y-4">
                     <p>
                       Creating a goal in DOER is simple. Just describe what you want to achieve in plain language. 
-                      Our AI will analyze your goal and generate a structured plan with tasks and checkpoints.
+                      Our AI will analyze your goal and generate a structured plan with tasks.
                     </p>
                     <Card>
                       <CardHeader>
@@ -190,37 +218,22 @@ export default function DocumentationPage() {
                 <DocumentationSection id="understanding-plans" title="Understanding Plans" level={2}>
                   <div className="space-y-4">
                     <p>
-                      A plan is your personalized strategy that breaks down your goal into achievable checkpoints and daily tasks. 
+                      A plan is your personalized strategy that breaks down your goal into achievable tasks. 
                       It's automatically generated based on your goal and timeframe, helping you stay on track every step of the way.
                     </p>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Target className="w-5 h-5 text-orange-500" />
-                            Checkpoints
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
-                            Major checkpoints that structure your journey toward your final goal. Each checkpoint represents a significant achievement.
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                            Tasks
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
-                            Actionable items that lead to checkpoint completion. Each task is scheduled on your calendar with estimated duration.
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </div>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                          Tasks
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-600 dark:text-slate-400">
+                          Actionable items that help you achieve your goal. Each task is scheduled on your calendar with estimated duration and priority.
+                        </p>
+                      </CardContent>
+                    </Card>
                   </div>
                 </DocumentationSection>
 
@@ -230,7 +243,7 @@ export default function DocumentationPage() {
                     <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-slate-300">
                       <li><strong>Dashboard:</strong> View your current goal, progress, and upcoming tasks</li>
                       <li><strong>Schedule:</strong> See your tasks organized by day and time</li>
-                      <li><strong>Plan:</strong> Visual timeline showing your checkpoints and progress</li>
+                      <li><strong>Plan:</strong> Visual timeline showing your tasks and progress</li>
                       <li><strong>Settings:</strong> Configure your preferences, integrations, and account settings</li>
                     </ul>
                   </div>
@@ -270,7 +283,7 @@ export default function DocumentationPage() {
                         <div>
                           <h4 className="font-semibold mb-1">3. Plan Generation</h4>
                           <p className="text-sm text-gray-600 dark:text-slate-400">
-                            The AI creates a structured plan with tasks, checkpoints, dependencies, and timelines.
+                            The AI creates a structured plan with tasks, dependencies, and timelines.
                           </p>
                         </div>
                       </CardContent>
@@ -326,7 +339,7 @@ export default function DocumentationPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-sm">Checkpoint completion tracking</span>
+                          <span className="text-sm">Task completion tracking</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
@@ -392,7 +405,7 @@ export default function DocumentationPage() {
                 <DocumentationSection id="calendar-integrations" title="Calendar Integrations" level={2}>
                   <div className="space-y-4">
                     <p>
-                      Connect your calendar so DOER can schedule tasks around existing commitments and sync milestones as events.
+                      Connect your calendar so DOER can schedule tasks around existing commitments and sync tasks as events.
                     </p>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Calendar').map(integration => (
@@ -422,6 +435,11 @@ export default function DocumentationPage() {
                     <p>
                       Sync tasks with your favorite task management tools for a unified workflow.
                     </p>
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-sm text-blue-900 dark:text-blue-100">
+                        <strong>Coming Soon:</strong> Task management integrations are currently in development.
+                      </p>
+                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Task Management').map(integration => (
                         <Card key={integration.key}>
@@ -429,14 +447,15 @@ export default function DocumentationPage() {
                             <CardTitle className="text-lg flex items-center gap-2">
                               <span className="text-2xl">{integration.icon}</span>
                               {integration.name}
+                              <Badge variant="outline" className="ml-auto">Coming Soon</Badge>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
                             <p className="text-sm text-gray-600 dark:text-slate-400">
                               {integration.description}
                             </p>
-                            <Button variant="outline" size="sm" className="mt-4">
-                              Connect <ExternalLink className="w-3 h-3 ml-1" />
+                            <Button variant="outline" size="sm" className="mt-4" disabled>
+                              Coming Soon
                             </Button>
                           </CardContent>
                         </Card>
@@ -450,6 +469,11 @@ export default function DocumentationPage() {
                     <p>
                       Integrate with note-taking and knowledge management tools to keep your plans in sync with your notes.
                     </p>
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-sm text-blue-900 dark:text-blue-100">
+                        <strong>Coming Soon:</strong> Knowledge tool integrations are currently in development.
+                      </p>
+                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Knowledge').map(integration => (
                         <Card key={integration.key}>
@@ -457,14 +481,15 @@ export default function DocumentationPage() {
                             <CardTitle className="text-lg flex items-center gap-2">
                               <span className="text-2xl">{integration.icon}</span>
                               {integration.name}
+                              <Badge variant="outline" className="ml-auto">Coming Soon</Badge>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
                             <p className="text-sm text-gray-600 dark:text-slate-400">
                               {integration.description}
                             </p>
-                            <Button variant="outline" size="sm" className="mt-4">
-                              Connect <ExternalLink className="w-3 h-3 ml-1" />
+                            <Button variant="outline" size="sm" className="mt-4" disabled>
+                              Coming Soon
                             </Button>
                           </CardContent>
                         </Card>
@@ -478,6 +503,11 @@ export default function DocumentationPage() {
                     <p>
                       Get notifications and updates in your team communication tools.
                     </p>
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-sm text-blue-900 dark:text-blue-100">
+                        <strong>Coming Soon:</strong> Communication tool integrations are currently in development.
+                      </p>
+                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Communication').map(integration => (
                         <Card key={integration.key}>
@@ -485,14 +515,15 @@ export default function DocumentationPage() {
                             <CardTitle className="text-lg flex items-center gap-2">
                               <span className="text-2xl">{integration.icon}</span>
                               {integration.name}
+                              <Badge variant="outline" className="ml-auto">Coming Soon</Badge>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
                             <p className="text-sm text-gray-600 dark:text-slate-400">
                               {integration.description}
                             </p>
-                            <Button variant="outline" size="sm" className="mt-4">
-                              Connect <ExternalLink className="w-3 h-3 ml-1" />
+                            <Button variant="outline" size="sm" className="mt-4" disabled>
+                              Coming Soon
                             </Button>
                           </CardContent>
                         </Card>
@@ -506,6 +537,11 @@ export default function DocumentationPage() {
                     <p>
                       Connect fitness and health tracking apps to help DOER schedule tasks around your energy levels and recovery.
                     </p>
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-sm text-blue-900 dark:text-blue-100">
+                        <strong>Coming Soon:</strong> Wellness and health integrations are currently in development.
+                      </p>
+                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Wellness').map(integration => (
                         <Card key={integration.key}>
@@ -513,14 +549,15 @@ export default function DocumentationPage() {
                             <CardTitle className="text-lg flex items-center gap-2">
                               <span className="text-2xl">{integration.icon}</span>
                               {integration.name}
+                              <Badge variant="outline" className="ml-auto">Coming Soon</Badge>
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
                             <p className="text-sm text-gray-600 dark:text-slate-400">
                               {integration.description}
                             </p>
-                            <Button variant="outline" size="sm" className="mt-4">
-                              Connect <ExternalLink className="w-3 h-3 ml-1" />
+                            <Button variant="outline" size="sm" className="mt-4" disabled>
+                              Coming Soon
                             </Button>
                           </CardContent>
                         </Card>
@@ -546,7 +583,7 @@ export default function DocumentationPage() {
                     </p>
                     <CodeBlock
                       code={`// Example: Using API token in a request
-fetch('https://api.doer.ai/v1/plans/{goalId}/generate', {
+fetch('https://usedoer.com/api/plans/{goalId}/generate', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer doer.token_id.token_secret',
@@ -590,7 +627,7 @@ fetch('https://api.doer.ai/v1/plans/{goalId}/generate', {
                         method: 'POST',
                         path: '/plans/{goalId}/generate',
                         summary: 'Generate a plan draft for a goal',
-                        description: 'Creates a structured plan with tasks and checkpoints based on goal requirements',
+                        description: 'Creates a structured plan with tasks based on goal requirements',
                         example: {
                           request: JSON.stringify({
                             goal_text: "Run a marathon",
@@ -599,8 +636,6 @@ fetch('https://api.doer.ai/v1/plans/{goalId}/generate', {
                             budget_cents: 15000,
                             answers: {},
                             constraints: {
-                              max_checkpoints: 6,
-                              min_tasks_per_checkpoint: 2,
                               max_total_tasks: 40
                             }
                           }, null, 2)
@@ -635,7 +670,7 @@ fetch('https://api.doer.ai/v1/plans/{goalId}/generate', {
 
 const client = new DOERClient({
   apiToken: 'doer.your_token_id.your_token_secret',
-  baseUrl: 'https://api.doer.ai/v1'
+  baseUrl: 'https://usedoer.com/api'
 })
 
 // Generate a plan
@@ -660,7 +695,7 @@ headers = {
 }
 
 response = requests.post(
-    'https://api.doer.ai/v1/plans/goal-id/generate',
+    'https://usedoer.com/api/plans/goal-id/generate',
     headers=headers,
     json={
         'goal_text': 'Learn to play guitar',
@@ -715,7 +750,7 @@ print(plan)`}
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                        A complete guide to using DOER to create a structured marathon training plan with progressive milestones.
+                        A complete guide to using DOER to create a structured marathon training plan with progressive tasks.
                       </p>
                       <Button variant="outline" size="sm">
                         Read Tutorial <ExternalLink className="w-3 h-3 ml-1" />
@@ -728,7 +763,7 @@ print(plan)`}
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                        Break down complex learning goals into manageable milestones and track your progress over time.
+                        Break down complex learning goals into manageable tasks and track your progress over time.
                       </p>
                       <Button variant="outline" size="sm">
                         Read Tutorial <ExternalLink className="w-3 h-3 ml-1" />
@@ -741,7 +776,7 @@ print(plan)`}
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-                        Use DOER to plan your business launch with dependencies, milestones, and timeline management.
+                        Use DOER to plan your business launch with dependencies, tasks, and timeline management.
                       </p>
                       <Button variant="outline" size="sm">
                         Read Tutorial <ExternalLink className="w-3 h-3 ml-1" />

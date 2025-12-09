@@ -25,7 +25,7 @@ interface ApiExplorerProps {
   baseUrl?: string
 }
 
-export function ApiExplorer({ endpoint, baseUrl = 'https://api.doer.ai/v1' }: ApiExplorerProps) {
+export function ApiExplorer({ endpoint, baseUrl = 'https://usedoer.com/api' }: ApiExplorerProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [response, setResponse] = useState<string>('')
