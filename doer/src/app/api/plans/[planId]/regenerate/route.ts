@@ -177,11 +177,23 @@ export async function POST(
     // Fetch user settings for workday hours
     const { data: userSettings, error: settingsError } = await supabase
       .from('user_settings')
-      .select('workday_start_hour, workday_end_hour, lunch_start_hour, lunch_end_hour, allow_weekends, preferences')
+      .select('preferences')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (settingsError || !userSettings) {
+    // Extract workday settings from preferences.workday object
+    const preferences = userSettings?.preferences || {}
+    const workdayPrefs = preferences.workday || {}
+
+    // Use defaults if settings don't exist
+    const workdayStartHour = workdayPrefs.workday_start_hour || 9
+    const workdayEndHour = workdayPrefs.workday_end_hour || 17
+    const lunchStartHour = workdayPrefs.lunch_start_hour || 12
+    const lunchEndHour = workdayPrefs.lunch_end_hour || 13
+    const allowWeekends = workdayPrefs.allow_weekends ?? true
+
+    if (settingsError && settingsError.code !== 'PGRST116') {
+      // PGRST116 is "not found" which is acceptable - we use defaults
       if (reserved) {
         await creditService.release('api_credits', PLAN_REGENERATION_CREDIT_COST, { reason: 'settings_fetch_failed' })
       }
@@ -192,7 +204,7 @@ export async function POST(
     }
 
     const workdaySettings = {
-      workday_end_hour: userSettings.workday_end_hour,
+      workday_end_hour: workdayEndHour,
     }
 
     // Detect urgency and availability patterns
@@ -204,11 +216,10 @@ export async function POST(
     let eveningWorkdayEndHour: number | undefined
     
     if (availabilityAnalysis.timeOfDay === 'evening' && availabilityAnalysis.hoursPerDay) {
-      const defaultWorkdayEndHour = userSettings.workday_end_hour || 17
-      const workdayEndHour = extractWorkdayEndHourFromText(combinedGoal, defaultWorkdayEndHour)
+      const extractedWorkdayEndHour = extractWorkdayEndHourFromText(combinedGoal, workdayEndHour)
       
       const eveningHours = calculateEveningWorkdayHours(
-        workdayEndHour,
+        extractedWorkdayEndHour,
         availabilityAnalysis.hoursPerDay,
         30 // 30 minute buffer
       )
@@ -266,11 +277,11 @@ export async function POST(
       start_date: plan.start_date,
       availability,
       workdaySettings: {
-        startHour: userSettings.workday_start_hour || 9,
-        endHour: userSettings.workday_end_hour || 17,
-        lunchStart: userSettings.lunch_start_hour || 12,
-        lunchEnd: userSettings.lunch_end_hour || 13,
-        allowWeekends: userSettings.allow_weekends !== false,
+        startHour: workdayStartHour,
+        endHour: workdayEndHour,
+        lunchStart: lunchStartHour,
+        lunchEnd: lunchEndHour,
+        allowWeekends: allowWeekends,
       },
       timeConstraints: {
         isStartDateToday: false, // Regeneration always uses original start date

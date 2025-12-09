@@ -154,23 +154,21 @@ export async function POST(
     // Fetch user workday settings (use defaults if not found)
     const { data: userSettings, error: settingsError } = await supabase
       .from('user_settings')
-      .select('workday_start_hour, workday_end_hour, lunch_start_hour, lunch_end_hour, allow_weekends')
+      .select('preferences')
       .eq('user_id', user.id)
       .maybeSingle()
 
+    // Extract workday settings from preferences.workday object
+    const preferences = userSettings?.preferences || {}
+    const workdayPrefs = preferences.workday || {}
+
     // Use defaults if settings don't exist (new users may not have settings yet)
-    const workdaySettings = userSettings ? {
-      startHour: userSettings.workday_start_hour || 9,
-      endHour: userSettings.workday_end_hour || 17,
-      lunchStart: userSettings.lunch_start_hour || 12,
-      lunchEnd: userSettings.lunch_end_hour || 13,
-      allowWeekends: userSettings.allow_weekends !== false,
-    } : {
-      startHour: 9,
-      endHour: 17,
-      lunchStart: 12,
-      lunchEnd: 13,
-      allowWeekends: true,
+    const workdaySettings = {
+      startHour: workdayPrefs.workday_start_hour || 9,
+      endHour: workdayPrefs.workday_end_hour || 17,
+      lunchStart: workdayPrefs.lunch_start_hour || 12,
+      lunchEnd: workdayPrefs.lunch_end_hour || 13,
+      allowWeekends: workdayPrefs.allow_weekends ?? true,
     }
 
     if (settingsError && settingsError.code !== 'PGRST116') {
