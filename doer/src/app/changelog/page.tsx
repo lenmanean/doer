@@ -5,64 +5,60 @@ import { useTranslations } from 'next-intl'
 
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { PublicHeader } from '@/components/ui/PublicHeader'
+import { ChangelogEntryCard } from '@/components/changelog/ChangelogEntryCard'
 import { changelogEntries } from '@/data/changelog'
 
 export default function ChangelogPage() {
   const t = useTranslations()
 
-  const timelineItems = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      dateStyle: 'long',
-      timeStyle: 'short',
-      timeZone: 'America/Los_Angeles',
-    })
-
-    return [...changelogEntries]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .map((entry) => {
-        const dateObj = new Date(entry.date)
-        return {
-          ...entry,
-          isoDate: dateObj.toISOString(),
-          formattedDate: `${formatter.format(dateObj)} PT`,
-        }
-      })
+  const sortedEntries = useMemo(() => {
+    return [...changelogEntries].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
   }, [])
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col transition-colors">
       <PublicHeader />
 
-      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900 transition-colors">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-6">
-              {t('pages.changelog.title')}
+      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header Section */}
+          <div className="text-center mb-16">
+            <div className="inline-block mb-4">
+              <span className="text-sm font-semibold uppercase tracking-widest text-orange-500 bg-orange-500/10 px-4 py-2 rounded-full">
+                Updates
+              </span>
+            </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+              {t('changelog.title')}
             </h1>
-            <p className="text-xl text-gray-600 dark:text-slate-300">
-              {t('pages.changelog.description')}
+            <p className="text-xl text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
+              {t('changelog.description')}
             </p>
           </div>
 
+          {/* Changelog Grid */}
           <section className="mt-16">
-            <ol className="relative border-l border-slate-200 dark:border-slate-700 pl-8 sm:pl-12 space-y-12">
-              {timelineItems.map((entry) => (
-                <li key={`${entry.isoDate}-${entry.title}`} className="relative">
-                  <span className="absolute -left-3 sm:-left-3.5 top-2 h-2 w-2 rounded-full bg-indigo-500 dark:bg-indigo-400" />
-
-                  <time
-                    dateTime={entry.isoDate}
-                    className="text-sm font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300"
-                  >
-                    {entry.formattedDate}
-                  </time>
-                  <h3 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-                    {entry.title}
-                  </h3>
-                </li>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sortedEntries.map((entry, index) => (
+                <ChangelogEntryCard
+                  key={`${entry.date}-${entry.title}`}
+                  date={entry.date}
+                  title={entry.title}
+                  description={entry.description}
+                  index={index}
+                />
               ))}
-            </ol>
+            </div>
           </section>
+
+          {/* Footer Note */}
+          <div className="mt-16 text-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Stay updated with the latest improvements and features
+            </p>
+          </div>
         </div>
       </main>
 
@@ -70,4 +66,3 @@ export default function ChangelogPage() {
     </div>
   )
 }
-

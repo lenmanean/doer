@@ -54,10 +54,10 @@ export default function BlogPage() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6">
-              {t('pages.blog.title')}
+              {t('blog.title')}
             </h1>
             <p className="text-xl text-gray-600 dark:text-slate-300 mb-8 max-w-3xl mx-auto">
-              {t('pages.blog.description')}
+              {t('blog.description')}
             </p>
             
             {/* Search Bar */}

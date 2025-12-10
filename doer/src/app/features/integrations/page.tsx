@@ -56,7 +56,17 @@ export default function IntegrationsPage() {
                         {integration.name}
                       </h3>
                       <p className="mt-3 text-sm text-gray-600 dark:text-slate-300 leading-relaxed">
-                        {t(integration.descriptionKey)}
+                        {(() => {
+                          try {
+                            const translated = t(integration.descriptionKey)
+                            // If translation returns the key itself (no translation found), use fallback
+                            return translated === integration.descriptionKey 
+                              ? integration.description 
+                              : translated
+                          } catch {
+                            return integration.description
+                          }
+                        })()}
                       </p>
                       <div className="mt-6 flex items-center justify-between text-xs uppercase tracking-wide text-orange-500">
                         <span>AI Scheduler</span>

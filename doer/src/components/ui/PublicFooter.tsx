@@ -10,7 +10,7 @@ export function PublicFooter() {
   return (
     <footer className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand & Description */}
           <div className="lg:col-span-2">
             <Link href="/" className="inline-block mb-4">
@@ -19,30 +19,6 @@ export function PublicFooter() {
             <p className="text-sm text-gray-600 dark:text-gray-300 max-w-md">
               {t('footer.description')}
             </p>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
-              {t('footer.company')}
-            </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/about-us" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  {t('footer.aboutUs')}
-                </Link>
-              </li>
-              <li>
-                <Link href="/affiliates" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  {t('footer.affiliateProgram')}
-                </Link>
-              </li>
-              <li>
-                <Link href="/careers" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  {t('footer.careers')}
-                </Link>
-              </li>
-            </ul>
           </div>
 
           {/* Product */}
@@ -73,11 +49,6 @@ export function PublicFooter() {
                   </Link>
                 </li>
               )}
-              <li>
-                <Link href="/roadmap" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  {t('footer.roadmap')}
-                </Link>
-              </li>
               <li>
                 <Link href="/changelog" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('header.changelog')}
@@ -119,33 +90,39 @@ export function PublicFooter() {
               </li>
             </ul>
           </div>
-        </div>
 
-        {/* Legal Links */}
-        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div className="mb-4 md:mb-0">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
-                {t('footer.legal')}
-              </h3>
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {/* Legal */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
+              {t('footer.legal')}
+            </h3>
+            <ul className="space-y-3">
+              <li>
                 <Link href="/privacy" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('footer.privacyPolicy')}
                 </Link>
+              </li>
+              <li>
                 <Link href="/terms" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('footer.termsOfService')}
                 </Link>
+              </li>
+              <li>
                 <Link href="/security" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('footer.security')}
                 </Link>
+              </li>
+              <li>
                 <Link href="/report-misuse" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('footer.reportMisuse')}
                 </Link>
+              </li>
+              <li>
                 <Link href="/responsible-use" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                   {t('footer.responsibleUsePolicy')}
                 </Link>
-              </div>
-            </div>
+              </li>
+            </ul>
           </div>
         </div>
 

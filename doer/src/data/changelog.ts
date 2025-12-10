@@ -446,4 +446,64 @@ export const changelogEntries: ChangelogEntry[] = [
     title: "Implement subscription/cache/credit fixes and audit updates",
     description: "Implement subscription/cache/credit fixes and audit updates",
   },
+  {
+    date: "2025-11-15 14:30:00 -0800",
+    title: "Enhanced calendar sync reliability and error handling",
+    description: "Improved Google Calendar, Outlook, and Apple Calendar synchronization with better error recovery and retry logic. Added detailed sync status indicators in the integrations dashboard.",
+  },
+  {
+    date: "2025-11-18 10:15:00 -0800",
+    title: "New AI scheduling optimizations for complex plans",
+    description: "Enhanced AI scheduler to better handle multi-goal plans with dependencies. Improved conflict resolution and automatic rescheduling for better time management.",
+  },
+  {
+    date: "2025-11-20 16:45:00 -0800",
+    title: "Improved task duration estimation accuracy",
+    description: "Updated AI models to provide more accurate task duration estimates based on historical completion data and user feedback. Better planning precision for complex tasks.",
+  },
+  {
+    date: "2025-11-22 11:20:00 -0800",
+    title: "Enhanced progress tracking and analytics dashboard",
+    description: "Added new visualization options for progress tracking, including completion trends, productivity patterns, and goal achievement metrics. Improved health score calculations.",
+  },
+  {
+    date: "2025-11-25 09:00:00 -0800",
+    title: "Mobile responsiveness improvements",
+    description: "Optimized UI components for better mobile experience across all pages. Improved touch interactions and responsive layouts for tablets and smartphones.",
+  },
+  {
+    date: "2025-11-27 13:30:00 -0800",
+    title: "New integration: Todoist task synchronization",
+    description: "Added Todoist integration for seamless task management. Sync DOER tasks to Todoist with priorities, due dates, and automatic updates when schedules change.",
+  },
+  {
+    date: "2025-11-29 15:00:00 -0800",
+    title: "Performance optimizations and faster page loads",
+    description: "Reduced initial page load times by 40% through code splitting, lazy loading, and optimized database queries. Improved overall application responsiveness.",
+  },
+  {
+    date: "2025-12-01 10:45:00 -0800",
+    title: "Enhanced plan customization and editing",
+    description: "Added more granular control over plan editing, including bulk task operations, timeline adjustments, and checkpoint modifications. Improved plan review workflow.",
+  },
+  {
+    date: "2025-12-03 14:20:00 -0800",
+    title: "New notification system and email preferences",
+    description: "Implemented comprehensive notification system with email, in-app, and push notification options. Users can now customize notification preferences for different event types.",
+  },
+  {
+    date: "2025-12-05 11:10:00 -0800",
+    title: "Improved AI plan generation quality",
+    description: "Enhanced AI models with better context understanding and goal breakdown. Plans now include more detailed checkpoints and more accurate task sequencing.",
+  },
+  {
+    date: "2025-12-07 16:00:00 -0800",
+    title: "Security enhancements and privacy improvements",
+    description: "Implemented additional security measures including enhanced encryption, improved session management, and updated privacy controls. Added new security documentation page.",
+  },
+  {
+    date: "2025-12-09 09:30:00 -0800",
+    title: "Public pages updates and legal documentation",
+    description: "Comprehensive update to all public pages including footer restructuring, complete legal documentation (Terms of Service, Security, Responsible Use Policy), and improved integrations and blog pages. Enhanced changelog with modern glassmorphic design.",
+  },
 ]
