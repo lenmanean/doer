@@ -360,16 +360,15 @@ export default function Home() {
                 {t('comparison.withoutDoer.title')}
               </h3>
               <ul className="space-y-4 flex-grow">
-                {/* Basic capabilities - normal text (available without DOER) */}
+                {/* Basic capabilities - greyed out (available but not emphasized) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100 font-medium">
+                  <li key={`basic-${index}`} className="text-gray-500 dark:text-gray-500 line-through opacity-60">
                     {feature}
                   </li>
                 ))}
                 {/* DOER-exclusive features - greyed out (not available without DOER) */}
-                {/* Light mode: text-gray-600 for better contrast on white, Dark mode: text-gray-500 for readability on dark */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-600 dark:text-gray-500">
+                  <li key={`exclusive-${index}`} className="text-gray-500 dark:text-gray-500 line-through opacity-60">
                     {feature}
                   </li>
                 ))}
@@ -387,14 +386,13 @@ export default function Home() {
                 {t('comparison.withDoer.title')}
               </h3>
               <ul className="space-y-3 flex-grow mb-4">
-                {/* Basic capabilities - greyed out (less emphasis, available everywhere) */}
-                {/* Light mode: text-gray-600 for better contrast on white, Dark mode: text-gray-500 for readability on dark */}
+                {/* Basic capabilities - normal text (available with DOER) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-600 dark:text-gray-500 text-base">
+                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100 font-medium text-base">
                     {feature}
                   </li>
                 ))}
-                {/* DOER-exclusive features - bold, darker, highlighted (the value proposition) */}
+                {/* DOER-exclusive features - bold, highlighted (the value proposition) */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
                   <li key={`exclusive-${index}`} className="text-gray-900 dark:text-gray-100 font-bold text-base">
                     {feature}
@@ -878,7 +876,7 @@ function StepCardContent({
                         if (h3) (h3 as HTMLElement).style.removeProperty('color')
                       }
                     }}
-                    className="w-full px-6 py-5 flex items-center justify-between dark:hover:bg-gray-700/50 transition-colors text-left"
+                    className="w-full px-6 py-5 flex items-center justify-between bg-gray-800 dark:bg-gray-800 hover:bg-gray-700 dark:hover:bg-gray-700 transition-colors text-left border-b border-gray-700 dark:border-gray-700"
                   >
                     <div className="flex items-center gap-4">
                       <div 
@@ -891,13 +889,13 @@ function StepCardContent({
                         {step.stepNum}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        <h3 className="text-lg font-semibold text-white dark:text-white">
                           {step.label}
                         </h3>
                       </div>
                     </div>
                     <ChevronDown
-                      className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 flex-shrink-0 ${
+                      className={`w-5 h-5 text-gray-300 dark:text-gray-400 transition-transform duration-300 flex-shrink-0 ${
                         isExpanded ? 'transform rotate-180' : ''
                       }`}
                     />
@@ -909,19 +907,19 @@ function StepCardContent({
                       isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
                     }`}
                   >
-                    <div className="px-6 pb-6 pt-2 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="px-6 pb-6 pt-2 bg-gray-900 dark:bg-gray-900 border-t border-gray-700 dark:border-gray-700">
                       <div className="mb-6">
-                        <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                        <h4 className="text-xl font-bold text-white dark:text-white mb-3">
                           {step.title}
                         </h4>
-                        <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+                        <p className="text-base text-gray-300 dark:text-gray-300 leading-relaxed">
                           {step.description}
                         </p>
                       </div>
                       
                       {/* Plan Preview - Video embedded for step 1, step 2, and step 3 */}
                       {step.id === 'step1' && isExpanded ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-700 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             src="/doer_tut1.mp4"
@@ -1095,10 +1093,10 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : (
-                      <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-200 dark:border-gray-700">
+                      <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-700 dark:border-gray-700">
                         <div className="text-center space-y-4">
-                          <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-lg mx-auto"></div>
-                          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
+                          <div className="w-16 h-16 bg-gray-600 dark:bg-gray-600 rounded-lg mx-auto"></div>
+                          <p className="text-gray-300 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
                         </div>
                       </div>
                       )}
