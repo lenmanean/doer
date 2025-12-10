@@ -44,9 +44,9 @@
 }
 
 /* Light Theme Global Styles */
+/* Don't force background on body - let pages control their own backgrounds */
 .light-theme {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
+  color: #0f172a;
 }
 
 /* Light theme panel and sidebar backgrounds */

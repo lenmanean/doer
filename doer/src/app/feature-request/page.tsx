@@ -30,46 +30,46 @@ export default function FeatureRequestPage() {
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto">
-          <FadeInWrapper>
-            <Card>
-              <CardHeader>
+      <div className="max-w-2xl mx-auto">
+        <FadeInWrapper>
+          <Card>
+            <CardHeader>
                 <CardTitle className="text-2xl sm:text-3xl">Feature Request</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Your Email
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    Your Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-4 py-3 min-h-[44px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors text-base"
-                      required
-                    />
-                  </div>
-                  <div>
+                    required
+                  />
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Feature Description
-                    </label>
-                    <textarea
-                      value={formData.feature}
-                      onChange={(e) => setFormData({ ...formData, feature: e.target.value })}
-                      rows={6}
+                    Feature Description
+                  </label>
+                  <textarea
+                    value={formData.feature}
+                    onChange={(e) => setFormData({ ...formData, feature: e.target.value })}
+                    rows={6}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors text-base resize-y"
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Submit Request
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </FadeInWrapper>
-        </div>
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  Submit Request
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </FadeInWrapper>
+      </div>
       </main>
       <PublicFooter />
     </div>

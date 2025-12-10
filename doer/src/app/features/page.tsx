@@ -77,11 +77,11 @@ export default function FeaturesPage() {
                   <div className={`${index % 2 !== 0 ? 'lg:order-1' : ''}`}>
                     {feature.id === 'automation-integrations' ? (
                       <div className="relative aspect-video">
-                              <img 
-                                src="/automations-preview.png" 
-                                alt={`${feature.title} preview`}
+                        <img 
+                          src="/automations-preview.png" 
+                          alt={`${feature.title} preview`}
                                 className="w-full h-full object-contain max-w-full"
-                              />
+                        />
                       </div>
                     ) : (
                       <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors">

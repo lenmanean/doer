@@ -61,7 +61,16 @@ export function PublicHeader() {
       const savedTheme = localStorage.getItem('publicTheme')
       // Check system preference if no saved theme
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      const prefersDark = savedTheme === 'dark' || (savedTheme === null && systemPrefersDark) || (savedTheme !== 'light' && systemPrefersDark)
+      // Determine theme: explicit saved preference, or system preference, or default to light
+      let prefersDark = false
+      if (savedTheme === 'dark') {
+        prefersDark = true
+      } else if (savedTheme === 'light') {
+        prefersDark = false
+      } else {
+        // No saved theme, use system preference
+        prefersDark = systemPrefersDark
+      }
       setIsDark(prefersDark)
       applyPublicTheme(prefersDark)
     }
@@ -81,15 +90,19 @@ export function PublicHeader() {
     if (dark) {
       root.classList.add('dark')
       root.classList.remove('light')
-      body.className = 'font-sans antialiased bg-gray-900 text-[#d7d2cb]'
+      body.className = 'font-sans antialiased text-[#d7d2cb]'
       body.classList.add('dark-theme')
       body.classList.remove('light-theme')
+      body.style.backgroundColor = ''
+      body.style.color = ''
     } else {
       root.classList.add('light')
       root.classList.remove('dark')
-      body.className = 'font-sans antialiased bg-white text-gray-900'
+      body.className = 'font-sans antialiased text-gray-900'
       body.classList.add('light-theme')
       body.classList.remove('dark-theme')
+      body.style.backgroundColor = ''
+      body.style.color = ''
     }
   }
 
@@ -325,7 +338,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {solutionsOpen && (
-              <div className="absolute top-full left-0 pt-2 w-56 max-w-[calc(100vw-2rem)]">
+              <div className="absolute top-full left-0 pt-2 w-56 max-w-[calc(100vw-2rem)] z-[60]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/solutions/teams"
@@ -490,7 +503,7 @@ export function PublicHeader() {
       {mobileMenuOpen && (
         <div className="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-700 overflow-x-hidden">
           <div className="flex flex-col space-y-3 pt-4">
-              <div className="px-4 py-2">
+            <div className="px-4 py-2">
               <div className="font-medium text-gray-900 dark:text-white mb-2">{t('header.product')}</div>
               <div className="flex flex-col space-y-1 ml-4">
                 <Link href="/features" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.features')}</Link>

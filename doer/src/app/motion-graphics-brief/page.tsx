@@ -102,18 +102,18 @@ export default function MotionGraphicsBriefPage() {
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-12">
-          {/* Header Section */}
-          <FadeInWrapper>
-            <div className="text-center">
+      <div className="max-w-5xl mx-auto space-y-12">
+        {/* Header Section */}
+        <FadeInWrapper>
+          <div className="text-center">
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4">
-                Motion Graphics Brief
-              </h1>
+              Motion Graphics Brief
+            </h1>
               <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">
-                DOER.AI - Internal Brief Document
-              </p>
-            </div>
-          </FadeInWrapper>
+              DOER.AI - Internal Brief Document
+            </p>
+          </div>
+        </FadeInWrapper>
 
         {/* Target Audience & Market Context */}
         <FadeInWrapper delay={0.1}>

@@ -136,8 +136,16 @@ export default async function RootLayout({
                     // Use public theme for public pages - ALWAYS ignore 'theme' key
                     // This prevents stale user theme data from overriding public theme
                     savedTheme = localStorage.getItem('publicTheme');
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    resolvedTheme = savedTheme === 'light' ? 'light' : (savedTheme === 'dark' ? 'dark' : (prefersDark ? 'dark' : 'light'));
+                    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    // Explicit preference takes precedence, then system preference, default to light
+                    if (savedTheme === 'dark') {
+                      resolvedTheme = 'dark';
+                    } else if (savedTheme === 'light') {
+                      resolvedTheme = 'light';
+                    } else {
+                      // No saved preference, use system preference
+                      resolvedTheme = systemPrefersDark ? 'dark' : 'light';
+                    }
                   } else {
                     // Use user theme for authenticated routes with valid authentication
                     savedTheme = localStorage.getItem('theme');
@@ -174,16 +182,20 @@ export default async function RootLayout({
                   document.documentElement.classList.remove('dark', 'light');
                   document.documentElement.classList.add(resolvedTheme);
                   
-                  // Apply body classes
+                  // Apply body classes - don't set background color on body, let pages handle it
                   const body = document.body;
                   if (resolvedTheme === 'light') {
-                    body.className = 'font-sans antialiased bg-white text-gray-900';
+                    body.className = 'font-sans antialiased text-gray-900';
                     body.classList.add('light-theme');
                     body.classList.remove('dark-theme');
+                    body.style.backgroundColor = '';
+                    body.style.color = '';
                   } else {
-                    body.className = 'font-sans antialiased bg-gray-900 text-[#d7d2cb]';
+                    body.className = 'font-sans antialiased text-[#d7d2cb]';
                     body.classList.add('dark-theme');
                     body.classList.remove('light-theme');
+                    body.style.backgroundColor = '';
+                    body.style.color = '';
                   }
                 } catch (e) {
                   // Fallback to dark theme if there's an error

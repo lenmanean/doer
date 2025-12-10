@@ -72,16 +72,16 @@ export default function ReportMisusePage() {
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto">
-          <FadeInWrapper>
-            <Card>
-              <CardHeader>
+      <div className="max-w-2xl mx-auto">
+        <FadeInWrapper>
+          <Card>
+            <CardHeader>
                 <CardTitle className="text-2xl sm:text-3xl mb-2">Report Misuse</CardTitle>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Help us maintain a safe and respectful community by reporting misuse of the DOER platform.
-                </p>
-              </CardHeader>
-              <CardContent>
+                Help us maintain a safe and respectful community by reporting misuse of the DOER platform.
+              </p>
+            </CardHeader>
+            <CardContent>
               {isSubmitted ? (
                 <div className="text-center py-8">
                   <div className="mb-4">

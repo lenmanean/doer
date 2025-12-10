@@ -13,15 +13,15 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <FadeInWrapper>
-            <Card>
-              <CardHeader>
+      <div className="max-w-4xl mx-auto">
+        <FadeInWrapper>
+          <Card>
+            <CardHeader>
                 <CardTitle className="text-2xl sm:text-3xl mb-2">Privacy Policy</CardTitle>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Last Updated: {lastUpdated}
-                </p>
-              </CardHeader>
+                Last Updated: {lastUpdated}
+              </p>
+            </CardHeader>
               <CardContent className="space-y-8 text-gray-700 dark:text-gray-300 leading-relaxed">
               {/* Introduction */}
               <section>
