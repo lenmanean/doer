@@ -105,10 +105,16 @@ export default async function RootLayout({
   // Determine if user is authenticated for script
   const isAuthenticated = Boolean(initialUser)
   
+  // CRITICAL: Add 'dark' class directly to HTML element by default
+  // This ensures dark mode is applied BEFORE any JavaScript runs
+  // Only authenticated users on authenticated routes will have it removed by ThemeProvider
+  // For public pages, this guarantees dark mode from the start
+  const htmlClassName = `${inter.variable} dark`
+  
   return (
     <html 
       lang={locale} 
-      className={`${inter.variable}`} 
+      className={htmlClassName}
       suppressHydrationWarning
       data-is-authenticated={isAuthenticated ? 'true' : 'false'}
     >

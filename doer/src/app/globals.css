@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CRITICAL: Force dark mode on public pages as CSS fallback */
+/* CRITICAL: Force dark mode as default - CSS fallback */
 /* This ensures dark mode even if JavaScript fails or is blocked */
 html:not(.light) {
   color-scheme: dark;
@@ -12,6 +12,17 @@ html:not(.light) {
 /* Force dark theme class on body if html doesn't have light class */
 html:not(.light) body {
   color-scheme: dark;
+}
+
+/* NUCLEAR OPTION: Force dark backgrounds on elements with bg-white when dark class is present */
+/* This overrides bg-white to show dark backgrounds immediately, before Tailwind processes */
+html.dark [class*="bg-white"] {
+  background-color: rgb(17 24 39) !important; /* gray-900 */
+}
+
+/* Ensure text is visible on dark backgrounds */
+html.dark [class*="bg-white"] * {
+  color: rgb(215 210 203) !important; /* text-[#d7d2cb] */
 }
 
 
