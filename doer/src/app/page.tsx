@@ -53,6 +53,31 @@ export default function Home() {
     }
   }, [])
 
+  // Auto-open waitlist modal if user has submitted consent form
+  useEffect(() => {
+    if (!IS_PRE_LAUNCH || typeof window === 'undefined') return
+    
+    // Check if consent has been given
+    const consentData = localStorage.getItem('cookieConsent')
+    if (!consentData) return
+    
+    try {
+      const consent = JSON.parse(consentData)
+      // If consent exists and user hasn't explicitly closed the waitlist modal
+      if (consent.accepted) {
+        // Check if user has already joined waitlist (optional - you may want to check this)
+        // For now, just show the modal after a short delay
+        const timer = setTimeout(() => {
+          setWaitlistModalOpen(true)
+        }, 2000) // 2 second delay after page load
+        
+        return () => clearTimeout(timer)
+      }
+    } catch (error) {
+      console.error('Error parsing consent data:', error)
+    }
+  }, [])
+
   // Debug: Log feature flag values
   useEffect(() => {
     console.log('[DEBUG] Feature Flag Values:', {
@@ -245,7 +270,7 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`${integration.name}-${index}`}
-                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 border-gray-700 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-orange-500 transition-colors"
               >
                 <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
                   <integration.Icon className="w-full h-full" />
@@ -274,7 +299,7 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`duplicate-1-${integration.name}-${index}`}
-                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 border-gray-700 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-orange-500 transition-colors"
               >
                 <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
                   <integration.Icon className="w-full h-full" />
@@ -303,7 +328,7 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`duplicate-2-${integration.name}-${index}`}
-                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 border-gray-700 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-orange-500 transition-colors"
               >
                 <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
                   <integration.Icon className="w-full h-full" />
@@ -360,9 +385,9 @@ export default function Home() {
                 {t('comparison.withoutDoer.title')}
               </h3>
               <ul className="space-y-4 flex-grow">
-                {/* Basic capabilities - greyed out (available but not emphasized) */}
+                {/* Basic capabilities - normal text (available without DOER) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-500 dark:text-gray-500 line-through opacity-60">
+                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100 font-medium">
                     {feature}
                   </li>
                 ))}
@@ -468,7 +493,7 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`testimonial-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 dark:bg-gray-800 rounded-xl border-2 border-gray-700 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                       <div className="font-semibold text-gray-900 dark:text-white">
                         {testimonial.name}
@@ -516,7 +541,7 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`duplicate-1-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 dark:bg-gray-800 rounded-xl border-2 border-gray-700 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                       <div className="font-semibold text-gray-900 dark:text-white">
                         {testimonial.name}
@@ -639,35 +664,15 @@ export default function Home() {
             ].map((faq, index) => (
               <details
                 key={index}
-                className="group bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden transition-all"
+                className="group bg-gray-800 dark:bg-gray-800 rounded-2xl border-2 border-gray-700 dark:border-gray-700 overflow-hidden transition-all"
               >
                 <summary 
-                  className="flex items-center justify-between cursor-pointer px-12 py-10 text-2xl font-semibold text-gray-900 dark:text-white dark:hover:bg-gray-700/50 transition-colors list-none"
-                  onMouseEnter={(e) => {
-                    const isDark = document.documentElement.classList.contains('dark')
-                    if (!isDark) {
-                      e.currentTarget.style.setProperty('background-color', '#4b5563', 'important')
-                      const span = e.currentTarget.querySelector('span')
-                      if (span) (span as HTMLElement).style.setProperty('color', '#ffffff', 'important')
-                      const svg = e.currentTarget.querySelector('svg')
-                      if (svg) (svg as SVGElement).style.setProperty('color', '#ffffff', 'important')
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const isDark = document.documentElement.classList.contains('dark')
-                    if (!isDark) {
-                      e.currentTarget.style.removeProperty('background-color')
-                      const span = e.currentTarget.querySelector('span')
-                      if (span) (span as HTMLElement).style.removeProperty('color')
-                      const svg = e.currentTarget.querySelector('svg')
-                      if (svg) (svg as SVGElement).style.removeProperty('color')
-                    }
-                  }}
+                  className="flex items-center justify-between cursor-pointer px-12 py-10 text-2xl font-semibold text-white dark:text-white hover:bg-gray-700/50 dark:hover:bg-gray-700/50 transition-colors list-none"
                 >
                   <span>{faq.question}</span>
-                  <ChevronDown className="w-10 h-10 text-gray-600 dark:text-gray-400 transition-transform group-open:rotate-180 flex-shrink-0 ml-6" />
+                  <ChevronDown className="w-10 h-10 text-gray-300 dark:text-gray-400 transition-transform group-open:rotate-180 flex-shrink-0 ml-6" />
                 </summary>
-                <div className="px-12 pb-10 pt-4 bg-gray-50 dark:bg-gray-900/50 text-xl text-gray-700 dark:text-gray-300 leading-relaxed border-t border-gray-200 dark:border-gray-700">
+                <div className="px-12 pb-10 pt-4 bg-gray-900 dark:bg-gray-900 text-xl text-gray-300 dark:text-gray-300 leading-relaxed border-t border-gray-700 dark:border-gray-700">
                   {faq.answer}
                 </div>
               </details>
@@ -1035,7 +1040,7 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : step.id === 'step3' && isExpanded ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-700 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             src="/doer_tut3.mp4"
