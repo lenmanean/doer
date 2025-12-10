@@ -87,10 +87,24 @@ export function ThemeProvider({
     }
     if (typeof window === 'undefined') return resolveThemeValue(defaultTheme)
     
-    // Check if we're on a public route
-    const isPublic = isPublicRoute(pathname || '')
+    // Check if we're on a public route using window.location (available immediately)
+    // This is critical because pathname from usePathname() might not be available during state initialization
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : (pathname || '')
+    const isPublic = isPublicRoute(currentPath)
+    
     if (isPublic) {
       // On public routes, check publicTheme in localStorage
+      // The layout.tsx script already applied the theme, so we should respect what's already on the document
+      // Check what theme is currently applied to avoid conflicts
+      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
+                          document.documentElement.classList.contains('light') ? 'light' : null
+      
+      if (currentTheme) {
+        // Respect the theme already applied by layout.tsx script
+        return currentTheme
+      }
+      
+      // Fallback: check localStorage if script hasn't run yet
       const publicTheme = localStorage.getItem('publicTheme')
       if (publicTheme === 'dark') {
         return 'dark'
@@ -104,7 +118,7 @@ export function ThemeProvider({
     }
     
     // Only read from localStorage if on authenticated route
-    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    const isAuthenticated = isAuthenticatedRoute(currentPath)
     if (!isAuthenticated) {
       return resolveThemeValue(defaultTheme)
     }
@@ -150,11 +164,40 @@ export function ThemeProvider({
 
   // Apply initial theme immediately on mount (before any async operations)
   useEffect(() => {
-    const isPublic = isPublicRoute(pathname || '')
+    // Use window.location for immediate pathname access (more reliable than usePathname during mount)
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : (pathname || '')
+    const isPublic = isPublicRoute(currentPath)
     
-    // On public routes, don't apply theme here - let PublicHeader handle it
-    // The layout.tsx script already applied the public theme, and PublicHeader will maintain it
+    // On public routes, don't apply theme here - let layout.tsx script and PublicHeader handle it
+    // The layout.tsx script already applied the public theme before React hydration
     if (isPublic) {
+      // Verify the theme is correctly applied (layout.tsx script should have done this)
+      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
+                          document.documentElement.classList.contains('light') ? 'light' : null
+      
+      // If no theme is applied (shouldn't happen, but safety check), apply based on publicTheme
+      if (!currentTheme) {
+        const publicTheme = localStorage.getItem('publicTheme')
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        const resolvedTheme = publicTheme === 'dark' ? 'dark' : 
+                             publicTheme === 'light' ? 'light' : 
+                             (systemPrefersDark ? 'dark' : 'light')
+        
+        document.documentElement.classList.remove('dark', 'light')
+        document.documentElement.classList.add(resolvedTheme)
+        
+        const body = document.body
+        if (resolvedTheme === 'light') {
+          body.className = 'font-sans antialiased text-gray-900'
+          body.classList.add('light-theme')
+          body.classList.remove('dark-theme')
+        } else {
+          body.className = 'font-sans antialiased text-[#d7d2cb]'
+          body.classList.add('dark-theme')
+          body.classList.remove('light-theme')
+        }
+      }
+      
       // Still apply accent color (use default orange for public pages)
       applyAccentColor('orange')
       return

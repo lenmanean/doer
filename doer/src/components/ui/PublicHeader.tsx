@@ -67,7 +67,7 @@ export function PublicHeader() {
       }
       
       // Get public theme preference - ALWAYS use publicTheme key, never theme key
-      const savedTheme = localStorage.getItem('publicTheme')
+    const savedTheme = localStorage.getItem('publicTheme')
       // Check system preference if no saved theme
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
       // Determine theme: explicit saved preference, or system preference, or default to light
@@ -80,8 +80,8 @@ export function PublicHeader() {
         // No saved theme, use system preference
         prefersDark = systemPrefersDark
       }
-      setIsDark(prefersDark)
-      applyPublicTheme(prefersDark)
+    setIsDark(prefersDark)
+    applyPublicTheme(prefersDark)
     }
   }, [pathname])
 

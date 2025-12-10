@@ -67,6 +67,7 @@
 }
 
 /* Override all common text elements */
+/* Note: Removed 'div' from this list as it was too broad and overriding Tailwind text color classes */
 .light-theme h1,
 .light-theme h2,
 .light-theme h3,
@@ -75,7 +76,6 @@
 .light-theme h6,
 .light-theme p,
 .light-theme span,
-.light-theme div,
 .light-theme label,
 .light-theme a,
 .light-theme button,
@@ -83,6 +83,33 @@
 .light-theme textarea,
 .light-theme select {
   color: #0f172a;
+}
+
+/* Allow Tailwind text-gray classes to work properly in light theme */
+/* These specific overrides ensure Tailwind text color utilities work as intended */
+.light-theme [class*="text-gray-900"] {
+  color: rgb(17 24 39) !important; /* gray-900 */
+}
+.light-theme [class*="text-gray-800"] {
+  color: rgb(31 41 55) !important; /* gray-800 */
+}
+.light-theme [class*="text-gray-700"] {
+  color: rgb(55 65 81) !important; /* gray-700 */
+}
+.light-theme [class*="text-gray-600"] {
+  color: rgb(75 85 99) !important; /* gray-600 */
+}
+.light-theme [class*="text-gray-500"] {
+  color: rgb(107 114 128) !important; /* gray-500 */
+}
+.light-theme [class*="text-gray-400"] {
+  color: rgb(156 163 175) !important; /* gray-400 */
+}
+.light-theme [class*="text-gray-300"] {
+  color: rgb(209 213 219) !important; /* gray-300 */
+}
+.light-theme [class*="text-gray-100"] {
+  color: rgb(243 244 246) !important; /* gray-100 */
 }
 
 /* Specific overrides for common dark theme classes */

@@ -472,8 +472,8 @@ export default function Home() {
                   key={`testimonial-${index}`}
                   className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    {testimonial.name}
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {testimonial.name}
                   </div>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                     "{testimonial.text}"
@@ -520,8 +520,8 @@ export default function Home() {
                   key={`duplicate-1-${index}`}
                   className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    {testimonial.name}
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {testimonial.name}
                   </div>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                     "{testimonial.text}"
