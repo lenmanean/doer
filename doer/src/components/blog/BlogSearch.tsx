@@ -14,6 +14,16 @@ export function BlogSearch({ value, onChange, placeholder }: BlogSearchProps) {
   const t = useTranslations()
   const [localValue, setLocalValue] = useState(value)
 
+  const getPlaceholder = () => {
+    if (placeholder) return placeholder
+    try {
+      const translated = t('blog.search.placeholder')
+      return translated === 'blog.search.placeholder' ? 'Search articles...' : translated
+    } catch {
+      return 'Search articles...'
+    }
+  }
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onChange(localValue)
@@ -31,7 +41,7 @@ export function BlogSearch({ value, onChange, placeholder }: BlogSearchProps) {
         type="text"
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
-        placeholder={placeholder || t('blog.search.placeholder')}
+        placeholder={getPlaceholder()}
         className="w-full pl-12 pr-12 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
       />
       {localValue && (

@@ -54,10 +54,24 @@ export default function BlogPage() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6">
-              {t('blog.title')}
+              {(() => {
+                try {
+                  const translated = t('blog.title')
+                  return translated === 'blog.title' ? 'Blog' : translated
+                } catch {
+                  return 'Blog'
+                }
+              })()}
             </h1>
             <p className="text-xl text-gray-600 dark:text-slate-300 mb-8 max-w-3xl mx-auto">
-              {t('blog.description')}
+              {(() => {
+                try {
+                  const translated = t('blog.description')
+                  return translated === 'blog.description' ? 'Read our latest articles and insights.' : translated
+                } catch {
+                  return 'Read our latest articles and insights.'
+                }
+              })()}
             </p>
             
             {/* Search Bar */}
@@ -104,7 +118,14 @@ export default function BlogPage() {
                     }
                   </h2>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {filteredPosts.length} {t('blog.postsFound')}
+                    {filteredPosts.length} {(() => {
+                      try {
+                        const translated = t('blog.postsFound')
+                        return translated === 'blog.postsFound' ? 'posts found' : translated
+                      } catch {
+                        return 'posts found'
+                      }
+                    })()}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

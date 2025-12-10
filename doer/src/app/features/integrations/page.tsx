@@ -26,7 +26,16 @@ export default function IntegrationsPage() {
               {t('pages.integrations.description')}
             </p>
             <p className="text-sm text-gray-500 dark:text-slate-400 max-w-2xl mx-auto">
-              {t('pages.integrations.subtitle')}
+              {(() => {
+                try {
+                  const translated = t('pages.integrations.subtitle')
+                  return translated === 'pages.integrations.subtitle' 
+                    ? 'Each connector keeps the AI scheduler aware of your calendars, tasks, and energy so every update is reflected instantly.'
+                    : translated
+                } catch {
+                  return 'Each connector keeps the AI scheduler aware of your calendars, tasks, and energy so every update is reflected instantly.'
+                }
+              })()}
             </p>
           </section>
 
