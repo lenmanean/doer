@@ -367,8 +367,9 @@ export default function Home() {
                   </li>
                 ))}
                 {/* DOER-exclusive features - greyed out (not available without DOER) */}
+                {/* Light mode: text-gray-600 for better contrast on white, Dark mode: text-gray-500 for readability on dark */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-500 dark:text-gray-600">
+                  <li key={`exclusive-${index}`} className="text-gray-600 dark:text-gray-500">
                     {feature}
                   </li>
                 ))}
@@ -387,8 +388,9 @@ export default function Home() {
               </h3>
               <ul className="space-y-3 flex-grow mb-4">
                 {/* Basic capabilities - greyed out (less emphasis, available everywhere) */}
+                {/* Light mode: text-gray-600 for better contrast on white, Dark mode: text-gray-500 for readability on dark */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-500 dark:text-gray-500 text-base">
+                  <li key={`basic-${index}`} className="text-gray-600 dark:text-gray-500 text-base">
                     {feature}
                   </li>
                 ))}

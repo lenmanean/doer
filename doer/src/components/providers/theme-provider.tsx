@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useSupabase } from './supabase-provider'
-import { isAuthenticatedRoute } from '@/lib/utils/route-utils'
+import { isAuthenticatedRoute, isPublicRoute } from '@/lib/utils/route-utils'
 
 export type Theme = 'dark' | 'light' | 'system'
 export type AccentColor = 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple'
@@ -87,6 +87,22 @@ export function ThemeProvider({
     }
     if (typeof window === 'undefined') return resolveThemeValue(defaultTheme)
     
+    // Check if we're on a public route
+    const isPublic = isPublicRoute(pathname || '')
+    if (isPublic) {
+      // On public routes, check publicTheme in localStorage
+      const publicTheme = localStorage.getItem('publicTheme')
+      if (publicTheme === 'dark') {
+        return 'dark'
+      } else if (publicTheme === 'light') {
+        return 'light'
+      } else {
+        // No publicTheme saved, use system preference
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        return systemPrefersDark ? 'dark' : 'light'
+      }
+    }
+    
     // Only read from localStorage if on authenticated route
     const isAuthenticated = isAuthenticatedRoute(pathname || '')
     if (!isAuthenticated) {
@@ -134,29 +150,43 @@ export function ThemeProvider({
 
   // Apply initial theme immediately on mount (before any async operations)
   useEffect(() => {
+    const isPublic = isPublicRoute(pathname || '')
+    
+    // On public routes, don't apply theme here - let PublicHeader handle it
+    // The layout.tsx script already applied the public theme, and PublicHeader will maintain it
+    if (isPublic) {
+      // Still apply accent color (use default orange for public pages)
+      applyAccentColor('orange')
+      return
+    }
+    
     const initialTheme = getInitialTheme()
     const initialResolved = getInitialResolvedTheme()
     const initialAccent = getInitialAccentColor()
     
-    // Apply theme classes immediately
+    // Apply theme classes immediately (only for authenticated routes)
     const root = document.documentElement
     root.classList.remove('dark', 'light')
     root.classList.add(initialResolved)
     
     const body = document.body
     if (initialResolved === 'light') {
-      body.className = 'font-sans antialiased bg-white text-gray-900'
+      body.className = 'font-sans antialiased text-gray-900'
       body.classList.add('light-theme')
       body.classList.remove('dark-theme')
+      body.style.backgroundColor = ''
+      body.style.color = ''
     } else {
-      body.className = 'font-sans antialiased bg-[#0a0a0a] text-[#d7d2cb]'
+      body.className = 'font-sans antialiased text-[#d7d2cb]'
       body.classList.add('dark-theme')
       body.classList.remove('light-theme')
+      body.style.backgroundColor = ''
+      body.style.color = ''
     }
     
     // Apply accent color immediately
     applyAccentColor(initialAccent)
-  }, []) // Run only once on mount
+  }, [pathname]) // Re-run when pathname changes to handle route transitions
 
   // Load theme and accent color from user preferences
   const loadUserPreferences = async (userId: string | null) => {
@@ -386,6 +416,15 @@ export function ThemeProvider({
 
   // Update resolved theme based on current theme setting
   useEffect(() => {
+    const isPublic = isPublicRoute(pathname || '')
+    
+    // On public routes, don't apply theme here - let PublicHeader handle it
+    if (isPublic) {
+      // Still apply accent color (use default orange for public pages)
+      applyAccentColor('orange')
+      return
+    }
+    
     let resolved: 'dark' | 'light' = 'dark'
     
     if (theme === 'system') {
@@ -397,7 +436,7 @@ export function ThemeProvider({
     
     setResolvedTheme(resolved)
     
-    // Apply theme to document
+    // Apply theme to document (only for authenticated routes)
     const root = document.documentElement
     root.classList.remove('dark', 'light')
     root.classList.add(resolved)
@@ -405,18 +444,22 @@ export function ThemeProvider({
     // Update body classes for immediate visual feedback
     const body = document.body
     if (resolved === 'light') {
-      body.className = 'font-sans antialiased bg-white text-gray-900'
+      body.className = 'font-sans antialiased text-gray-900'
       body.classList.add('light-theme')
       body.classList.remove('dark-theme')
+      body.style.backgroundColor = ''
+      body.style.color = ''
     } else {
-      body.className = 'font-sans antialiased bg-[#0a0a0a] text-[#d7d2cb]'
+      body.className = 'font-sans antialiased text-[#d7d2cb]'
       body.classList.add('dark-theme')
       body.classList.remove('light-theme')
+      body.style.backgroundColor = ''
+      body.style.color = ''
     }
     
     // Reapply accent color when theme changes to ensure it's visible
     applyAccentColor(accentColor)
-  }, [theme, accentColor])
+  }, [theme, accentColor, pathname])
 
   // Handle system theme changes
   useEffect(() => {
