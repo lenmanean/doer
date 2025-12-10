@@ -56,15 +56,11 @@ export function BlogPostCard({ post, featured = false }: BlogPostCardProps) {
         </p>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <span>{post.author.name}</span>
-            <span>•</span>
-            <div className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              <time dateTime={post.publishDate}>
-                {formatBlogDate(post.publishDate)}
-              </time>
-            </div>
+          <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+            <Calendar className="w-3 h-3" />
+            <time dateTime={post.publishDate}>
+              {formatBlogDate(post.publishDate)}
+            </time>
           </div>
           <span className="text-sm font-medium text-orange-500 dark:text-orange-400 group-hover:underline">
             Read more →

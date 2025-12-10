@@ -5,7 +5,6 @@ import { PublicFooter } from '@/components/ui/PublicFooter'
 import { MarkdownContent } from '@/components/blog/MarkdownContent'
 import { SocialShare } from '@/components/blog/SocialShare'
 import { RelatedPosts } from '@/components/blog/RelatedPosts'
-import { AuthorBio } from '@/components/blog/AuthorBio'
 import { NewsletterSignup } from '@/components/blog/NewsletterSignup'
 import { getBlogPostBySlug, getRelatedPosts } from '@/data/blog'
 import { 
@@ -59,7 +58,6 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       type: 'article',
       publishedTime: post.publishDate,
       modifiedTime: post.updatedDate || post.publishDate,
-      authors: [post.author.name],
       tags: post.tags,
     },
     twitter: {
@@ -90,10 +88,6 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
     image: getBlogPostImageUrl(post),
     datePublished: post.publishDate,
     dateModified: post.updatedDate || post.publishDate,
-    author: {
-      '@type': 'Person',
-      name: post.author.name,
-    },
     publisher: {
       '@type': 'Organization',
       name: 'DOER',
@@ -136,10 +130,6 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
               </h1>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
-                <div className="flex items-center gap-2">
-                  <span>{post.author.name}</span>
-                </div>
-                <span>•</span>
                 <time dateTime={formatBlogDateISO(post.publishDate)} className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   {formatBlogDate(post.publishDate)}
@@ -182,11 +172,6 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
                 ))}
               </div>
             )}
-
-            {/* Author Bio */}
-            <div className="mb-12">
-              <AuthorBio author={post.author} />
-            </div>
 
             {/* Newsletter CTA */}
             <div className="mb-12">
