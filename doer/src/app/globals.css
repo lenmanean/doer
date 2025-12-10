@@ -3,6 +3,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CRITICAL: Force dark mode on public pages as CSS fallback */
+/* This ensures dark mode even if JavaScript fails or is blocked */
+html:not(.light) {
+  color-scheme: dark;
+}
+
+/* Force dark theme class on body if html doesn't have light class */
+html:not(.light) body {
+  color-scheme: dark;
+}
+
 
 :root {
   /* DOER.AI Dark Theme Colors (Default) */

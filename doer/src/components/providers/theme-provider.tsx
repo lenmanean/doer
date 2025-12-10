@@ -151,25 +151,23 @@ export function ThemeProvider({
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : (pathname || '')
     const isPublic = isPublicRoute(currentPath)
     
-    // On public routes, ensure dark theme is applied (layout.tsx script should have done this)
+    // On public routes, ABSOLUTELY DO NOT TOUCH THEME - layout.tsx script handles it
+    // Just ensure dark theme is maintained if somehow it got removed
     if (isPublic) {
-      // Verify dark theme is applied (layout.tsx script should have done this)
-      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
-                          document.documentElement.classList.contains('light') ? 'light' : null
+      // DO NOT apply any theme changes - just verify dark is there
+      const root = document.documentElement
+      if (!root.classList.contains('dark')) {
+        // Emergency fallback: force dark if somehow missing
+        root.classList.remove('light')
+        root.classList.add('dark')
+        root.style.setProperty('color-scheme', 'dark', 'important')
+      }
       
-      // If no theme is applied (shouldn't happen, but safety check), force dark theme
-      if (!currentTheme || currentTheme !== 'dark') {
-        document.documentElement.classList.remove('dark', 'light')
-        document.documentElement.classList.add('dark')
-        
-        const body = document.body
-        if (body) {
-          body.className = 'font-sans antialiased text-[#d7d2cb]'
-          body.classList.add('dark-theme')
-          body.classList.remove('light-theme')
-          body.style.backgroundColor = ''
-          body.style.color = ''
-        }
+      const body = document.body
+      if (body && !body.classList.contains('dark-theme')) {
+        body.classList.remove('light-theme')
+        body.classList.add('dark-theme')
+        body.style.setProperty('color-scheme', 'dark', 'important')
       }
       
       // Still apply accent color (use default orange for public pages)
@@ -435,22 +433,22 @@ export function ThemeProvider({
   useEffect(() => {
     const isPublic = isPublicRoute(pathname || '')
     
-    // On public routes, ensure dark theme is maintained
+    // On public routes, ABSOLUTELY DO NOT CHANGE THEME - just maintain dark if present
     if (isPublic) {
-      // Ensure dark theme is always applied on public routes
+      // DO NOT apply theme changes - just ensure dark is maintained
       const root = document.documentElement
       if (!root.classList.contains('dark')) {
+        // Emergency fallback only
         root.classList.remove('light')
         root.classList.add('dark')
+        root.style.setProperty('color-scheme', 'dark', 'important')
       }
       
       const body = document.body
       if (body && !body.classList.contains('dark-theme')) {
-        body.className = 'font-sans antialiased text-[#d7d2cb]'
-        body.classList.add('dark-theme')
         body.classList.remove('light-theme')
-        body.style.backgroundColor = ''
-        body.style.color = ''
+        body.classList.add('dark-theme')
+        body.style.setProperty('color-scheme', 'dark', 'important')
       }
       
       // Still apply accent color (use default orange for public pages)

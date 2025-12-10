@@ -146,8 +146,11 @@ export default async function RootLayout({
                       localStorage.removeItem('accentColor'); // Also remove accent color
                     }
                     
-                    // Force dark theme for all public pages
+                    // Force dark theme for all public pages - NO EXCEPTIONS
                     resolvedTheme = 'dark';
+                    
+                    // AGGRESSIVE: Use inline style as backup to ensure dark mode
+                    htmlElement.style.colorScheme = 'dark';
                   } else {
                     // Use user theme for authenticated routes with valid authentication
                     savedTheme = localStorage.getItem('theme');
@@ -184,6 +187,44 @@ export default async function RootLayout({
                   htmlElement.classList.remove('dark', 'light');
                   htmlElement.classList.add(resolvedTheme);
                   
+                  // For public pages, be EXTREMELY aggressive about maintaining dark mode
+                  if (isPublicPage) {
+                    // Use inline style as additional safeguard
+                    htmlElement.style.setProperty('color-scheme', 'dark', 'important');
+                    
+                    // MutationObserver to prevent dark class from being removed
+                    const observer = new MutationObserver(function(mutations) {
+                      mutations.forEach(function(mutation) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                          const target = mutation.target;
+                          if (target === htmlElement && !htmlElement.classList.contains('dark')) {
+                            // Dark class was removed - force it back immediately
+                            htmlElement.classList.remove('light');
+                            htmlElement.classList.add('dark');
+                            htmlElement.style.setProperty('color-scheme', 'dark', 'important');
+                            console.warn('[Theme] Dark class was removed from public page - forcing it back!');
+                          }
+                        }
+                      });
+                    });
+                    
+                    // Start observing
+                    observer.observe(htmlElement, {
+                      attributes: true,
+                      attributeFilter: ['class']
+                    });
+                    
+                    // Also check periodically (defensive)
+                    setInterval(function() {
+                      if (isPublicPage && !htmlElement.classList.contains('dark')) {
+                        htmlElement.classList.remove('light');
+                        htmlElement.classList.add('dark');
+                        htmlElement.style.setProperty('color-scheme', 'dark', 'important');
+                        console.warn('[Theme] Periodic check: Dark class missing on public page - forcing it back!');
+                      }
+                    }, 1000);
+                  }
+                  
                   // Function to apply body classes (body might not exist yet)
                   const applyBodyTheme = function() {
                     const body = document.body;
@@ -209,7 +250,14 @@ export default async function RootLayout({
                       body.style.color = '';
                     }
                     
-                    console.log('[Theme] Body theme applied:', resolvedTheme, 'body classes:', body.className);
+                    // For public pages, be extra aggressive
+                    if (isPublicPage) {
+                      body.classList.remove('light-theme');
+                      body.classList.add('dark-theme');
+                      body.style.setProperty('color-scheme', 'dark', 'important');
+                    }
+                    
+                    console.log('[Theme] Body theme applied:', resolvedTheme, 'body classes:', body.className, 'isPublicPage:', isPublicPage);
                   };
                   
                   // Try to apply immediately, or wait for body to exist
@@ -217,10 +265,26 @@ export default async function RootLayout({
                   
                   // Also ensure theme is applied after a short delay (for mobile browsers that might delay body creation)
                   setTimeout(function() {
-                    htmlElement.classList.remove('dark', 'light');
-                    htmlElement.classList.add(resolvedTheme);
+                    if (isPublicPage) {
+                      htmlElement.classList.remove('dark', 'light');
+                      htmlElement.classList.add('dark');
+                      htmlElement.style.setProperty('color-scheme', 'dark', 'important');
+                    } else {
+                      htmlElement.classList.remove('dark', 'light');
+                      htmlElement.classList.add(resolvedTheme);
+                    }
                     applyBodyTheme();
                   }, 0);
+                  
+                  // Additional delay for mobile (some browsers are slower)
+                  setTimeout(function() {
+                    if (isPublicPage) {
+                      htmlElement.classList.remove('dark', 'light');
+                      htmlElement.classList.add('dark');
+                      htmlElement.style.setProperty('color-scheme', 'dark', 'important');
+                      applyBodyTheme();
+                    }
+                  }, 100);
                   
                 } catch (e) {
                   console.error('[Theme] Error applying theme:', e);
