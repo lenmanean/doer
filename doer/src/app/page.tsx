@@ -977,7 +977,7 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : step.id === 'step2' && isExpanded ? (
-                        <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-orange-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-700 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             src="/doer_tut2.mp4"
