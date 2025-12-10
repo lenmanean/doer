@@ -45,7 +45,7 @@ function CheckoutSuccessContent() {
   const cycleText = billingCycle === 'annual' ? 'Annual' : 'Monthly'
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -65,14 +65,14 @@ function CheckoutSuccessContent() {
               </div>
             </motion.div>
 
-            <h1 className="text-3xl font-bold text-[#d7d2cb] mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Subscription Successful!
             </h1>
 
-            <p className="text-[#d7d2cb]/80 mb-2">
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
               Your plan has been successfully upgraded to
             </p>
-            <p className="text-xl font-semibold text-[#ff7f00] mb-8">
+            <p className="text-lg sm:text-xl font-semibold text-orange-500 dark:text-orange-400 mb-8">
               {planName} - {cycleText}
             </p>
 
@@ -86,7 +86,7 @@ function CheckoutSuccessContent() {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
 
-              <p className="text-sm text-[#d7d2cb]/60">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Redirecting automatically in {countdown} second{countdown !== 1 ? 's' : ''}...
               </p>
             </div>
@@ -100,8 +100,8 @@ function CheckoutSuccessContent() {
 export default function CheckoutSuccessPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <CheckoutSuccessContent />

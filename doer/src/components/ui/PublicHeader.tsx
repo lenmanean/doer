@@ -10,6 +10,7 @@ import { Button } from './Button'
 import { locales, localeNames, type Locale } from '@/i18n/config'
 import { signOutClient } from '@/lib/auth/sign-out-client'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
+import { isPublicRoute } from '@/lib/utils/route-utils'
 
 export function PublicHeader() {
   const t = useTranslations()
@@ -53,15 +54,25 @@ export function PublicHeader() {
       setCurrentLocale(cookieLocale)
     }
 
-    // Get public theme preference
-    const savedTheme = localStorage.getItem('publicTheme')
-    const prefersDark = savedTheme === 'dark' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    setIsDark(prefersDark)
-    applyPublicTheme(prefersDark)
-  }, [])
+    // Only apply public theme if we're on a public route
+    // This ensures public theme doesn't interfere with authenticated pages
+    if (isPublicRoute(pathname || '')) {
+      // Get public theme preference - ALWAYS use publicTheme key, never theme key
+      const savedTheme = localStorage.getItem('publicTheme')
+      const prefersDark = savedTheme === 'dark' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      setIsDark(prefersDark)
+      applyPublicTheme(prefersDark)
+    }
+  }, [pathname])
 
   // Apply theme to document
+  // Only applies on public routes to prevent conflicts with user theme
   const applyPublicTheme = (dark: boolean) => {
+    // Defensive check: only apply on public routes
+    if (!isPublicRoute(pathname || '')) {
+      return
+    }
+    
     const root = document.documentElement
     const body = document.body
     
@@ -80,10 +91,16 @@ export function PublicHeader() {
     }
   }
 
-  // Toggle theme
+  // Toggle theme - only works on public routes
   const toggleTheme = () => {
+    // Defensive check: only allow toggle on public routes
+    if (!isPublicRoute(pathname || '')) {
+      return
+    }
+    
     const newTheme = !isDark
     setIsDark(newTheme)
+    // ONLY write to publicTheme key, never touch 'theme' key
     localStorage.setItem('publicTheme', newTheme ? 'dark' : 'light')
     applyPublicTheme(newTheme)
   }

@@ -1,8 +1,10 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useSupabase } from './supabase-provider'
+import { isAuthenticatedRoute } from '@/lib/utils/route-utils'
 
 export type Theme = 'dark' | 'light' | 'system'
 export type AccentColor = 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple'
@@ -59,12 +61,22 @@ export function ThemeProvider({
   initialPreferences?: InitialThemePreferences
 }) {
   const { user } = useSupabase()
+  const pathname = usePathname()
+  
   // Initialize from localStorage immediately to prevent flash
+  // Only read from localStorage on authenticated routes to prevent stale data conflicts
   const getInitialTheme = (): Theme => {
     if (initialPreferences?.theme && VALID_THEMES.includes(initialPreferences.theme)) {
       return initialPreferences.theme
     }
     if (typeof window === 'undefined') return defaultTheme
+    
+    // Only read from localStorage if on authenticated route
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    if (!isAuthenticated) {
+      return defaultTheme
+    }
+    
     const saved = localStorage.getItem('theme') as Theme
     return (saved && VALID_THEMES.includes(saved)) ? saved : defaultTheme
   }
@@ -74,6 +86,13 @@ export function ThemeProvider({
       return resolveThemeValue(initialPreferences.theme)
     }
     if (typeof window === 'undefined') return resolveThemeValue(defaultTheme)
+    
+    // Only read from localStorage if on authenticated route
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    if (!isAuthenticated) {
+      return resolveThemeValue(defaultTheme)
+    }
+    
     const saved = localStorage.getItem('theme') as Theme
     if (saved && VALID_THEMES.includes(saved)) {
       return resolveThemeValue(saved)
@@ -86,6 +105,13 @@ export function ThemeProvider({
       return initialPreferences.accentColor
     }
     if (typeof window === 'undefined') return 'orange'
+    
+    // Only read from localStorage if on authenticated route
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    if (!isAuthenticated) {
+      return 'orange'
+    }
+    
     const saved = localStorage.getItem('accentColor') as AccentColor
     return (saved && VALID_ACCENT_COLORS.includes(saved)) ? saved : 'orange'
   }
@@ -135,10 +161,17 @@ export function ThemeProvider({
   // Load theme and accent color from user preferences
   const loadUserPreferences = async (userId: string | null) => {
     try {
-      if (!userId) {
-        // No user - clear localStorage and use defaults
-        localStorage.removeItem('theme')
-        localStorage.removeItem('accentColor')
+      // Only load user preferences on authenticated routes
+      const isAuthenticated = isAuthenticatedRoute(pathname || '')
+      
+      if (!userId || !isAuthenticated) {
+        // No user or on public page - clear localStorage and use defaults
+        // Don't write to localStorage on public pages to avoid conflicts
+        if (isAuthenticated) {
+          // Only clear if we're on authenticated route but no user
+          localStorage.removeItem('theme')
+          localStorage.removeItem('accentColor')
+        }
         setTheme(defaultTheme)
         setAccentColorState('orange')
         applyAccentColor('orange')
@@ -169,22 +202,22 @@ export function ThemeProvider({
         // Handle error - if profile doesn't exist (PGRST116), use defaults
         if (profileError) {
           if (profileError.code === 'PGRST116') {
-            // Profile doesn't exist - use defaults
+            // Profile doesn't exist - treat as stale session, clear and use defaults
+            localStorage.removeItem('theme')
+            localStorage.removeItem('accentColor')
             setTheme(defaultTheme)
             setAccentColorState('orange')
             applyAccentColor('orange')
-            localStorage.setItem('theme', defaultTheme)
-            localStorage.setItem('accentColor', 'orange')
             setIsLoading(false)
             return
           } else {
-            // Other error - log and use defaults
-            console.error('Error loading user preferences:', profileError)
+            // Other error - treat as stale session, clear and use defaults
+            console.error('Error loading user preferences (possible stale session):', profileError)
+            localStorage.removeItem('theme')
+            localStorage.removeItem('accentColor')
             setTheme(defaultTheme)
             setAccentColorState('orange')
             applyAccentColor('orange')
-            localStorage.setItem('theme', defaultTheme)
-            localStorage.setItem('accentColor', 'orange')
             setIsLoading(false)
             return
           }
@@ -223,32 +256,58 @@ export function ThemeProvider({
           localStorage.setItem('accentColor', 'orange')
         }
       } catch (error) {
-        // Error loading preferences - use defaults
-        console.warn('Error loading preferences, using defaults:', error)
+        // Error loading preferences - treat as stale session, clear and use defaults
+        console.warn('Error loading preferences (possible stale session), clearing and using defaults:', error)
+        localStorage.removeItem('theme')
+        localStorage.removeItem('accentColor')
         setTheme(defaultTheme)
         setAccentColorState('orange')
         applyAccentColor('orange')
-        localStorage.setItem('theme', defaultTheme)
-        localStorage.setItem('accentColor', 'orange')
       }
       
       // Always set loading to false
       setIsLoading(false)
     } catch (error) {
       console.error('Error in loadUserPreferences:', error)
-      // On error, use defaults and ensure loading is cleared
+      // On error, clear localStorage and use defaults
+      localStorage.removeItem('theme')
+      localStorage.removeItem('accentColor')
       setTheme(defaultTheme)
       setAccentColorState('orange')
       applyAccentColor('orange')
-      localStorage.setItem('theme', defaultTheme)
-      localStorage.setItem('accentColor', 'orange')
       setIsLoading(false)
     }
   }
 
+  // Cleanup: Clear user theme localStorage when navigating to public pages or logging out
+  useEffect(() => {
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    
+    // If we're on a public page, clear user theme localStorage to prevent conflicts
+    if (!isAuthenticated) {
+      localStorage.removeItem('theme')
+      localStorage.removeItem('accentColor')
+    }
+    
+    // If user logs out (was authenticated, now null), clear user theme localStorage
+    if (!user && isAuthenticated) {
+      localStorage.removeItem('theme')
+      localStorage.removeItem('accentColor')
+    }
+  }, [pathname, user])
+
   // Load preferences on mount and when user changes
   useEffect(() => {
-    // First, check localStorage synchronously to avoid flash
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    
+    // Only load user preferences on authenticated routes
+    if (!isAuthenticated) {
+      // On public pages, don't load or apply user preferences
+      setIsLoading(false)
+      return
+    }
+    
+    // First, check localStorage synchronously to avoid flash (only on authenticated routes)
     const savedTheme = localStorage.getItem('theme') as Theme
     const savedAccentColor = localStorage.getItem('accentColor') as AccentColor
     
@@ -300,8 +359,11 @@ export function ThemeProvider({
 
       setTheme(serverTheme)
       setAccentColorState(serverAccent)
-      localStorage.setItem('theme', serverTheme)
-      localStorage.setItem('accentColor', serverAccent)
+      // Only write to localStorage on authenticated routes
+      if (isAuthenticated) {
+        localStorage.setItem('theme', serverTheme)
+        localStorage.setItem('accentColor', serverAccent)
+      }
       applyAccentColor(serverAccent)
       setIsLoading(false)
       return
@@ -314,6 +376,7 @@ export function ThemeProvider({
 
     checkUserAndLoad()
   }, [
+    pathname,
     user?.id,
     initialPreferences?.userId,
     initialPreferences?.theme,
@@ -398,66 +461,82 @@ export function ThemeProvider({
   }, [accentColor, isLoading, resolvedTheme])
 
   const handleSetTheme = (newTheme: Theme) => {
-    setTheme(newTheme)
-    localStorage.setItem('theme', newTheme)
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
     
-    // Save to database if user is logged in
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (user) {
-        try {
-          const { data: profile } = await supabase
-            .from('user_settings')
-            .select('preferences')
-            .eq('user_id', user.id)
-            .single()
-          
-          const currentPrefs = (profile?.preferences || {}) as any
-          await supabase
-            .from('user_settings')
-            .upsert({
-              user_id: user.id,
-              preferences: { ...currentPrefs, theme: newTheme },
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id'
-            })
-        } catch (error) {
-          console.error('Error saving theme:', error)
+    setTheme(newTheme)
+    
+    // Only write to localStorage on authenticated routes
+    if (isAuthenticated) {
+      localStorage.setItem('theme', newTheme)
+    }
+    
+    // Save to database if user is logged in and on authenticated route
+    if (isAuthenticated) {
+      supabase.auth.getUser().then(async ({ data: { user } }) => {
+        if (user) {
+          try {
+            const { data: profile } = await supabase
+              .from('user_settings')
+              .select('preferences')
+              .eq('user_id', user.id)
+              .single()
+            
+            const currentPrefs = (profile?.preferences || {}) as any
+            await supabase
+              .from('user_settings')
+              .upsert({
+                user_id: user.id,
+                preferences: { ...currentPrefs, theme: newTheme },
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id'
+              })
+          } catch (error) {
+            console.error('Error saving theme:', error)
+          }
         }
-      }
-    })
+      })
+    }
   }
 
   const handleSetAccentColor = (color: AccentColor) => {
+    const isAuthenticated = isAuthenticatedRoute(pathname || '')
+    
     setAccentColorState(color)
-    localStorage.setItem('accentColor', color)
     applyAccentColor(color)
     
-    // Save to database if user is logged in
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (user) {
-        try {
-          const { data: profile } = await supabase
-            .from('user_settings')
-            .select('preferences')
-            .eq('user_id', user.id)
-            .single()
-          
-          const currentPrefs = (profile?.preferences || {}) as any
-          await supabase
-            .from('user_settings')
-            .upsert({
-              user_id: user.id,
-              preferences: { ...currentPrefs, accent_color: color },
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id'
-            })
-        } catch (error) {
-          console.error('Error saving accent color:', error)
+    // Only write to localStorage on authenticated routes
+    if (isAuthenticated) {
+      localStorage.setItem('accentColor', color)
+    }
+    
+    // Save to database if user is logged in and on authenticated route
+    if (isAuthenticated) {
+      supabase.auth.getUser().then(async ({ data: { user } }) => {
+        if (user) {
+          try {
+            const { data: profile } = await supabase
+              .from('user_settings')
+              .select('preferences')
+              .eq('user_id', user.id)
+              .single()
+            
+            const currentPrefs = (profile?.preferences || {}) as any
+            await supabase
+              .from('user_settings')
+              .upsert({
+                user_id: user.id,
+                preferences: { ...currentPrefs, accent_color: color },
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id'
+              })
+          } catch (error) {
+            console.error('Error saving accent color:', error)
+          }
         }
-      }
-    })
+      })
+    }
   }
 
   return (

@@ -106,8 +106,16 @@ export default async function RootLayout({
     }
   }
   
+  // Determine if user is authenticated for script
+  const isAuthenticated = Boolean(initialUser)
+  
   return (
-    <html lang={locale} className={`${inter.variable}`} suppressHydrationWarning>
+    <html 
+      lang={locale} 
+      className={`${inter.variable}`} 
+      suppressHydrationWarning
+      data-is-authenticated={isAuthenticated ? 'true' : 'false'}
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -116,17 +124,26 @@ export default async function RootLayout({
                 try {
                   // Check if we're on a public page (not dashboard, schedule, settings)
                   const path = window.location.pathname;
-                  const isPublicPage = !path.includes('/dashboard') && !path.includes('/schedule') && !path.includes('/settings') && !path.includes('/onboarding');
+                  const isAuthenticatedRoute = path.includes('/dashboard') || path.includes('/schedule') || path.includes('/settings') || path.includes('/onboarding');
+                  
+                  // Check authentication state from data attribute (server-rendered)
+                  const htmlElement = document.documentElement;
+                  const serverAuthState = htmlElement.getAttribute('data-is-authenticated') === 'true';
+                  
+                  // Determine if this is truly a public page
+                  // Must be: not an authenticated route AND not authenticated
+                  const isPublicPage = !isAuthenticatedRoute || !serverAuthState;
                   
                   let savedTheme, resolvedTheme;
                   
                   if (isPublicPage) {
-                    // Use public theme for public pages
+                    // Use public theme for public pages - ALWAYS ignore 'theme' key
+                    // This prevents stale user theme data from overriding public theme
                     savedTheme = localStorage.getItem('publicTheme');
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                     resolvedTheme = savedTheme === 'light' ? 'light' : (savedTheme === 'dark' ? 'dark' : (prefersDark ? 'dark' : 'light'));
                   } else {
-                    // Use user theme for logged-in pages
+                    // Use user theme for authenticated routes with valid authentication
                     savedTheme = localStorage.getItem('theme');
                     const savedAccentColor = localStorage.getItem('accentColor');
                     
