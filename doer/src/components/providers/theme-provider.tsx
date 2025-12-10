@@ -93,28 +93,11 @@ export function ThemeProvider({
     const isPublic = isPublicRoute(currentPath)
     
     if (isPublic) {
-      // On public routes, check publicTheme in localStorage
-      // The layout.tsx script already applied the theme, so we should respect what's already on the document
-      // Check what theme is currently applied to avoid conflicts
+      // Public routes always use dark theme
+      // The layout.tsx script already applied dark theme, so respect what's on the document
       const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
                           document.documentElement.classList.contains('light') ? 'light' : null
-      
-      if (currentTheme) {
-        // Respect the theme already applied by layout.tsx script
-        return currentTheme
-      }
-      
-      // Fallback: check localStorage if script hasn't run yet
-      const publicTheme = localStorage.getItem('publicTheme')
-      if (publicTheme === 'dark') {
-        return 'dark'
-      } else if (publicTheme === 'light') {
-        return 'light'
-      } else {
-        // 'system' or null - use system preference
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        return systemPrefersDark ? 'dark' : 'light'
-      }
+      return currentTheme || 'dark'
     }
     
     // Only read from localStorage if on authenticated route
@@ -168,33 +151,24 @@ export function ThemeProvider({
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : (pathname || '')
     const isPublic = isPublicRoute(currentPath)
     
-    // On public routes, don't apply theme here - let layout.tsx script and PublicHeader handle it
-    // The layout.tsx script already applied the public theme before React hydration
+    // On public routes, ensure dark theme is applied (layout.tsx script should have done this)
     if (isPublic) {
-      // Verify the theme is correctly applied (layout.tsx script should have done this)
+      // Verify dark theme is applied (layout.tsx script should have done this)
       const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 
                           document.documentElement.classList.contains('light') ? 'light' : null
       
-      // If no theme is applied (shouldn't happen, but safety check), apply based on publicTheme
-      if (!currentTheme) {
-        const publicTheme = localStorage.getItem('publicTheme')
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        const resolvedTheme = publicTheme === 'dark' ? 'dark' : 
-                             publicTheme === 'light' ? 'light' : 
-                             (systemPrefersDark ? 'dark' : 'light')
-        
+      // If no theme is applied (shouldn't happen, but safety check), force dark theme
+      if (!currentTheme || currentTheme !== 'dark') {
         document.documentElement.classList.remove('dark', 'light')
-        document.documentElement.classList.add(resolvedTheme)
+        document.documentElement.classList.add('dark')
         
         const body = document.body
-        if (resolvedTheme === 'light') {
-          body.className = 'font-sans antialiased text-gray-900'
-          body.classList.add('light-theme')
-          body.classList.remove('dark-theme')
-        } else {
+        if (body) {
           body.className = 'font-sans antialiased text-[#d7d2cb]'
           body.classList.add('dark-theme')
           body.classList.remove('light-theme')
+          body.style.backgroundColor = ''
+          body.style.color = ''
         }
       }
       
@@ -461,8 +435,24 @@ export function ThemeProvider({
   useEffect(() => {
     const isPublic = isPublicRoute(pathname || '')
     
-    // On public routes, don't apply theme here - let PublicHeader handle it
+    // On public routes, ensure dark theme is maintained
     if (isPublic) {
+      // Ensure dark theme is always applied on public routes
+      const root = document.documentElement
+      if (!root.classList.contains('dark')) {
+        root.classList.remove('light')
+        root.classList.add('dark')
+      }
+      
+      const body = document.body
+      if (body && !body.classList.contains('dark-theme')) {
+        body.className = 'font-sans antialiased text-[#d7d2cb]'
+        body.classList.add('dark-theme')
+        body.classList.remove('light-theme')
+        body.style.backgroundColor = ''
+        body.style.color = ''
+      }
+      
       // Still apply accent color (use default orange for public pages)
       applyAccentColor('orange')
       return

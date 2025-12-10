@@ -133,8 +133,9 @@ export default async function RootLayout({
                   let savedTheme, resolvedTheme;
                   
                   if (isPublicPage) {
-                    // Use public theme for public pages - ALWAYS ignore 'theme' key
-                    // This prevents stale user theme data from overriding public theme
+                    // Public pages always use dark theme
+                    // Clear any publicTheme from localStorage to prevent conflicts
+                    localStorage.removeItem('publicTheme');
                     
                     // CRITICAL: Remove old 'theme' key if it exists to prevent conflicts
                     // This handles cases where users had accounts before public theme was implemented
@@ -145,23 +146,8 @@ export default async function RootLayout({
                       localStorage.removeItem('accentColor'); // Also remove accent color
                     }
                     
-                    savedTheme = localStorage.getItem('publicTheme');
-                    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    
-                    // Debug logging for mobile troubleshooting
-                    console.log('[Theme] Public page detected. publicTheme:', savedTheme, 'systemPrefersDark:', systemPrefersDark);
-                    
-                    // Handle 'system', 'light', 'dark', or null (defaults to system)
-                    if (savedTheme === 'dark') {
-                      resolvedTheme = 'dark';
-                    } else if (savedTheme === 'light') {
-                      resolvedTheme = 'light';
-                    } else {
-                      // 'system' or null - use system preference
-                      resolvedTheme = systemPrefersDark ? 'dark' : 'light';
-                    }
-                    
-                    console.log('[Theme] Resolved theme for public page:', resolvedTheme);
+                    // Force dark theme for all public pages
+                    resolvedTheme = 'dark';
                   } else {
                     // Use user theme for authenticated routes with valid authentication
                     savedTheme = localStorage.getItem('theme');
