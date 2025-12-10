@@ -147,6 +147,10 @@ export default async function RootLayout({
                     
                     savedTheme = localStorage.getItem('publicTheme');
                     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    
+                    // Debug logging for mobile troubleshooting
+                    console.log('[Theme] Public page detected. publicTheme:', savedTheme, 'systemPrefersDark:', systemPrefersDark);
+                    
                     // Explicit preference takes precedence, then system preference, default to light
                     if (savedTheme === 'dark') {
                       resolvedTheme = 'dark';
@@ -156,6 +160,8 @@ export default async function RootLayout({
                       // No saved preference, use system preference
                       resolvedTheme = systemPrefersDark ? 'dark' : 'light';
                     }
+                    
+                    console.log('[Theme] Resolved theme for public page:', resolvedTheme);
                   } else {
                     // Use user theme for authenticated routes with valid authentication
                     savedTheme = localStorage.getItem('theme');
@@ -188,28 +194,57 @@ export default async function RootLayout({
                     document.documentElement.style.setProperty('--ring', accentColor);
                   }
                   
-                  // Apply theme class immediately
-                  document.documentElement.classList.remove('dark', 'light');
-                  document.documentElement.classList.add(resolvedTheme);
+                  // Apply theme class immediately to html element
+                  htmlElement.classList.remove('dark', 'light');
+                  htmlElement.classList.add(resolvedTheme);
                   
-                  // Apply body classes - don't set background color on body, let pages handle it
-                  const body = document.body;
-                  if (resolvedTheme === 'light') {
-                    body.className = 'font-sans antialiased text-gray-900';
-                    body.classList.add('light-theme');
-                    body.classList.remove('dark-theme');
-                    body.style.backgroundColor = '';
-                    body.style.color = '';
-                  } else {
-                    body.className = 'font-sans antialiased text-[#d7d2cb]';
-                    body.classList.add('dark-theme');
-                    body.classList.remove('light-theme');
-                    body.style.backgroundColor = '';
-                    body.style.color = '';
-                  }
+                  // Function to apply body classes (body might not exist yet)
+                  const applyBodyTheme = function() {
+                    const body = document.body;
+                    if (!body) {
+                      // Body doesn't exist yet, wait for DOMContentLoaded
+                      if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', applyBodyTheme);
+                        return;
+                      }
+                    }
+                    
+                    if (resolvedTheme === 'light') {
+                      body.className = 'font-sans antialiased text-gray-900';
+                      body.classList.add('light-theme');
+                      body.classList.remove('dark-theme');
+                      body.style.backgroundColor = '';
+                      body.style.color = '';
+                    } else {
+                      body.className = 'font-sans antialiased text-[#d7d2cb]';
+                      body.classList.add('dark-theme');
+                      body.classList.remove('light-theme');
+                      body.style.backgroundColor = '';
+                      body.style.color = '';
+                    }
+                    
+                    console.log('[Theme] Body theme applied:', resolvedTheme, 'body classes:', body.className);
+                  };
+                  
+                  // Try to apply immediately, or wait for body to exist
+                  applyBodyTheme();
+                  
+                  // Also ensure theme is applied after a short delay (for mobile browsers that might delay body creation)
+                  setTimeout(function() {
+                    htmlElement.classList.remove('dark', 'light');
+                    htmlElement.classList.add(resolvedTheme);
+                    applyBodyTheme();
+                  }, 0);
+                  
                 } catch (e) {
+                  console.error('[Theme] Error applying theme:', e);
                   // Fallback to dark theme if there's an error
+                  document.documentElement.classList.remove('dark', 'light');
                   document.documentElement.classList.add('dark');
+                  if (document.body) {
+                    document.body.classList.add('dark-theme');
+                    document.body.classList.remove('light-theme');
+                  }
                 }
               })();
             `,
