@@ -17,6 +17,19 @@ export default function ChangelogPage() {
     )
   }, [])
 
+  // Helper function for translations with fallbacks
+  const getTranslation = (key: string, fallback: string) => {
+    try {
+      const translated = t(key)
+      return translated === key ? fallback : translated
+    } catch {
+      return fallback
+    }
+  }
+
+  const changelogTitle = getTranslation('changelog.title', 'Changelog')
+  const changelogDescription = getTranslation('changelog.description', 'See the latest updates, new features, and improvements.')
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col transition-colors">
       <PublicHeader />
@@ -31,10 +44,10 @@ export default function ChangelogPage() {
               </span>
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-              {t('changelog.title')}
+              {changelogTitle}
             </h1>
             <p className="text-xl text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
-              {t('changelog.description')}
+              {changelogDescription}
             </p>
           </div>
 

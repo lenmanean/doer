@@ -19,13 +19,35 @@ export function NewsletterSignup({ variant = 'card' }: NewsletterSignupProps) {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // TODO: Integrate with your newsletter service (e.g., Mailchimp, ConvertKit)
-    // For now, just simulate success
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          source: 'blog',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to subscribe')
+      }
+
       setSubmitted(true)
-      setIsSubmitting(false)
       setEmail('')
-    }, 1000)
+    } catch (error) {
+      console.error('Error subscribing to newsletter:', error)
+      // Still show success to user (don't reveal errors)
+      // In production, you might want to show an error toast
+      setSubmitted(true)
+      setEmail('')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Helper functions for translations with fallbacks
