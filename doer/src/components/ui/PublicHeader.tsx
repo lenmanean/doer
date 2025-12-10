@@ -57,6 +57,15 @@ export function PublicHeader() {
     // Only apply public theme if we're on a public route
     // This ensures public theme doesn't interfere with authenticated pages
     if (isPublicRoute(pathname || '')) {
+      // CRITICAL: Remove old 'theme' key if it exists to prevent conflicts
+      // This handles cases where users had accounts before public theme was implemented
+      const oldTheme = localStorage.getItem('theme')
+      if (oldTheme) {
+        console.log('[PublicHeader] Removing stale user theme from localStorage:', oldTheme)
+        localStorage.removeItem('theme')
+        localStorage.removeItem('accentColor') // Also remove accent color
+      }
+      
       // Get public theme preference - ALWAYS use publicTheme key, never theme key
       const savedTheme = localStorage.getItem('publicTheme')
       // Check system preference if no saved theme

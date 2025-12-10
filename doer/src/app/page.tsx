@@ -362,13 +362,13 @@ export default function Home() {
               <ul className="space-y-4 flex-grow">
                 {/* Basic capabilities - normal text (available without DOER) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100">
+                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100 font-medium">
                     {feature}
                   </li>
                 ))}
                 {/* DOER-exclusive features - greyed out (not available without DOER) */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-400 dark:text-gray-600">
+                  <li key={`exclusive-${index}`} className="text-gray-500 dark:text-gray-600">
                     {feature}
                   </li>
                 ))}
@@ -388,13 +388,13 @@ export default function Home() {
               <ul className="space-y-3 flex-grow mb-4">
                 {/* Basic capabilities - greyed out (less emphasis, available everywhere) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-400 dark:text-gray-500 text-base">
+                  <li key={`basic-${index}`} className="text-gray-500 dark:text-gray-500 text-base">
                     {feature}
                   </li>
                 ))}
                 {/* DOER-exclusive features - bold, darker, highlighted (the value proposition) */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-900 dark:text-gray-100 font-semibold text-base">
+                  <li key={`exclusive-${index}`} className="text-gray-900 dark:text-gray-100 font-bold text-base">
                     {feature}
                   </li>
                 ))}

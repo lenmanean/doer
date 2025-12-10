@@ -135,6 +135,16 @@ export default async function RootLayout({
                   if (isPublicPage) {
                     // Use public theme for public pages - ALWAYS ignore 'theme' key
                     // This prevents stale user theme data from overriding public theme
+                    
+                    // CRITICAL: Remove old 'theme' key if it exists to prevent conflicts
+                    // This handles cases where users had accounts before public theme was implemented
+                    const oldTheme = localStorage.getItem('theme');
+                    if (oldTheme) {
+                      console.log('[Theme] Removing stale user theme from localStorage:', oldTheme);
+                      localStorage.removeItem('theme');
+                      localStorage.removeItem('accentColor'); // Also remove accent color
+                    }
+                    
                     savedTheme = localStorage.getItem('publicTheme');
                     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                     // Explicit preference takes precedence, then system preference, default to light
