@@ -130,23 +130,30 @@ export default async function RootLayout({
                   // Must be: not an authenticated route AND not authenticated
                   const isPublicPage = !isAuthenticatedRoute && !serverAuthState;
                   
+                  // AGGRESSIVE CLEANUP: Clear ALL stale theme data from localStorage on EVERY site visit
+                  // This ensures mobile devices don't have any cached theme preferences
+                  // ALWAYS clear publicTheme (we removed public theme implementation)
+                  localStorage.removeItem('publicTheme');
+                  sessionStorage.removeItem('publicTheme');
+                  
+                  // On public pages, also clear user theme keys (they shouldn't exist on public pages)
+                  // This handles cases where users had accounts before and deleted them
+                  if (isPublicPage) {
+                    const oldTheme = localStorage.getItem('theme');
+                    const oldAccentColor = localStorage.getItem('accentColor');
+                    if (oldTheme || oldAccentColor) {
+                      console.log('[Theme] Removing stale user theme data from localStorage on public page:', { theme: oldTheme, accentColor: oldAccentColor });
+                      localStorage.removeItem('theme');
+                      localStorage.removeItem('accentColor');
+                      sessionStorage.removeItem('theme');
+                      sessionStorage.removeItem('accentColor');
+                    }
+                  }
+                  
                   let savedTheme, resolvedTheme;
                   
                   if (isPublicPage) {
-                    // Public pages always use dark theme
-                    // Clear any publicTheme from localStorage to prevent conflicts
-                    localStorage.removeItem('publicTheme');
-                    
-                    // CRITICAL: Remove old 'theme' key if it exists to prevent conflicts
-                    // This handles cases where users had accounts before public theme was implemented
-                    const oldTheme = localStorage.getItem('theme');
-                    if (oldTheme) {
-                      console.log('[Theme] Removing stale user theme from localStorage:', oldTheme);
-                      localStorage.removeItem('theme');
-                      localStorage.removeItem('accentColor'); // Also remove accent color
-                    }
-                    
-                    // Force dark theme for all public pages - NO EXCEPTIONS
+                    // Public pages always use dark theme - NO EXCEPTIONS
                     resolvedTheme = 'dark';
                     
                     // AGGRESSIVE: Use inline style as backup to ensure dark mode
