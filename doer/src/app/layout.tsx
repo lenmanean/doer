@@ -27,15 +27,6 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "DOER - AI-Powered Goal Achievement Platform",
   description: "Transform your goals into reality with AI-powered plans, progress tracking, and intelligent planning designed for achievers.",
-  icons: {
-    icon: [
-      { url: '/icon.png', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/icon.png', type: 'image/png' },
-    ],
-    shortcut: '/icon.png',
-  },
   viewport: {
     width: 'device-width',
     initialScale: 1,
