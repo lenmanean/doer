@@ -200,7 +200,7 @@ export function PublicHeader() {
   }
 
   return (
-    <header className="w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 px-4 sm:px-6 lg:px-8 py-4 z-50 sticky top-0 relative">
+    <header className="w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 px-4 sm:px-6 lg:px-8 py-4 z-50 sticky top-0 relative overflow-x-hidden">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center flex-shrink-0">
@@ -221,11 +221,11 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {productOpen && (
-              <div className="absolute top-full left-0 pt-2 w-48">
+              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/features"
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white dark:hover:bg-gray-700 transition-colors"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white dark:hover:bg-gray-700 transition-colors min-h-[44px] flex items-center"
                 >
                   {t('header.features')}
                 </Link>
@@ -267,7 +267,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {resourcesOpen && (
-              <div className="absolute top-full left-0 pt-2 w-48">
+              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/documentation"
@@ -306,7 +306,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {solutionsOpen && (
-              <div className="absolute top-full left-0 pt-2 w-56">
+              <div className="absolute top-full left-0 pt-2 w-56 max-w-[calc(100vw-2rem)]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/solutions/teams"
@@ -357,7 +357,7 @@ export function PublicHeader() {
               <Languages className="w-5 h-5" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50 max-w-[calc(100vw-2rem)]">
                 {locales.map((locale) => (
                   <button
                     key={locale}
@@ -459,7 +459,7 @@ export function PublicHeader() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="md:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target min-h-[44px] min-w-[44px]"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -469,34 +469,34 @@ export function PublicHeader() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col space-y-2 pt-4">
-            <div className="px-4 py-2">
+        <div className="md:hidden mt-4 pb-4 border-t border-gray-200 dark:border-gray-700 overflow-x-hidden">
+          <div className="flex flex-col space-y-3 pt-4">
+              <div className="px-4 py-2">
               <div className="font-medium text-gray-900 dark:text-white mb-2">{t('header.product')}</div>
               <div className="flex flex-col space-y-1 ml-4">
-                <Link href="/features" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.features')}</Link>
+                <Link href="/features" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.features')}</Link>
                 {/* Pricing link hidden until launch */}
                 {!IS_PRE_LAUNCH && (
-                  <Link href="/pricing" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.pricing')}</Link>
+                  <Link href="/pricing" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.pricing')}</Link>
                 )}
-                <Link href="/features/integrations" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.integrations')}</Link>
-                <Link href="/changelog" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.changelog')}</Link>
+                <Link href="/features/integrations" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.integrations')}</Link>
+                <Link href="/changelog" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.changelog')}</Link>
               </div>
             </div>
             <div className="px-4 py-2">
               <div className="font-medium text-gray-900 dark:text-white mb-2">{t('header.resources')}</div>
               <div className="flex flex-col space-y-1 ml-4">
-                <Link href="/documentation" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.documentation')}</Link>
-                <a href="https://discord.gg/JfPXMjCzbN" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.community')}</a>
-                <Link href="/blog" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.blog')}</Link>
+                <Link href="/documentation" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.documentation')}</Link>
+                <a href="https://discord.gg/JfPXMjCzbN" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.community')}</a>
+                <Link href="/blog" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.blog')}</Link>
               </div>
             </div>
             <div className="px-4 py-2">
               <div className="font-medium text-gray-900 dark:text-white mb-2">{t('header.solutions')}</div>
               <div className="flex flex-col space-y-1 ml-4">
-                <Link href="/solutions/teams" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.forTeams')}</Link>
-                <Link href="/solutions/coaches" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.forCoaches')}</Link>
-                <Link href="/solutions/educators" className="text-sm text-gray-700 dark:text-gray-300 py-1">{t('header.forEducators')}</Link>
+                <Link href="/solutions/teams" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.forTeams')}</Link>
+                <Link href="/solutions/coaches" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.forCoaches')}</Link>
+                <Link href="/solutions/educators" className="text-sm text-gray-700 dark:text-gray-300 py-2 min-h-[44px] flex items-center">{t('header.forEducators')}</Link>
               </div>
             </div>
             {!user ? (

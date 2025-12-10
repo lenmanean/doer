@@ -115,7 +115,7 @@ export default function Home() {
   const pricingDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col overflow-x-hidden">
       {/* Launch Countdown Banner - Pre-launch only */}
       {IS_PRE_LAUNCH && <LaunchCountdownBanner />}
       <PublicHeader />
@@ -126,13 +126,13 @@ export default function Home() {
           <div className="text-center mb-12">
             <h1
               ref={heroHeadlineAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-6xl md:text-7xl font-bold text-gray-900 dark:text-white mb-8 leading-tight scroll-animate-fade-up ${heroHeadlineAnim.isVisible ? 'visible' : ''}`}
+              className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white mb-8 leading-tight scroll-animate-fade-up ${heroHeadlineAnim.isVisible ? 'visible' : ''}`}
             >
               {t('hero.headline')}
             </h1>
             <p
               ref={heroSubheadlineAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-2xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed scroll-animate-fade-up ${heroSubheadlineAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed scroll-animate-fade-up ${heroSubheadlineAnim.isVisible ? 'visible' : ''}`}
             >
               {t('hero.subheadline')}
             </p>
@@ -167,7 +167,7 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2
               ref={featureTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${featureTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${featureTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('features.title')}
             </h2>
@@ -207,13 +207,13 @@ export default function Home() {
           <div className="max-w-5xl mx-auto text-center mb-16">
             <h2
               ref={integrationsTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${integrationsTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${integrationsTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('integrations.title')}
             </h2>
             <p
               ref={integrationsDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${integrationsDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${integrationsDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('integrations.description')}
             </p>
@@ -226,7 +226,7 @@ export default function Home() {
           className={`mt-12 overflow-hidden scroll-animate-fade-up ${integrationsCarouselAnim.isVisible ? 'visible' : ''}`}
         >
           {/* Scrolling container */}
-          <div className="flex animate-scroll gap-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex animate-scroll gap-8 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-hide">
             {[
               { name: 'Google Calendar', Icon: SiGooglecalendar },
               { name: 'Outlook', Icon: MdEmail },
@@ -245,7 +245,7 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`${integration.name}-${index}`}
-                className="flex-shrink-0 w-32 h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
               >
                 <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
                   <integration.Icon className="w-full h-full" />
@@ -331,13 +331,13 @@ export default function Home() {
           <div className="max-w-5xl mx-auto text-center mb-16">
             <h2
               ref={comparisonTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${comparisonTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${comparisonTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('comparison.title')}
             </h2>
             <p
               ref={comparisonDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${comparisonDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${comparisonDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('comparison.description')}
             </p>
@@ -415,13 +415,13 @@ export default function Home() {
           <div className="max-w-5xl mx-auto text-center mb-16">
             <h2 
               ref={testimonialsTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${testimonialsTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${testimonialsTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('testimonials.title')}
             </h2>
             <p 
               ref={testimonialsDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${testimonialsDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${testimonialsDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('testimonials.description')}
             </p>
@@ -433,7 +433,7 @@ export default function Home() {
           ref={testimonialsCarouselAnim.ref as React.RefObject<HTMLDivElement>}
           className={`mt-12 overflow-hidden scroll-animate-fade-up ${testimonialsCarouselAnim.isVisible ? 'visible' : ''}`}
         >
-          <div className="flex animate-scroll-reverse gap-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex animate-scroll-reverse gap-8 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-hide">
               {[
                 {
                   name: 'Sarah Chen',
@@ -486,7 +486,7 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`${testimonial.handle}-${index}`}
-                  className="flex-shrink-0 w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                   <div className="flex items-start gap-3">
                     <div className="text-4xl">{testimonial.avatar}</div>
@@ -560,7 +560,7 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`duplicate-${testimonial.handle}-${index}`}
-                  className="flex-shrink-0 w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                   <div className="flex items-start gap-3">
                     <div className="text-4xl">{testimonial.avatar}</div>
@@ -634,7 +634,7 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`duplicate-2-${testimonial.handle}-${index}`}
-                  className="flex-shrink-0 w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                   <div className="flex items-start gap-3">
                     <div className="text-4xl">{testimonial.avatar}</div>

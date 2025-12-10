@@ -188,10 +188,10 @@ export default function PricingPage() {
       
       <main className="flex-1 py-20 px-4 sm:px-6 lg:px-12 bg-white dark:bg-gray-900 transition-colors">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">
             {t('pages.pricing.title')}
           </h1>
-          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-3xl mx-auto">
             {t('pages.pricing.description')}
           </p>
         </div>
@@ -205,7 +205,7 @@ export default function PricingPage() {
               <button
                 type="button"
                 onClick={() => setBillingCycle('monthly')}
-                className={`rounded-full px-4 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
+                className={`rounded-full px-4 py-2 min-h-[44px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
                   billingCycle === 'monthly'
                     ? 'bg-orange-500 text-white shadow-sm dark:bg-orange-400 dark:text-slate-950'
                     : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70'
@@ -216,7 +216,7 @@ export default function PricingPage() {
               <button
                 type="button"
                 onClick={() => setBillingCycle('annual')}
-                className={`rounded-full px-4 py-1 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
+                className={`rounded-full px-4 py-2 min-h-[44px] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
                   billingCycle === 'annual'
                     ? 'bg-orange-500 text-white dark:bg-orange-400 dark:text-slate-950 glow-animated'
                     : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70 glow-animated-subtle'
@@ -231,7 +231,7 @@ export default function PricingPage() {
             {plans.map((plan) => (
               <div
                 key={plan.id}
-                className={`relative flex h-full flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900 ${
+                className={`relative flex h-full flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900 ${
                   plan.emphasis
                     ? 'ring-2 ring-slate-900/10 dark:ring-white/10'
                     : ''
@@ -260,7 +260,7 @@ export default function PricingPage() {
                           </span>
                         </div>
                       )}
-                      <p className="text-4xl font-bold text-slate-900 dark:text-slate-100">
+                      <p className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100">
                         {plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price}
                         <span className="text-base font-medium text-slate-500 dark:text-slate-400">
                           {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
@@ -336,7 +336,7 @@ export default function PricingPage() {
           </div>
 
           <div className="mx-auto max-w-3xl">
-            <div className="relative flex h-full flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900">
+            <div className="relative flex h-full flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 text-center shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900">
               <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {customPlan.name}
               </p>

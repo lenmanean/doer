@@ -133,7 +133,7 @@ function CustomLoginForm() {
       {/* Email/Password Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="usernameOrEmail" className="block text-sm font-medium text-[#d7d2cb]">
+          <label htmlFor="usernameOrEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Username or Email
           </label>
           <div className="mt-1 relative">
@@ -144,17 +144,17 @@ function CustomLoginForm() {
               required
               value={usernameOrEmail}
               onChange={(e) => setUsernameOrEmail(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
               placeholder="Enter your username or email"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-[#d7d2cb]/60" />
+              <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
           </div>
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-[#d7d2cb]">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Password
           </label>
           <div className="mt-1 relative">
@@ -165,21 +165,21 @@ function CustomLoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
               placeholder="Enter your password"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-[#d7d2cb]/60" />
+              <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <button
               type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center min-h-[44px] min-w-[44px]"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
-                <EyeOff className="h-5 w-5 text-[#d7d2cb]/60" />
+                <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               ) : (
-                <Eye className="h-5 w-5 text-[#d7d2cb]/60" />
+                <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               )}
             </button>
           </div>
@@ -190,7 +190,7 @@ function CustomLoginForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-[#ff7f00] hover:bg-[#e67300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff7f00] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-[#ff7f00]/25"
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-orange-500/25 min-h-[44px]"
           >
             {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
@@ -199,11 +199,11 @@ function CustomLoginForm() {
 
       {/* Sign Up Link */}
       <div className="text-center">
-        <div className="text-sm text-[#d7d2cb]/70">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           Don't have an account?{' '}
           <a
             href="/auth/signup"
-            className="text-[#ff7f00] hover:text-[#ff9500] transition-colors duration-300 font-medium"
+            className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-colors duration-300 font-medium min-h-[44px] inline-flex items-center"
           >
             Create one here
           </a>
@@ -216,7 +216,7 @@ function CustomLoginForm() {
           <div className="w-full border-t border-white/20" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-[#0a0a0a] text-[#d7d2cb]/60">Or continue with</span>
+          <span className="px-2 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400">Or continue with</span>
         </div>
       </div>
 
@@ -224,7 +224,7 @@ function CustomLoginForm() {
       <div>
         <button
           onClick={handleGoogleSignIn}
-          className="w-full inline-flex justify-center py-3 px-4 border border-white/20 rounded-xl shadow-sm bg-white/5 backdrop-blur-sm text-sm font-medium text-[#d7d2cb] hover:bg-white/10 transition-all duration-300"
+          className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 min-h-[44px]"
         >
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -244,13 +244,13 @@ export default function LoginPage() {
   // SupabaseProvider + middleware handle post-login redirects; no extra auth listener needed here
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#d7d2cb]">
+          <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-gray-100">
             Welcome to DOER
           </h2>
-          <p className="mt-2 text-center text-sm text-[#d7d2cb]/70">
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Sign in to your account to continue your journey
           </p>
         </div>

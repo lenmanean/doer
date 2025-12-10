@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { PublicHeader } from '@/components/ui/PublicHeader'
+import { PublicFooter } from '@/components/ui/PublicFooter'
 import { useToast } from '@/components/ui/Toast'
 
 export default function ReportMisusePage() {
@@ -67,17 +69,19 @@ export default function ReportMisusePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
-        <FadeInWrapper>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-3xl mb-2">Report Misuse</CardTitle>
-              <p className="text-sm text-[#d7d2cb]/70">
-                Help us maintain a safe and respectful community by reporting misuse of the DOER platform.
-              </p>
-            </CardHeader>
-            <CardContent>
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
+      <PublicHeader />
+      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto">
+          <FadeInWrapper>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl sm:text-3xl mb-2">Report Misuse</CardTitle>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Help us maintain a safe and respectful community by reporting misuse of the DOER platform.
+                </p>
+              </CardHeader>
+              <CardContent>
               {isSubmitted ? (
                 <div className="text-center py-8">
                   <div className="mb-4">
@@ -95,10 +99,10 @@ export default function ReportMisusePage() {
                       />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-semibold text-[#d7d2cb] mb-2">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     Report Submitted Successfully
                   </h3>
-                  <p className="text-[#d7d2cb]/70 mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
                     Thank you for reporting this issue. We take all reports seriously and will investigate promptly.
                   </p>
                   <Button
@@ -120,7 +124,7 @@ export default function ReportMisusePage() {
                   <div>
                     <label
                       htmlFor="email"
-                      className="block text-sm font-medium text-[#d7d2cb] mb-2"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                     >
                       Your Email <span className="text-orange-500">*</span>
                     </label>
@@ -131,12 +135,12 @@ export default function ReportMisusePage() {
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-4 py-3 min-h-[44px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base"
                       placeholder="your.email@example.com"
                       required
                       disabled={isSubmitting}
                     />
-                    <p className="mt-1 text-xs text-[#d7d2cb]/60">
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                       We'll use this to contact you if we need more information.
                     </p>
                   </div>
@@ -144,7 +148,7 @@ export default function ReportMisusePage() {
                   <div>
                     <label
                       htmlFor="reportedUrl"
-                      className="block text-sm font-medium text-[#d7d2cb] mb-2"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                     >
                       Reported URL (Optional)
                     </label>
@@ -155,11 +159,11 @@ export default function ReportMisusePage() {
                       onChange={(e) =>
                         setFormData({ ...formData, reportedUrl: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-4 py-3 min-h-[44px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base"
                       placeholder="https://usedoer.com/..."
                       disabled={isSubmitting}
                     />
-                    <p className="mt-1 text-xs text-[#d7d2cb]/60">
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                       If this report is about specific content, please provide the URL.
                     </p>
                   </div>
@@ -167,7 +171,7 @@ export default function ReportMisusePage() {
                   <div>
                     <label
                       htmlFor="description"
-                      className="block text-sm font-medium text-[#d7d2cb] mb-2"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                     >
                       Description of Misuse <span className="text-orange-500">*</span>
                     </label>
@@ -178,23 +182,23 @@ export default function ReportMisusePage() {
                         setFormData({ ...formData, description: e.target.value })
                       }
                       rows={8}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-y text-base"
                       placeholder="Please provide a detailed description of the misuse, including what happened, when it occurred, and any relevant details..."
                       required
                       minLength={10}
                       maxLength={5000}
                       disabled={isSubmitting}
                     />
-                    <p className="mt-1 text-xs text-[#d7d2cb]/60">
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                       {formData.description.length}/5000 characters (minimum 10 characters)
                     </p>
                   </div>
 
-                  <div className="bg-[#1a1a1a] p-4 rounded-lg border border-white/5">
-                    <p className="text-sm text-[#d7d2cb]/80 mb-2">
+                  <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                       <strong>What to Report:</strong>
                     </p>
-                    <ul className="text-xs text-[#d7d2cb]/60 space-y-1 list-disc list-inside">
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
                       <li>Violations of our Terms of Service or Responsible Use Policy</li>
                       <li>Harmful, illegal, or inappropriate content</li>
                       <li>Spam, abuse, or harassment</li>
@@ -217,6 +221,8 @@ export default function ReportMisusePage() {
           </Card>
         </FadeInWrapper>
       </div>
+      </main>
+      <PublicFooter />
     </div>
   )
 }

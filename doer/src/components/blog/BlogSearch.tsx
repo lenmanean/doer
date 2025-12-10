@@ -42,7 +42,7 @@ export function BlogSearch({ value, onChange, placeholder }: BlogSearchProps) {
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={getPlaceholder()}
-        className="w-full pl-12 pr-12 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+        className="w-full pl-12 pr-12 py-3 sm:py-4 min-h-[44px] bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors text-base"
       />
       {localValue && (
         <button
@@ -50,7 +50,7 @@ export function BlogSearch({ value, onChange, placeholder }: BlogSearchProps) {
             setLocalValue('')
             onChange('')
           }}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Clear search"
         >
           <X className="w-5 h-5" />

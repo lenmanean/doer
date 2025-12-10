@@ -31,7 +31,7 @@ export default function ChangelogPage() {
   const changelogDescription = getTranslation('changelog.description', 'See the latest updates, new features, and improvements.')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
 
       <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8">
@@ -43,10 +43,10 @@ export default function ChangelogPage() {
                 Updates
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
               {changelogTitle}
             </h1>
-            <p className="text-xl text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
               {changelogDescription}
             </p>
           </div>

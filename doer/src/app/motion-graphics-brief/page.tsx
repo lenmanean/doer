@@ -6,6 +6,8 @@ import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
+import { PublicHeader } from '@/components/ui/PublicHeader'
+import { PublicFooter } from '@/components/ui/PublicFooter'
 
 export default function MotionGraphicsBriefPage() {
   const [downloadingLogo, setDownloadingLogo] = useState(false)
@@ -97,35 +99,37 @@ export default function MotionGraphicsBriefPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-12">
-        {/* Header Section */}
-        <FadeInWrapper>
-          <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-              Motion Graphics Brief
-            </h1>
-            <p className="text-xl text-[#d7d2cb]/80">
-              DOER.AI - Internal Brief Document
-            </p>
-          </div>
-        </FadeInWrapper>
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
+      <PublicHeader />
+      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto space-y-12">
+          {/* Header Section */}
+          <FadeInWrapper>
+            <div className="text-center">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4">
+                Motion Graphics Brief
+              </h1>
+              <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">
+                DOER.AI - Internal Brief Document
+              </p>
+            </div>
+          </FadeInWrapper>
 
         {/* Target Audience & Market Context */}
         <FadeInWrapper delay={0.1}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl text-white">Target Audience & Market Context</CardTitle>
+              <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Target Audience & Market Context</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-[#d7d2cb]">
-              <p className="text-lg leading-relaxed">
-                <strong className="text-white">Primary Focus:</strong> New Year's resolution season and consumers seeking structured goal planning for their aspirations and ambitions for the upcoming year.
+            <CardContent className="space-y-4 text-gray-700 dark:text-gray-300 leading-relaxed">
+              <p className="text-base sm:text-lg leading-relaxed">
+                <strong className="text-gray-900 dark:text-white">Primary Focus:</strong> New Year's resolution season and consumers seeking structured goal planning for their aspirations and ambitions for the upcoming year.
               </p>
-              <p className="text-lg leading-relaxed">
-                <strong className="text-white">Target Audience:</strong> Achievement-oriented individuals who want to transform their goals into actionable, structured plans. These are people transitioning from intention to execution, those who don't just want to plan but want to actually achieve their goals.
+              <p className="text-base sm:text-lg leading-relaxed">
+                <strong className="text-gray-900 dark:text-white">Target Audience:</strong> Achievement-oriented individuals who want to transform their goals into actionable, structured plans. These are people transitioning from intention to execution, those who don't just want to plan but want to actually achieve their goals.
               </p>
-              <p className="text-lg leading-relaxed">
-                <strong className="text-white">Market Context:</strong> The New Year brings a natural momentum for goal-setting. Consumers are actively seeking tools and solutions that can help them create comprehensive plans for their 2026 goals and aspirations. DOER.AI positions itself as the platform that bridges the gap between setting goals and executing them.
+              <p className="text-base sm:text-lg leading-relaxed">
+                <strong className="text-gray-900 dark:text-white">Market Context:</strong> The New Year brings a natural momentum for goal-setting. Consumers are actively seeking tools and solutions that can help them create comprehensive plans for their 2026 goals and aspirations. DOER.AI positions itself as the platform that bridges the gap between setting goals and executing them.
               </p>
             </CardContent>
           </Card>
@@ -135,13 +139,13 @@ export default function MotionGraphicsBriefPage() {
         <FadeInWrapper delay={0.2}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl text-white">Main Points to Focus On</CardTitle>
+              <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Main Points to Focus On</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4 text-[#d7d2cb]">
+              <div className="space-y-4 text-gray-700 dark:text-gray-300">
                 <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">AI-Powered Plan Generation</h3>
-                  <p className="text-lg leading-relaxed">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">AI-Powered Plan Generation</h3>
+                  <p className="text-base sm:text-lg leading-relaxed">
                     DOER transforms written goals into structured, actionable plans with tasks. Users simply describe their goal, answer a few clarification questions, and receive a personalized roadmap.
                   </p>
                 </div>
@@ -200,22 +204,22 @@ export default function MotionGraphicsBriefPage() {
         <FadeInWrapper delay={0.3}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl text-white">Call to Action</CardTitle>
+              <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Call to Action</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-[#d7d2cb]">
-              <p className="text-lg leading-relaxed">
-                <strong className="text-white">Primary CTA:</strong> Encourage users to start planning their New Year's goals and turn their resolutions into actionable plans.
+            <CardContent className="space-y-4 text-gray-700 dark:text-gray-300 leading-relaxed">
+              <p className="text-base sm:text-lg leading-relaxed">
+                <strong className="text-gray-900 dark:text-white">Primary CTA:</strong> Encourage users to start planning their New Year's goals and turn their resolutions into actionable plans.
               </p>
-              <p className="text-lg leading-relaxed">
-                <strong className="text-white">Key Messaging:</strong>
+              <p className="text-base sm:text-lg leading-relaxed">
+                <strong className="text-gray-900 dark:text-white">Key Messaging:</strong>
               </p>
-              <ul className="list-disc list-inside space-y-2 ml-4 text-lg">
+              <ul className="list-disc list-inside space-y-2 ml-4 text-base sm:text-lg">
                 <li>"Turn your goals into reality"</li>
                 <li>"From intention to execution"</li>
                 <li>"Start planning your 2026 goals today"</li>
                 <li>"Turn your New Year's resolutions into actionable plans"</li>
               </ul>
-              <p className="text-lg leading-relaxed">
+              <p className="text-base sm:text-lg leading-relaxed">
                 The messaging should emphasize the New Year's momentum and focus on goal achievement and execution. The tone should be empowering and action-oriented, positioning DOER as the bridge between setting goals and actually achieving them.
               </p>
             </CardContent>
@@ -226,13 +230,13 @@ export default function MotionGraphicsBriefPage() {
         <FadeInWrapper delay={0.4}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-3xl text-white">Branding Assets</CardTitle>
+              <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Branding Assets</CardTitle>
             </CardHeader>
             <CardContent className="space-y-8">
               {/* Logo Section */}
               <div className="space-y-4">
-                <h3 className="text-2xl font-semibold text-white">Logo</h3>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 bg-white/5 rounded-lg border border-white/10">
+                <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">Logo</h3>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                   <div className="relative w-64 h-64 flex-shrink-0 bg-transparent flex items-center justify-center">
                     <canvas
                       ref={logoCanvasRef}
@@ -241,8 +245,8 @@ export default function MotionGraphicsBriefPage() {
                     />
                   </div>
                   <div className="flex-1 space-y-3">
-                    <p className="text-[#d7d2cb]">
-                      <strong className="text-white">Transparent Logo</strong>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      <strong className="text-gray-900 dark:text-white">Transparent Logo</strong>
                     </p>
                     <Button
                       onClick={handleDownloadLogo}
@@ -261,7 +265,7 @@ export default function MotionGraphicsBriefPage() {
               {/* Color Swatches Section */}
               <div className="space-y-4">
                 <h3 className="text-2xl font-semibold text-white">Color Palette</h3>
-                <div className="p-6 bg-white/5 rounded-lg border border-white/10 space-y-6">
+                <div className="p-6 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 space-y-6">
                   <div className="relative w-full max-w-md mx-auto aspect-square">
                     <Image
                       src="/images_videos/vyrstudio/color_swatches.png"
@@ -282,15 +286,15 @@ export default function MotionGraphicsBriefPage() {
                       <Download className="w-4 h-4 mr-2" />
                       {downloadingSwatches ? 'Downloading...' : 'Download Color Swatches'}
                     </Button>
-                    <div className="space-y-2 text-[#d7d2cb]">
-                      <p className="text-lg font-semibold text-white">Color Values:</p>
-                      <ul className="list-disc list-inside space-y-1 ml-4">
-                        <li><strong className="text-white">Orange:</strong> #f97316 (Primary brand color)</li>
-                        <li><strong className="text-white">Black:</strong> #0a0a0a</li>
-                        <li><strong className="text-white">Grey:</strong> #161616 (Charcoal)</li>
-                        <li><strong className="text-white">Navy Blue:</strong> #111827</li>
-                        <li><strong className="text-white">Light Gray:</strong> #454545</li>
-                        <li><strong className="text-white">Red:</strong> #591717</li>
+                    <div className="space-y-2 text-gray-700 dark:text-gray-300">
+                      <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Color Values:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-4 text-sm sm:text-base">
+                        <li><strong className="text-gray-900 dark:text-white">Orange:</strong> #f97316 (Primary brand color)</li>
+                        <li><strong className="text-gray-900 dark:text-white">Black:</strong> #0a0a0a</li>
+                        <li><strong className="text-gray-900 dark:text-white">Grey:</strong> #161616 (Charcoal)</li>
+                        <li><strong className="text-gray-900 dark:text-white">Navy Blue:</strong> #111827</li>
+                        <li><strong className="text-gray-900 dark:text-white">Light Gray:</strong> #454545</li>
+                        <li><strong className="text-gray-900 dark:text-white">Red:</strong> #591717</li>
                       </ul>
                     </div>
                   </div>
@@ -299,15 +303,15 @@ export default function MotionGraphicsBriefPage() {
 
               {/* Typography Section */}
               <div className="space-y-4">
-                <h3 className="text-2xl font-semibold text-white">Typography</h3>
-                <div className="p-6 bg-white/5 rounded-lg border border-white/10 space-y-4 text-[#d7d2cb]">
+                <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">Typography</h3>
+                <div className="p-6 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4 text-gray-700 dark:text-gray-300">
                   <div>
-                    <p className="text-lg font-semibold text-white mb-2">Primary Font:</p>
-                    <p className="text-lg">Inter (from Google Fonts)</p>
+                    <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">Primary Font:</p>
+                    <p className="text-base sm:text-lg">Inter (from Google Fonts)</p>
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-white mb-2">Available Font Weights:</p>
-                    <ul className="list-disc list-inside space-y-1 ml-4">
+                    <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">Available Font Weights:</p>
+                    <ul className="list-disc list-inside space-y-1 ml-4 text-sm sm:text-base">
                       <li>300 (Light)</li>
                       <li>400 (Regular)</li>
                       <li>500 (Medium)</li>
@@ -317,9 +321,9 @@ export default function MotionGraphicsBriefPage() {
                       <li>900 (Black)</li>
                     </ul>
                   </div>
-                  <div className="pt-4 border-t border-white/10">
-                    <p className="text-lg font-semibold text-white mb-2">Font Import:</p>
-                    <code className="block p-3 bg-black/30 rounded text-sm text-[#d7d2cb] font-mono">
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">Font Import:</p>
+                    <code className="block p-3 bg-gray-200 dark:bg-gray-900 rounded text-sm text-gray-900 dark:text-gray-100 font-mono overflow-x-auto">
                       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
                     </code>
                   </div>
@@ -329,6 +333,8 @@ export default function MotionGraphicsBriefPage() {
           </Card>
         </FadeInWrapper>
       </div>
+      </main>
+      <PublicFooter />
     </div>
   )
 }
