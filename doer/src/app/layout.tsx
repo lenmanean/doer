@@ -151,13 +151,13 @@ export default async function RootLayout({
                     // Debug logging for mobile troubleshooting
                     console.log('[Theme] Public page detected. publicTheme:', savedTheme, 'systemPrefersDark:', systemPrefersDark);
                     
-                    // Explicit preference takes precedence, then system preference, default to light
+                    // Handle 'system', 'light', 'dark', or null (defaults to system)
                     if (savedTheme === 'dark') {
                       resolvedTheme = 'dark';
                     } else if (savedTheme === 'light') {
                       resolvedTheme = 'light';
                     } else {
-                      // No saved preference, use system preference
+                      // 'system' or null - use system preference
                       resolvedTheme = systemPrefersDark ? 'dark' : 'light';
                     }
                     

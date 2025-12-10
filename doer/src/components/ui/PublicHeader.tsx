@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSupabase } from '@/components/providers/supabase-provider'
-import { Languages, ChevronDown, Menu, X, Sun, Moon, User, LogOut } from 'lucide-react'
+import { Languages, ChevronDown, Menu, X, Sun, Moon, Monitor, User, LogOut } from 'lucide-react'
 import { Button } from './Button'
 import { locales, localeNames, type Locale } from '@/i18n/config'
 import { signOutClient } from '@/lib/auth/sign-out-client'
@@ -32,7 +32,8 @@ export function PublicHeader() {
   const [langOpen, setLangOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentLocale, setCurrentLocale] = useState<Locale>('en')
-  const [isDark, setIsDark] = useState(true)
+  // Theme can be 'light', 'dark', or 'system' (follows system preference)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
   const [profileOpen, setProfileOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [userProfile, setUserProfile] = useState<{ first_name?: string; username?: string } | null>(null)
@@ -67,36 +68,65 @@ export function PublicHeader() {
       }
       
       // Get public theme preference - ALWAYS use publicTheme key, never theme key
-    const savedTheme = localStorage.getItem('publicTheme')
-      // Check system preference if no saved theme
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      // Determine theme: explicit saved preference, or system preference, or default to light
-      let prefersDark = false
-      if (savedTheme === 'dark') {
-        prefersDark = true
-      } else if (savedTheme === 'light') {
-        prefersDark = false
-      } else {
-        // No saved theme, use system preference
-        prefersDark = systemPrefersDark
-      }
-    setIsDark(prefersDark)
-    applyPublicTheme(prefersDark)
+      const savedTheme = localStorage.getItem('publicTheme') as 'light' | 'dark' | 'system' | null
+      // Determine theme: explicit saved preference, or default to 'system'
+      let resolvedTheme: 'light' | 'dark' | 'system' = savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system' ? savedTheme : 'system'
+      
+      setTheme(resolvedTheme)
+      applyPublicTheme(resolvedTheme)
     }
   }, [pathname])
+  
+  // Listen for system theme changes when theme is set to 'system'
+  useEffect(() => {
+    if (!isPublicRoute(pathname || '') || theme !== 'system') {
+      return
+    }
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleSystemThemeChange = () => {
+      // Re-apply system theme when system preference changes
+      applyPublicTheme('system')
+    }
+    
+    // Modern browsers
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleSystemThemeChange)
+    } else {
+      // Fallback for older browsers
+      mediaQuery.addListener(handleSystemThemeChange)
+    }
+    
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleSystemThemeChange)
+      } else {
+        mediaQuery.removeListener(handleSystemThemeChange)
+      }
+    }
+  }, [pathname, theme])
 
   // Apply theme to document
   // Only applies on public routes to prevent conflicts with user theme
-  const applyPublicTheme = (dark: boolean) => {
+  const applyPublicTheme = (themePreference: 'light' | 'dark' | 'system') => {
     // Defensive check: only apply on public routes
     if (!isPublicRoute(pathname || '')) {
       return
     }
     
+    // Resolve 'system' to actual theme based on system preference
+    let resolvedTheme: 'light' | 'dark'
+    if (themePreference === 'system') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      resolvedTheme = systemPrefersDark ? 'dark' : 'light'
+    } else {
+      resolvedTheme = themePreference
+    }
+    
     const root = document.documentElement
     const body = document.body
     
-    if (dark) {
+    if (resolvedTheme === 'dark') {
       root.classList.add('dark')
       root.classList.remove('light')
       body.className = 'font-sans antialiased text-[#d7d2cb]'
@@ -115,17 +145,27 @@ export function PublicHeader() {
     }
   }
 
-  // Toggle theme - only works on public routes
+  // Toggle theme - cycles through: light → dark → system → light
+  // Only works on public routes
   const toggleTheme = () => {
     // Defensive check: only allow toggle on public routes
     if (!isPublicRoute(pathname || '')) {
       return
     }
     
-    const newTheme = !isDark
-    setIsDark(newTheme)
+    // Cycle through: light → dark → system → light
+    let newTheme: 'light' | 'dark' | 'system'
+    if (theme === 'light') {
+      newTheme = 'dark'
+    } else if (theme === 'dark') {
+      newTheme = 'system'
+    } else {
+      newTheme = 'light'
+    }
+    
+    setTheme(newTheme)
     // ONLY write to publicTheme key, never touch 'theme' key
-    localStorage.setItem('publicTheme', newTheme ? 'dark' : 'light')
+    localStorage.setItem('publicTheme', newTheme)
     applyPublicTheme(newTheme)
   }
 
@@ -379,12 +419,15 @@ export function PublicHeader() {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Toggle theme"
+            aria-label={`Toggle theme (current: ${theme})`}
+            title={`Theme: ${theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}`}
           >
-            {isDark ? (
+            {theme === 'dark' ? (
+              <Moon className="w-5 h-5" />
+            ) : theme === 'light' ? (
               <Sun className="w-5 h-5" />
             ) : (
-              <Moon className="w-5 h-5" />
+              <Monitor className="w-5 h-5" />
             )}
           </button>
 

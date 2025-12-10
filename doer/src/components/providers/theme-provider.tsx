@@ -111,7 +111,7 @@ export function ThemeProvider({
       } else if (publicTheme === 'light') {
         return 'light'
       } else {
-        // No publicTheme saved, use system preference
+        // 'system' or null - use system preference
         const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
         return systemPrefersDark ? 'dark' : 'light'
       }
