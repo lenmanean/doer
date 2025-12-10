@@ -66,26 +66,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // If email exists but is unsubscribed, reactivate it
+    // If email exists but is unsubscribed, don't auto-reactivate
+    // User must explicitly resubscribe (respects previous unsubscribe decision)
     if (existingSubscription && !existingSubscription.is_active) {
-      const { error: updateError } = await supabase
-        .from('newsletter_subscriptions')
-        .update({
-          is_active: true,
-          unsubscribed_at: null,
-          subscribed_at: new Date().toISOString(),
-          source: source,
-        })
-        .eq('id', existingSubscription.id)
-
-      if (updateError) {
-        console.error('Error reactivating newsletter subscription:', updateError)
-        return NextResponse.json(
-          { error: 'Failed to subscribe. Please try again.' },
-          { status: 500 }
-        )
-      }
-
+      // Return success without revealing they were previously unsubscribed
+      // This prevents email enumeration while respecting unsubscribe
       return NextResponse.json({
         success: true,
         message: 'Thank you for subscribing!',
@@ -123,24 +108,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send confirmation email (optional, but best practice)
-    try {
-      await sendEmail({
-        to: normalizedEmail,
-        subject: 'Welcome to DOER Newsletter',
-        html: `
-          <h2>Welcome to the DOER Newsletter!</h2>
-          <p>Thank you for subscribing. You'll receive the latest articles, tips, and updates delivered to your inbox.</p>
-          <p>If you didn't subscribe, you can ignore this email.</p>
-          <p>Best regards,<br>The DOER Team</p>
-        `,
-        text: `Welcome to the DOER Newsletter!\n\nThank you for subscribing. You'll receive the latest articles, tips, and updates delivered to your inbox.\n\nIf you didn't subscribe, you can ignore this email.\n\nBest regards,\nThe DOER Team`,
-      })
-    } catch (emailError) {
-      // Log email error but don't fail the request
-      // The subscription is already stored in the database
-      console.error('Error sending newsletter confirmation email:', emailError)
-    }
+    // Note: Following waitlist pattern - no confirmation email sent
+    // Newsletter emails will be sent separately via email marketing service
 
     return NextResponse.json({
       success: true,

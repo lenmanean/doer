@@ -110,7 +110,15 @@ export default function PrivacyPage() {
                   <li>Subscription status and renewal dates</li>
                 </ul>
 
-                <h3 className="text-xl font-semibold mb-3 mt-6 text-[#d7d2cb]">2.8 Technical Data</h3>
+                <h3 className="text-xl font-semibold mb-3 mt-6 text-[#d7d2cb]">2.8 Newsletter & Marketing Data</h3>
+                <ul className="list-disc pl-6 mb-4 space-y-2">
+                  <li>Email address (when you subscribe to our newsletter)</li>
+                  <li>Subscription source (blog, landing page, etc.)</li>
+                  <li>Subscription status and preferences</li>
+                  <li>IP address and user agent (collected at time of subscription for security and compliance)</li>
+                </ul>
+
+                <h3 className="text-xl font-semibold mb-3 mt-6 text-[#d7d2cb]">2.9 Technical Data</h3>
                 <ul className="list-disc pl-6 mb-4 space-y-2">
                   <li>IP addresses</li>
                   <li>Browser type and version</li>
@@ -130,6 +138,7 @@ export default function PrivacyPage() {
                   <li><strong>Calendar Integration:</strong> To sync your tasks with Google Calendar when you choose to connect your calendar account</li>
                   <li><strong>Payment Processing:</strong> To process payments, manage subscriptions, and handle billing through Stripe</li>
                   <li><strong>Communication:</strong> To send you email notifications, service updates, and important account-related information</li>
+                  <li><strong>Newsletter:</strong> To send you newsletter emails with articles, tips, and updates when you subscribe (you can unsubscribe at any time)</li>
                   <li><strong>Analytics & Insights:</strong> To provide you with productivity analytics, completion trends, and personalized insights about your goal achievement patterns</li>
                   <li><strong>Service Improvement:</strong> With your explicit consent (via the <code className="bg-[#1a1a1a] px-1 rounded">improve_model_enabled</code> preference), we may use your data to improve our AI models and service quality</li>
                   <li><strong>Security:</strong> To detect, prevent, and address technical issues, fraud, and security threats</li>
@@ -250,6 +259,10 @@ export default function PrivacyPage() {
                 <ul className="list-disc pl-6 mb-4 space-y-2">
                   <li><strong>Analytics:</strong> You can opt-in or opt-out of analytics data collection via the <code className="bg-[#1a1a1a] px-1 rounded">analytics_enabled</code> preference (default: disabled)</li>
                   <li><strong>Model Improvement:</strong> You can opt-in to allow your data to be used for improving our AI models via the <code className="bg-[#1a1a1a] px-1 rounded">improve_model_enabled</code> preference (default: disabled)</li>
+                  <li><strong>Newsletter:</strong> You can unsubscribe from our newsletter at any time by contacting us at{' '}
+                    <a href={`mailto:${contactEmail}`} className="text-orange-500 hover:text-orange-400 underline">
+                      {contactEmail}
+                    </a> or using the unsubscribe link in any newsletter email</li>
                 </ul>
                 <p className="mb-4">
                   These preferences can be updated in your account settings at any time.
