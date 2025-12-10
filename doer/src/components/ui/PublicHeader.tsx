@@ -59,7 +59,9 @@ export function PublicHeader() {
     if (isPublicRoute(pathname || '')) {
       // Get public theme preference - ALWAYS use publicTheme key, never theme key
       const savedTheme = localStorage.getItem('publicTheme')
-      const prefersDark = savedTheme === 'dark' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      // Check system preference if no saved theme
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      const prefersDark = savedTheme === 'dark' || (savedTheme === null && systemPrefersDark) || (savedTheme !== 'light' && systemPrefersDark)
       setIsDark(prefersDark)
       applyPublicTheme(prefersDark)
     }
@@ -238,7 +240,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {productOpen && (
-              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)]">
+              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)] z-[60]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/features"
@@ -284,7 +286,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {resourcesOpen && (
-              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)]">
+              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)] z-[60]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/documentation"
@@ -374,7 +376,7 @@ export function PublicHeader() {
               <Languages className="w-5 h-5" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50 max-w-[calc(100vw-2rem)]">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-[60] max-w-[calc(100vw-2rem)]">
                 {locales.map((locale) => (
                   <button
                     key={locale}

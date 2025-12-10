@@ -274,7 +274,7 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`duplicate-1-${integration.name}-${index}`}
-                className="flex-shrink-0 w-32 h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
               >
                 <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
                   <integration.Icon className="w-full h-full" />
@@ -303,7 +303,7 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`duplicate-2-${integration.name}-${index}`}
-                className="flex-shrink-0 w-32 h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-900 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-gray-500 transition-colors"
               >
                 <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
                   <integration.Icon className="w-full h-full" />
@@ -366,9 +366,9 @@ export default function Home() {
                     {feature}
                   </li>
                 ))}
-                {/* DOER-exclusive features - greyed out */}
+                {/* DOER-exclusive features - greyed out but more visible */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-400 dark:text-gray-600">
+                  <li key={`exclusive-${index}`} className="text-gray-500 dark:text-gray-600">
                     {feature}
                   </li>
                 ))}
@@ -386,15 +386,15 @@ export default function Home() {
                 {t('comparison.withDoer.title')}
               </h3>
               <ul className="space-y-3 flex-grow mb-4">
-                {/* Basic capabilities - normal text */}
+                {/* Basic capabilities - lighter text, less emphasis */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-700 dark:text-gray-300 text-sm">
+                  <li key={`basic-${index}`} className="text-gray-500 dark:text-gray-400 text-base">
                     {feature}
                   </li>
                 ))}
-                {/* DOER-exclusive features - normal text */}
+                {/* DOER-exclusive features - bold, darker, highlighted */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-700 dark:text-gray-300 text-sm">
+                  <li key={`exclusive-${index}`} className="text-gray-900 dark:text-gray-100 font-semibold text-base">
                     {feature}
                   </li>
                 ))}
@@ -507,7 +507,7 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              {/* Duplicate for seamless loop */}
+              {/* Duplicate for seamless infinite loop */}
               {[
                 {
                   name: 'Sarah Chen',
@@ -560,80 +560,6 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`duplicate-${testimonial.handle}-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="text-4xl">{testimonial.avatar}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 dark:text-white">
-                        {testimonial.name}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {testimonial.handle} • {testimonial.platform}
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    "{testimonial.text}"
-                  </p>
-                  <div className="text-xs text-gray-500 dark:text-gray-500">
-                    {testimonial.date}
-                  </div>
-                </div>
-              ))}
-              {/* Duplicate 2 for seamless loop */}
-              {[
-                {
-                  name: 'Sarah Chen',
-                  handle: '@sarahchen',
-                  platform: 'Twitter',
-                  avatar: '👩‍💼',
-                  text: 'DOER completely changed how I approach my goals. The AI-generated plans are incredibly detailed and actually achievable!',
-                  date: '2 days ago'
-                },
-                {
-                  name: 'Marcus Johnson',
-                  handle: '@marcus_j',
-                  platform: 'ProductHunt',
-                  avatar: '👨‍💻',
-                  text: 'Finally, a productivity tool that understands context. The smart scheduling alone is worth it. Highly recommend!',
-                  date: '1 week ago'
-                },
-                {
-                  name: 'Elena Rodriguez',
-                  handle: '@elenarod',
-                  platform: 'Twitter',
-                  avatar: '👩‍🎨',
-                  text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
-                  date: '3 days ago'
-                },
-                {
-                  name: 'David Kim',
-                  handle: '@davidkim',
-                  platform: 'LinkedIn',
-                  avatar: '👨‍🔬',
-                  text: 'The integrations with my existing tools made the transition seamless. DOER fits perfectly into my workflow.',
-                  date: '5 days ago'
-                },
-                {
-                  name: 'Priya Patel',
-                  handle: '@priyap',
-                  platform: 'Twitter',
-                  avatar: '👩‍🏫',
-                  text: 'As an educator, I use DOER to help students break down complex projects. The clarity it provides is invaluable.',
-                  date: '1 week ago'
-                },
-                {
-                  name: 'Alex Turner',
-                  handle: '@alexturner',
-                  platform: 'ProductHunt',
-                  avatar: '👨‍🎤',
-                  text: 'Best goal-tracking app I\'ve used. The AI suggestions are spot-on and the interface is clean and intuitive.',
-                  date: '4 days ago'
-                },
-              ].map((testimonial, index) => (
-                <div
-                  key={`duplicate-2-${testimonial.handle}-${index}`}
                   className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                   <div className="flex items-start gap-3">

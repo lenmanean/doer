@@ -546,22 +546,24 @@ select option:hover {
 }
 
 /* Horizontal scrolling animation for integrations carousel */
+/* Uses 33.33% to account for 3 sets (original + 2 duplicates) - animates through one full set seamlessly */
 @keyframes scroll {
   0% {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(calc(-100% / 3));
+    transform: translateX(-33.333%);
   }
 }
 
 .animate-scroll {
   animation: scroll 40s linear infinite;
+  will-change: transform;
 }
 
 @keyframes scroll-reverse {
   0% {
-    transform: translateX(calc(-100% / 3));
+    transform: translateX(-50%);
   }
   100% {
     transform: translateX(0);
@@ -570,6 +572,7 @@ select option:hover {
 
 .animate-scroll-reverse {
   animation: scroll-reverse 40s linear infinite;
+  will-change: transform;
 }
 
 /* Checkmark icon styling for pricing cards */

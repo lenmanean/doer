@@ -128,7 +128,7 @@ export default async function RootLayout({
                   
                   // Determine if this is truly a public page
                   // Must be: not an authenticated route AND not authenticated
-                  const isPublicPage = !isAuthenticatedRoute || !serverAuthState;
+                  const isPublicPage = !isAuthenticatedRoute && !serverAuthState;
                   
                   let savedTheme, resolvedTheme;
                   
