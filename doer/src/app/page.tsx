@@ -436,68 +436,42 @@ export default function Home() {
           <div className="flex animate-scroll-reverse gap-8 px-4 sm:px-6 lg:px-8">
               {[
                 {
-                  name: 'Sarah Chen',
-                  handle: '@sarahchen',
-                  platform: 'Twitter',
-                  avatar: '👩‍💼',
+                  name: 'Sarah C',
                   text: 'DOER completely changed how I approach my goals. The AI-generated plans are incredibly detailed and actually achievable!',
                   date: '2 days ago'
                 },
                 {
-                  name: 'Marcus Johnson',
-                  handle: '@marcus_j',
-                  platform: 'ProductHunt',
-                  avatar: '👨‍💻',
+                  name: 'Marcus J',
                   text: 'Finally, a productivity tool that understands context. The smart scheduling alone is worth it. Highly recommend!',
                   date: '1 week ago'
                 },
                 {
-                  name: 'Elena Rodriguez',
-                  handle: '@elenarod',
-                  platform: 'Twitter',
-                  avatar: '👩‍🎨',
+                  name: 'Elena R',
                   text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
                   date: '3 days ago'
                 },
                 {
-                  name: 'David Kim',
-                  handle: '@davidkim',
-                  platform: 'LinkedIn',
-                  avatar: '👨‍🔬',
+                  name: 'David K',
                   text: 'The integrations with my existing tools made the transition seamless. DOER fits perfectly into my workflow.',
                   date: '5 days ago'
                 },
                 {
-                  name: 'Priya Patel',
-                  handle: '@priyap',
-                  platform: 'Twitter',
-                  avatar: '👩‍🏫',
+                  name: 'Priya P',
                   text: 'As an educator, I use DOER to help students break down complex projects. The clarity it provides is invaluable.',
                   date: '1 week ago'
                 },
                 {
-                  name: 'Alex Turner',
-                  handle: '@alexturner',
-                  platform: 'ProductHunt',
-                  avatar: '👨‍🎤',
+                  name: 'Alex T',
                   text: 'Best goal-tracking app I\'ve used. The AI suggestions are spot-on and the interface is clean and intuitive.',
                   date: '4 days ago'
                 },
               ].map((testimonial, index) => (
                 <div
-                  key={`${testimonial.handle}-${index}`}
+                  key={`testimonial-${index}`}
                   className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="text-4xl">{testimonial.avatar}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 dark:text-white">
-                        {testimonial.name}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {testimonial.handle} • {testimonial.platform}
-                      </div>
-                    </div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {testimonial.name}
                   </div>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                     "{testimonial.text}"
@@ -510,68 +484,42 @@ export default function Home() {
               {/* Duplicate 1 for seamless infinite loop */}
               {[
                 {
-                  name: 'Sarah Chen',
-                  handle: '@sarahchen',
-                  platform: 'Twitter',
-                  avatar: '👩‍💼',
+                  name: 'Sarah C',
                   text: 'DOER completely changed how I approach my goals. The AI-generated plans are incredibly detailed and actually achievable!',
                   date: '2 days ago'
                 },
                 {
-                  name: 'Marcus Johnson',
-                  handle: '@marcus_j',
-                  platform: 'ProductHunt',
-                  avatar: '👨‍💻',
+                  name: 'Marcus J',
                   text: 'Finally, a productivity tool that understands context. The smart scheduling alone is worth it. Highly recommend!',
                   date: '1 week ago'
                 },
                 {
-                  name: 'Elena Rodriguez',
-                  handle: '@elenarod',
-                  platform: 'Twitter',
-                  avatar: '👩‍🎨',
+                  name: 'Elena R',
                   text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
                   date: '3 days ago'
                 },
                 {
-                  name: 'David Kim',
-                  handle: '@davidkim',
-                  platform: 'LinkedIn',
-                  avatar: '👨‍🔬',
+                  name: 'David K',
                   text: 'The integrations with my existing tools made the transition seamless. DOER fits perfectly into my workflow.',
                   date: '5 days ago'
                 },
                 {
-                  name: 'Priya Patel',
-                  handle: '@priyap',
-                  platform: 'Twitter',
-                  avatar: '👩‍🏫',
+                  name: 'Priya P',
                   text: 'As an educator, I use DOER to help students break down complex projects. The clarity it provides is invaluable.',
                   date: '1 week ago'
                 },
                 {
-                  name: 'Alex Turner',
-                  handle: '@alexturner',
-                  platform: 'ProductHunt',
-                  avatar: '👨‍🎤',
+                  name: 'Alex T',
                   text: 'Best goal-tracking app I\'ve used. The AI suggestions are spot-on and the interface is clean and intuitive.',
                   date: '4 days ago'
                 },
               ].map((testimonial, index) => (
                 <div
-                  key={`duplicate-1-${testimonial.handle}-${index}`}
+                  key={`duplicate-1-${index}`}
                   className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="text-4xl">{testimonial.avatar}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 dark:text-white">
-                        {testimonial.name}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {testimonial.handle} • {testimonial.platform}
-                      </div>
-                    </div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {testimonial.name}
                   </div>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                     "{testimonial.text}"
