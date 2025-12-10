@@ -225,8 +225,8 @@ export default function Home() {
           ref={integrationsCarouselAnim.ref as React.RefObject<HTMLDivElement>}
           className={`mt-12 overflow-hidden scroll-animate-fade-up ${integrationsCarouselAnim.isVisible ? 'visible' : ''}`}
         >
-          {/* Scrolling container */}
-          <div className="flex animate-scroll gap-8 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-hide">
+          {/* Scrolling container - no overflow-x-auto, animation handles movement */}
+          <div className="flex animate-scroll gap-8 px-4 sm:px-6 lg:px-8">
             {[
               { name: 'Google Calendar', Icon: SiGooglecalendar },
               { name: 'Outlook', Icon: MdEmail },
@@ -433,7 +433,7 @@ export default function Home() {
           ref={testimonialsCarouselAnim.ref as React.RefObject<HTMLDivElement>}
           className={`mt-12 overflow-hidden scroll-animate-fade-up ${testimonialsCarouselAnim.isVisible ? 'visible' : ''}`}
         >
-          <div className="flex animate-scroll-reverse gap-8 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-hide">
+          <div className="flex animate-scroll-reverse gap-8 px-4 sm:px-6 lg:px-8">
               {[
                 {
                   name: 'Sarah Chen',
@@ -507,7 +507,7 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              {/* Duplicate for seamless infinite loop */}
+              {/* Duplicate 1 for seamless infinite loop */}
               {[
                 {
                   name: 'Sarah Chen',
@@ -559,7 +559,7 @@ export default function Home() {
                 },
               ].map((testimonial, index) => (
                 <div
-                  key={`duplicate-${testimonial.handle}-${index}`}
+                  key={`duplicate-1-${testimonial.handle}-${index}`}
                   className="flex-shrink-0 w-[280px] sm:w-80 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-900 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
                   <div className="flex items-start gap-3">

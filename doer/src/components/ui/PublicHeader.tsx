@@ -232,15 +232,15 @@ export function PublicHeader() {
   }
 
   return (
-    <header className="w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 px-4 sm:px-6 lg:px-8 py-4 z-50 sticky top-0 relative overflow-x-hidden">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 px-4 sm:px-6 lg:px-8 py-4 z-50 sticky top-0 relative">
+      <div className="max-w-7xl mx-auto flex items-center justify-between overflow-x-hidden">
         {/* Logo */}
         <Link href="/" className="flex items-center flex-shrink-0">
           <span className="text-xl font-bold text-gray-900 dark:text-white">DOER</span>
         </Link>
 
         {/* Desktop Navigation - Absolutely Centered */}
-        <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2 overflow-visible">
           {/* Product Dropdown */}
           <div
             ref={productRef}
@@ -253,7 +253,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {productOpen && (
-              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)] z-[60]">
+              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)] z-[9999]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/features"
@@ -299,7 +299,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {resourcesOpen && (
-              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)] z-[60]">
+              <div className="absolute top-full left-0 pt-2 w-48 max-w-[calc(100vw-2rem)] z-[9999]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/documentation"
@@ -338,7 +338,7 @@ export function PublicHeader() {
               <ChevronDown className="ml-1 w-4 h-4" />
             </button>
             {solutionsOpen && (
-              <div className="absolute top-full left-0 pt-2 w-56 max-w-[calc(100vw-2rem)] z-[60]">
+              <div className="absolute top-full left-0 pt-2 w-56 max-w-[calc(100vw-2rem)] z-[9999]">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
                 <Link
                   href="/solutions/teams"
@@ -389,7 +389,7 @@ export function PublicHeader() {
               <Languages className="w-5 h-5" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-[60] max-w-[calc(100vw-2rem)]">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-[9999] max-w-[calc(100vw-2rem)]">
                 {locales.map((locale) => (
                   <button
                     key={locale}
@@ -462,7 +462,7 @@ export function PublicHeader() {
                   <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                 </button>
                 {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2 z-50">
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2 z-[9999]">
                     <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                       Account
                     </div>

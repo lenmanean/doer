@@ -559,20 +559,27 @@ select option:hover {
 .animate-scroll {
   animation: scroll 40s linear infinite;
   will-change: transform;
+  /* Ensure content extends beyond viewport for seamless loop */
+  width: max-content;
 }
 
+/* Horizontal scrolling animation for testimonials carousel */
+/* Uses 50% to account for 2 sets (original + 1 duplicate) - animates through one full set seamlessly */
+/* Animation starts at 0 (original visible) and moves to -50% (duplicate in same position) */
 @keyframes scroll-reverse {
   0% {
-    transform: translateX(-50%);
+    transform: translateX(0);
   }
   100% {
-    transform: translateX(0);
+    transform: translateX(-50%);
   }
 }
 
 .animate-scroll-reverse {
   animation: scroll-reverse 40s linear infinite;
   will-change: transform;
+  /* Ensure content extends beyond viewport for seamless loop */
+  width: max-content;
 }
 
 /* Checkmark icon styling for pricing cards */
