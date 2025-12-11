@@ -29,6 +29,7 @@ import { useTheme } from '@/components/providers/theme-provider'
 import { signOutClient } from '@/lib/auth/sign-out-client'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
+import { secureQuery } from '@/lib/supabase/secure-query'
 
 interface WeekDay {
   date: Date
@@ -90,6 +91,19 @@ function ScheduleContent() {
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null)
   const [hasPlan, setHasPlan] = useState<boolean>(false)
   const [isLoadingPlan, setIsLoadingPlan] = useState(true)
+
+  // Safety timeout: Force loading states to false after 15 seconds to prevent infinite loading
+  useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      if (isLoadingSettings || isLoadingPlan) {
+        console.warn('[Schedule] Safety timeout triggered - forcing loading states to false')
+        setIsLoadingSettings(false)
+        setIsLoadingPlan(false)
+      }
+    }, 15000) // 15 second safety timeout
+
+    return () => clearTimeout(safetyTimeout)
+  }, [isLoadingSettings, isLoadingPlan])
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date()
     return `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`
@@ -662,18 +676,27 @@ function ScheduleContent() {
       if (planIdsToFetch.length === 0) {
         // If we have a currentPlanId but no tasks, still try to fetch the plan info
         if (currentPlanId) {
-          const { data: planData, error } = await supabase
-            .from('plans')
-            .select('id, goal_text, summary_data')
-            .eq('id', currentPlanId)
-            .eq('user_id', userId!)
-            .eq('status', 'active')
-            .single()
+          const planResult = await secureQuery<{ id: string; goal_text: string | null; summary_data: { goal_text?: string } | null }>(
+            async (client) => {
+              return await client
+                .from('plans')
+                .select('id, goal_text, summary_data')
+                .eq('id', currentPlanId)
+                .eq('user_id', userId!)
+                .eq('status', 'active')
+                .single()
+            },
+            {
+              requireAuth: true,
+              timeout: 10000,
+              maxRetries: 2
+            }
+          )
           
-          if (!error && planData) {
-            const planName = planData.summary_data?.goal_text || planData.goal_text
+          if (!planResult.error && planResult.data) {
+            const planName = planResult.data.summary_data?.goal_text || planResult.data.goal_text
             const plansMap = new Map<string, {id: string, name: string}>()
-            plansMap.set(planData.id, { id: planData.id, name: planName })
+            plansMap.set(planResult.data.id, { id: planResult.data.id, name: planName || '' })
             setActivePlansForWeek(plansMap)
             return
           }
@@ -682,25 +705,38 @@ function ScheduleContent() {
         return
       }
       
-      // Fetch plan details for all unique plan_ids
-      const { data: plansData, error } = await supabase
-        .from('plans')
-        .select('id, goal_text, summary_data')
-        .in('id', planIdsToFetch)
-        .eq('user_id', userId!)
-        .eq('status', 'active')
+      // Fetch plan details for all unique plan_ids using secure query
+      const plansResult = await secureQuery<Array<{ id: string; goal_text: string | null; summary_data: { goal_text?: string } | null }>>(
+        async (client) => {
+          return await client
+            .from('plans')
+            .select('id, goal_text, summary_data')
+            .in('id', planIdsToFetch)
+            .eq('user_id', userId!)
+            .eq('status', 'active')
+        },
+        {
+          requireAuth: true,
+          timeout: 10000,
+          maxRetries: 2
+        }
+      )
       
-      if (error) {
-        console.error('Error fetching active plans:', error)
+      if (plansResult.error) {
+        console.error('[Schedule] Error fetching active plans:', plansResult.error.message)
         return
       }
       
+      const plansData = plansResult.data
+      
       // Create a map of plan_id -> plan name
       const plansMap = new Map<string, {id: string, name: string}>()
-      plansData?.forEach(plan => {
-        const planName = plan.summary_data?.goal_text || plan.goal_text
-        plansMap.set(plan.id, { id: plan.id, name: planName })
-      })
+      if (plansData && Array.isArray(plansData)) {
+        plansData.forEach(plan => {
+          const planName = plan.summary_data?.goal_text || plan.goal_text
+          plansMap.set(plan.id, { id: plan.id, name: planName || '' })
+        })
+      }
       
       setActivePlansForWeek(plansMap)
     }
@@ -715,8 +751,16 @@ function ScheduleContent() {
   // Load user's time format preference from settings and user ID
   useEffect(() => {
     const loadSettings = async () => {
+      // Add timeout protection to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        console.warn('[Schedule] Settings load timeout - forcing loading states to false')
+        setIsLoadingSettings(false)
+        setIsLoadingPlan(false)
+      }, 15000) // 15 second timeout
+
       try {
         if (!user?.id) {
+          clearTimeout(timeoutId)
           setIsLoadingSettings(false)
           setIsLoadingPlan(false)
           return
@@ -724,14 +768,30 @@ function ScheduleContent() {
 
         setUserId(user.id)
 
-        // Load user settings
-        const { data: settingsData } = await supabase
-          .from('user_settings')
-          .select('preferences')
-          .eq('user_id', user.id)
-          .maybeSingle()
+        // Load user settings using secure query wrapper
+        const settingsResult = await secureQuery<{ preferences?: any }>(
+          async (client) => {
+            return await client
+              .from('user_settings')
+              .select('preferences')
+              .eq('user_id', user.id)
+              .maybeSingle()
+          },
+          {
+            requireAuth: true,
+            timeout: 10000,
+            maxRetries: 2,
+            onError: (error) => {
+              console.warn('[Schedule] Settings query error:', error.message)
+            }
+          }
+        )
 
-        const preferences = settingsData?.preferences || {}
+        if (settingsResult.error) {
+          console.warn('[Schedule] Error loading settings, using defaults:', settingsResult.error.message)
+        }
+
+        const preferences = settingsResult.data?.preferences || {}
         if (preferences?.time_format) {
           setTimeFormat(preferences.time_format)
         }
@@ -757,15 +817,35 @@ function ScheduleContent() {
         setLunchStartHour(Math.min(Math.max(0, lunchStart), 23))
         setLunchEndHour(Math.min(Math.max(0, lunchEnd), 24))
 
-        // Check if user has an active plan
-        const { data: planData } = await supabase
-          .from('plans')
-          .select('id, status, start_date')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+        // Check if user has an active plan using secure query wrapper
+        const planResult = await secureQuery<{ id: string; status: string; start_date: string }>(
+          async (client) => {
+            return await client
+              .from('plans')
+              .select('id, status, start_date')
+              .eq('user_id', user.id)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          },
+          {
+            requireAuth: true,
+            timeout: 10000,
+            maxRetries: 2,
+            onError: (error) => {
+              console.warn('[Schedule] Plan query error:', error.message)
+            }
+          }
+        )
+
+        const planData = planResult.data
+        const planError = planResult.error
+
+        if (planError && planError.message && !planError.message.includes('PGRST116')) {
+          // PGRST116 is "no rows returned" which is expected when user has no plan
+          console.warn('[Schedule] Error loading plan:', planError.message)
+        }
 
         // Helper to calculate week start with the correct weekStartDay
         const calculateWeekStart = (date: Date, weekStart: number) => {
@@ -776,15 +856,30 @@ function ScheduleContent() {
           return normalizedStart
         }
 
-        // If plan ID provided in URL, verify it belongs to user and is active
+        // If plan ID provided in URL, verify it belongs to user and is active using secure query
         if (planIdFromUrl) {
-          const { data: urlPlanData, error: urlPlanError } = await supabase
-            .from('plans')
-            .select('id, status, user_id, start_date')
-            .eq('id', planIdFromUrl)
-            .eq('user_id', user.id)
-            .eq('status', 'active')
-            .single()
+          const urlPlanResult = await secureQuery<{ id: string; status: string; user_id: string; start_date: string }>(
+            async (client) => {
+              return await client
+                .from('plans')
+                .select('id, status, user_id, start_date')
+                .eq('id', planIdFromUrl)
+                .eq('user_id', user.id)
+                .eq('status', 'active')
+                .maybeSingle()
+            },
+            {
+              requireAuth: true,
+              timeout: 10000,
+              maxRetries: 2,
+              onError: (error) => {
+                console.warn('[Schedule] URL plan query error:', error.message)
+              }
+            }
+          )
+
+          const urlPlanData = urlPlanResult.data
+          const urlPlanError = urlPlanResult.error
 
           if (urlPlanData && !urlPlanError) {
             setCurrentPlanId(urlPlanData.id)
@@ -820,16 +915,20 @@ function ScheduleContent() {
           setHasPlan(false)
         }
       } catch (error) {
-        console.error('Error loading settings:', error)
+        console.error('[Schedule] Error loading settings:', error)
         setHasPlan(false)
+        // Ensure loading states are cleared even on error
+        setIsLoadingSettings(false)
+        setIsLoadingPlan(false)
       } finally {
+        clearTimeout(timeoutId)
         setIsLoadingSettings(false)
         setIsLoadingPlan(false)
       }
     }
 
     loadSettings()
-  }, [user?.id])
+  }, [user?.id, planIdFromUrl, router])
 
   // Get the start of week based on user's preference
   const getStartOfWeek = useCallback((date: Date) => {
