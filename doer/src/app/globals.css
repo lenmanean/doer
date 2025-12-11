@@ -16,13 +16,23 @@ html:not(.light) body {
 
 /* NUCLEAR OPTION: Force dark backgrounds on elements with bg-white when dark class is present */
 /* This overrides bg-white to show dark backgrounds immediately, before Tailwind processes */
-html.dark [class*="bg-white"] {
+/* Only target solid bg-white, not opacity variants like bg-white/5 or bg-white/10 */
+html.dark [class*="bg-white"]:not([class*="bg-white/"]):not([class*="bg-white\\/"]) {
   background-color: rgb(17 24 39) !important; /* gray-900 */
 }
 
 /* Ensure text is visible on dark backgrounds */
-html.dark [class*="bg-white"] * {
+html.dark [class*="bg-white"]:not([class*="bg-white/"]):not([class*="bg-white\\/"]) * {
   color: rgb(215 210 203) !important; /* text-[#d7d2cb] */
+}
+
+/* Explicitly ensure bg-white/5 and bg-white/10 work correctly in dark theme */
+html.dark [class*="bg-white/5"] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark [class*="bg-white/10"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 
