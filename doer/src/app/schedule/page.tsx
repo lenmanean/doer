@@ -1816,11 +1816,11 @@ function ScheduleContent() {
                             <motion.div
                               layout
                               key={`${day.dateString}-${dayIndex}-${slot.hour}-${slot.minute}-extra`}
-                              className={`border-b border-r transition-colors relative cursor-default ${
-                                theme === 'dark'
-                                  ? 'border-white/10'
-                                  : 'bg-white border-gray-200'
-                              }`}
+                            className={`border-b border-r transition-colors relative cursor-default ${
+                              theme === 'dark'
+                                ? 'bg-[#0a0a0a] border-white/10'
+                                : 'bg-white border-gray-200'
+                            }`}
                               style={{ 
                                 height: `${rowHeight}px`,
                                 minHeight: `${rowHeight}px`,
@@ -1932,7 +1932,7 @@ function ScheduleContent() {
                                   ? 'border-white/10'
                                   : ''
                                 : theme === 'dark'
-                                  ? 'border-white/10 hover:bg-white/10'
+                                  ? 'bg-[#0a0a0a] border-white/10 hover:bg-white/10'
                                   : 'bg-white border-gray-200 hover:bg-gray-50'
                             }`}
                             style={{ 

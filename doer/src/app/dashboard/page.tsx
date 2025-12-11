@@ -1092,7 +1092,7 @@ function DashboardContent() {
               
               {/* Date Range and Days Left - Individual Panels */}
               <div className="grid grid-cols-3 gap-3 pt-2">
-                <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                <div className="p-3 rounded-lg bg-[#0a0a0a] border border-white/10">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar className="w-4 h-4 text-[#d7d2cb]/60" />
                     <p className="text-xs text-[#d7d2cb]/60">Start Date</p>
@@ -1112,7 +1112,7 @@ function DashboardContent() {
                   )}
                 </div>
                 
-                <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                <div className="p-3 rounded-lg bg-[#0a0a0a] border border-white/10">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar className="w-4 h-4 text-[#d7d2cb]/60" />
                     <p className="text-xs text-[#d7d2cb]/60">End Date</p>
