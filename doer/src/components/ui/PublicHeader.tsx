@@ -299,7 +299,7 @@ export function PublicHeader() {
         </nav>
 
         {/* Right side - Language selector and CTA */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 overflow-visible">
           {/* Language Selector */}
           <div ref={langRef} className="relative">
             <button
@@ -310,20 +310,22 @@ export function PublicHeader() {
               <Languages className="w-5 h-5" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-[9999] max-w-[calc(100vw-2rem)]">
-                {locales.map((locale) => (
-                  <button
-                    key={locale}
-                    onClick={() => handleLocaleChange(locale)}
-                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                      currentLocale === locale
-                        ? 'bg-orange-500 text-white dark:bg-gray-700 dark:text-white font-medium'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {localeNames[locale]}
-                  </button>
-                ))}
+              <div className="absolute right-0 top-full pt-2 w-48 max-w-[calc(100vw-2rem)] z-[9999]">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2">
+                  {locales.map((locale) => (
+                    <button
+                      key={locale}
+                      onClick={() => handleLocaleChange(locale)}
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                        currentLocale === locale
+                          ? 'bg-orange-500 text-white dark:bg-gray-700 dark:text-white font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-orange-500 hover:text-white dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {localeNames[locale]}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
