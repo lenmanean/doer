@@ -93,7 +93,9 @@ export async function POST(req: NextRequest) {
             const subscription = await stripe!.subscriptions.retrieve(session.subscription)
             await syncSubscriptionSnapshot(subscription, { userId })
           } catch (syncError) {
-            logger.error('Failed to sync subscription after checkout', syncError as Error, {
+            logger.error('Failed to sync subscription after checkout', {
+              error: syncError instanceof Error ? syncError.message : String(syncError),
+              errorStack: syncError instanceof Error ? syncError.stack : undefined,
               userId,
               sessionId: session.id,
               subscriptionId: session.subscription,
@@ -176,7 +178,9 @@ export async function POST(req: NextRequest) {
           try {
             await syncSubscriptionSnapshot(subscription, { userId })
           } catch (syncError) {
-            logger.error('Failed to sync subscription snapshot from webhook', syncError as Error, {
+            logger.error('Failed to sync subscription snapshot from webhook', {
+              error: syncError instanceof Error ? syncError.message : String(syncError),
+              errorStack: syncError instanceof Error ? syncError.stack : undefined,
               userId,
               subscriptionId: subscription.id,
             })
@@ -289,7 +293,9 @@ export async function POST(req: NextRequest) {
               })
             }
           } catch (syncError) {
-            logger.error('Failed to sync subscription after payment succeeded', syncError as Error, {
+            logger.error('Failed to sync subscription after payment succeeded', {
+              error: syncError instanceof Error ? syncError.message : String(syncError),
+              errorStack: syncError instanceof Error ? syncError.stack : undefined,
               subscriptionId,
               invoiceId: invoice.id,
             })
