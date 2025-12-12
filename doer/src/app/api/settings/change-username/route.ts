@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (settingsError || !settings) {
-      logger.error('Failed to load user settings for username change', settingsError as Error, {
+      logger.error('Failed to load user settings for username change', {
+        error: settingsError instanceof Error ? settingsError.message : String(settingsError),
+        errorStack: settingsError instanceof Error ? settingsError.stack : undefined,
         userId: user.id,
       })
       throw new ApiError(500, 'SETTINGS_NOT_FOUND', 'Unable to load user settings')
@@ -112,7 +114,11 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      logger.error('Failed to update username', updateError as Error, { userId: user.id })
+      logger.error('Failed to update username', {
+        error: updateError instanceof Error ? updateError.message : String(updateError),
+        errorStack: updateError instanceof Error ? updateError.stack : undefined,
+        userId: user.id,
+      })
       throw new ApiError(500, 'USERNAME_UPDATE_FAILED', 'Failed to update username')
     }
 
