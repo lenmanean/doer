@@ -44,16 +44,16 @@ export default function FeaturesPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
+    <div className="min-h-screen bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
       
-      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900 transition-colors">
+      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8 bg-gray-900 transition-colors">
         <div className="max-w-6xl mx-auto">
           <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-6 transition-colors">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 mb-6 transition-colors">
               {t('pages.features.title')}
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 dark:text-slate-300 mb-10 transition-colors">
+            <p className="text-lg sm:text-xl text-slate-300 mb-10 transition-colors">
               {t('pages.features.description')}
             </p>
           </div>
@@ -62,14 +62,14 @@ export default function FeaturesPage() {
             {featureSections.map((feature, index) => (
               <article
                 key={feature.id}
-                className="relative overflow-hidden rounded-[3rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-800 shadow-[0_25px_80px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors"
+                className="relative overflow-hidden rounded-[3rem] border border-slate-800 bg-gray-800 shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors"
               >
                 <div className="relative grid gap-10 lg:gap-16 lg:grid-cols-2 p-6 sm:p-8 md:p-12 lg:p-16 items-center">
                   <div className={index % 2 !== 0 ? 'lg:order-2' : ''}>
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-900 dark:text-slate-100 mb-6 transition-colors">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-100 mb-6 transition-colors">
                       {feature.title}
                     </h2>
-                    <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <p className="text-base sm:text-lg text-slate-300 leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
@@ -84,8 +84,8 @@ export default function FeaturesPage() {
                         />
                       </div>
                     ) : (
-                      <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors">
-                        <div className="overflow-hidden rounded-[2.3rem] border border-slate-100 dark:border-slate-800 bg-white dark:bg-gray-900">
+                      <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)] transition-colors">
+                        <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900">
                           {feature.videoUrl ? (
                             <div className="relative aspect-video">
                               <iframe
@@ -141,10 +141,10 @@ export default function FeaturesPage() {
             ))}
 
             <section className="text-center space-y-6">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-900 dark:text-slate-100 transition-colors">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-100 transition-colors">
                 {t('pages.features.moreComing')}
               </h2>
-              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 transition-colors max-w-2xl mx-auto">
+              <p className="text-base sm:text-lg text-slate-300 transition-colors max-w-2xl mx-auto">
                 {t('pages.features.moreComingDescription')}
               </p>
               {IS_PRE_LAUNCH ? (

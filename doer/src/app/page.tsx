@@ -140,24 +140,24 @@ export default function Home() {
   const pricingDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-gray-900 flex flex-col overflow-x-hidden">
       {/* Launch Countdown Banner - Pre-launch only */}
       {IS_PRE_LAUNCH && <LaunchCountdownBanner />}
       <PublicHeader />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-32 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+      <section className="pt-20 pb-32 px-4 sm:px-6 lg:px-8 bg-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h1
               ref={heroHeadlineAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white mb-8 leading-tight scroll-animate-fade-up ${heroHeadlineAnim.isVisible ? 'visible' : ''}`}
+              className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-8 leading-tight scroll-animate-fade-up ${heroHeadlineAnim.isVisible ? 'visible' : ''}`}
             >
               {t('hero.headline')}
             </h1>
             <p
               ref={heroSubheadlineAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed scroll-animate-fade-up ${heroSubheadlineAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-300 mb-10 leading-relaxed scroll-animate-fade-up ${heroSubheadlineAnim.isVisible ? 'visible' : ''}`}
             >
               {t('hero.subheadline')}
             </p>
@@ -175,9 +175,9 @@ export default function Home() {
               }}
             />
             {!IS_PRE_LAUNCH && !isAuthenticated && (
-              <p className="mt-4 text-center text-gray-600 dark:text-gray-400">
+              <p className="mt-4 text-center text-gray-400">
                 Already have an account?{' '}
-                <Link href="/login" className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300">
+                <Link href="/login" className="text-orange-400 hover:text-orange-300">
                   Log in
                 </Link>
               </p>
@@ -187,18 +187,18 @@ export default function Home() {
       </section>
 
       {/* Feature Showcase with Expandable Steps */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2
               ref={featureTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${featureTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${featureTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('features.title')}
             </h2>
             <p
               ref={featureDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto scroll-animate-fade-up ${featureDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-xl text-gray-300 max-w-3xl mx-auto scroll-animate-fade-up ${featureDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('features.description')}
             </p>
@@ -227,18 +227,18 @@ export default function Home() {
       </section>
 
       {/* Integrations Section */}
-      <section className="py-20 bg-white dark:bg-gray-900">
+      <section className="py-20 bg-gray-900">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto text-center mb-16">
             <h2
               ref={integrationsTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${integrationsTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${integrationsTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('integrations.title')}
             </h2>
             <p
               ref={integrationsDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${integrationsDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-300 scroll-animate-fade-up ${integrationsDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('integrations.description')}
             </p>
@@ -270,12 +270,12 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`${integration.name}-${index}`}
-                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 border-gray-700 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-orange-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 rounded-lg border-2 border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 transition-colors"
               >
-                <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
+                <div className="w-12 h-12 mb-2 flex items-center justify-center text-white">
                   <integration.Icon className="w-full h-full" />
                 </div>
-                <p className="text-xs font-medium text-gray-900 dark:text-white text-center">
+                <p className="text-xs font-medium text-white text-center">
                   {integration.name}
                 </p>
               </div>
@@ -299,12 +299,12 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`duplicate-1-${integration.name}-${index}`}
-                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 border-gray-700 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-orange-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 rounded-lg border-2 border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 transition-colors"
               >
-                <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
+                <div className="w-12 h-12 mb-2 flex items-center justify-center text-white">
                   <integration.Icon className="w-full h-full" />
                 </div>
-                <p className="text-xs font-medium text-gray-900 dark:text-white text-center">
+                <p className="text-xs font-medium text-white text-center">
                   {integration.name}
                 </p>
               </div>
@@ -328,12 +328,12 @@ export default function Home() {
             ].map((integration, index) => (
               <div
                 key={`duplicate-2-${integration.name}-${index}`}
-                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 dark:bg-gray-800 rounded-lg border-2 border-gray-700 dark:border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 dark:hover:border-orange-500 transition-colors"
+                className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 bg-gray-800 rounded-lg border-2 border-gray-700 p-4 flex flex-col items-center justify-center hover:border-orange-500 transition-colors"
               >
-                <div className="w-12 h-12 mb-2 flex items-center justify-center text-gray-700 dark:text-white">
+                <div className="w-12 h-12 mb-2 flex items-center justify-center text-white">
                   <integration.Icon className="w-full h-full" />
                 </div>
-                <p className="text-xs font-medium text-gray-900 dark:text-white text-center">
+                <p className="text-xs font-medium text-white text-center">
                   {integration.name}
                 </p>
               </div>
@@ -351,18 +351,18 @@ export default function Home() {
       </section>
 
       {/* Comparison Section */}
-      <section className="py-20 bg-white dark:bg-gray-900">
+      <section className="py-20 bg-gray-900">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto text-center mb-16">
             <h2
               ref={comparisonTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${comparisonTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${comparisonTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('comparison.title')}
             </h2>
             <p
               ref={comparisonDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${comparisonDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-300 scroll-animate-fade-up ${comparisonDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('comparison.description')}
             </p>
@@ -375,25 +375,25 @@ export default function Home() {
         >
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
             {/* Without DOER Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-8 flex flex-col">
+            <div className="bg-gray-800 rounded-xl border-2 border-gray-700 p-8 flex flex-col">
               <div className="flex items-center justify-center mb-6">
                 <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center">
                   <XCircle className="w-10 h-10 text-white" />
                 </div>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+              <h3 className="text-3xl font-bold text-white mb-6 text-center">
                 {t('comparison.withoutDoer.title')}
               </h3>
               <ul className="space-y-4 flex-grow">
                 {/* Basic capabilities - normal text (available without DOER) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100 font-medium">
+                  <li key={`basic-${index}`} className="text-gray-100 font-medium">
                     {feature}
                   </li>
                 ))}
                 {/* DOER-exclusive features - greyed out (not available without DOER) */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-500 dark:text-gray-500 line-through opacity-60">
+                  <li key={`exclusive-${index}`} className="text-gray-500 line-through opacity-60">
                     {feature}
                   </li>
                 ))}
@@ -401,31 +401,31 @@ export default function Home() {
             </div>
 
             {/* With DOER Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-green-500 dark:border-green-500 p-8 flex flex-col animate-green-glow">
+            <div className="bg-gray-800 rounded-xl border-2 border-green-500 p-8 flex flex-col animate-green-glow">
               <div className="flex items-center justify-center mb-6">
                 <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
                   <CheckCircle className="w-10 h-10 text-white" />
                 </div>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+              <h3 className="text-3xl font-bold text-white mb-6 text-center">
                 {t('comparison.withDoer.title')}
               </h3>
               <ul className="space-y-3 flex-grow mb-4">
                 {/* Basic capabilities - normal text (available with DOER) */}
                 {t.raw('comparison.basicCapabilities').map((feature: string, index: number) => (
-                  <li key={`basic-${index}`} className="text-gray-900 dark:text-gray-100 font-medium text-base">
+                  <li key={`basic-${index}`} className="text-gray-100 font-medium text-base">
                     {feature}
                   </li>
                 ))}
                 {/* DOER-exclusive features - bold, highlighted (the value proposition) */}
                 {t.raw('comparison.doerExclusiveFeatures').map((feature: string, index: number) => (
-                  <li key={`exclusive-${index}`} className="text-gray-900 dark:text-gray-100 font-bold text-base">
+                  <li key={`exclusive-${index}`} className="text-gray-100 font-bold text-base">
                     {feature}
                   </li>
                 ))}
               </ul>
-              <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Link href="/documentation" className="flex items-center justify-center text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300 font-medium transition-colors">
+              <div className="mt-auto pt-4 border-t border-gray-700">
+                <Link href="/documentation" className="flex items-center justify-center text-green-400 hover:text-green-300 font-medium transition-colors">
                   {t('comparison.seeMore')}
                 </Link>
               </div>
@@ -435,18 +435,18 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-white dark:bg-gray-900">
+      <section className="py-20 bg-gray-900">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto text-center mb-16">
             <h2 
               ref={testimonialsTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${testimonialsTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${testimonialsTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('testimonials.title')}
             </h2>
             <p 
               ref={testimonialsDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${testimonialsDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-lg sm:text-xl md:text-2xl text-gray-300 scroll-animate-fade-up ${testimonialsDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('testimonials.description')}
             </p>
@@ -493,15 +493,15 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`testimonial-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 dark:bg-gray-800 rounded-xl border-2 border-gray-700 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 rounded-xl border-2 border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
-                      <div className="font-semibold text-gray-900 dark:text-white">
+                      <div className="font-semibold text-white">
                         {testimonial.name}
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed">
                     "{testimonial.text}"
                   </p>
-                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                  <div className="text-xs text-gray-500">
                     {testimonial.date}
                   </div>
                 </div>
@@ -541,15 +541,15 @@ export default function Home() {
               ].map((testimonial, index) => (
                 <div
                   key={`duplicate-1-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 dark:bg-gray-800 rounded-xl border-2 border-gray-700 dark:border-gray-700 p-6 flex flex-col gap-4 max-w-full"
+                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 rounded-xl border-2 border-gray-700 p-6 flex flex-col gap-4 max-w-full"
                 >
-                      <div className="font-semibold text-gray-900 dark:text-white">
+                      <div className="font-semibold text-white">
                         {testimonial.name}
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed">
                     "{testimonial.text}"
                   </p>
-                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                  <div className="text-xs text-gray-500">
                     {testimonial.date}
                   </div>
                 </div>
@@ -560,18 +560,18 @@ export default function Home() {
 
       {/* Pricing Preview Section - Hidden until launch */}
       {!IS_PRE_LAUNCH && (
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
               <h2
                 ref={pricingTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-                className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${pricingTitleAnim.isVisible ? 'visible' : ''}`}
+                className={`text-5xl md:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${pricingTitleAnim.isVisible ? 'visible' : ''}`}
               >
                 {t('pricing.title')}
               </h2>
               <p
                 ref={pricingDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-                className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${pricingDescAnim.isVisible ? 'visible' : ''}`}
+                className={`text-2xl text-gray-300 scroll-animate-fade-up ${pricingDescAnim.isVisible ? 'visible' : ''}`}
               >
                 {t('pricing.subtitle')}
               </p>
@@ -615,18 +615,18 @@ export default function Home() {
       )}
 
       {/* FAQ Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 
               ref={faqTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 scroll-animate-fade-up ${faqTitleAnim.isVisible ? 'visible' : ''}`}
+              className={`text-5xl md:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${faqTitleAnim.isVisible ? 'visible' : ''}`}
             >
               {t('faq.title')}
             </h2>
             <p 
               ref={faqDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-2xl text-gray-600 dark:text-gray-300 scroll-animate-fade-up ${faqDescAnim.isVisible ? 'visible' : ''}`}
+              className={`text-2xl text-gray-300 scroll-animate-fade-up ${faqDescAnim.isVisible ? 'visible' : ''}`}
             >
               {t('faq.description')}
             </p>
@@ -664,15 +664,15 @@ export default function Home() {
             ].map((faq, index) => (
               <details
                 key={index}
-                className="group bg-gray-800 dark:bg-gray-800 rounded-2xl border-2 border-gray-700 dark:border-gray-700 overflow-hidden transition-all"
+                className="group bg-gray-800 rounded-2xl border-2 border-gray-700 overflow-hidden transition-all"
               >
                 <summary 
-                  className="flex items-center justify-between cursor-pointer px-12 py-10 text-2xl font-semibold text-white dark:text-white hover:bg-gray-700/50 dark:hover:bg-gray-700/50 transition-colors list-none"
+                  className="flex items-center justify-between cursor-pointer px-12 py-10 text-2xl font-semibold text-white hover:bg-gray-700/50 transition-colors list-none"
                 >
                   <span>{faq.question}</span>
-                  <ChevronDown className="w-10 h-10 text-gray-300 dark:text-gray-400 transition-transform group-open:rotate-180 flex-shrink-0 ml-6" />
+                  <ChevronDown className="w-10 h-10 text-gray-400 transition-transform group-open:rotate-180 flex-shrink-0 ml-6" />
                 </summary>
-                <div className="px-12 pb-10 pt-4 bg-gray-900 dark:bg-gray-900 text-xl text-gray-300 dark:text-gray-300 leading-relaxed border-t border-gray-700 dark:border-gray-700">
+                <div className="px-12 pb-10 pt-4 bg-gray-900 text-xl text-gray-300 leading-relaxed border-t border-gray-700">
                   {faq.answer}
                 </div>
               </details>
@@ -680,7 +680,7 @@ export default function Home() {
           </div>
 
           <div className="mt-12 text-center">
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-gray-400 mb-4">
               {t('faq.stillHaveQuestions')}
             </p>
             <Link href="/documentation">
@@ -748,7 +748,7 @@ export default function Home() {
         </div>
 
         {/* Page Content Overlay - Lifts up on scroll */}
-        <div className="relative z-10 bg-white dark:bg-gray-900 shadow-2xl">
+        <div className="relative z-10 bg-gray-900 shadow-2xl">
           <PublicFooter />
         </div>
       </div>
@@ -781,7 +781,7 @@ function StepCardWithAnimation({
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
-      className={`bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-300 scroll-animate-fade-up ${isVisible ? 'visible' : ''}`}
+      className={`bg-gray-800 border-2 border-gray-700 rounded-lg overflow-hidden transition-all duration-300 scroll-animate-fade-up ${isVisible ? 'visible' : ''}`}
     >
       <StepCardContent
         step={step}
@@ -881,7 +881,7 @@ function StepCardContent({
                         if (h3) (h3 as HTMLElement).style.removeProperty('color')
                       }
                     }}
-                    className="w-full px-6 py-5 flex items-center justify-between bg-gray-800 dark:bg-gray-800 hover:bg-gray-700 dark:hover:bg-gray-700 transition-colors text-left border-b border-gray-700 dark:border-gray-700"
+                    className="w-full px-6 py-5 flex items-center justify-between bg-gray-800 hover:bg-gray-700 transition-colors text-left border-b border-gray-700"
                   >
                     <div className="flex items-center gap-4">
                       <div 
@@ -894,13 +894,13 @@ function StepCardContent({
                         {step.stepNum}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-white dark:text-white">
+                        <h3 className="text-lg font-semibold text-white">
                           {step.label}
                         </h3>
                       </div>
                     </div>
                     <ChevronDown
-                      className={`w-5 h-5 text-gray-300 dark:text-gray-400 transition-transform duration-300 flex-shrink-0 ${
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-300 flex-shrink-0 ${
                         isExpanded ? 'transform rotate-180' : ''
                       }`}
                     />
@@ -912,19 +912,19 @@ function StepCardContent({
                       isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
                     }`}
                   >
-                    <div className="px-6 pb-6 pt-2 bg-gray-900 dark:bg-gray-900 border-t border-gray-700 dark:border-gray-700">
+                    <div className="px-6 pb-6 pt-2 bg-gray-900 border-t border-gray-700">
                       <div className="mb-6">
-                        <h4 className="text-xl font-bold text-white dark:text-white mb-3">
+                        <h4 className="text-xl font-bold text-white mb-3">
                           {step.title}
                         </h4>
-                        <p className="text-base text-gray-300 dark:text-gray-300 leading-relaxed">
+                        <p className="text-base text-gray-300 leading-relaxed">
                           {step.description}
                         </p>
                       </div>
                       
                       {/* Plan Preview - Video embedded for step 1, step 2, and step 3 */}
                       {step.id === 'step1' && isExpanded ? (
-                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-700 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg border-2 border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             src="/doer_tut1.mp4"
@@ -982,7 +982,7 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : step.id === 'step2' && isExpanded ? (
-                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-700 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg border-2 border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             src="/doer_tut2.mp4"
@@ -1040,7 +1040,7 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : step.id === 'step3' && isExpanded ? (
-                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg border-2 border-gray-700 dark:border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
+                        <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg border-2 border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
                           <video
                             ref={videoRef}
                             src="/doer_tut3.mp4"
@@ -1098,10 +1098,10 @@ function StepCardContent({
                           </video>
                         </div>
                       ) : (
-                      <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-700 dark:border-gray-700">
+                      <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg p-8 flex items-center justify-center min-h-[400px] border-2 border-gray-700">
                         <div className="text-center space-y-4">
-                          <div className="w-16 h-16 bg-gray-600 dark:bg-gray-600 rounded-lg mx-auto"></div>
-                          <p className="text-gray-300 dark:text-gray-400 text-sm font-medium">Plan Preview</p>
+                          <div className="w-16 h-16 bg-gray-600 rounded-lg mx-auto"></div>
+                          <p className="text-gray-400 text-sm font-medium">Plan Preview</p>
                         </div>
                       </div>
                       )}
@@ -1137,26 +1137,26 @@ function PricingCard({
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
-      className={`bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 p-10 flex flex-col hover:border-orange-500 dark:hover:border-orange-500 transition-all duration-300 scroll-animate-fade-up ${isVisible ? 'visible' : ''}`}
+      className={`bg-gray-800 rounded-xl border-2 border-gray-700 p-10 flex flex-col hover:border-orange-500 transition-all duration-300 scroll-animate-fade-up ${isVisible ? 'visible' : ''}`}
     >
-      <h3 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
+      <h3 className="text-4xl font-bold text-white mb-6">
         {title}
       </h3>
       {price && (
         <div className="mb-6">
-          <span className="text-6xl font-bold text-gray-900 dark:text-white">{price}</span>
-          {priceUnit && <span className="text-2xl text-gray-600 dark:text-gray-400">{priceUnit}</span>}
+          <span className="text-6xl font-bold text-white">{price}</span>
+          {priceUnit && <span className="text-2xl text-gray-400">{priceUnit}</span>}
         </div>
       )}
       {description && (
-        <p className="text-lg text-gray-900 dark:text-gray-400 mb-6">
+        <p className="text-lg text-gray-400 mb-6">
           {description}
         </p>
       )}
       {features && (
         <ul className="space-y-4 mb-8 flex-grow">
           {features.map((feature, index) => (
-            <li key={index} className="flex items-center text-base font-medium text-gray-900 dark:text-gray-300">
+            <li key={index} className="flex items-center text-base font-medium text-gray-300">
               <svg className="w-6 h-6 mr-3 flex-shrink-0 checkmark-icon" fill="none" viewBox="0 0 24 24">
                 <path 
                   strokeLinecap="round" 
@@ -1165,7 +1165,7 @@ function PricingCard({
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <span className="text-gray-900 dark:text-gray-300">{feature}</span>
+              <span className="text-gray-300">{feature}</span>
             </li>
           ))}
         </ul>

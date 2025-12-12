@@ -22,8 +22,8 @@ type CreditTooltipProps = {
 function CreditTooltip({ text }: CreditTooltipProps) {
   return (
     <span className="group relative inline-flex">
-      <Info className="h-3.5 w-3.5 text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300" />
-      <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 shadow-lg group-hover:block dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+      <Info className="h-3.5 w-3.5 text-slate-500 transition-colors group-hover:text-slate-300" />
+      <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs text-slate-300 shadow-lg group-hover:block">
         {text}
       </span>
     </span>
@@ -173,42 +173,39 @@ export default function PricingPage() {
         .glow-animated {
           animation: pulse-glow 2s ease-in-out infinite;
         }
-        .dark .glow-animated {
+        .glow-animated {
           animation: pulse-glow-dark 2s ease-in-out infinite;
         }
         .glow-animated-subtle {
-          animation: pulse-glow-subtle 2s ease-in-out infinite;
-        }
-        .dark .glow-animated-subtle {
           animation: pulse-glow-subtle-dark 2s ease-in-out infinite;
         }
       `}</style>
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors">
+      <div className="min-h-screen bg-gray-900 flex flex-col transition-colors">
         <PublicHeader />
       
-      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-12 bg-white dark:bg-gray-900 transition-colors">
+      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-12 bg-gray-900 transition-colors">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 mb-4">
             {t('pages.pricing.title')}
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-10 max-w-3xl mx-auto">
             {t('pages.pricing.description')}
           </p>
         </div>
 
         <div className="mx-auto max-w-6xl space-y-10">
           <div className="flex items-center justify-center gap-3">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            <span className="text-sm font-medium text-slate-300">
               {t('pages.pricing.billing.label')}
             </span>
-            <div className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1 text-sm font-semibold shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
+            <div className="inline-flex rounded-full border border-slate-700 bg-slate-800/90 p-1 text-sm font-semibold shadow-sm">
               <button
                 type="button"
                 onClick={() => setBillingCycle('monthly')}
-                className={`rounded-full px-4 py-2 min-h-[44px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
+                className={`rounded-full px-4 py-2 min-h-[44px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-200 ${
                   billingCycle === 'monthly'
-                    ? 'bg-orange-500 text-white shadow-sm dark:bg-orange-400 dark:text-slate-950'
-                    : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70'
+                    ? 'bg-orange-400 text-slate-950 shadow-sm'
+                    : 'text-slate-300 bg-transparent hover:text-slate-100 hover:bg-slate-700/70'
                 }`}
               >
                 {t('pages.pricing.billing.monthly')}
@@ -216,10 +213,10 @@ export default function PricingPage() {
               <button
                 type="button"
                 onClick={() => setBillingCycle('annual')}
-                className={`rounded-full px-4 py-2 min-h-[44px] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-200 ${
+                className={`rounded-full px-4 py-2 min-h-[44px] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-200 ${
                   billingCycle === 'annual'
-                    ? 'bg-orange-500 text-white dark:bg-orange-400 dark:text-slate-950 glow-animated'
-                    : 'text-slate-600 bg-transparent hover:text-slate-900 hover:bg-white/70 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-700/70 glow-animated-subtle'
+                    ? 'bg-orange-400 text-slate-950 glow-animated'
+                    : 'text-slate-300 bg-transparent hover:text-slate-100 hover:bg-slate-700/70 glow-animated-subtle'
                 }`}
               >
                 {t('pages.pricing.billing.annual')}
@@ -231,19 +228,19 @@ export default function PricingPage() {
             {plans.map((plan) => (
               <div
                 key={plan.id}
-                className={`relative flex h-full flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900 ${
+                className={`relative flex h-full flex-col gap-6 rounded-3xl border border-gray-800 bg-gray-900 p-6 sm:p-8 shadow-sm transition-colors ${
                   plan.emphasis
-                    ? 'ring-2 ring-slate-900/10 dark:ring-white/10'
+                    ? 'ring-2 ring-white/10'
                     : ''
                 } ${plan.id === 'pro' && proAnimating ? 'pro-plan-fade' : ''}`}
               >
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
                       {plan.name}
                     </p>
                     {plan.id === 'pro' && billingCycle === 'annual' && (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-800">
                         Save 33%
                       </span>
                     )}
@@ -252,43 +249,43 @@ export default function PricingPage() {
                     <div className="mt-4">
                       {plan.id === 'pro' && billingCycle === 'annual' && (
                         <div className="mb-2">
-                          <span className="text-sm text-slate-500 dark:text-slate-400 line-through mr-2">
+                          <span className="text-sm text-slate-400 line-through mr-2">
                             $20/mo
                           </span>
-                          <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                          <span className="text-xs font-semibold text-green-400">
                             33% off
                           </span>
                         </div>
                       )}
-                      <p className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100">
+                      <p className="text-3xl sm:text-4xl font-bold text-slate-100">
                         {plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price}
-                        <span className="text-base font-medium text-slate-500 dark:text-slate-400">
+                        <span className="text-base font-medium text-slate-400">
                           {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
                         </span>
                       </p>
                     </div>
                   )}
                   {plan.note && (
-                    <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-400">
                       {plan.note}
                     </p>
                   )}
                 </div>
 
-                <p className="text-sm text-slate-600 dark:text-slate-300">{plan.blurb}</p>
+                <p className="text-sm text-slate-300">{plan.blurb}</p>
 
                 {plan.credits.length > 0 && (
-                  <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                  <div className="space-y-2 text-sm text-slate-400">
                     {plan.credits.map((credit) => (
                       <div
                         key={credit.label}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2"
                       >
-                        <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-1 font-medium text-slate-300">
                           {credit.label}
                           <CreditTooltip text={creditTooltipText} />
                         </span>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        <span className="font-semibold text-slate-100">
                           {credit.value}
                         </span>
                       </div>
@@ -298,16 +295,16 @@ export default function PricingPage() {
 
                 {plan.highlights.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
                       {t('pages.pricing.includedFeatures')}
                     </h3>
-                    <ul className="space-y-2 text-sm list-disc pl-4 marker:text-slate-500 dark:marker:text-slate-500">
+                    <ul className="space-y-2 text-sm list-disc pl-4 marker:text-slate-500">
                       {plan.highlights.map((feature) => (
                         <li
                           key={feature}
-                          className="text-slate-900 dark:text-slate-200 !opacity-100"
+                          className="text-slate-200 !opacity-100"
                         >
-                          <span className="font-medium leading-relaxed text-slate-900 dark:text-slate-100">
+                          <span className="font-medium leading-relaxed text-slate-100">
                             {feature}
                           </span>
                         </li>
@@ -324,7 +321,7 @@ export default function PricingPage() {
                       className={`w-full transition-colors duration-200 ${
                         plan.emphasis
                           ? 'hover:bg-[#e67300]'
-                          : 'bg-white text-slate-900 border border-slate-300 hover:bg-slate-100 hover:border-slate-400 dark:bg-gray-900 dark:text-slate-100 dark:border-gray-700 dark:hover:bg-gray-800 dark:hover:border-gray-600'
+                          : 'bg-gray-900 text-slate-100 border border-gray-700 hover:bg-gray-800 hover:border-gray-600'
                       }`}
                     >
                       {plan.ctaLabel}
@@ -336,17 +333,17 @@ export default function PricingPage() {
           </div>
 
           <div className="mx-auto max-w-3xl">
-            <div className="relative flex h-full flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 text-center shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900">
-              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <div className="relative flex h-full flex-col gap-4 rounded-3xl border border-gray-800 bg-gray-900 p-6 sm:p-8 text-center shadow-sm transition-colors">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
                 {customPlan.name}
               </p>
-              <p className="text-base text-slate-600 dark:text-slate-300">{customPlan.blurb}</p>
+              <p className="text-base text-slate-300">{customPlan.blurb}</p>
               <div className="mt-auto">
                 <Link href={customPlan.href}>
                   <Button
                     size="lg"
                     variant="default"
-                    className="w-full bg-white text-slate-900 border border-slate-300 hover:bg-slate-100 hover:border-slate-400 dark:bg-gray-900 dark:text-slate-100 dark:border-gray-700 dark:hover:bg-gray-800 dark:hover:border-gray-600 transition-colors duration-200"
+                    className="w-full bg-gray-900 text-slate-100 border border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
                   >
                     {customPlan.ctaLabel}
                   </Button>

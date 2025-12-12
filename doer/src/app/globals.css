@@ -35,6 +35,41 @@ html.dark [class*="bg-white/10"] {
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* Force dark colors for public page elements (mobile fallback) */
+/* These rules ensure public pages are always dark, even if dark class isn't applied yet */
+html:not(.light) header,
+html:not(.light) footer {
+  background-color: rgb(17 24 39) !important; /* gray-900 */
+  color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+/* Force dark backgrounds for public page containers */
+html:not(.light) [class*="bg-white"]:not([class*="bg-white/"]):not([class*="bg-white\\/"]) {
+  background-color: rgb(17 24 39) !important; /* gray-900 */
+}
+
+/* Force dark text colors on public pages */
+html:not(.light) [class*="text-gray-900"],
+html:not(.light) [class*="text-slate-900"] {
+  color: rgb(243 244 246) !important; /* gray-100/white */
+}
+
+html:not(.light) [class*="text-gray-600"],
+html:not(.light) [class*="text-slate-600"] {
+  color: rgb(209 213 219) !important; /* gray-300 */
+}
+
+html:not(.light) [class*="text-gray-700"],
+html:not(.light) [class*="text-slate-700"] {
+  color: rgb(209 213 219) !important; /* gray-300 */
+}
+
+/* Force dark borders on public pages */
+html:not(.light) [class*="border-gray-200"],
+html:not(.light) [class*="border-slate-200"] {
+  border-color: rgb(55 65 81) !important; /* gray-700 */
+}
+
 
 :root {
   /* DOER.AI Dark Theme Colors (Default) */

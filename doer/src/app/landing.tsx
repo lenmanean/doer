@@ -89,9 +89,9 @@ export default function LandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-x-hidden transition-colors">
+    <div className="min-h-screen bg-gray-900 text-gray-100 overflow-x-hidden transition-colors">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 z-50 overflow-x-hidden">
+      <nav className="fixed top-0 w-full bg-gray-900/90 backdrop-blur-xl border-b border-gray-800 z-50 overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -99,16 +99,16 @@ export default function LandingPage() {
               <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-lg flex items-center justify-center">
                 <Target className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-gray-100">DOER.AI</span>
+              <span className="text-xl font-bold text-gray-100">DOER.AI</span>
             </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">Features</a>
-              <a href="#testimonials" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">Testimonials</a>
+              <a href="#features" className="text-gray-300 hover:text-gray-100 transition-colors">Features</a>
+              <a href="#testimonials" className="text-gray-300 hover:text-gray-100 transition-colors">Testimonials</a>
               {/* Pricing link hidden until launch */}
               {!IS_PRE_LAUNCH && (
-                <a href="#pricing" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">Pricing</a>
+                <a href="#pricing" className="text-gray-300 hover:text-gray-100 transition-colors">Pricing</a>
               )}
               <Link href="/login">
                 <Button variant="outline" size="sm">Sign In</Button>
@@ -139,7 +139,7 @@ export default function LandingPage() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="md:hidden p-2 rounded-lg text-gray-300 hover:text-gray-100 hover:bg-gray-800 min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -152,16 +152,16 @@ export default function LandingPage() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800"
+            className="md:hidden bg-gray-900/95 backdrop-blur-xl border-b border-gray-800"
           >
             <div className="px-4 py-4 space-y-3">
-              <a href="#features" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-h-[44px] flex items-center">Features</a>
-              <a href="#testimonials" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-h-[44px] flex items-center">Testimonials</a>
+              <a href="#features" className="block text-gray-300 hover:text-gray-100 transition-colors min-h-[44px] flex items-center">Features</a>
+              <a href="#testimonials" className="block text-gray-300 hover:text-gray-100 transition-colors min-h-[44px] flex items-center">Testimonials</a>
               {/* Pricing link hidden until launch */}
               {!IS_PRE_LAUNCH && (
-                <a href="#pricing" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-h-[44px] flex items-center">Pricing</a>
+                <a href="#pricing" className="block text-gray-300 hover:text-gray-100 transition-colors min-h-[44px] flex items-center">Pricing</a>
               )}
-              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-800">
                 <Link href="/login">
                   <Button variant="outline" size="sm" className="w-full">Sign In</Button>
                 </Link>
@@ -209,7 +209,7 @@ export default function LandingPage() {
                 </span>
                 {' '}Into Reality
               </h1>
-              <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed max-w-3xl mx-auto">
+              <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-300 mb-10 leading-relaxed max-w-3xl mx-auto">
                 AI-powered plan generation that transforms your written goals into structured, 
                 actionable plans you can actually follow.
               </p>
@@ -237,12 +237,12 @@ export default function LandingPage() {
               
               {/* Template Suggestions */}
               <div className="mt-12 mb-8">
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">Not sure where to start? Try one of these:</p>
+                <p className="text-gray-400 text-sm mb-4">Not sure where to start? Try one of these:</p>
                 <div className="flex flex-wrap justify-center gap-3">
                   {['Fitness Plan', 'Learning Plan', 'Career Goals', 'Project Timeline', 'Habit Tracker'].map((template, idx) => (
                     <button
                       key={idx}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-all min-h-[44px]"
+                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm text-gray-300 hover:text-gray-100 transition-all min-h-[44px]"
                     >
                       {template}
                     </button>
@@ -252,7 +252,7 @@ export default function LandingPage() {
 
               {/* Trust Badge */}
               <div className="mt-8">
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Trusted by achievers worldwide</p>
+                <p className="text-gray-400 text-sm">Trusted by achievers worldwide</p>
               </div>
             </div>
           </FadeInWrapper>
@@ -263,10 +263,10 @@ export default function LandingPage() {
       <section id="waitlist" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-white/5 to-transparent">
         <div className="max-w-2xl mx-auto text-center">
           <FadeInWrapper direction="up">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 text-gray-100">
               Join the Waitlist
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+            <p className="text-xl text-gray-300 mb-8">
               Be the first to know when DOER launches. Get early access and exclusive updates.
             </p>
             <WaitlistForm
@@ -290,7 +290,7 @@ export default function LandingPage() {
                   limitless.
                 </span>
               </h2>
-              <p className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
                 If you can describe it, you can build it.
               </p>
             </div>
@@ -303,7 +303,7 @@ export default function LandingPage() {
                 <div className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12`}>
                   {/* Icon/Visual */}
                   <div className="flex-1 flex justify-center">
-                    <div className="w-64 h-64 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-orange-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-gray-200 dark:border-gray-700">
+                    <div className="w-64 h-64 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-orange-500/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-gray-700">
                       <div className="w-32 h-32 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-xl flex items-center justify-center shadow-2xl shadow-[#ff7f00]/30">
                         <feature.icon className="w-16 h-16 text-white" />
                       </div>
@@ -312,10 +312,10 @@ export default function LandingPage() {
                   
                   {/* Content */}
                   <div className="flex-1">
-                    <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+                    <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 text-gray-100">
                       {feature.title}
                     </h3>
-                    <p className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+                    <p className="text-xl text-gray-300 leading-relaxed mb-6">
                       {feature.description}
                     </p>
                     {IS_PRE_LAUNCH ? (
@@ -358,14 +358,14 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8 mt-24">
             {features.slice(3).map((feature, index) => (
               <FadeInWrapper key={index + 3} direction="up" delay={(index + 3) * 0.1}>
-                <div className="p-8 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 group">
+                <div className="p-8 rounded-2xl bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-all duration-300 group">
                   <div className="w-14 h-14 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                     <feature.icon className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                  <h3 className="text-2xl font-semibold mb-4 text-gray-100">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-lg">
+                  <p className="text-gray-300 leading-relaxed text-lg">
                     {feature.description}
                   </p>
                 </div>
@@ -386,7 +386,7 @@ export default function LandingPage() {
                   Achievement
                 </span>
               </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                 Three simple steps to transform any goal into a structured, actionable plan.
               </p>
             </div>
@@ -418,10 +418,10 @@ export default function LandingPage() {
                   <div className="w-16 h-16 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
                     <span className="text-white font-bold text-xl">{step.step}</span>
                   </div>
-                  <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                  <h3 className="text-2xl font-semibold mb-4 text-gray-100">
                     {step.title}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed">
                     {step.description}
                   </p>
                 </div>
@@ -439,7 +439,7 @@ export default function LandingPage() {
               <h2 className="text-4xl md:text-5xl font-bold mb-6">
                 "Okay, DOER.AI has blown my mind."
               </h2>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                 And other great things our users say about us.
               </p>
             </div>
@@ -448,13 +448,13 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {testimonials.map((testimonial, index) => (
               <FadeInWrapper key={index} direction="up" delay={index * 0.1}>
-                <div className="p-6 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+                <div className="p-6 rounded-xl bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-all">
                   <div className="flex items-center mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
                       <Star key={i} className="w-4 h-4 text-[#ff7f00] fill-current" />
                     ))}
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed text-sm">
+                  <p className="text-gray-300 mb-6 leading-relaxed text-sm">
                     "{testimonial.content}"
                   </p>
                   <div className="flex items-center gap-3">
@@ -464,10 +464,10 @@ export default function LandingPage() {
                       </span>
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                      <div className="font-semibold text-gray-100 text-sm">
                         {testimonial.name}
                       </div>
-                      <div className="text-gray-600 dark:text-gray-400 text-xs">
+                      <div className="text-gray-400 text-xs">
                         {testimonial.role}
                       </div>
                     </div>
@@ -490,7 +490,7 @@ export default function LandingPage() {
                 building?
               </span>
             </h2>
-            <p className="text-2xl text-gray-600 dark:text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-2xl text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto">
               DOER.AI is the AI-powered platform that lets users build fully functioning goal plans in minutes. 
               Using nothing but natural language, DOER.AI enables anyone to turn their words into structured plans, 
               actionable strategies, or complete achievement plans that are ready to use.
@@ -523,22 +523,22 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-gray-200 dark:border-gray-800">
+      <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <div className="w-8 h-8 bg-gradient-to-br from-[#ff7f00] to-orange-600 rounded-lg flex items-center justify-center">
                 <Target className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-gray-100">DOER.AI</span>
+              <span className="text-xl font-bold text-gray-100">DOER.AI</span>
             </div>
-            <div className="flex items-center space-x-6 text-gray-600 dark:text-gray-400">
-              <a href="#" className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-h-[44px] inline-flex items-center">Privacy</a>
-              <a href="#" className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-h-[44px] inline-flex items-center">Terms</a>
-              <a href="#" className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-h-[44px] inline-flex items-center">Support</a>
+            <div className="flex items-center space-x-6 text-gray-400">
+              <a href="#" className="hover:text-gray-100 transition-colors min-h-[44px] inline-flex items-center">Privacy</a>
+              <a href="#" className="hover:text-gray-100 transition-colors min-h-[44px] inline-flex items-center">Terms</a>
+              <a href="#" className="hover:text-gray-100 transition-colors min-h-[44px] inline-flex items-center">Support</a>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-400">
+          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
             <p>&copy; 2024 DOER.AI. All rights reserved.</p>
           </div>
         </div>
