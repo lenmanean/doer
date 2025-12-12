@@ -371,7 +371,9 @@ export async function syncSubscriptionSnapshot(
       })
 
       if (error) {
-        logger.error('[subscription-sync] Failed to reset usage cycle', error as Error, {
+        logger.error('[subscription-sync] Failed to reset usage cycle', {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
           userId,
           metric,
         })
