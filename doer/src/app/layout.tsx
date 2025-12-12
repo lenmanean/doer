@@ -170,10 +170,18 @@ export default async function RootLayout({
                         userAgent: navigator.userAgent,
                         url: window.location.href,
                         timestamp: new Date().toISOString()
-                      })
+                      }),
+                      keepalive: true
                     }).catch(function() { /* Silently fail */ });
                   } catch(e) { /* Silently fail */ }
                 }
+                
+                // Immediate test log to verify logging works
+                logToServer('info', 'Theme script started executing', {
+                  path: window.location.pathname,
+                  readyState: document.readyState,
+                  userAgent: navigator.userAgent.substring(0, 100)
+                });
                 
                 try {
                   // Check if we're on a public page (not dashboard, schedule, settings)

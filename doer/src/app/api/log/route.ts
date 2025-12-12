@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+// GET endpoint for testing
+export async function GET() {
+  const testLog = {
+    level: 'info',
+    message: 'Logging API test endpoint accessed',
+    timestamp: new Date().toISOString(),
+  }
+  console.log('[LOG-API] Test endpoint accessed:', testLog)
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Logging API is working',
+    timestamp: new Date().toISOString()
+  })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()

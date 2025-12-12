@@ -15,10 +15,8 @@ class ClientLogger {
   private isProcessingQueue: boolean = false
 
   constructor() {
-    // In development, also log to console
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      this.isEnabled = true
-    }
+    // Always enabled - we want logs in production too
+    this.isEnabled = true
   }
 
   private async sendLog(level: LogLevel, message: string, data?: LogData) {
@@ -37,15 +35,17 @@ class ClientLogger {
     }
 
     try {
-      // Send to server
-      await fetch('/api/log', {
+      // Send to server - use fire and forget to not block
+      fetch('/api/log', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(logPayload),
+        // Don't wait for response - fire and forget
+        keepalive: true,
       }).catch((err) => {
-        // Silently fail - don't break the app if logging fails
+        // Only log errors in development to avoid console spam
         if (process.env.NODE_ENV === 'development') {
           console.warn('[Logger] Failed to send log to server:', err)
         }

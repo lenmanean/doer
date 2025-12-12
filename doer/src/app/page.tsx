@@ -14,6 +14,7 @@ import { LaunchCountdownBanner } from '@/components/ui/LaunchCountdownBanner'
 import { GoalInput } from '@/components/ui/GoalInput'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
+import { logger } from '@/lib/logger'
 import { 
   SiGooglecalendar, 
   SiApple, 
@@ -37,6 +38,21 @@ export default function Home() {
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
   const [waitlistInitialGoal, setWaitlistInitialGoal] = useState<string>('')
+
+  // Log page load for debugging
+  useEffect(() => {
+    logger.info('Homepage loaded', {
+      path: window.location.pathname,
+      userAgent: navigator.userAgent.substring(0, 150),
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+      hasUser: !!user,
+      isPreLaunch: IS_PRE_LAUNCH
+    })
+  }, [user])
 
   // Listen for custom event from PublicHeader to open waitlist modal
   useEffect(() => {

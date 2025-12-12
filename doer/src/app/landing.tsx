@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { 
@@ -23,9 +23,24 @@ import { Button } from '@/components/ui/Button'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 import { WaitlistForm } from '@/components/ui/WaitlistForm'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
+import { logger } from '@/lib/logger'
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Log page load for debugging
+  useEffect(() => {
+    logger.info('Landing page loaded', {
+      path: window.location.pathname,
+      userAgent: navigator.userAgent.substring(0, 150),
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+      isPreLaunch: IS_PRE_LAUNCH
+    })
+  }, [])
 
   const features = [
     {
