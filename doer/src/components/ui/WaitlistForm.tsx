@@ -195,7 +195,7 @@ export function WaitlistForm({
 
   if (variant === 'compact') {
     return (
-      <form onSubmit={handleSubmit} className={`flex gap-2 ${className}`}>
+      <form onSubmit={handleSubmit} className={`flex gap-3 ${className}`}>
         <div className="flex-1 relative">
           <input
             type="email"
@@ -207,9 +207,9 @@ export function WaitlistForm({
             }}
             placeholder={placeholder}
             disabled={isLoading || isSuccess}
-            className={`w-full px-4 py-2 pr-10 bg-white dark:bg-gray-800 border-2 ${
-              error ? 'border-red-500' : isSuccess ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'
-            } rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+            className={`w-full px-4 py-3 pr-10 text-base bg-white/5 border ${
+              error ? 'border-red-500/50' : isSuccess ? 'border-green-500' : 'border-white/10'
+            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
           />
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             {isSuccess ? (
@@ -222,9 +222,9 @@ export function WaitlistForm({
         <Button
           type="submit"
           variant="primary"
-          size="lg"
+          size="default"
           disabled={isLoading || isSuccess || !email.trim()}
-          className="px-6"
+          className="px-4 whitespace-nowrap"
         >
           {isLoading ? 'Joining...' : isSuccess ? 'Joined!' : buttonText}
         </Button>
