@@ -215,7 +215,7 @@ export function WaitlistForm({
             {isSuccess ? (
               <Check className="h-5 w-5 text-green-500" />
             ) : (
-              <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              <Mail className="h-5 w-5 text-gray-500" />
             )}
           </div>
         </div>
@@ -308,7 +308,7 @@ export function WaitlistForm({
         </div>
       )}
       <div>
-        <label htmlFor="waitlist-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label htmlFor="waitlist-email" className="block text-sm font-medium text-gray-300 mb-2">
           Email Address
         </label>
         <div className="relative">
@@ -323,15 +323,15 @@ export function WaitlistForm({
             }}
             placeholder={placeholder}
             disabled={isLoading || isSuccess}
-            className={`w-full px-4 py-3 pr-10 bg-white dark:bg-gray-800 border-2 ${
-              error ? 'border-red-500' : isSuccess ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'
-            } rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+            className={`w-full px-4 py-3 pr-10 bg-gray-800 border-2 ${
+              error ? 'border-red-500' : isSuccess ? 'border-green-500' : 'border-gray-700'
+            } rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
           />
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             {isSuccess ? (
               <Check className="h-5 w-5 text-green-500" />
             ) : (
-              <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              <Mail className="h-5 w-5 text-gray-500" />
             )}
           </div>
         </div>
@@ -339,7 +339,7 @@ export function WaitlistForm({
           <p className="mt-2 text-sm text-red-500">{error}</p>
         )}
         {isSuccess && (
-          <p className="mt-2 text-sm text-green-600 dark:text-green-400">
+          <p className="mt-2 text-sm text-green-400">
             Thank you! We'll notify you when DOER is ready.
           </p>
         )}

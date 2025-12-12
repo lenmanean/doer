@@ -178,7 +178,7 @@ export default function DocumentationPage() {
             <div className="flex-1 max-w-4xl break-words overflow-wrap-anywhere">
               {/* Getting Started */}
               <DocumentationSection id="getting-started" title="Getting Started" level={1}>
-                <p className="text-lg text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8 break-words overflow-wrap-anywhere">
                   Welcome to DOER! This guide will help you get started with transforming your goals into actionable plans.
                 </p>
 

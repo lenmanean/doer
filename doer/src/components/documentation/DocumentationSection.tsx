@@ -50,12 +50,12 @@ export function DocumentationSection({
           {title}
         </HeadingTag>
         {description && (
-          <p className="text-lg text-gray-600 dark:text-slate-300 mt-2">
+          <p className="text-lg text-gray-600 dark:text-slate-300 mt-2 break-words overflow-wrap-anywhere">
             {description}
           </p>
         )}
       </div>
-      <div className="prose prose-gray dark:prose-invert max-w-none">
+      <div className="prose prose-gray dark:prose-invert max-w-none break-words overflow-wrap-anywhere">
         {children}
       </div>
     </section>

@@ -131,30 +131,6 @@ export function ChangelogEntryCard({
           >
             {description}
           </p>
-
-          {/* Expand indicator */}
-          <div
-            className={`mt-4 flex items-center gap-2 text-xs font-medium text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
-              description.length > 150 ? '' : 'hidden'
-            }`}
-          >
-            <span>{isExpanded ? 'Show less' : 'Show more'}</span>
-            <svg
-              className={`w-4 h-4 transition-transform duration-300 ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </div>
         </div>
 
         {/* Shine effect on hover */}
