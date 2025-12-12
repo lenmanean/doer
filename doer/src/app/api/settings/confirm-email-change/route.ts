@@ -124,7 +124,9 @@ export async function POST(request: NextRequest) {
       .eq('id', requestId)
 
     if (finalizeError) {
-      logger.error('Failed to finalize email change request', finalizeError as Error, {
+      logger.error('Failed to finalize email change request', {
+        error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
+        errorStack: finalizeError instanceof Error ? finalizeError.stack : undefined,
         userId: user.id,
       })
       throw new ApiError(500, 'EMAIL_CHANGE_FAILED', 'Unable to finish email change.')
