@@ -39,18 +39,19 @@ export default function Home() {
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
   const [waitlistInitialGoal, setWaitlistInitialGoal] = useState<string>('')
 
-  // Log page load for debugging
+  // Log page load for debugging - use error level to ensure visibility
   useEffect(() => {
-    logger.info('Homepage loaded', {
+    logger.error('🚨 HOMEPAGE LOADED - MOBILE DEBUG', {
       path: window.location.pathname,
-      userAgent: navigator.userAgent.substring(0, 150),
+      userAgent: navigator.userAgent.substring(0, 200),
       screenWidth: window.screen.width,
       screenHeight: window.screen.height,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
       hasUser: !!user,
-      isPreLaunch: IS_PRE_LAUNCH
+      isPreLaunch: IS_PRE_LAUNCH,
+      timestamp: new Date().toISOString()
     })
   }, [user])
 

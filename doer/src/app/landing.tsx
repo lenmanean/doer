@@ -28,17 +28,18 @@ import { logger } from '@/lib/logger'
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Log page load for debugging
+  // Log page load for debugging - use error level to ensure visibility
   useEffect(() => {
-    logger.info('Landing page loaded', {
+    logger.error('🚨 LANDING PAGE LOADED - MOBILE DEBUG', {
       path: window.location.pathname,
-      userAgent: navigator.userAgent.substring(0, 150),
+      userAgent: navigator.userAgent.substring(0, 200),
       screenWidth: window.screen.width,
       screenHeight: window.screen.height,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
-      isPreLaunch: IS_PRE_LAUNCH
+      isPreLaunch: IS_PRE_LAUNCH,
+      timestamp: new Date().toISOString()
     })
   }, [])
 

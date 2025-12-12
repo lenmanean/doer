@@ -48,3 +48,4 @@ psql "$DATABASE_URL" -c "SELECT * FROM cron.job;"
 - If no cron jobs exist: Empty result set
 - If health snapshot cron exists: You'll see a job with `capture_health_snapshot` in the command
 
+

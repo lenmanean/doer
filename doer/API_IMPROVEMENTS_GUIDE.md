@@ -343,3 +343,4 @@ If you have questions about using these helpers, refer to:
 - `doer/src/lib/api/auth-helpers.ts` - Auth helper implementations
 - `doer/src/lib/supabase/query-helpers.ts` - Query helper implementations
 
+

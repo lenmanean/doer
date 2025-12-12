@@ -34,22 +34,23 @@ export function LocaleProvider({ children, locale, messages, timeZone }: LocaleP
                                  typeof messages.pages === 'object' && 
                                  'pricing' in messages.pages
       
-      logger.info('LocaleProvider: Messages loaded', {
+      logger.error('🚨 LOCALE PROVIDER LOADED - MOBILE DEBUG', {
         locale,
         hasMessages: true,
         hasBlogMessages,
         hasPricingMessages,
         messageKeys: Object.keys(messages).slice(0, 10),
         blogKeys: hasBlogMessages ? Object.keys(messages.blog || {}).slice(0, 5) : [],
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 100) : 'unknown'
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 200) : 'unknown',
+        timestamp: new Date().toISOString()
       })
       
       // Check for specific missing keys
       if (!hasBlogMessages) {
-        logger.warn('LocaleProvider: blog messages missing', { locale })
+        logger.error('🚨 LOCALE PROVIDER: blog messages missing', { locale })
       }
       if (!hasPricingMessages) {
-        logger.warn('LocaleProvider: pricing messages missing', { locale })
+        logger.error('🚨 LOCALE PROVIDER: pricing messages missing', { locale })
       }
     }
   }, [locale, messages])

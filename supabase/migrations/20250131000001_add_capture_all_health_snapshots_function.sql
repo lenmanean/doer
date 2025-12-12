@@ -63,3 +63,4 @@ $$;
 
 COMMENT ON FUNCTION public.capture_all_health_snapshots() IS 'Captures health snapshots for all active plans. Called daily by cron job via Edge Function.';
 
+

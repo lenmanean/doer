@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
     const requestUserAgent = req.headers.get('user-agent') || userAgent || 'unknown'
 
-    // Format log message with context
+    // Format log message with context - use ERROR level to ensure visibility
     const logMessage = `[CLIENT-LOG] [${level.toUpperCase()}] ${message}`
     const logData = {
       timestamp: timestamp || new Date().toISOString(),
@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
       ...data,
     }
 
-    // Log to server console (will appear in Vercel logs)
+    // ALWAYS log as error to ensure it shows up in Vercel logs (they filter by level)
+    // This ensures our debugging logs are visible
+    console.error(`🚨 [MOBILE-DEBUG] ${logMessage}`, JSON.stringify(logData, null, 2))
+    
+    // Also log with the original level for completeness
     switch (level) {
       case 'error':
         console.error(logMessage, logData)

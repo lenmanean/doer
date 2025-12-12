@@ -74,12 +74,13 @@ export default async function RootLayout({
     messages = localeData.messages
     timeZone = localeData.timeZone || DEFAULT_TIME_ZONE
     
-    // Log successful locale loading (will appear in Vercel logs)
-    console.log('[Layout] Locale loaded successfully:', {
+    // Log successful locale loading - use error to ensure visibility in Vercel
+    console.error('🚨 [SERVER] [Layout] Locale loaded successfully:', {
       locale,
       hasMessages: !!messages,
       messageKeys: messages ? Object.keys(messages).slice(0, 10) : [],
       timeZone,
+      timestamp: new Date().toISOString()
     })
   } catch (error) {
     console.error('[Layout] Error loading locale:', error)
@@ -93,21 +94,23 @@ export default async function RootLayout({
     // Fallback to English messages (already imported)
   }
   
-  // Log messages structure for debugging
+  // Log messages structure for debugging - use error to ensure visibility
   if (!messages || typeof messages !== 'object') {
-    console.error('[Layout] Invalid messages object:', {
+    console.error('🚨 [SERVER] [Layout] Invalid messages object:', {
       messagesType: typeof messages,
       messagesIsNull: messages === null,
       messagesIsUndefined: messages === undefined,
       usingFallback: true,
     })
   } else {
-    // Log that messages are valid
+    // Log that messages are valid - use error to ensure visibility
     const hasBlogMessages = 'blog' in messages && typeof (messages as any).blog === 'object'
-    console.log('[Layout] Messages validation:', {
+    console.error('🚨 [SERVER] [Layout] Messages validation:', {
       hasMessages: true,
       hasBlogMessages,
       blogKeys: hasBlogMessages ? Object.keys((messages as any).blog || {}).slice(0, 5) : [],
+      locale: locale,
+      timestamp: new Date().toISOString()
     })
   }
 
@@ -176,11 +179,17 @@ export default async function RootLayout({
                   } catch(e) { /* Silently fail */ }
                 }
                 
-                // Immediate test log to verify logging works
-                logToServer('info', 'Theme script started executing', {
+                // Immediate test log to verify logging works - use error level for visibility
+                logToServer('error', '🚨 THEME SCRIPT STARTED - MOBILE DEBUG TEST', {
                   path: window.location.pathname,
                   readyState: document.readyState,
-                  userAgent: navigator.userAgent.substring(0, 100)
+                  userAgent: navigator.userAgent.substring(0, 200),
+                  screenWidth: window.screen.width,
+                  screenHeight: window.screen.height,
+                  viewportWidth: window.innerWidth,
+                  viewportHeight: window.innerHeight,
+                  isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+                  timestamp: new Date().toISOString()
                 });
                 
                 try {
