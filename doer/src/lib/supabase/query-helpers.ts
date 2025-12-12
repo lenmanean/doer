@@ -26,7 +26,7 @@ export function queryUserData<T = any>(
   table: string,
   userId: string
 ) {
-  return supabase.from(table).eq('user_id', userId) as any
+  return (supabase.from(table) as any).eq('user_id', userId) as any
 }
 
 /**
@@ -50,7 +50,7 @@ export function queryUserPlanData<T = any>(
   userId: string,
   planId: string | null
 ) {
-  let query = supabase.from(table).eq('user_id', userId)
+  let query = (supabase.from(table) as any).eq('user_id', userId)
   
   if (planId) {
     query = query.eq('plan_id', planId) as any
