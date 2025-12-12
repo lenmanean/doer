@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (logError) {
-      logger.error('Failed to create sync log', logError as Error)
+      logger.error('Failed to create sync log', {
+        error: logError instanceof Error ? logError.message : String(logError),
+        errorStack: logError instanceof Error ? logError.stack : undefined,
+      })
     }
     
     try {
@@ -120,11 +123,18 @@ export async function POST(request: NextRequest) {
           .eq('id', syncLog.id)
       }
       
-      logger.error('Sync failed', syncError as Error, { connectionId: connection.id })
+      logger.error('Sync failed', {
+        error: syncError instanceof Error ? syncError.message : String(syncError),
+        errorStack: syncError instanceof Error ? syncError.stack : undefined,
+        connectionId: connection.id,
+      })
       throw syncError
     }
   } catch (error) {
-    logger.error('Failed to sync calendar', error as Error)
+    logger.error('Failed to sync calendar', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to sync calendar' },
       { status: 500 }
