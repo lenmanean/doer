@@ -82,7 +82,10 @@ export class CalDAVClient {
       // Fallback: try common iCloud pattern
       return `/123456/calendars/` // This will be replaced with actual user ID
     } catch (error) {
-      logger.error('Failed to discover CalDAV principal', error as Error)
+      logger.error('Failed to discover CalDAV principal', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      })
       throw error
     }
   }
@@ -122,7 +125,10 @@ export class CalDAVClient {
       const xml = await response.text()
       return this.parseCalendarList(xml, calendarUrl)
     } catch (error) {
-      logger.error('Failed to fetch CalDAV calendars', error as Error)
+      logger.error('Failed to fetch CalDAV calendars', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      })
       throw error
     }
   }
@@ -200,7 +206,11 @@ export class CalDAVClient {
       
       return { events, nextSyncToken }
     } catch (error) {
-      logger.error('Failed to fetch CalDAV events', error as Error, { calendarUrl })
+      logger.error('Failed to fetch CalDAV events', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        calendarUrl,
+      })
       throw error
     }
   }
@@ -253,7 +263,12 @@ export class CalDAVClient {
       // Extract event ID from response or use provided one
       return eventId
     } catch (error) {
-      logger.error('Failed to put CalDAV event', error as Error, { calendarUrl, eventId })
+      logger.error('Failed to put CalDAV event', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        calendarUrl,
+        eventId,
+      })
       throw error
     }
   }
@@ -276,7 +291,12 @@ export class CalDAVClient {
 
       return response.ok || response.status === 404 // 404 means already deleted
     } catch (error) {
-      logger.error('Failed to delete CalDAV event', error as Error, { calendarUrl, eventId })
+      logger.error('Failed to delete CalDAV event', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        calendarUrl,
+        eventId,
+      })
       return false
     }
   }
@@ -428,7 +448,10 @@ END:VCALENDAR
 
       return events
     } catch (error) {
-      logger.error('Failed to parse iCalendar data', error as Error)
+      logger.error('Failed to parse iCalendar data', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      })
       throw new Error(`Failed to parse iCalendar: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
