@@ -22,7 +22,9 @@ export async function logUsernameChange(params: {
       user_agent: params.context?.userAgent || null,
     })
   } catch (error) {
-    logger.error('Failed to log username change', error as Error, {
+    logger.error('Failed to log username change', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId: params.userId,
     })
   }
@@ -46,7 +48,9 @@ export async function logEmailChange(params: {
       user_agent: params.context?.userAgent || null,
     })
   } catch (error) {
-    logger.error('Failed to log email change', error as Error, {
+    logger.error('Failed to log email change', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId: params.userId,
     })
   }
