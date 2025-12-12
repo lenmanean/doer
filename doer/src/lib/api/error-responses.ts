@@ -112,4 +112,18 @@ export function successResponse<T>(data: T, status: number = 200): NextResponse 
   return NextResponse.json(data, { status })
 }
 
+/**
+ * Returns a 401 Unauthorized response for API token errors
+ * Use when API token authentication fails
+ */
+export function apiTokenErrorResponse(message: string, status: number = 401): NextResponse {
+  return NextResponse.json(
+    {
+      error: 'API_TOKEN_ERROR',
+      message,
+    } as ApiError,
+    { status }
+  )
+}
+
 

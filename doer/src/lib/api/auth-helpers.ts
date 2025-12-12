@@ -3,17 +3,22 @@
  * 
  * Provides standardized authentication checking for API routes.
  * Reduces code duplication and ensures consistent auth patterns.
+ * 
+ * Best Practices:
+ * - Use userId for authorization checks (works for both API token and session auth)
+ * - Only fetch full user object when needed (e.g., for display purposes)
+ * - Prefer session auth for web UI, API token auth for external integrations
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getServiceRoleClient } from '@/lib/supabase/service-role'
-import { authenticateApiRequest } from '@/lib/auth/api-token-auth'
+import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import type { ApiTokenScope } from '@/lib/billing/plans'
 import { unauthorizedResponse } from './error-responses'
 
 export interface AuthContext {
-  user: any
+  userId: string
+  user?: any // Optional - only populated for session auth to avoid unnecessary admin API calls
   isApiToken: boolean
 }
 
@@ -40,16 +45,10 @@ export async function requireAuth(
         req.headers,
         requiredScopes ? { requiredScopes } : {}
       )
-      // Fetch user from Supabase using userId
-      const supabase = getServiceRoleClient()
-      const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(authContext.userId)
-      
-      if (userError || !user) {
-        return null
-      }
-      
+      // For API token auth, we only return userId to avoid unnecessary admin API calls
+      // Routes that need the full user object can fetch it themselves using createClient()
       return {
-        user,
+        userId: authContext.userId,
         isApiToken: true,
       }
     } catch (authError) {
@@ -65,7 +64,9 @@ export async function requireAuth(
     return null
   }
 
+  // For session auth, we have the user object already, so include it
   return {
+    userId: user.id,
     user,
     isApiToken: false,
   }

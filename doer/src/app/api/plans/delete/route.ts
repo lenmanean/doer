@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof Response) {
       return authResult
     }
-    const { user } = authResult
+    const { userId } = authResult
 
     const supabase = await createClient()
     
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return badRequestResponse('plan_id is required')
     }
 
-    console.log(`Deleting plan ${plan_id} for user ${user.id}`)
+    console.log(`Deleting plan ${plan_id} for user ${userId}`)
     
     // Verify the plan belongs to the user before deletion
     const plan = await getUserResource<{
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }>(
       supabase,
       'plans',
-      user.id,
+      userId,
       plan_id,
       'id, user_id, status, plan_type, integration_metadata'
     )
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (plan.plan_type === 'integration') {
       logger.warn('Attempted to delete integration plan (should have been removed by migration)', {
         planId: plan_id,
-        userId: user.id,
+        userId: userId,
       })
     }
     
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       .from('onboarding_responses')
       .delete()
       .eq('plan_id', plan_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
     
     if (onboardingError) {
       console.error('Error deleting onboarding responses:', onboardingError)
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       .from('plans')
       .delete()
       .eq('id', plan_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
     
     if (planDeleteError) {
       console.error('Error deleting plan:', planDeleteError)
