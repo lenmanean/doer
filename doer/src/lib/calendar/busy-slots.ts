@@ -26,7 +26,11 @@ export async function getBusySlotsForUser(
   })
 
   if (error) {
-    logger.error('Failed to get busy slots', error as Error, { userId })
+    logger.error('Failed to get busy slots', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+    })
     return []
   }
 
