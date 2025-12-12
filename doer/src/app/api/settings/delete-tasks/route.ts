@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuthOrError } from '@/lib/api/auth-helpers'
+import { badRequestResponse, forbiddenResponse, internalServerErrorResponse, successResponse } from '@/lib/api/error-responses'
+import { verifyUserOwnershipArray } from '@/lib/supabase/query-helpers'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -10,44 +13,32 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Authenticate user
+    const authResult = await requireAuthOrError(request)
+    if (authResult instanceof Response) {
+      return authResult
     }
+    const { user } = authResult
 
+    const supabase = await createClient()
     const body = await request.json()
     const { task_ids } = body
 
     if (!task_ids || !Array.isArray(task_ids) || task_ids.length === 0) {
-      return NextResponse.json(
-        { error: 'task_ids array is required' },
-        { status: 400 }
-      )
+      return badRequestResponse('task_ids array is required')
     }
 
     // Verify all tasks belong to the user before deletion
-    const { data: tasks, error: verifyError } = await supabase
-      .from('tasks')
-      .select('id')
-      .eq('user_id', user.id)
-      .in('id', task_ids)
+    const tasks = await verifyUserOwnershipArray(
+      supabase,
+      'tasks',
+      user.id,
+      task_ids,
+      'id'
+    )
 
-    if (verifyError) {
-      console.error('Error verifying tasks:', verifyError)
-      return NextResponse.json(
-        { error: 'Failed to verify tasks' },
-        { status: 500 }
-      )
-    }
-
-    if (!tasks || tasks.length !== task_ids.length) {
-      return NextResponse.json(
-        { error: 'Some tasks not found or access denied' },
-        { status: 403 }
-      )
+    if (tasks.length !== task_ids.length) {
+      return forbiddenResponse('Some tasks not found or access denied')
     }
 
     // Delete task schedules first
@@ -71,23 +62,17 @@ export async function POST(request: NextRequest) {
 
     if (deleteError) {
       console.error('Error deleting tasks:', deleteError)
-      return NextResponse.json(
-        { error: 'Failed to delete tasks' },
-        { status: 500 }
-      )
+      return internalServerErrorResponse('Failed to delete tasks')
     }
 
-    return NextResponse.json({ 
+    return successResponse({
       success: true,
       message: `Successfully deleted ${task_ids.length} task(s).`,
       deleted_count: task_ids.length
     })
   } catch (error) {
     console.error('Error deleting tasks:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return internalServerErrorResponse()
   }
 }
 

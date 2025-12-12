@@ -110,3 +110,4 @@ LIMIT 10;
 - Check cron job is active: `SELECT * FROM cron.job WHERE jobname = 'daily-health-snapshots';`
 - Check Edge Function logs in Supabase Dashboard
 - Verify active plans exist: `SELECT COUNT(*) FROM plans WHERE status = 'active';`
+

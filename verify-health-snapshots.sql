@@ -41,3 +41,4 @@ LIMIT 10;
 SELECT COUNT(*) as active_plans_count
 FROM plans
 WHERE status = 'active';
+

@@ -11,3 +11,4 @@ SELECT
   extversion as version
 FROM pg_extension 
 WHERE extname = 'pg_net';
+

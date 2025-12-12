@@ -108,6 +108,8 @@ export async function middleware(req: NextRequest) {
     '/checkout', // Checkout page
     '/health', // Health check
     '/motion-graphics-brief', // Motion graphics brief page (public, no auth required)
+    '/affiliates', // Affiliate program page (public)
+    '/report-misuse', // Report misuse page (public, for abuse reporting)
   ]
 
   // Allow public routes

@@ -28,3 +28,4 @@ echo ""
 
 # Run the SQL file
 psql "$DATABASE_URL" -f check-cron-jobs.sql
+

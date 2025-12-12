@@ -6,8 +6,21 @@ import { NextResponse } from 'next/server'
  * 
  * Verifies that required environment variables are being loaded properly.
  * (Only exposes whether keys exist — never the actual secrets.)
+ * 
+ * SECURITY: Restricted to development environment only to prevent information disclosure.
  */
 export async function GET() {
+  // Restrict to development environment only
+  const isDevelopment = process.env.NODE_ENV === 'development' || 
+                       process.env.NEXT_PUBLIC_APP_ENV === 'development'
+  
+  if (!isDevelopment) {
+    return NextResponse.json(
+      { error: 'Not available in production' },
+      { status: 403 }
+    )
+  }
+  
   return NextResponse.json({
     app_env: process.env.NEXT_PUBLIC_APP_ENV || '❌ Missing',
     supabase: {

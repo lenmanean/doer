@@ -18,9 +18,19 @@ import { supabase } from '@/lib/supabase/client'
 
 export default function AnalyticsPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useSupabase()
+  const { user, loading: authLoading, sessionReady } = useSupabase()
   const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
   const [emailConfirmed, setEmailConfirmed] = useState(true)
+
+  // Block render until auth is confirmed (defense in depth)
+  useEffect(() => {
+    if (authLoading || !sessionReady) return
+    
+    if (!user) {
+      router.push('/login')
+      return
+    }
+  }, [user, router, authLoading, sessionReady])
 
   // Check email confirmation status
   useEffect(() => {
@@ -56,14 +66,14 @@ export default function AnalyticsPage() {
     }
   }
 
-  useEffect(() => {
-    if (authLoading) return
-    
-    if (!user) {
-      router.push('/login')
-      return
-    }
-  }, [user, router, authLoading])
+  // Show loading state until auth is confirmed
+  if (authLoading || !sessionReady || !user) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
+      </div>
+    )
+  }
 
   // Analytics data state
   const [activityData, setActivityData] = useState<ActivityHeatmapData[]>([])

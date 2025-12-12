@@ -44,3 +44,4 @@ SELECT COUNT(*) as total_cron_jobs FROM cron.job;
 SELECT COUNT(*) as active_cron_jobs 
 FROM cron.job 
 WHERE active = true;
+

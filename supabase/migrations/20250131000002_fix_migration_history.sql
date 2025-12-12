@@ -13,3 +13,4 @@
 -- if needed using: supabase migration repair --status applied <version>
 
 COMMENT ON SCHEMA public IS 'Public schema with all application tables and functions';
+

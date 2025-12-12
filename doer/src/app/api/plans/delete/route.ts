@@ -1,34 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
+import { requireAuthOrError } from '@/lib/api/auth-helpers'
+import { badRequestResponse, notFoundResponse, internalServerErrorResponse, successResponse } from '@/lib/api/error-responses'
+import { getUserResource } from '@/lib/supabase/query-helpers'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const authResult = await requireAuthOrError(request)
+    if (authResult instanceof Response) {
+      return authResult
+    }
+    const { user } = authResult
+
     const supabase = await createClient()
     
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'User not authenticated' },
-        { status: 401 }
-      )
-    }
-
     // Parse request body
     let body
     try {
       body = await request.json()
     } catch (parseError) {
       console.error('Error parsing request body:', parseError)
-      return NextResponse.json(
-        { success: false, error: 'Invalid request body' },
-        { status: 400 }
-      )
+      return badRequestResponse('Invalid request body')
     }
     
     console.log('Delete plan request body:', body)
@@ -37,28 +34,29 @@ export async function POST(request: NextRequest) {
     
     if (!plan_id) {
       console.error('plan_id is missing from request:', body)
-      return NextResponse.json(
-        { success: false, error: 'plan_id is required' },
-        { status: 400 }
-      )
+      return badRequestResponse('plan_id is required')
     }
 
     console.log(`Deleting plan ${plan_id} for user ${user.id}`)
     
     // Verify the plan belongs to the user before deletion
-    const { data: plan, error: planError } = await supabase
-      .from('plans')
-      .select('id, user_id, status, plan_type, integration_metadata')
-      .eq('id', plan_id)
-      .eq('user_id', user.id)
-      .single()
+    const plan = await getUserResource<{
+      id: string
+      user_id: string
+      status: string
+      plan_type: string
+      integration_metadata: any
+    }>(
+      supabase,
+      'plans',
+      user.id,
+      plan_id,
+      'id, user_id, status, plan_type, integration_metadata'
+    )
     
-    if (planError || !plan) {
-      console.error('Plan not found or access denied:', planError)
-      return NextResponse.json(
-        { success: false, error: 'Plan not found or access denied' },
-        { status: 404 }
-      )
+    if (!plan) {
+      console.error('Plan not found or access denied')
+      return notFoundResponse('Plan')
     }
 
     const wasActive = plan.status === 'active'
@@ -123,24 +121,18 @@ export async function POST(request: NextRequest) {
     
     if (planDeleteError) {
       console.error('Error deleting plan:', planDeleteError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete plan: ' + planDeleteError.message },
-        { status: 500 }
-      )
+      return internalServerErrorResponse('Failed to delete plan')
     }
     
     console.log(`Plan ${plan_id} successfully deleted`)
 
-    return NextResponse.json({ 
+    return successResponse({ 
       success: true,
       was_active: wasActive
     })
   } catch (error) {
     console.error('Unexpected error in plan deletion:', error)
-    return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred while deleting the plan' },
-      { status: 500 }
-    )
+    return internalServerErrorResponse('An unexpected error occurred while deleting the plan')
   }
 }
 

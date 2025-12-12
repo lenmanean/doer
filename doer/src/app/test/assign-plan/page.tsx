@@ -1,10 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabase/client'
 
 export default function TestAssignPlanPage() {
+  const router = useRouter()
+  
+  // Restrict to development environment only
+  useEffect(() => {
+    const isDevelopment = process.env.NODE_ENV === 'development' || 
+                         process.env.NEXT_PUBLIC_APP_ENV === 'development'
+    
+    if (!isDevelopment) {
+      // Redirect to dashboard in production
+      router.replace('/dashboard')
+    }
+  }, [router])
+  
+  // Don't render in production
+  const isDevelopment = process.env.NODE_ENV === 'development' || 
+                        process.env.NEXT_PUBLIC_APP_ENV === 'development'
+  
+  if (!isDevelopment) {
+    return null
+  }
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [userId, setUserId] = useState<string>('')

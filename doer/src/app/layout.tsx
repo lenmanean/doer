@@ -240,7 +240,7 @@ export default async function RootLayout({
                   
                   // Function to apply body classes (body might not exist yet)
                   const applyBodyTheme = function() {
-                    const body = document.body;
+                  const body = document.body;
                     if (!body) {
                       // Body doesn't exist yet, wait for DOMContentLoaded
                       if (document.readyState === 'loading') {
@@ -249,16 +249,16 @@ export default async function RootLayout({
                       }
                     }
                     
-                    if (resolvedTheme === 'light') {
+                  if (resolvedTheme === 'light') {
                       body.className = 'font-sans antialiased text-gray-900';
-                      body.classList.add('light-theme');
-                      body.classList.remove('dark-theme');
+                    body.classList.add('light-theme');
+                    body.classList.remove('dark-theme');
                       body.style.backgroundColor = '';
                       body.style.color = '';
-                    } else {
+                  } else {
                       body.className = 'font-sans antialiased text-[#d7d2cb]';
-                      body.classList.add('dark-theme');
-                      body.classList.remove('light-theme');
+                    body.classList.add('dark-theme');
+                    body.classList.remove('light-theme');
                       body.style.backgroundColor = '';
                       body.style.color = '';
                     }
