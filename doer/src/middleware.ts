@@ -110,6 +110,7 @@ export async function middleware(req: NextRequest) {
     '/motion-graphics-brief', // Motion graphics brief page (public, no auth required)
     '/affiliates', // Affiliate program page (public)
     '/report-misuse', // Report misuse page (public, for abuse reporting)
+    '/early-access', // Cold ads landing page (public)
   ]
 
   // Allow public routes
