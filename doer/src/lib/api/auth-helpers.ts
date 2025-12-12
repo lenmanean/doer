@@ -7,7 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { authenticateApiRequest } from '@/lib/auth/api-token-auth'
+import type { ApiTokenScope } from '@/lib/billing/plans'
 import { unauthorizedResponse } from './error-responses'
 
 export interface AuthContext {
@@ -25,7 +27,7 @@ export interface AuthContext {
 export async function requireAuth(
   req: NextRequest,
   options?: {
-    requiredScopes?: string[]
+    requiredScopes?: ApiTokenScope[]
     allowApiToken?: boolean
   }
 ): Promise<AuthContext | null> {
@@ -38,8 +40,16 @@ export async function requireAuth(
         req.headers,
         requiredScopes ? { requiredScopes } : {}
       )
+      // Fetch user from Supabase using userId
+      const supabase = getServiceRoleClient()
+      const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(authContext.userId)
+      
+      if (userError || !user) {
+        return null
+      }
+      
       return {
-        user: authContext.user,
+        user,
         isApiToken: true,
       }
     } catch (authError) {
@@ -71,7 +81,7 @@ export async function requireAuth(
 export async function requireAuthOrError(
   req: NextRequest,
   options?: {
-    requiredScopes?: string[]
+    requiredScopes?: ApiTokenScope[]
     allowApiToken?: boolean
   }
 ): Promise<AuthContext | NextResponse> {
