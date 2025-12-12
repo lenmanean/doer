@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react'
-import { WaitlistForm } from '@/components/ui/WaitlistForm'
+import { Button } from '@/components/ui/Button'
+import { WaitlistModal } from '@/components/ui/WaitlistModal'
 
 export default function EarlyAccessPage() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
+  const [waitlistSource, setWaitlistSource] = useState<string>('cold_ads_hero')
 
   const videos = [
     { src: '/doer_tut1.mp4', title: 'Getting Started with DOER' },
@@ -48,6 +51,11 @@ export default function EarlyAccessPage() {
     setCurrentVideoIndex(index)
   }
 
+  const handleOpenWaitlist = (source: string) => {
+    setWaitlistSource(source)
+    setWaitlistModalOpen(true)
+  }
+
   const benefits = [
     'Auto-scheduling that adapts to your calendar',
     'Real-time progress tracking and insights',
@@ -87,12 +95,14 @@ export default function EarlyAccessPage() {
 
           {/* CTA */}
           <div className="max-w-xl mx-auto">
-            <WaitlistForm
-              source="cold_ads_hero"
-              variant="compact"
-              placeholder="Enter your email"
-              buttonText="Join the early access waitlist"
-            />
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => handleOpenWaitlist('cold_ads_hero')}
+              className="w-full text-lg px-8 py-6"
+            >
+              Join the early access waitlist
+            </Button>
           </div>
         </div>
       </section>
@@ -224,15 +234,24 @@ export default function EarlyAccessPage() {
 
           {/* Secondary CTA */}
           <div className="max-w-xl mx-auto">
-            <WaitlistForm
-              source="cold_ads_bottom"
-              variant="compact"
-              placeholder="Enter your email"
-              buttonText="Reserve your early access"
-            />
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => handleOpenWaitlist('cold_ads_bottom')}
+              className="w-full text-lg px-8 py-6"
+            >
+              Reserve your early access
+            </Button>
           </div>
         </div>
       </section>
+
+      {/* Waitlist Modal */}
+      <WaitlistModal
+        isOpen={waitlistModalOpen}
+        onClose={() => setWaitlistModalOpen(false)}
+        source={waitlistSource}
+      />
     </div>
   )
 }

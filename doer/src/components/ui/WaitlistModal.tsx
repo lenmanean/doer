@@ -9,12 +9,14 @@ interface WaitlistModalProps {
   isOpen: boolean
   onClose: () => void
   initialGoal?: string // Optional goal passed from GoalInput
+  source?: string // Optional source for analytics tracking
 }
 
 export function WaitlistModal({
   isOpen,
   onClose,
-  initialGoal
+  initialGoal,
+  source = 'waitlist_modal'
 }: WaitlistModalProps) {
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -80,7 +82,7 @@ export function WaitlistModal({
                 {/* Content */}
                 <div className="p-6">
                   <WaitlistForm
-                    source="waitlist_modal"
+                    source={source}
                     enableGoalCapture={!!initialGoal && initialGoal.trim().length >= 10}
                     initialGoal={initialGoal}
                     onSuccess={handleSuccess}
