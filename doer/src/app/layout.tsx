@@ -72,9 +72,42 @@ export default async function RootLayout({
     locale = localeData.locale
     messages = localeData.messages
     timeZone = localeData.timeZone || DEFAULT_TIME_ZONE
+    
+    // Log successful locale loading (will appear in Vercel logs)
+    console.log('[Layout] Locale loaded successfully:', {
+      locale,
+      hasMessages: !!messages,
+      messageKeys: messages ? Object.keys(messages).slice(0, 10) : [],
+      timeZone,
+    })
   } catch (error) {
-    console.error('Error loading locale:', error)
+    console.error('[Layout] Error loading locale:', error)
+    // Log detailed error for debugging
+    console.error('[Layout] Locale error details:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      fallbackLocale: locale,
+      fallbackMessages: !!enMessages,
+    })
     // Fallback to English messages (already imported)
+  }
+  
+  // Log messages structure for debugging
+  if (!messages || typeof messages !== 'object') {
+    console.error('[Layout] Invalid messages object:', {
+      messagesType: typeof messages,
+      messagesIsNull: messages === null,
+      messagesIsUndefined: messages === undefined,
+      usingFallback: true,
+    })
+  } else {
+    // Log that messages are valid
+    const hasBlogMessages = 'blog' in messages && typeof (messages as any).blog === 'object'
+    console.log('[Layout] Messages validation:', {
+      hasMessages: true,
+      hasBlogMessages,
+      blogKeys: hasBlogMessages ? Object.keys((messages as any).blog || {}).slice(0, 5) : [],
+    })
   }
 
   let initialPreferences: InitialThemePreferences | undefined
@@ -123,6 +156,24 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Client-side logging utility (runs before React)
+                function logToServer(level, message, data) {
+                  try {
+                    fetch('/api/log', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        level: level,
+                        message: message,
+                        data: data || {},
+                        userAgent: navigator.userAgent,
+                        url: window.location.href,
+                        timestamp: new Date().toISOString()
+                      })
+                    }).catch(function() { /* Silently fail */ });
+                  } catch(e) { /* Silently fail */ }
+                }
+                
                 try {
                   // Check if we're on a public page (not dashboard, schedule, settings)
                   const path = window.location.pathname;
@@ -135,6 +186,14 @@ export default async function RootLayout({
                   // Determine if this is truly a public page
                   // Must be: not an authenticated route AND not authenticated
                   const isPublicPage = !isAuthenticatedRoute && !serverAuthState;
+                  
+                  logToServer('info', 'Theme script initialized', {
+                    path: path,
+                    isAuthenticatedRoute: isAuthenticatedRoute,
+                    serverAuthState: serverAuthState,
+                    isPublicPage: isPublicPage,
+                    userAgent: navigator.userAgent.substring(0, 100)
+                  });
                   
                   // AGGRESSIVE CLEANUP: Clear ALL stale theme data from localStorage on EVERY site visit
                   // This ensures mobile devices don't have any cached theme preferences
@@ -164,6 +223,11 @@ export default async function RootLayout({
                     
                     // AGGRESSIVE: Use inline style as backup to ensure dark mode
                     htmlElement.style.colorScheme = 'dark';
+                    
+                    logToServer('info', 'Public page theme resolved', {
+                      resolvedTheme: resolvedTheme,
+                      path: path
+                    });
                   } else {
                     // Use user theme for authenticated routes with valid authentication
                     savedTheme = localStorage.getItem('theme');
@@ -200,6 +264,13 @@ export default async function RootLayout({
                   htmlElement.classList.remove('dark', 'light');
                   htmlElement.classList.add(resolvedTheme);
                   
+                  logToServer('info', 'Theme class applied', {
+                    resolvedTheme: resolvedTheme,
+                    isPublicPage: isPublicPage,
+                    hasDarkClass: htmlElement.classList.contains('dark'),
+                    hasLightClass: htmlElement.classList.contains('light')
+                  });
+                  
                   // For public pages, be EXTREMELY aggressive about maintaining dark mode
                   if (isPublicPage) {
                     // Use inline style as additional safeguard
@@ -215,7 +286,10 @@ export default async function RootLayout({
                             htmlElement.classList.remove('light');
                             htmlElement.classList.add('dark');
                             htmlElement.style.setProperty('color-scheme', 'dark', 'important');
-                            console.warn('[Theme] Dark class was removed from public page - forcing it back!');
+                            logToServer('warn', 'Dark class was removed from public page - forcing it back', {
+                              path: path,
+                              currentClasses: Array.from(htmlElement.classList)
+                            });
                           }
                         }
                       });
@@ -233,7 +307,10 @@ export default async function RootLayout({
                         htmlElement.classList.remove('light');
                         htmlElement.classList.add('dark');
                         htmlElement.style.setProperty('color-scheme', 'dark', 'important');
-                        console.warn('[Theme] Periodic check: Dark class missing on public page - forcing it back!');
+                        logToServer('warn', 'Periodic check: Dark class missing on public page - forcing it back', {
+                          path: path,
+                          currentClasses: Array.from(htmlElement.classList)
+                        });
                       }
                     }, 1000);
                   }
@@ -270,7 +347,13 @@ export default async function RootLayout({
                       body.style.setProperty('color-scheme', 'dark', 'important');
                     }
                     
-                    console.log('[Theme] Body theme applied:', resolvedTheme, 'body classes:', body.className, 'isPublicPage:', isPublicPage);
+                    logToServer('info', 'Body theme applied', {
+                      resolvedTheme: resolvedTheme,
+                      bodyClasses: body.className,
+                      isPublicPage: isPublicPage,
+                      hasDarkTheme: body.classList.contains('dark-theme'),
+                      hasLightTheme: body.classList.contains('light-theme')
+                    });
                   };
                   
                   // Try to apply immediately, or wait for body to exist
@@ -300,7 +383,11 @@ export default async function RootLayout({
                   }, 100);
                   
                 } catch (e) {
-                  console.error('[Theme] Error applying theme:', e);
+                  logToServer('error', 'Theme script error', {
+                    error: e instanceof Error ? e.message : String(e),
+                    stack: e instanceof Error ? e.stack : undefined,
+                    path: window.location.pathname
+                  });
                   // Fallback to dark theme if there's an error
                   document.documentElement.classList.remove('dark', 'light');
                   document.documentElement.classList.add('dark');

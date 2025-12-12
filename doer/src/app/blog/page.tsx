@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
@@ -14,6 +14,7 @@ import {
   type BlogCategory 
 } from '@/data/blog'
 import { searchBlogPosts, getCategoryDisplayName } from '@/lib/blog'
+import { logger } from '@/lib/logger'
 
 export default function BlogPage() {
   const t = useTranslations()
@@ -23,6 +24,31 @@ export default function BlogPage() {
   const allPosts = getAllBlogPosts()
   const featuredPosts = getFeaturedBlogPosts()
   const allCategories = Array.from(new Set(allPosts.map(post => post.category))) as BlogCategory[]
+
+  // Log translation availability on mount
+  useEffect(() => {
+    try {
+      const testTranslation = t('blog.title')
+      if (testTranslation === 'blog.title') {
+        logger.error('Translation key returned as-is (translation missing)', {
+          key: 'blog.title',
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        })
+      } else {
+        logger.info('Translations loaded successfully', {
+          sampleTranslation: testTranslation,
+          userAgent: navigator.userAgent.substring(0, 100)
+        })
+      }
+    } catch (error) {
+      logger.error('Error accessing translations', {
+        error: error instanceof Error ? error.message : String(error),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      })
+    }
+  }, [t])
 
   // Filter posts by category and search
   const filteredPosts = useMemo(() => {
@@ -57,8 +83,19 @@ export default function BlogPage() {
               {(() => {
                 try {
                   const translated = t('blog.title')
-                  return translated === 'blog.title' ? 'Blog' : translated
-                } catch {
+                  if (translated === 'blog.title') {
+                    logger.warn('Translation key returned as-is', {
+                      key: 'blog.title',
+                      userAgent: navigator.userAgent.substring(0, 100)
+                    })
+                    return 'Blog'
+                  }
+                  return translated
+                } catch (error) {
+                  logger.error('Translation error for blog.title', {
+                    error: error instanceof Error ? error.message : String(error),
+                    key: 'blog.title'
+                  })
                   return 'Blog'
                 }
               })()}
@@ -67,8 +104,19 @@ export default function BlogPage() {
               {(() => {
                 try {
                   const translated = t('blog.description')
-                  return translated === 'blog.description' ? 'Read our latest articles and insights.' : translated
-                } catch {
+                  if (translated === 'blog.description') {
+                    logger.warn('Translation key returned as-is', {
+                      key: 'blog.description',
+                      userAgent: navigator.userAgent.substring(0, 100)
+                    })
+                    return 'Read our latest articles and insights.'
+                  }
+                  return translated
+                } catch (error) {
+                  logger.error('Translation error for blog.description', {
+                    error: error instanceof Error ? error.message : String(error),
+                    key: 'blog.description'
+                  })
                   return 'Read our latest articles and insights.'
                 }
               })()}
@@ -121,8 +169,16 @@ export default function BlogPage() {
                     {filteredPosts.length} {(() => {
                       try {
                         const translated = t('blog.postsFound')
-                        return translated === 'blog.postsFound' ? 'posts found' : translated
-                      } catch {
+                        if (translated === 'blog.postsFound') {
+                          logger.warn('Translation key returned as-is', { key: 'blog.postsFound' })
+                          return 'posts found'
+                        }
+                        return translated
+                      } catch (error) {
+                        logger.error('Translation error for blog.postsFound', {
+                          error: error instanceof Error ? error.message : String(error),
+                          key: 'blog.postsFound'
+                        })
                         return 'posts found'
                       }
                     })()}

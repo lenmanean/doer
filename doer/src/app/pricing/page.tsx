@@ -11,6 +11,7 @@ import { PublicHeader } from '@/components/ui/PublicHeader'
 import { Button } from '@/components/ui/Button'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
+import { logger } from '@/lib/logger'
 
 // Hide pricing page during pre-launch - redirect to homepage
 const SHOW_PRICING_PAGE = !IS_PRE_LAUNCH
@@ -49,6 +50,31 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [proAnimating, setProAnimating] = useState(false)
   const isFirstRender = useRef(true)
+
+  // Log translation availability on mount
+  useEffect(() => {
+    try {
+      const testTranslation = t('pages.pricing.title')
+      if (testTranslation === 'pages.pricing.title') {
+        logger.error('Translation key returned as-is (translation missing)', {
+          key: 'pages.pricing.title',
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        })
+      } else {
+        logger.info('Pricing page translations loaded successfully', {
+          sampleTranslation: testTranslation,
+          userAgent: navigator.userAgent.substring(0, 100)
+        })
+      }
+    } catch (error) {
+      logger.error('Error accessing translations on pricing page', {
+        error: error instanceof Error ? error.message : String(error),
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      })
+    }
+  }, [t])
 
   useEffect(() => {
     if (isFirstRender.current) {

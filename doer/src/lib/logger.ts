@@ -1,83 +1,93 @@
 /**
- * Structured logging utility
- * Provides consistent logging across the application with proper log levels
+ * Client-side logging utility that sends logs to the server
+ * These logs will appear in Vercel's server logs
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+type LogLevel = 'error' | 'warn' | 'info' | 'debug'
 
-interface LogContext {
-  [key: string]: unknown
+interface LogData {
+  [key: string]: any
 }
 
-class Logger {
-  private getLogLevel(): LogLevel {
-    const env = process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || 'development'
-    const logLevel = process.env.LOG_LEVEL?.toLowerCase()
-    
-    if (logLevel && ['debug', 'info', 'warn', 'error'].includes(logLevel)) {
-      return logLevel as LogLevel
-    }
-    
-    // Default: debug in development, warn in production
-    return env === 'production' ? 'warn' : 'debug'
-  }
+class ClientLogger {
+  private isEnabled: boolean = true
+  private logQueue: Array<{ level: LogLevel; message: string; data?: LogData }> = []
+  private isProcessingQueue: boolean = false
 
-  private shouldLog(level: LogLevel): boolean {
-    const currentLevel = this.getLogLevel()
-    const levels: LogLevel[] = ['debug', 'info', 'warn', 'error']
-    const currentIndex = levels.indexOf(currentLevel)
-    const messageIndex = levels.indexOf(level)
-    
-    return messageIndex >= currentIndex
-  }
-
-  private formatMessage(level: LogLevel, message: string, context?: LogContext, error?: Error): string {
-    const timestamp = new Date().toISOString()
-    const contextStr = context ? ` ${JSON.stringify(context)}` : ''
-    const errorStr = error ? ` Error: ${error.message}${error.stack ? `\n${error.stack}` : ''}` : ''
-    
-    return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}${errorStr}`
-  }
-
-  private log(level: LogLevel, message: string, context?: LogContext, error?: Error): void {
-    if (!this.shouldLog(level)) {
-      return
-    }
-
-    const formattedMessage = this.formatMessage(level, message, context, error)
-    
-    switch (level) {
-      case 'debug':
-        console.debug(formattedMessage)
-        break
-      case 'info':
-        console.info(formattedMessage)
-        break
-      case 'warn':
-        console.warn(formattedMessage)
-        break
-      case 'error':
-        console.error(formattedMessage)
-        break
+  constructor() {
+    // In development, also log to console
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      this.isEnabled = true
     }
   }
 
-  debug(message: string, context?: LogContext): void {
-    this.log('debug', message, context)
+  private async sendLog(level: LogLevel, message: string, data?: LogData) {
+    if (!this.isEnabled) return
+
+    const logPayload = {
+      level,
+      message,
+      data: {
+        ...data,
+        clientTimestamp: new Date().toISOString(),
+      },
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+      timestamp: new Date().toISOString(),
+    }
+
+    try {
+      // Send to server
+      await fetch('/api/log', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(logPayload),
+      }).catch((err) => {
+        // Silently fail - don't break the app if logging fails
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Logger] Failed to send log to server:', err)
+        }
+      })
+
+      // Also log to console in development
+      if (process.env.NODE_ENV === 'development') {
+        const consoleMethod = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log
+        consoleMethod(`[ClientLogger] ${message}`, data || '')
+      }
+    } catch (error) {
+      // Silently fail - don't break the app
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Logger] Error sending log:', error)
+      }
+    }
   }
 
-  info(message: string, context?: LogContext): void {
-    this.log('info', message, context)
+  error(message: string, data?: LogData) {
+    this.sendLog('error', message, data)
   }
 
-  warn(message: string, context?: LogContext): void {
-    this.log('warn', message, context)
+  warn(message: string, data?: LogData) {
+    this.sendLog('warn', message, data)
   }
 
-  error(message: string, error?: Error, context?: LogContext): void {
-    this.log('error', message, context, error)
+  info(message: string, data?: LogData) {
+    this.sendLog('info', message, data)
+  }
+
+  debug(message: string, data?: LogData) {
+    if (process.env.NODE_ENV === 'development') {
+      this.sendLog('debug', message, data)
+    }
   }
 }
 
-export const logger = new Logger()
+// Export singleton instance
+export const logger = new ClientLogger()
 
+// Export convenience functions
+export const logError = (message: string, data?: LogData) => logger.error(message, data)
+export const logWarn = (message: string, data?: LogData) => logger.warn(message, data)
+export const logInfo = (message: string, data?: LogData) => logger.info(message, data)
+export const logDebug = (message: string, data?: LogData) => logger.debug(message, data)
