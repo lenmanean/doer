@@ -136,7 +136,11 @@ export async function GET(request: NextRequest) {
             })
           
           if (upsertError) {
-            logger.error('Failed to upsert calendar event', upsertError as Error, { event_id: event.id })
+            logger.error('Failed to upsert calendar event', { 
+              error: upsertError instanceof Error ? upsertError.message : String(upsertError),
+              errorStack: upsertError instanceof Error ? upsertError.stack : undefined,
+              event_id: event.id 
+            })
             continue
           }
           
