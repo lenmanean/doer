@@ -40,7 +40,9 @@ export async function syncCalendarEventsToTasks(
       .single()
 
     if (connError || !connection) {
-      logger.error('Connection not found or access denied', connError instanceof Error ? connError : undefined, {
+      logger.error('Connection not found or access denied', {
+        error: connError instanceof Error ? connError.message : String(connError || 'Connection not found'),
+        errorStack: connError instanceof Error ? connError.stack : undefined,
         connectionId,
         userId,
       })
