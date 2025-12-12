@@ -27,12 +27,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "DOER - AI-Powered Goal Achievement Platform",
   description: "Transform your goals into reality with AI-powered plans, progress tracking, and intelligent planning designed for achievers.",
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 // Force dynamic rendering since we use cookies for auth and locale

@@ -14,6 +14,9 @@ interface LocaleProviderProps {
 const DEFAULT_TIME_ZONE = 'UTC'
 
 export function LocaleProvider({ children, locale, messages, timeZone }: LocaleProviderProps) {
+  // Ensure messages is a valid object (handle serialization issues)
+  const validMessages = messages && typeof messages === 'object' ? messages : {}
+  
   // Log message availability on mount
   useEffect(() => {
     if (!messages || typeof messages !== 'object') {
@@ -54,7 +57,7 @@ export function LocaleProvider({ children, locale, messages, timeZone }: LocaleP
   return (
     <NextIntlClientProvider
       locale={locale}
-      messages={messages}
+      messages={validMessages}
       timeZone={timeZone || DEFAULT_TIME_ZONE}
     >
       {children}

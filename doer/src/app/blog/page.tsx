@@ -16,6 +16,20 @@ import {
 import { searchBlogPosts, getCategoryDisplayName } from '@/lib/blog'
 import { logger } from '@/lib/logger'
 
+// Safe translation helper that doesn't throw on missing keys
+function safeTranslate(t: ReturnType<typeof useTranslations>, key: string, fallback: string): string {
+  try {
+    const translated = t(key)
+    if (translated === key) {
+      return fallback
+    }
+    return translated
+  } catch (error) {
+    logger.error('Translation error', { key, error: error instanceof Error ? error.message : String(error) })
+    return fallback
+  }
+}
+
 export default function BlogPage() {
   const t = useTranslations()
   const [searchQuery, setSearchQuery] = useState('')
@@ -80,46 +94,10 @@ export default function BlogPage() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-100 mb-6">
-              {(() => {
-                try {
-                  const translated = t('blog.title')
-                  if (translated === 'blog.title') {
-                    logger.warn('Translation key returned as-is', {
-                      key: 'blog.title',
-                      userAgent: navigator.userAgent.substring(0, 100)
-                    })
-                    return 'Blog'
-                  }
-                  return translated
-                } catch (error) {
-                  logger.error('Translation error for blog.title', {
-                    error: error instanceof Error ? error.message : String(error),
-                    key: 'blog.title'
-                  })
-                  return 'Blog'
-                }
-              })()}
+              {safeTranslate(t, 'blog.title', 'Blog')}
             </h1>
             <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              {(() => {
-                try {
-                  const translated = t('blog.description')
-                  if (translated === 'blog.description') {
-                    logger.warn('Translation key returned as-is', {
-                      key: 'blog.description',
-                      userAgent: navigator.userAgent.substring(0, 100)
-                    })
-                    return 'Read our latest articles and insights.'
-                  }
-                  return translated
-                } catch (error) {
-                  logger.error('Translation error for blog.description', {
-                    error: error instanceof Error ? error.message : String(error),
-                    key: 'blog.description'
-                  })
-                  return 'Read our latest articles and insights.'
-                }
-              })()}
+              {safeTranslate(t, 'blog.description', 'Read our latest articles and insights.')}
             </p>
             
             {/* Search Bar */}
@@ -135,7 +113,7 @@ export default function BlogPage() {
           {featuredPosts.length > 0 && (
             <section className="mb-16">
               <h2 className="text-2xl font-bold text-white mb-6">
-                {t('blog.featured')}
+                {safeTranslate(t, 'blog.featured', 'Featured Posts')}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {featuredPosts.map((post) => (
@@ -161,27 +139,12 @@ export default function BlogPage() {
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-white">
                     {selectedCategory === 'all' 
-                      ? t('blog.allPosts')
-                      : `${getCategoryDisplayName(selectedCategory)} ${t('blog.posts')}`
+                      ? safeTranslate(t, 'blog.allPosts', 'All Posts')
+                      : `${getCategoryDisplayName(selectedCategory)} ${safeTranslate(t, 'blog.posts', 'Posts')}`
                     }
                   </h2>
                   <span className="text-sm text-gray-400">
-                    {filteredPosts.length} {(() => {
-                      try {
-                        const translated = t('blog.postsFound')
-                        if (translated === 'blog.postsFound') {
-                          logger.warn('Translation key returned as-is', { key: 'blog.postsFound' })
-                          return 'posts found'
-                        }
-                        return translated
-                      } catch (error) {
-                        logger.error('Translation error for blog.postsFound', {
-                          error: error instanceof Error ? error.message : String(error),
-                          key: 'blog.postsFound'
-                        })
-                        return 'posts found'
-                      }
-                    })()}
+                    {filteredPosts.length} {safeTranslate(t, 'blog.postsFound', 'posts found')}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -193,7 +156,7 @@ export default function BlogPage() {
             ) : (
               <div className="text-center py-16">
                 <p className="text-xl text-gray-400 mb-4">
-                  {t('blog.noPostsFound')}
+                  {safeTranslate(t, 'blog.noPostsFound', 'No posts found matching your criteria.')}
                 </p>
                 <button
                   onClick={() => {
@@ -202,7 +165,7 @@ export default function BlogPage() {
                   }}
                   className="text-orange-400 hover:underline min-h-[44px] px-4"
                 >
-                  {t('blog.clearFilters')}
+                  {safeTranslate(t, 'blog.clearFilters', 'Clear filters')}
                 </button>
               </div>
             )}
