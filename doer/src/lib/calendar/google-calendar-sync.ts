@@ -165,7 +165,11 @@ async function refreshAccessToken(
       .eq('id', connectionId)
     
     if (error) {
-      logger.error('Failed to update access token in database', error as Error, { connectionId })
+      logger.error('Failed to update access token in database', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        connectionId,
+      })
       throw error
     }
     
@@ -174,7 +178,11 @@ async function refreshAccessToken(
       expiry_date: credentials.expiry_date,
     }
   } catch (error) {
-    logger.error('Failed to refresh access token', error as Error, { connectionId })
+    logger.error('Failed to refresh access token', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      connectionId,
+    })
     throw error
   }
 }
@@ -366,7 +374,12 @@ export async function fetchCalendarEvents(
           nextSyncToken = response.data.nextSyncToken
         }
       } else {
-        logger.error('Failed to fetch calendar events', error as Error, { connectionId, calendarId })
+        logger.error('Failed to fetch calendar events', {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          connectionId,
+          calendarId,
+        })
         throw error
       }
     }
@@ -496,7 +509,11 @@ export async function pullCalendarEvents(
         })
       
       if (upsertError) {
-        logger.error('Failed to upsert calendar event', upsertError as Error, { event_id: event.id })
+        logger.error('Failed to upsert calendar event', {
+          error: upsertError instanceof Error ? upsertError.message : String(upsertError),
+          errorStack: upsertError instanceof Error ? upsertError.stack : undefined,
+          event_id: event.id,
+        })
         continue
       }
       
@@ -548,7 +565,9 @@ export async function pullCalendarEvents(
             .eq('id', existingEvent.id)
           
           if (updateError) {
-            logger.error('Failed to mark event as deleted', updateError as Error, {
+            logger.error('Failed to mark event as deleted', {
+              error: updateError instanceof Error ? updateError.message : String(updateError),
+              errorStack: updateError instanceof Error ? updateError.stack : undefined,
               eventId: existingEvent.id,
               externalEventId: deletedEventId,
             })
@@ -570,7 +589,11 @@ export async function pullCalendarEvents(
       })
       
       if (tokenError) {
-        logger.error('Failed to update sync token', tokenError as Error, { connectionId })
+        logger.error('Failed to update sync token', {
+          error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+          errorStack: tokenError instanceof Error ? tokenError.stack : undefined,
+          connectionId,
+        })
       }
     }
     
@@ -583,7 +606,12 @@ export async function pullCalendarEvents(
       errors: [],
     }
   } catch (error) {
-    logger.error('Failed to pull calendar events', error as Error, { connectionId, userId })
+    logger.error('Failed to pull calendar events', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      connectionId,
+      userId,
+    })
     throw error
   }
 }
@@ -742,7 +770,11 @@ export async function pushTaskToCalendar(
       })
     
     if (linkError) {
-      logger.error('Failed to create calendar event link', linkError as Error, { taskScheduleId })
+      logger.error('Failed to create calendar event link', {
+        error: linkError instanceof Error ? linkError.message : String(linkError),
+        errorStack: linkError instanceof Error ? linkError.stack : undefined,
+        taskScheduleId,
+      })
     }
     
     return {
@@ -750,7 +782,12 @@ export async function pushTaskToCalendar(
       success: true,
     }
   } catch (error) {
-    logger.error('Failed to push task to calendar', error as Error, { connectionId, taskScheduleId })
+    logger.error('Failed to push task to calendar', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      connectionId,
+      taskScheduleId,
+    })
     return {
       external_event_id: '',
       success: false,
@@ -777,7 +814,12 @@ export async function deleteTaskFromCalendar(
     
     return true
   } catch (error) {
-    logger.error('Failed to delete calendar event', error as Error, { connectionId, externalEventId })
+    logger.error('Failed to delete calendar event', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      connectionId,
+      externalEventId,
+    })
     return false
   }
 }
@@ -799,7 +841,11 @@ export async function getBusySlotsForUser(
   })
   
   if (error) {
-    logger.error('Failed to get busy slots', error as Error, { userId })
+    logger.error('Failed to get busy slots', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+    })
     return []
   }
   
