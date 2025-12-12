@@ -386,7 +386,9 @@ export async function syncSubscriptionSnapshot(
       status,
     })
   } catch (error) {
-    logger.error('[subscription-sync] Failed to sync subscription snapshot', error as Error, {
+    logger.error('[subscription-sync] Failed to sync subscription snapshot', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId,
       subscriptionId: subscription.id,
     })
