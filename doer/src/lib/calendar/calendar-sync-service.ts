@@ -60,7 +60,9 @@ export async function syncCalendarEventsToTasks(
       .order('start_time', { ascending: true })
 
     if (eventsError) {
-      logger.error('Failed to fetch calendar events', eventsError as Error, {
+      logger.error('Failed to fetch calendar events', {
+        error: eventsError instanceof Error ? eventsError.message : String(eventsError),
+        errorStack: eventsError instanceof Error ? eventsError.stack : undefined,
         connectionId,
         userId,
       })
@@ -96,7 +98,9 @@ export async function syncCalendarEventsToTasks(
       .eq('is_calendar_event', true)
 
     if (tasksError) {
-      logger.error('Failed to fetch existing calendar tasks', tasksError as Error, {
+      logger.error('Failed to fetch existing calendar tasks', {
+        error: tasksError instanceof Error ? tasksError.message : String(tasksError),
+        errorStack: tasksError instanceof Error ? tasksError.stack : undefined,
         userId,
       })
       throw tasksError
@@ -206,15 +210,17 @@ export async function syncCalendarEventsToTasks(
             .eq('user_id', userId)
 
           if (updateError) {
-            logger.error('Failed to update task', updateError as Error, {
+            logger.error('Failed to update task', {
+              error: updateError instanceof Error ? updateError.message : String(updateError),
+              errorStack: updateError instanceof Error ? updateError.stack : undefined,
               taskId: existingTask.id,
               eventId: event.id,
               eventSummary: event.summary,
               userId,
-              errorCode: updateError.code,
-              errorMessage: updateError.message,
-              errorDetails: updateError.details,
-              errorHint: updateError.hint,
+              errorCode: (updateError as any).code,
+              errorMessage: (updateError as any).message,
+              errorDetails: (updateError as any).details,
+              errorHint: (updateError as any).hint,
             })
             errors.push(`Failed to update task for event ${event.summary}: ${updateError.message}`)
             continue
@@ -261,14 +267,16 @@ export async function syncCalendarEventsToTasks(
                 .insert(splitEntries)
 
               if (scheduleInsertError) {
-                logger.error('Failed to create split task schedule', scheduleInsertError as Error, {
+                logger.error('Failed to create split task schedule', {
+                  error: scheduleInsertError instanceof Error ? scheduleInsertError.message : String(scheduleInsertError),
+                  errorStack: scheduleInsertError instanceof Error ? scheduleInsertError.stack : undefined,
                   taskId: existingTask.id,
                   eventId: event.id,
                   eventSummary: event.summary,
                   userId,
                   eventDate,
-                  errorCode: scheduleInsertError.code,
-                  errorMessage: scheduleInsertError.message,
+                  errorCode: (scheduleInsertError as any).code,
+                  errorMessage: (scheduleInsertError as any).message,
                 })
                 errors.push(`Failed to create split schedule for event ${event.summary}: ${scheduleInsertError.message}`)
               } else {
@@ -280,7 +288,9 @@ export async function syncCalendarEventsToTasks(
                 })
               }
             } catch (splitError: any) {
-              logger.error('Error splitting cross-day calendar event', splitError as Error, {
+              logger.error('Error splitting cross-day calendar event', {
+                error: splitError instanceof Error ? splitError.message : String(splitError),
+                errorStack: splitError instanceof Error ? splitError.stack : undefined,
                 taskId: existingTask.id,
                 eventId: event.id,
                 eventSummary: event.summary,
@@ -312,13 +322,15 @@ export async function syncCalendarEventsToTasks(
                 .eq('id', scheduleOnCurrentDate.id)
 
               if (scheduleUpdateError) {
-                logger.error('Failed to update task schedule', scheduleUpdateError as Error, {
+                logger.error('Failed to update task schedule', {
+                  error: scheduleUpdateError instanceof Error ? scheduleUpdateError.message : String(scheduleUpdateError),
+                  errorStack: scheduleUpdateError instanceof Error ? scheduleUpdateError.stack : undefined,
                   scheduleId: scheduleOnCurrentDate.id,
                   taskId: existingTask.id,
                   eventId: event.id,
                   eventDate,
-                  errorCode: scheduleUpdateError.code,
-                  errorMessage: scheduleUpdateError.message,
+                  errorCode: (scheduleUpdateError as any).code,
+                  errorMessage: (scheduleUpdateError as any).message,
                 })
                 errors.push(`Failed to update schedule for event ${event.summary}: ${scheduleUpdateError.message}`)
               } else {
@@ -368,14 +380,16 @@ export async function syncCalendarEventsToTasks(
                 .eq('id', scheduleOnDifferentDate.id)
 
               if (scheduleUpdateError) {
-                logger.error('Failed to update task schedule (date change)', scheduleUpdateError as Error, {
+                logger.error('Failed to update task schedule (date change)', {
+                  error: scheduleUpdateError instanceof Error ? scheduleUpdateError.message : String(scheduleUpdateError),
+                  errorStack: scheduleUpdateError instanceof Error ? scheduleUpdateError.stack : undefined,
                   scheduleId: scheduleOnDifferentDate.id,
                   taskId: existingTask.id,
                   eventId: event.id,
                   oldDate: scheduleOnDifferentDate.date,
                   newDate: eventDate,
-                  errorCode: scheduleUpdateError.code,
-                  errorMessage: scheduleUpdateError.message,
+                  errorCode: (scheduleUpdateError as any).code,
+                  errorMessage: (scheduleUpdateError as any).message,
                 })
                 errors.push(`Failed to update schedule date for event ${event.summary}: ${scheduleUpdateError.message}`)
               } else {
@@ -426,14 +440,16 @@ export async function syncCalendarEventsToTasks(
                 .single()
 
               if (scheduleInsertError) {
-                logger.error('Failed to create task schedule', scheduleInsertError as Error, {
+                logger.error('Failed to create task schedule', {
+                  error: scheduleInsertError instanceof Error ? scheduleInsertError.message : String(scheduleInsertError),
+                  errorStack: scheduleInsertError instanceof Error ? scheduleInsertError.stack : undefined,
                   taskId: existingTask.id,
                   eventId: event.id,
                   eventDate,
-                  errorCode: scheduleInsertError.code,
-                  errorMessage: scheduleInsertError.message,
-                  errorDetails: scheduleInsertError.details,
-                  errorHint: scheduleInsertError.hint,
+                  errorCode: (scheduleInsertError as any).code,
+                  errorMessage: (scheduleInsertError as any).message,
+                  errorDetails: (scheduleInsertError as any).details,
+                  errorHint: (scheduleInsertError as any).hint,
                 })
                 errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError.message}`)
               } else {
@@ -470,14 +486,16 @@ export async function syncCalendarEventsToTasks(
             .single()
 
           if (taskInsertError || !newTask) {
-            logger.error('Failed to create task', taskInsertError as Error, {
+            logger.error('Failed to create task', {
+              error: taskInsertError instanceof Error ? taskInsertError.message : String(taskInsertError || 'Unknown error'),
+              errorStack: taskInsertError instanceof Error ? taskInsertError.stack : undefined,
               eventId: event.id,
               eventSummary: event.summary,
               userId,
-              errorCode: taskInsertError?.code,
-              errorMessage: taskInsertError?.message,
-              errorDetails: taskInsertError?.details,
-              errorHint: taskInsertError?.hint,
+              errorCode: (taskInsertError as any)?.code,
+              errorMessage: (taskInsertError as any)?.message,
+              errorDetails: (taskInsertError as any)?.details,
+              errorHint: (taskInsertError as any)?.hint,
             })
             errors.push(`Failed to create task for event ${event.summary}: ${taskInsertError?.message || 'Unknown error'}`)
             continue
@@ -510,16 +528,18 @@ export async function syncCalendarEventsToTasks(
                 .insert(splitEntries)
 
               if (scheduleInsertError) {
-                logger.error('Failed to create split task schedule', scheduleInsertError as Error, {
+                logger.error('Failed to create split task schedule', {
+                  error: scheduleInsertError instanceof Error ? scheduleInsertError.message : String(scheduleInsertError),
+                  errorStack: scheduleInsertError instanceof Error ? scheduleInsertError.stack : undefined,
                   taskId: newTask.id,
                   eventId: event.id,
                   eventSummary: event.summary,
                   userId,
                   eventDate,
-                  errorCode: scheduleInsertError.code,
-                  errorMessage: scheduleInsertError.message,
-                  errorDetails: scheduleInsertError.details,
-                  errorHint: scheduleInsertError.hint,
+                  errorCode: (scheduleInsertError as any).code,
+                  errorMessage: (scheduleInsertError as any).message,
+                  errorDetails: (scheduleInsertError as any).details,
+                  errorHint: (scheduleInsertError as any).hint,
                 })
                 errors.push(`Failed to create split schedule for event ${event.summary}: ${scheduleInsertError.message || 'Unknown error'}`)
                 continue
@@ -532,7 +552,9 @@ export async function syncCalendarEventsToTasks(
                 splitEntries: 2
               })
             } catch (splitError: any) {
-              logger.error('Error splitting cross-day calendar event', splitError as Error, {
+              logger.error('Error splitting cross-day calendar event', {
+                error: splitError instanceof Error ? splitError.message : String(splitError),
+                errorStack: splitError instanceof Error ? splitError.stack : undefined,
                 taskId: newTask.id,
                 eventId: event.id,
                 eventSummary: event.summary,
@@ -561,16 +583,18 @@ export async function syncCalendarEventsToTasks(
               .single()
 
             if (scheduleInsertError || !newSchedule) {
-              logger.error('Failed to create task schedule', scheduleInsertError as Error, {
+              logger.error('Failed to create task schedule', {
+                error: scheduleInsertError instanceof Error ? scheduleInsertError.message : String(scheduleInsertError || 'Unknown error'),
+                errorStack: scheduleInsertError instanceof Error ? scheduleInsertError.stack : undefined,
                 taskId: newTask.id,
                 eventId: event.id,
                 eventSummary: event.summary,
                 userId,
                 eventDate,
-                errorCode: scheduleInsertError?.code,
-                errorMessage: scheduleInsertError?.message,
-                errorDetails: scheduleInsertError?.details,
-                errorHint: scheduleInsertError?.hint,
+                errorCode: (scheduleInsertError as any)?.code,
+                errorMessage: (scheduleInsertError as any)?.message,
+                errorDetails: (scheduleInsertError as any)?.details,
+                errorHint: (scheduleInsertError as any)?.hint,
               })
               errors.push(`Failed to create schedule for event ${event.summary}: ${scheduleInsertError?.message || 'Unknown error'}`)
               continue
@@ -587,7 +611,9 @@ export async function syncCalendarEventsToTasks(
           tasksCreated++
         }
       } catch (error) {
-        logger.error('Error processing calendar event', error as Error, {
+        logger.error('Error processing calendar event', {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
           eventId: event.id,
         })
         errors.push(`Error processing event ${event.summary}: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -616,7 +642,9 @@ export async function syncCalendarEventsToTasks(
       errors,
     }
   } catch (error) {
-    logger.error('Failed to sync calendar events to tasks', error as Error, {
+    logger.error('Failed to sync calendar events to tasks', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       connectionId,
       userId,
     })
@@ -664,7 +692,10 @@ export async function handleDeletedCalendarEvents(
       .in('external_event_id', deletedEventIds)
 
     if (eventsError) {
-      logger.error('Failed to find calendar events for deletion', eventsError as Error)
+      logger.error('Failed to find calendar events for deletion', {
+        error: eventsError instanceof Error ? eventsError.message : String(eventsError),
+        errorStack: eventsError instanceof Error ? eventsError.stack : undefined,
+      })
       return
     }
 
@@ -684,7 +715,10 @@ export async function handleDeletedCalendarEvents(
       .eq('user_id', userId)
 
     if (tasksError) {
-      logger.error('Failed to find tasks for deleted events', tasksError as Error)
+      logger.error('Failed to find tasks for deleted events', {
+        error: tasksError instanceof Error ? tasksError.message : String(tasksError),
+        errorStack: tasksError instanceof Error ? tasksError.stack : undefined,
+      })
       return
     }
 
@@ -700,7 +734,10 @@ export async function handleDeletedCalendarEvents(
         .is('plan_id', null)
 
       if (deleteSchedulesError) {
-        logger.error('Failed to delete task schedules for deleted events', deleteSchedulesError as Error)
+        logger.error('Failed to delete task schedules for deleted events', {
+          error: deleteSchedulesError instanceof Error ? deleteSchedulesError.message : String(deleteSchedulesError),
+          errorStack: deleteSchedulesError instanceof Error ? deleteSchedulesError.stack : undefined,
+        })
       }
 
       // Delete tasks
@@ -713,7 +750,10 @@ export async function handleDeletedCalendarEvents(
         .is('plan_id', null)
 
       if (deleteTasksError) {
-        logger.error('Failed to delete tasks for deleted events', deleteTasksError as Error)
+        logger.error('Failed to delete tasks for deleted events', {
+          error: deleteTasksError instanceof Error ? deleteTasksError.message : String(deleteTasksError),
+          errorStack: deleteTasksError instanceof Error ? deleteTasksError.stack : undefined,
+        })
       } else {
         logger.info('Deleted tasks for deleted calendar events', {
           connectionId,
@@ -731,7 +771,10 @@ export async function handleDeletedCalendarEvents(
       .eq('calendar_connection_id', connectionId)
 
     if (deleteEventsError) {
-      logger.error('Failed to delete calendar events', deleteEventsError as Error)
+      logger.error('Failed to delete calendar events', {
+        error: deleteEventsError instanceof Error ? deleteEventsError.message : String(deleteEventsError),
+        errorStack: deleteEventsError instanceof Error ? deleteEventsError.stack : undefined,
+      })
     } else {
       logger.info('Deleted calendar events', {
         connectionId,
@@ -748,7 +791,9 @@ export async function handleDeletedCalendarEvents(
       eventsDeleted: calendarEventIds.length,
     })
   } catch (error) {
-    logger.error('Error handling deleted calendar events', error as Error, {
+    logger.error('Error handling deleted calendar events', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       connectionId,
       userId,
     })
