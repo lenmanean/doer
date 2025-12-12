@@ -12,9 +12,25 @@ export default function ChangelogPage() {
   const t = useTranslations()
 
   const sortedEntries = useMemo(() => {
-    return [...changelogEntries].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
+    return [...changelogEntries].sort((a, b) => {
+      // Parse dates more robustly - handle format "2025-10-15 11:16:16 -0700"
+      const parseDate = (dateStr: string): number => {
+        // Try parsing as-is first
+        let date = new Date(dateStr)
+        if (!isNaN(date.getTime())) {
+          return date.getTime()
+        }
+        // If that fails, try removing timezone and parsing
+        const cleaned = dateStr.replace(/\s+-\d{4}$/, '')
+        date = new Date(cleaned)
+        if (!isNaN(date.getTime())) {
+          return date.getTime()
+        }
+        // Last resort: return 0 (will appear at end)
+        return 0
+      }
+      return parseDate(b.date) - parseDate(a.date)
+    })
   }, [])
 
   // Helper function for translations with fallbacks
@@ -31,7 +47,7 @@ export default function ChangelogPage() {
   const changelogDescription = getTranslation('changelog.description', 'See the latest updates, new features, and improvements.')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col transition-colors overflow-x-hidden">
+    <div className="min-h-screen bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
 
       <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8">
@@ -43,10 +59,10 @@ export default function ChangelogPage() {
                 Updates
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-slate-100 mb-6 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-100 mb-6 bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
               {changelogTitle}
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto">
               {changelogDescription}
             </p>
           </div>
@@ -68,7 +84,7 @@ export default function ChangelogPage() {
 
           {/* Footer Note */}
           <div className="mt-16 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-400">
               Stay updated with the latest improvements and features
             </p>
           </div>

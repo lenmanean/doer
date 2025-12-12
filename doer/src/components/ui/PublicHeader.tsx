@@ -166,7 +166,7 @@ export function PublicHeader() {
   }
 
   return (
-    <header className="w-full bg-gray-900/90 backdrop-blur-xl border-b border-gray-800/50 px-4 sm:px-6 lg:px-8 py-4 z-50 sticky top-0 relative">
+    <header className="w-full bg-gray-900 border-b border-gray-800 px-4 sm:px-6 lg:px-8 py-4 z-50 sticky top-0 relative">
       <div className="max-w-7xl mx-auto flex items-center justify-between overflow-visible">
         {/* Logo */}
         <Link href="/" className="flex items-center flex-shrink-0">

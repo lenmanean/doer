@@ -43,6 +43,19 @@ html:not(.light) footer {
   color: rgb(243 244 246) !important; /* gray-100 */
 }
 
+/* Aggressive rules for public page header and footer - always dark */
+header[class*="PublicHeader"],
+header.bg-gray-900 {
+  background-color: rgb(17 24 39) !important; /* gray-900 for header */
+  color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+footer[class*="PublicFooter"],
+footer.bg-gray-800 {
+  background-color: rgb(31 41 55) !important; /* gray-800 for footer */
+  color: rgb(243 244 246) !important; /* gray-100 */
+}
+
 /* Force dark backgrounds for public page containers */
 html:not(.light) [class*="bg-white"]:not([class*="bg-white/"]):not([class*="bg-white\\/"]) {
   background-color: rgb(17 24 39) !important; /* gray-900 */
@@ -66,8 +79,24 @@ html:not(.light) [class*="text-slate-700"] {
 
 /* Force dark borders on public pages */
 html:not(.light) [class*="border-gray-200"],
-html:not(.light) [class*="border-slate-200"] {
+html:not(.light) [class*="border-slate-200"],
+html:not(.light) [class*="border-white"]:not([class*="border-white/"]) {
   border-color: rgb(55 65 81) !important; /* gray-700 */
+}
+
+/* Force dark borders for dropdowns and expandable sections on public pages */
+html:not(.light) [class*="border-white"]:not([class*="border-white/"]) {
+  border-color: rgb(55 65 81) !important; /* gray-700 */
+}
+
+/* Text wrapping utilities for mobile */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
 }
 
 

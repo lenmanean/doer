@@ -76,7 +76,7 @@ export function NewsletterSignup({ variant = 'card' }: NewsletterSignupProps) {
           placeholder={emailPlaceholder}
           required
           disabled={submitted || isSubmitting}
-          className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50"
+          className="flex-1 px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50"
         />
         <Button
           type="submit"
@@ -98,16 +98,16 @@ export function NewsletterSignup({ variant = 'card' }: NewsletterSignupProps) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-2 border-orange-200 dark:border-orange-800 rounded-xl p-8">
+    <div className="bg-gradient-to-br from-orange-900/20 to-orange-800/20 border-2 border-orange-800 rounded-xl p-8">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-orange-500 rounded-lg">
           <Mail className="w-6 h-6 text-white" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+        <h3 className="text-xl font-bold text-white">
           {titleText}
         </h3>
       </div>
-      <p className="text-gray-600 dark:text-gray-300 mb-6">
+      <p className="text-gray-300 mb-6">
         {descriptionText}
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,7 +118,7 @@ export function NewsletterSignup({ variant = 'card' }: NewsletterSignupProps) {
           placeholder={emailPlaceholder}
           required
           disabled={submitted || isSubmitting}
-          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50"
+          className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50"
         />
         <Button
           type="submit"

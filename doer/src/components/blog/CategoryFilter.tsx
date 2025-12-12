@@ -19,8 +19,8 @@ export function CategoryFilter({ categories, selectedCategory, onCategoryChange 
         onClick={() => onCategoryChange('all')}
         className={`px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-colors min-h-[44px] ${
           selectedCategory === 'all'
-            ? 'bg-orange-500 text-white dark:bg-orange-500'
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            ? 'bg-orange-500 text-white'
+            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
         }`}
       >
         {t('blog.categories.all')}
@@ -31,8 +31,8 @@ export function CategoryFilter({ categories, selectedCategory, onCategoryChange 
           onClick={() => onCategoryChange(category)}
           className={`px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-colors min-h-[44px] ${
             selectedCategory === category
-              ? 'bg-orange-500 text-white dark:bg-orange-500'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              ? 'bg-orange-500 text-white'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
           }`}
         >
           {getCategoryDisplayName(category)}

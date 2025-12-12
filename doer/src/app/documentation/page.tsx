@@ -147,18 +147,18 @@ export default function DocumentationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors">
+    <div className="min-h-screen bg-gray-900 flex flex-col transition-colors">
       <PublicHeader />
       
-      <main className="flex-1 bg-white dark:bg-gray-900 transition-colors">
+      <main className="flex-1 bg-gray-900 transition-colors">
         {/* Hero Section */}
-        <div className="border-b border-gray-200 dark:border-gray-800 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-900">
+        <div className="border-b border-gray-800 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-4">
+              <h1 className="text-4xl md:text-5xl font-bold text-slate-100 mb-4">
                 {t('pages.documentation.title')}
               </h1>
-              <p className="text-xl text-gray-600 dark:text-slate-300 mb-6 max-w-3xl mx-auto">
+              <p className="text-xl text-slate-300 mb-6 max-w-3xl mx-auto break-words">
                 {t('pages.documentation.description')}
               </p>
               <div className="flex justify-center">
@@ -175,17 +175,17 @@ export default function DocumentationPage() {
             <DocumentationSidebar items={navItems} />
 
             {/* Content */}
-            <div className="flex-1 max-w-4xl">
+            <div className="flex-1 max-w-4xl break-words overflow-wrap-anywhere">
               {/* Getting Started */}
               <DocumentationSection id="getting-started" title="Getting Started" level={1}>
-                <p className="text-lg text-gray-600 dark:text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8">
                   Welcome to DOER! This guide will help you get started with transforming your goals into actionable plans.
                 </p>
 
                 <DocumentationSection id="quick-start" title="Quick Start Guide" level={2}>
                   <div className="space-y-4">
                     <p>Get up and running with DOER in just 5 minutes:</p>
-                    <ol className="list-decimal list-inside space-y-3 text-gray-700 dark:text-slate-300">
+                    <ol className="list-decimal list-inside space-y-3 text-slate-300">
                       <li>Sign up for a free account at <Link href="/auth/signup" className="text-orange-500 hover:underline">usedoer.com/auth/signup</Link></li>
                       <li>Enter your goal in natural language - anything from "Learn to play guitar" to "Run a marathon"</li>
                       <li>Answer a few clarification questions to help our AI understand your context</li>
@@ -229,7 +229,7 @@ export default function DocumentationPage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-gray-600 dark:text-slate-400">
+                        <p className="text-sm text-slate-400">
                           Actionable items that help you achieve your goal. Each task is scheduled on your calendar with estimated duration and priority.
                         </p>
                       </CardContent>
@@ -240,7 +240,7 @@ export default function DocumentationPage() {
                 <DocumentationSection id="navigation" title="Navigation Basics" level={2}>
                   <div className="space-y-4">
                     <p>DOER's interface is designed to be intuitive and easy to navigate:</p>
-                    <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-slate-300">
+                    <ul className="list-disc list-inside space-y-2 text-slate-300">
                       <li><strong>Dashboard:</strong> View your current goal, progress, and upcoming tasks</li>
                       <li><strong>Schedule:</strong> See your tasks organized by day and time</li>
                       <li><strong>Plan:</strong> Visual timeline showing your tasks and progress</li>
@@ -252,7 +252,7 @@ export default function DocumentationPage() {
 
               {/* Core Features */}
               <DocumentationSection id="core-features" title="Core Features" level={1}>
-                <p className="text-lg text-gray-600 dark:text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8">
                   DOER provides powerful AI-powered tools to help you achieve your goals efficiently.
                 </p>
 
@@ -270,19 +270,19 @@ export default function DocumentationPage() {
                       <CardContent className="space-y-3">
                         <div>
                           <h4 className="font-semibold mb-1">1. Goal Analysis</h4>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                          <p className="text-sm text-slate-400">
                             Our AI analyzes your goal description to understand scope, complexity, and requirements.
                           </p>
                         </div>
                         <div>
                           <h4 className="font-semibold mb-1">2. Clarification Questions</h4>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                          <p className="text-sm text-slate-400">
                             When needed, DOER asks targeted questions to better understand your context and constraints.
                           </p>
                         </div>
                         <div>
                           <h4 className="font-semibold mb-1">3. Plan Generation</h4>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                          <p className="text-sm text-slate-400">
                             The AI creates a structured plan with tasks, dependencies, and timelines.
                           </p>
                         </div>
@@ -303,7 +303,7 @@ export default function DocumentationPage() {
                           <CardTitle className="text-lg">Automatic Scheduling</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                          <p className="text-sm text-slate-400">
                             Tasks are automatically scheduled based on dependencies, estimated duration, and your availability preferences.
                           </p>
                         </CardContent>
@@ -313,7 +313,7 @@ export default function DocumentationPage() {
                           <CardTitle className="text-lg">Smart Rescheduling</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                          <p className="text-sm text-slate-400">
                             When priorities shift or conflicts arise, DOER automatically reschedules tasks while respecting dependencies.
                           </p>
                         </CardContent>
@@ -363,7 +363,7 @@ export default function DocumentationPage() {
                         </CardHeader>
                         <CardContent>
                           <p className="text-2xl font-bold text-orange-500">85%</p>
-                          <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Tasks completed on time</p>
+                          <p className="text-xs text-slate-400 mt-1">Tasks completed on time</p>
                         </CardContent>
                       </Card>
                       <Card>
@@ -372,7 +372,7 @@ export default function DocumentationPage() {
                         </CardHeader>
                         <CardContent>
                           <p className="text-2xl font-bold text-green-500">42%</p>
-                          <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Of total goal achieved</p>
+                          <p className="text-xs text-slate-400 mt-1">Of total goal achieved</p>
                         </CardContent>
                       </Card>
                       <Card>
@@ -381,7 +381,7 @@ export default function DocumentationPage() {
                         </CardHeader>
                         <CardContent>
                           <p className="text-2xl font-bold text-blue-500">92</p>
-                          <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">Overall plan health</p>
+                          <p className="text-xs text-slate-400 mt-1">Overall plan health</p>
                         </CardContent>
                       </Card>
                     </div>
@@ -391,7 +391,7 @@ export default function DocumentationPage() {
 
               {/* Integrations */}
               <DocumentationSection id="integrations" title="Integrations" level={1}>
-                <p className="text-lg text-gray-600 dark:text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8">
                   Connect DOER with your favorite tools and services to streamline your planning and goal achievement.
                 </p>
 
@@ -417,7 +417,7 @@ export default function DocumentationPage() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm text-gray-600 dark:text-slate-400">
+                            <p className="text-sm text-slate-400">
                               {integration.description}
                             </p>
                             <Button variant="outline" size="sm" className="mt-4">
@@ -435,11 +435,6 @@ export default function DocumentationPage() {
                     <p>
                       Sync tasks with your favorite task management tools for a unified workflow.
                     </p>
-                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <p className="text-sm text-blue-900 dark:text-blue-100">
-                        <strong>Coming Soon:</strong> Task management integrations are currently in development.
-                      </p>
-                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Task Management').map(integration => (
                         <Card key={integration.key}>
@@ -451,7 +446,7 @@ export default function DocumentationPage() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm text-gray-600 dark:text-slate-400">
+                            <p className="text-sm text-slate-400">
                               {integration.description}
                             </p>
                             <Button variant="outline" size="sm" className="mt-4" disabled>
@@ -469,11 +464,6 @@ export default function DocumentationPage() {
                     <p>
                       Integrate with note-taking and knowledge management tools to keep your plans in sync with your notes.
                     </p>
-                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <p className="text-sm text-blue-900 dark:text-blue-100">
-                        <strong>Coming Soon:</strong> Knowledge tool integrations are currently in development.
-                      </p>
-                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Knowledge').map(integration => (
                         <Card key={integration.key}>
@@ -485,7 +475,7 @@ export default function DocumentationPage() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm text-gray-600 dark:text-slate-400">
+                            <p className="text-sm text-slate-400">
                               {integration.description}
                             </p>
                             <Button variant="outline" size="sm" className="mt-4" disabled>
@@ -503,11 +493,6 @@ export default function DocumentationPage() {
                     <p>
                       Get notifications and updates in your team communication tools.
                     </p>
-                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <p className="text-sm text-blue-900 dark:text-blue-100">
-                        <strong>Coming Soon:</strong> Communication tool integrations are currently in development.
-                      </p>
-                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Communication').map(integration => (
                         <Card key={integration.key}>
@@ -519,7 +504,7 @@ export default function DocumentationPage() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm text-gray-600 dark:text-slate-400">
+                            <p className="text-sm text-slate-400">
                               {integration.description}
                             </p>
                             <Button variant="outline" size="sm" className="mt-4" disabled>
@@ -537,11 +522,6 @@ export default function DocumentationPage() {
                     <p>
                       Connect fitness and health tracking apps to help DOER schedule tasks around your energy levels and recovery.
                     </p>
-                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <p className="text-sm text-blue-900 dark:text-blue-100">
-                        <strong>Coming Soon:</strong> Wellness and health integrations are currently in development.
-                      </p>
-                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       {integrations.filter(i => i.category === 'Wellness').map(integration => (
                         <Card key={integration.key}>
@@ -553,7 +533,7 @@ export default function DocumentationPage() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm text-gray-600 dark:text-slate-400">
+                            <p className="text-sm text-slate-400">
                               {integration.description}
                             </p>
                             <Button variant="outline" size="sm" className="mt-4" disabled>
@@ -569,7 +549,7 @@ export default function DocumentationPage() {
 
               {/* API Reference */}
               <DocumentationSection id="api-reference" title="API Reference" level={1}>
-                <p className="text-lg text-gray-600 dark:text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8">
                   Integrate DOER with your applications using our REST API. All endpoints are authenticated and rate-limited based on your subscription plan.
                 </p>
 
@@ -726,12 +706,12 @@ print(plan)`}
                     />
                     <div className="space-y-2">
                       <h4 className="font-semibold">Common Error Codes:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-slate-300">
-                        <li><code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">400</code> - Bad Request (invalid input)</li>
-                        <li><code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">401</code> - Unauthorized (missing or invalid token)</li>
-                        <li><code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">403</code> - Forbidden (insufficient permissions)</li>
-                        <li><code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">429</code> - Rate Limited (too many requests)</li>
-                        <li><code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">500</code> - Internal Server Error</li>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
+                        <li><code className="px-1 py-0.5 bg-gray-800 rounded">400</code> - Bad Request (invalid input)</li>
+                        <li><code className="px-1 py-0.5 bg-gray-800 rounded">401</code> - Unauthorized (missing or invalid token)</li>
+                        <li><code className="px-1 py-0.5 bg-gray-800 rounded">403</code> - Forbidden (insufficient permissions)</li>
+                        <li><code className="px-1 py-0.5 bg-gray-800 rounded">429</code> - Rate Limited (too many requests)</li>
+                        <li><code className="px-1 py-0.5 bg-gray-800 rounded">500</code> - Internal Server Error</li>
                       </ul>
                     </div>
                   </div>
@@ -740,7 +720,7 @@ print(plan)`}
 
               {/* Tutorials */}
               <DocumentationSection id="tutorials" title="Tutorials & Examples" level={1}>
-                <p className="text-lg text-gray-600 dark:text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8">
                   Learn from real-world examples and best practices for achieving your goals with DOER.
                 </p>
                 <div className="grid md:grid-cols-2 gap-6">
@@ -749,7 +729,7 @@ print(plan)`}
                       <CardTitle className="text-lg">Training for a Marathon</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                      <p className="text-sm text-slate-400 mb-4">
                         A complete guide to using DOER to create a structured marathon training plan with progressive tasks.
                       </p>
                       <Button variant="outline" size="sm">
@@ -762,7 +742,7 @@ print(plan)`}
                       <CardTitle className="text-lg">Learning a New Skill</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                      <p className="text-sm text-slate-400 mb-4">
                         Break down complex learning goals into manageable tasks and track your progress over time.
                       </p>
                       <Button variant="outline" size="sm">
@@ -775,7 +755,7 @@ print(plan)`}
                       <CardTitle className="text-lg">Starting a Business</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                      <p className="text-sm text-slate-400 mb-4">
                         Use DOER to plan your business launch with dependencies, tasks, and timeline management.
                       </p>
                       <Button variant="outline" size="sm">
@@ -788,7 +768,7 @@ print(plan)`}
                       <CardTitle className="text-lg">Best Practices</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                      <p className="text-sm text-slate-400 mb-4">
                         Tips and tricks for getting the most out of DOER, from goal setting to maintaining momentum.
                       </p>
                       <Button variant="outline" size="sm">
@@ -801,7 +781,7 @@ print(plan)`}
 
               {/* Troubleshooting */}
               <DocumentationSection id="troubleshooting" title="Troubleshooting" level={1}>
-                <p className="text-lg text-gray-600 dark:text-slate-300 mb-8">
+                <p className="text-lg text-slate-300 mb-8">
                   Common issues and solutions to help you get the most out of DOER.
                 </p>
                 <div className="space-y-6">
@@ -813,7 +793,7 @@ print(plan)`}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400">
+                      <p className="text-sm text-slate-400">
                         Complex goals may take a few minutes to process. If your plan hasn't generated after 5 minutes, 
                         try simplifying your goal description or checking your internet connection. You can also try refreshing the page.
                       </p>
@@ -827,7 +807,7 @@ print(plan)`}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400">
+                      <p className="text-sm text-slate-400">
                         Make sure your calendar integration is connected and has the necessary permissions. 
                         Go to Settings → Integrations to verify your calendar connection status.
                       </p>
@@ -841,15 +821,15 @@ print(plan)`}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-slate-400">
+                      <p className="text-sm text-slate-400">
                         Your health score decreases when you miss scheduled tasks. To improve it, focus on completing 
                         your daily tasks consistently. You can also adjust your schedule if tasks are too ambitious.
                       </p>
                     </CardContent>
                   </Card>
                 </div>
-                <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                <div className="mt-8 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-100">
                     <strong>Still need help?</strong> Check out our{' '}
                     <Link href="/help" className="underline hover:no-underline">
                       Help Center

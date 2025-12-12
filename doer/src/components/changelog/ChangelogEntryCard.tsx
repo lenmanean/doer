@@ -46,14 +46,32 @@ export function ChangelogEntryCard({
     }
   }, [])
 
-  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+  // Robust date parsing - handle format "2025-10-15 11:16:16 -0700"
+  const parseDate = (dateStr: string): Date => {
+    // Try parsing as-is first
+    let parsed = new Date(dateStr)
+    if (!isNaN(parsed.getTime())) {
+      return parsed
+    }
+    // If that fails, try removing timezone and parsing
+    const cleaned = dateStr.replace(/\s+-\d{4}$/, '')
+    parsed = new Date(cleaned)
+    if (!isNaN(parsed.getTime())) {
+      return parsed
+    }
+    // Last resort: return current date
+    return new Date()
+  }
+
+  const dateObj = parseDate(date)
+  const formattedDate = dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     timeZone: 'America/Los_Angeles',
   })
 
-  const formattedTime = new Date(date).toLocaleTimeString('en-US', {
+  const formattedTime = dateObj.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     timeZone: 'America/Los_Angeles',
@@ -73,7 +91,7 @@ export function ChangelogEntryCard({
       }}
     >
       <article
-        className="group relative overflow-hidden rounded-2xl border border-white/10 dark:border-white/5 bg-white/5 dark:bg-gray-800/30 backdrop-blur-md p-6 shadow-lg shadow-black/5 dark:shadow-black/20 hover:shadow-xl hover:shadow-orange-500/10 dark:hover:shadow-orange-500/20 transition-all duration-300 hover:scale-[1.02] hover:border-orange-500/30 dark:hover:border-orange-500/20"
+        className="group relative overflow-hidden rounded-2xl border border-gray-700 bg-gray-800/30 backdrop-blur-md p-6 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-orange-500/20 transition-all duration-300 hover:scale-[1.02] hover:border-orange-500/30"
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
       >
@@ -86,28 +104,28 @@ export function ChangelogEntryCard({
         <div className="relative z-10">
           {/* Date Badge */}
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 dark:bg-orange-500/20 border border-orange-500/20 dark:border-orange-500/30">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/30">
               <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
               <time
                 dateTime={date}
-                className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide"
+                className="text-xs font-semibold text-orange-400 uppercase tracking-wide"
               >
                 {formattedDate}
               </time>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-gray-400">
               {formattedTime}
             </span>
           </div>
 
           {/* Title */}
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors duration-300">
+          <h3 className="text-xl font-bold text-white mb-3 group-hover:text-orange-400 transition-colors duration-300">
             {title}
           </h3>
 
           {/* Description */}
           <p
-            className={`text-sm text-gray-600 dark:text-gray-300 leading-relaxed transition-all duration-300 ${
+            className={`text-sm text-gray-300 leading-relaxed transition-all duration-300 ${
               isExpanded ? 'line-clamp-none' : 'line-clamp-3'
             }`}
           >
