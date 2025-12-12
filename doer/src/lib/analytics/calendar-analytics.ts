@@ -83,7 +83,11 @@ export async function getCalendarUsageStats(
       .eq('is_calendar_event', true)
 
     if (tasksError) {
-      logger.error('Failed to fetch calendar tasks', tasksError as Error, { userId })
+      logger.error('Failed to fetch calendar tasks', {
+        error: tasksError instanceof Error ? tasksError.message : String(tasksError),
+        errorStack: tasksError instanceof Error ? tasksError.stack : undefined,
+        userId,
+      })
       throw tasksError
     }
 
@@ -100,7 +104,11 @@ export async function getCalendarUsageStats(
         .lte('date', todayStr)
 
       if (schedulesError) {
-        logger.error('Failed to fetch task schedules', schedulesError as Error, { userId })
+        logger.error('Failed to fetch task schedules', {
+          error: schedulesError instanceof Error ? schedulesError.message : String(schedulesError),
+          errorStack: schedulesError instanceof Error ? schedulesError.stack : undefined,
+          userId,
+        })
         // Continue without schedules - we can still calculate some stats
       } else {
         schedules = taskSchedules || []
@@ -255,7 +263,12 @@ export async function getCalendarUsageStats(
       past_events_count: pastEventsCount,
     }
   } catch (error) {
-    logger.error('Error calculating calendar usage stats', error as Error, { userId, timeRange })
+    logger.error('Error calculating calendar usage stats', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+      timeRange,
+    })
     throw error
   }
 }
@@ -275,7 +288,11 @@ export async function getCalendarPlanStats(userId: string): Promise<CalendarPlan
       .eq('user_id', userId)
 
     if (connectionsError) {
-      logger.error('Failed to fetch calendar connections', connectionsError as Error, { userId })
+      logger.error('Failed to fetch calendar connections', {
+        error: connectionsError instanceof Error ? connectionsError.message : String(connectionsError),
+        errorStack: connectionsError instanceof Error ? connectionsError.stack : undefined,
+        userId,
+      })
       throw connectionsError
     }
 
@@ -393,7 +410,11 @@ export async function getCalendarPlanStats(userId: string): Promise<CalendarPlan
 
     return stats
   } catch (error) {
-    logger.error('Error calculating calendar plan stats', error as Error, { userId })
+    logger.error('Error calculating calendar plan stats', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+    })
     throw error
   }
 }
