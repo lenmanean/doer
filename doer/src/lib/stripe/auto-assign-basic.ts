@@ -216,7 +216,9 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
       return
     }
     
-    logger.error('Failed to create Basic plan subscription', error as Error, {
+    logger.error('Failed to create Basic plan subscription', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId,
       stripeCustomerId,
     })

@@ -221,7 +221,11 @@ export async function GET(
 
     return NextResponse.redirect(new URL(`/integrations/${provider}?connected=${provider}`, request.url))
   } catch (error) {
-    logger.error(`Failed to connect ${provider} Calendar`, error as Error)
+    logger.error(`Failed to connect ${provider} Calendar`, {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      provider,
+    })
 
     // Try to log the error
     try {
@@ -466,7 +470,11 @@ export async function POST(
 
     return NextResponse.redirect(new URL(`/integrations/${provider}?connected=${provider}`, request.url))
   } catch (error) {
-    logger.error(`Failed to connect ${provider} Calendar`, error as Error)
+    logger.error(`Failed to connect ${provider} Calendar`, {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      provider,
+    })
 
     // Try to log the error
     try {

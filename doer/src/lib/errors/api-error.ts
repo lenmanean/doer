@@ -25,7 +25,9 @@ export function handleApiError(error: unknown): NextResponse {
   const correlationId = randomUUID()
 
   if (error instanceof ApiError) {
-    logger.error('API error', error, {
+    logger.error('API error', {
+      error: error.message,
+      errorStack: error.stack,
       correlationId,
       statusCode: error.statusCode,
       code: error.code,
@@ -46,7 +48,11 @@ export function handleApiError(error: unknown): NextResponse {
   }
 
   if (error instanceof Error) {
-    logger.error('Unexpected error', error, { correlationId })
+    logger.error('Unexpected error', {
+      error: error.message,
+      errorStack: error.stack,
+      correlationId,
+    })
 
     return NextResponse.json(
       {
@@ -60,7 +66,12 @@ export function handleApiError(error: unknown): NextResponse {
     )
   }
 
-  logger.error('Unknown error', new Error('Unknown error type'), { correlationId, error })
+  logger.error('Unknown error', {
+    error: 'Unknown error type',
+    errorStack: undefined,
+    correlationId,
+    originalError: error,
+  })
 
   return NextResponse.json(
     {

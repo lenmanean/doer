@@ -507,7 +507,12 @@ export class GoogleCalendarProvider implements CalendarProvider {
         success: true,
       }
     } catch (error) {
-      logger.error('Failed to push task to calendar', error as Error, { connectionId, taskScheduleId: task.taskScheduleId })
+      logger.error('Failed to push task to calendar', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        connectionId,
+        taskScheduleId: task.taskScheduleId,
+      })
       return {
         external_event_id: '',
         success: false,

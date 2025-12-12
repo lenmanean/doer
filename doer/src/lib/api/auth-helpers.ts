@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { authenticateApiRequest } from '@/lib/auth/api-route-auth'
+import { authenticateApiRequest } from '@/lib/auth/api-token-auth'
 import { unauthorizedResponse } from './error-responses'
 
 export interface AuthContext {
