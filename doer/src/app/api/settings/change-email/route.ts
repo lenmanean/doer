@@ -104,7 +104,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError || !requestRecord) {
-      logger.error('Failed to create email change request', insertError as Error, {
+      logger.error('Failed to create email change request', {
+        error: insertError instanceof Error ? insertError.message : String(insertError),
+        errorStack: insertError instanceof Error ? insertError.stack : undefined,
         userId: user.id,
       })
       throw new ApiError(500, 'EMAIL_REQUEST_FAILED', 'Unable to start email change flow.')
@@ -131,7 +133,9 @@ export async function POST(request: NextRequest) {
         .update({ status: 'cancelled' })
         .eq('id', requestRecord.id)
 
-      logger.error('Failed to send email change OTP', emailError as Error, {
+      logger.error('Failed to send email change OTP', {
+        error: emailError instanceof Error ? emailError.message : String(emailError),
+        errorStack: emailError instanceof Error ? emailError.stack : undefined,
         userId: user.id,
       })
 
