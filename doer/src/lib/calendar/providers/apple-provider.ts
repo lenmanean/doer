@@ -87,7 +87,10 @@ export class AppleCalendarProvider implements CalendarProvider {
 
     if (!response.ok) {
       const errorText = await response.text()
-      logger.error('Failed to exchange code for tokens', new Error(errorText), {
+      const error = new Error(errorText)
+      logger.error('Failed to exchange code for tokens', {
+        error: error.message,
+        errorStack: error.stack,
         status: response.status,
       })
       throw new Error(`Failed to exchange authorization code: ${response.status} ${errorText}`)
@@ -150,7 +153,10 @@ export class AppleCalendarProvider implements CalendarProvider {
 
       if (!response.ok) {
         const errorText = await response.text()
-        logger.error('Failed to refresh access token', new Error(errorText), {
+        const error = new Error(errorText)
+        logger.error('Failed to refresh access token', {
+          error: error.message,
+          errorStack: error.stack,
           connectionId,
           status: response.status,
         })
@@ -182,7 +188,11 @@ export class AppleCalendarProvider implements CalendarProvider {
         .eq('id', connectionId)
 
       if (updateError) {
-        logger.error('Failed to update access token in database', updateError as Error, { connectionId })
+        logger.error('Failed to update access token in database', {
+          error: updateError instanceof Error ? updateError.message : String(updateError),
+          errorStack: updateError instanceof Error ? updateError.stack : undefined,
+          connectionId,
+        })
         throw updateError
       }
 
@@ -192,7 +202,11 @@ export class AppleCalendarProvider implements CalendarProvider {
         expiry_date: expiryDate,
       }
     } catch (error) {
-      logger.error('Failed to refresh access token', error as Error, { connectionId })
+      logger.error('Failed to refresh access token', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        connectionId,
+      })
       throw error
     }
   }
@@ -254,7 +268,11 @@ export class AppleCalendarProvider implements CalendarProvider {
         primary: cal.id === 'calendar' || cal.id === 'home', // Common primary calendar IDs
       }))
     } catch (error) {
-      logger.error('Failed to fetch calendars', error as Error, { connectionId })
+      logger.error('Failed to fetch calendars', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        connectionId,
+      })
       throw error
     }
   }
@@ -333,11 +351,21 @@ export class AppleCalendarProvider implements CalendarProvider {
               nextSyncToken = calendarSyncToken
             }
           } catch (retryError) {
-            logger.error('Failed to fetch calendar events after retry', retryError as Error, { connectionId, calendarId })
+            logger.error('Failed to fetch calendar events after retry', {
+              error: retryError instanceof Error ? retryError.message : String(retryError),
+              errorStack: retryError instanceof Error ? retryError.stack : undefined,
+              connectionId,
+              calendarId,
+            })
             throw retryError
           }
         } else {
-          logger.error('Failed to fetch calendar events', error as Error, { connectionId, calendarId })
+          logger.error('Failed to fetch calendar events', {
+            error: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+            connectionId,
+            calendarId,
+          })
           throw error
         }
       }
@@ -511,7 +539,11 @@ export class AppleCalendarProvider implements CalendarProvider {
         })
 
       if (linkError) {
-        logger.error('Failed to create calendar event link', linkError as Error, { taskScheduleId: task.taskScheduleId })
+        logger.error('Failed to create calendar event link', {
+          error: linkError instanceof Error ? linkError.message : String(linkError),
+          errorStack: linkError instanceof Error ? linkError.stack : undefined,
+          taskScheduleId: task.taskScheduleId,
+        })
       }
 
       return {
@@ -519,7 +551,12 @@ export class AppleCalendarProvider implements CalendarProvider {
         success: true,
       }
     } catch (error) {
-      logger.error('Failed to push task to calendar', error as Error, { connectionId, taskScheduleId: task.taskScheduleId })
+      logger.error('Failed to push task to calendar', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        connectionId,
+        taskScheduleId: task.taskScheduleId,
+      })
       return {
         external_event_id: '',
         success: false,
@@ -541,7 +578,12 @@ export class AppleCalendarProvider implements CalendarProvider {
       
       return await caldav.deleteEvent(calendarId, eventId)
     } catch (error) {
-      logger.error('Failed to delete calendar event', error as Error, { connectionId, externalEventId })
+      logger.error('Failed to delete calendar event', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        connectionId,
+        externalEventId,
+      })
       return false
     }
   }
