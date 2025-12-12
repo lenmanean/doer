@@ -276,7 +276,13 @@ export async function getActiveSubscriptionFromStripe(
       priceCents: planCycle.priceCents,
     }
   } catch (error) {
-    logger.error('Error fetching plan details', error as Error, { userId, planSlug, billingCycle })
+    logger.error('Error fetching plan details', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+      planSlug,
+      billingCycle,
+    })
     // Fallback to default values
     planDetails = {
       name: planSlug === 'pro' ? 'Pro' : 'Basic',
@@ -341,7 +347,13 @@ export async function getAllSubscriptionsFromStripe(
         priceCents: planCycle.priceCents,
       }
     } catch (error) {
-      logger.error('Error fetching plan details', error as Error, { userId, planSlug, billingCycle })
+      logger.error('Error fetching plan details', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        userId,
+        planSlug,
+        billingCycle,
+      })
       planDetails = {
         name: planSlug === 'pro' ? 'Pro' : 'Basic',
         apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 150 : 100) : 10,

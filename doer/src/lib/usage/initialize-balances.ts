@@ -61,7 +61,12 @@ export async function initializeUsageBalances(userId: string): Promise<void> {
     })
 
     if (error) {
-      logger.error(`Failed to initialize ${metric} balance`, error as Error, { userId, metric })
+      logger.error(`Failed to initialize ${metric} balance`, {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        userId,
+        metric,
+      })
       throw new Error(`Failed to initialize usage balance for ${metric}: ${error.message}`)
     }
 

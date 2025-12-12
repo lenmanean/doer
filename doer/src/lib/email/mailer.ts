@@ -56,7 +56,12 @@ export async function sendEmail({
       text,
     })
   } catch (error) {
-    logger.error('Failed to send email', error as Error, { to, subject })
+    logger.error('Failed to send email', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      to,
+      subject,
+    })
     throw error
   }
 }

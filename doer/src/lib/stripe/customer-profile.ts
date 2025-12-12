@@ -58,7 +58,9 @@ export async function updateStripeCustomerProfile(userId: string, params: Update
       stripeCustomerId,
     })
   } catch (error) {
-    logger.error('[customer-profile] Failed to sync Stripe profile', error as Error, {
+    logger.error('[customer-profile] Failed to sync Stripe profile', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId,
       stripeCustomerId,
     })

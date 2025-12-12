@@ -19,7 +19,11 @@ export async function getSubscriptionForUsage(userId: string): Promise<UserPlanS
       // Try to get subscription again after assignment
       stripeSubscription = await getActiveSubscriptionFromStripe(userId)
     } catch (error) {
-      logger.error('Failed to auto-assign Basic plan', error as Error, { userId })
+      logger.error('Failed to auto-assign Basic plan', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        userId,
+      })
       // Re-throw error instead of silently continuing
       // This ensures callers know that subscription assignment failed
       throw new Error(`Failed to auto-assign Basic plan for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`)

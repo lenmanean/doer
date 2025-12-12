@@ -200,7 +200,9 @@ export async function autoAssignBasicPlan(userId: string): Promise<void> {
     try {
       await syncSubscriptionSnapshot(subscription, { userId })
     } catch (syncError) {
-      logger.error('Failed to persist subscription snapshot', syncError as Error, {
+      logger.error('Failed to persist subscription snapshot', {
+        error: syncError instanceof Error ? syncError.message : String(syncError),
+        errorStack: syncError instanceof Error ? syncError.stack : undefined,
         userId,
         subscriptionId: subscription.id,
       })

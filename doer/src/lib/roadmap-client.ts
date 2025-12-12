@@ -174,7 +174,12 @@ export async function getUserProgressStats(userId: string, planId: string): Prom
       completions: (completions || []) as TaskCompletion[]
     }
   } catch (error) {
-    logger.error('Error in getUserProgressStats', error as Error, { userId, planId })
+    logger.error('Error in getUserProgressStats', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+      planId,
+    })
     throw error
   }
 }
@@ -425,7 +430,12 @@ export async function getTasksForDate(planId: string, date: string): Promise<Tas
 
     return tasksForDate
   } catch (error) {
-    logger.error('Error in getTasksForDate', error as Error, { planId, date })
+    logger.error('Error in getTasksForDate', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      planId,
+      date,
+    })
     throw error
   }
 }
@@ -453,7 +463,14 @@ export async function updateTaskCompletionUnified(params: TaskCompletionParams):
         })
 
       if (insertError) {
-        logger.error('Error inserting task completion', insertError, { userId, planId, taskId, scheduledDate })
+        logger.error('Error inserting task completion', {
+          error: insertError instanceof Error ? insertError.message : String(insertError),
+          errorStack: insertError instanceof Error ? insertError.stack : undefined,
+          userId,
+          planId,
+          taskId,
+          scheduledDate,
+        })
         throw insertError
       }
     } else {
@@ -467,12 +484,26 @@ export async function updateTaskCompletionUnified(params: TaskCompletionParams):
         .eq('scheduled_date', scheduledDate)
 
       if (deleteError) {
-        logger.error('Error deleting task completion', deleteError, { userId, planId, taskId, scheduledDate })
+        logger.error('Error deleting task completion', {
+          error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+          errorStack: deleteError instanceof Error ? deleteError.stack : undefined,
+          userId,
+          planId,
+          taskId,
+          scheduledDate,
+        })
         throw deleteError
       }
     }
   } catch (error) {
-    logger.error('Error in updateTaskCompletionUnified', error as Error, { userId, planId, taskId, scheduledDate })
+    logger.error('Error in updateTaskCompletionUnified', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+      planId,
+      taskId,
+      scheduledDate,
+    })
     throw error
   }
 }
@@ -694,11 +725,19 @@ export async function refreshPlanState(planId: string): Promise<void> {
     })
 
     if (error) {
-      logger.error('Error refreshing plan state', error, { planId })
+      logger.error('Error refreshing plan state', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        planId,
+      })
       throw error
     }
   } catch (error) {
-    logger.error('Error in refreshPlanState', error as Error, { planId })
+    logger.error('Error in refreshPlanState', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      planId,
+    })
     throw error
   }
 }

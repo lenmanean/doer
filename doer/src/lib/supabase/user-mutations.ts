@@ -15,7 +15,9 @@ export async function updateAuthUsername(params: {
       },
     })
   } catch (error) {
-    logger.error('Failed to update auth username', error as Error, {
+    logger.error('Failed to update auth username', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId: params.userId,
     })
     throw error
@@ -33,7 +35,9 @@ export async function updateAuthEmail(params: {
       email_confirm: true,
     })
   } catch (error) {
-    logger.error('Failed to update auth email', error as Error, {
+    logger.error('Failed to update auth email', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       userId: params.userId,
     })
     throw error

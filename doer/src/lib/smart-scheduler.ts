@@ -57,7 +57,12 @@ export async function detectMissedTasks(
       daysOverdue: task.days_overdue
     })) || []
   } catch (error) {
-    logger.error('Error detecting missed tasks', error as Error, { planId, checkDate: formatDateForDB(checkDate) })
+    logger.error('Error detecting missed tasks', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      planId,
+      checkDate: formatDateForDB(checkDate),
+    })
     return []
   }
 }
@@ -270,7 +275,12 @@ async function redistributeTasks(
 
     return adjustments
   } catch (error) {
-    logger.error('Error redistributing tasks', error as Error, { planId, taskCount: tasks.length })
+    logger.error('Error redistributing tasks', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      planId,
+      taskCount: tasks.length,
+    })
     return []
   }
 }
@@ -293,7 +303,12 @@ export async function applyScheduleChanges(
       .single()
 
     if (planFetchError || !currentPlan) {
-      logger.error('Error fetching plan for schedule changes', planFetchError as Error, { planId, userId })
+      logger.error('Error fetching plan for schedule changes', {
+        error: planFetchError instanceof Error ? planFetchError.message : String(planFetchError || 'Plan not found'),
+        errorStack: planFetchError instanceof Error ? planFetchError.stack : undefined,
+        planId,
+        userId,
+      })
       return false
     }
 
@@ -319,13 +334,23 @@ export async function applyScheduleChanges(
     })
 
     if (error) {
-      logger.error('Error applying schedule changes', error as Error, { planId, userId })
+      logger.error('Error applying schedule changes', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        planId,
+        userId,
+      })
       return false
     }
 
     return data === true
   } catch (error) {
-    logger.error('Error applying schedule changes', error as Error, { planId, userId })
+    logger.error('Error applying schedule changes', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      planId,
+      userId,
+    })
     return false
   }
 }
@@ -430,7 +455,11 @@ export async function processPlanRescheduling(planId: string): Promise<boolean> 
 
     return success
   } catch (error) {
-    logger.error('Error processing rescheduling for plan', error as Error, { planId })
+    logger.error('Error processing rescheduling for plan', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      planId,
+    })
     return false
   }
 }
