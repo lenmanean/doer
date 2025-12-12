@@ -28,7 +28,13 @@ export async function POST(req: NextRequest) {
     const subscription = await assignSubscription(userId, planSlug, cycle)
     return NextResponse.json({ success: true, subscription })
   } catch (error) {
-    logger.error('Mock Stripe Webhook assignment failed', error as Error, { userId, planSlug, cycle })
+    logger.error('Mock Stripe Webhook assignment failed', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      userId,
+      planSlug,
+      cycle,
+    })
     return NextResponse.json(
       {
         success: false,
