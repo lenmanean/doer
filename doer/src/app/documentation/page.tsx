@@ -169,13 +169,13 @@ export default function DocumentationPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
+          <div className="flex flex-col md:flex-row gap-4 md:gap-8">
             {/* Sidebar */}
             <DocumentationSidebar items={navItems} />
 
             {/* Content */}
-            <div className="flex-1 max-w-4xl break-words overflow-wrap-anywhere">
+            <div className="flex-1 max-w-4xl min-w-0 break-words overflow-wrap-anywhere">
               {/* Getting Started */}
               <DocumentationSection id="getting-started" title="Getting Started" level={1}>
                 <p className="text-lg text-slate-300 mb-8 break-words overflow-wrap-anywhere">
@@ -186,7 +186,7 @@ export default function DocumentationPage() {
                   <div className="space-y-4">
                     <p>Get up and running with DOER in just 5 minutes:</p>
                     <ol className="list-decimal list-inside space-y-3 text-slate-300">
-                      <li>Sign up for a free account at <Link href="/auth/signup" className="text-orange-500 hover:underline">usedoer.com/auth/signup</Link></li>
+                      <li>Sign up for a free account at <Link href="/auth/signup" className="text-orange-500 hover:underline break-all sm:break-normal">usedoer.com/auth/signup</Link></li>
                       <li>Enter your goal in natural language - anything from "Learn to play guitar" to "Run a marathon"</li>
                       <li>Answer a few clarification questions to help our AI understand your context</li>
                       <li>Review and customize your AI-generated plan with tasks</li>

@@ -55,7 +55,7 @@ export function DocumentationSection({
           </p>
         )}
       </div>
-      <div className="prose prose-gray dark:prose-invert max-w-none break-words overflow-wrap-anywhere">
+      <div className="prose prose-gray dark:prose-invert max-w-none break-words overflow-wrap-anywhere [&_a]:break-words [&_a]:overflow-wrap-anywhere [&_a]:max-w-full">
         {children}
       </div>
     </section>

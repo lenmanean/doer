@@ -53,7 +53,7 @@ export function CodeBlock({ code, language, filename, className }: CodeBlockProp
   const style = isDark ? oneDark : oneLight
 
   return (
-    <div className={cn('relative group rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700', className)}>
+    <div className={cn('relative group rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 max-w-full', className)}>
       {filename && (
         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 font-mono">
           {filename}
@@ -71,20 +71,22 @@ export function CodeBlock({ code, language, filename, className }: CodeBlockProp
             <Copy className="w-4 h-4" />
           )}
         </button>
-        <SyntaxHighlighter
-          language={language}
-          style={style}
-          customStyle={{
-            margin: 0,
-            padding: '1rem',
-            backgroundColor: isDark ? '#1e1e1e' : '#fafafa',
-            fontSize: '0.875rem',
-            lineHeight: '1.5',
-          }}
-          showLineNumbers={code.split('\n').length > 5}
-        >
-          {code}
-        </SyntaxHighlighter>
+        <div className="overflow-x-auto">
+          <SyntaxHighlighter
+            language={language}
+            style={style}
+            customStyle={{
+              margin: 0,
+              padding: '1rem',
+              backgroundColor: isDark ? '#1e1e1e' : '#fafafa',
+              fontSize: '0.875rem',
+              lineHeight: '1.5',
+            }}
+            showLineNumbers={code.split('\n').length > 5}
+          >
+            {code}
+          </SyntaxHighlighter>
+        </div>
       </div>
     </div>
   )
