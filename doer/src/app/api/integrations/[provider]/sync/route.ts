@@ -211,7 +211,9 @@ export async function POST(
       .single()
 
     if (logError) {
-      logger.error('Failed to create sync log', logError as Error, {
+      logger.error('Failed to create sync log', {
+        error: logError instanceof Error ? logError.message : String(logError),
+        errorStack: logError instanceof Error ? logError.stack : undefined,
         connectionId: connection.id,
         userId: user.id,
         errorCode: logError.code,
@@ -355,7 +357,11 @@ export async function POST(
               })
 
             if (upsertError) {
-              logger.error('Failed to upsert calendar event', upsertError as Error, { event_id: event.id })
+              logger.error('Failed to upsert calendar event', {
+                error: upsertError instanceof Error ? upsertError.message : String(upsertError),
+                errorStack: upsertError instanceof Error ? upsertError.stack : undefined,
+                event_id: event.id,
+              })
               continue
             }
 
@@ -425,7 +431,9 @@ export async function POST(
           }
         } catch (calendarError) {
           // Log error for this calendar but continue with others
-          logger.error(`Failed to sync calendar ${calendarId}`, calendarError as Error, {
+          logger.error(`Failed to sync calendar ${calendarId}`, {
+            error: calendarError instanceof Error ? calendarError.message : String(calendarError),
+            errorStack: calendarError instanceof Error ? calendarError.stack : undefined,
             connectionId: connection.id,
             calendarId,
           })
@@ -445,7 +453,11 @@ export async function POST(
           .eq('id', connection.id)
 
         if (tokenError) {
-          logger.error('Failed to update sync token', tokenError as Error, { connectionId: connection.id })
+          logger.error('Failed to update sync token', {
+            error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+            errorStack: tokenError instanceof Error ? tokenError.stack : undefined,
+            connectionId: connection.id,
+          })
         }
       } else {
         // Update last_sync_at even if no new sync token
@@ -487,12 +499,12 @@ export async function POST(
           errors: syncResult.errors.length,
         })
       } catch (syncError) {
-        logger.error('Failed to sync events to tasks', syncError as Error, {
+        logger.error('Failed to sync events to tasks', {
+          error: syncError instanceof Error ? syncError.message : String(syncError),
+          errorStack: syncError instanceof Error ? syncError.stack : undefined,
           connectionId: connection.id,
           userId: user.id,
           provider,
-          errorMessage: syncError instanceof Error ? syncError.message : String(syncError),
-          errorStack: syncError instanceof Error ? syncError.stack : undefined,
         })
         // Don't fail the whole sync operation if task sync fails, but log the error
         syncResult = {
@@ -525,7 +537,9 @@ export async function POST(
           .eq('id', syncLog.id)
 
         if (updateError) {
-          logger.error('Failed to update sync log', updateError as Error, {
+          logger.error('Failed to update sync log', {
+            error: updateError instanceof Error ? updateError.message : String(updateError),
+            errorStack: updateError instanceof Error ? updateError.stack : undefined,
             syncLogId: syncLog.id,
             connectionId: connection.id,
             errorCode: updateError.code,
@@ -564,24 +578,29 @@ export async function POST(
           .eq('id', syncLog.id)
 
         if (updateError) {
-          logger.error('Failed to update sync log with error status', updateError as Error, {
+          logger.error('Failed to update sync log with error status', {
+            error: updateError instanceof Error ? updateError.message : String(updateError),
+            errorStack: updateError instanceof Error ? updateError.stack : undefined,
             syncLogId: syncLog.id,
             connectionId: connection.id,
           })
         }
       }
 
-      logger.error('Sync failed', syncError as Error, {
+      logger.error('Sync failed', {
+        error: syncError instanceof Error ? syncError.message : String(syncError),
+        errorStack: syncError instanceof Error ? syncError.stack : undefined,
         connectionId: connection.id,
         userId: user.id,
         provider,
-        errorMessage: syncError instanceof Error ? syncError.message : String(syncError),
-        errorStack: syncError instanceof Error ? syncError.stack : undefined,
       })
       throw syncError
     }
   } catch (error) {
-    logger.error(`Failed to sync ${params.provider} calendar`, error as Error)
+    logger.error(`Failed to sync ${params.provider} calendar`, {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to sync calendar' },
       { status: 500 }
