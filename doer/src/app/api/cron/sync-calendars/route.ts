@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
       .eq('auto_sync_enabled', true)
     
     if (connectionsError) {
-      logger.error('Failed to fetch calendar connections for auto-sync', connectionsError as Error)
+      logger.error('Failed to fetch calendar connections for auto-sync', {
+        error: connectionsError instanceof Error ? connectionsError.message : String(connectionsError),
+        errorStack: connectionsError instanceof Error ? connectionsError.stack : undefined,
+      })
       return NextResponse.json(
         { error: 'Failed to fetch connections' },
         { status: 500 }
@@ -184,7 +187,11 @@ export async function GET(request: NextRequest) {
             .eq('id', connection.id)
           
           if (tokenError) {
-            logger.error('Failed to update sync token', tokenError as Error, { connectionId: connection.id })
+            logger.error('Failed to update sync token', {
+              error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+              errorStack: tokenError instanceof Error ? tokenError.stack : undefined,
+              connectionId: connection.id,
+            })
           }
         } else {
           // Update last_sync_at even if no new sync token
@@ -243,10 +250,15 @@ export async function GET(request: NextRequest) {
               completed_at: new Date().toISOString(),
             })
         } catch (logError) {
-          logger.error('Failed to log sync error', logError as Error)
+          logger.error('Failed to log sync error', {
+            error: logError instanceof Error ? logError.message : String(logError),
+            errorStack: logError instanceof Error ? logError.stack : undefined,
+          })
         }
         
-        logger.error(`Auto-sync failed for connection ${connection.id}`, error as Error, {
+        logger.error(`Auto-sync failed for connection ${connection.id}`, {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
           connectionId: connection.id,
           provider: connection.provider,
         })
@@ -261,7 +273,10 @@ export async function GET(request: NextRequest) {
       errors: results.errors,
     })
   } catch (error) {
-    logger.error('Auto-sync cron job failed', error as Error)
+    logger.error('Auto-sync cron job failed', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Auto-sync failed' },
       { status: 500 }
