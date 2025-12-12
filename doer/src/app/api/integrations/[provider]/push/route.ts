@@ -126,7 +126,9 @@ export async function POST(
     const { data: schedules, error: schedulesError } = await schedulesQuery
 
     if (schedulesError) {
-      logger.error('Failed to fetch task schedules', schedulesError as Error, {
+      logger.error('Failed to fetch task schedules', {
+        error: schedulesError instanceof Error ? schedulesError.message : String(schedulesError),
+        errorStack: schedulesError instanceof Error ? schedulesError.stack : undefined,
         userId: user.id,
         connectionId: connection.id,
       })
@@ -256,7 +258,11 @@ export async function POST(
           error: errorMessage,
         })
         errors.push(`Task ${schedule.id}: ${errorMessage}`)
-        logger.error('Failed to push task to calendar', error as Error, { taskScheduleId: schedule.id })
+        logger.error('Failed to push task to calendar', {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          taskScheduleId: schedule.id,
+        })
       }
     }
 
@@ -287,7 +293,10 @@ export async function POST(
       results,
     })
   } catch (error) {
-    logger.error(`Failed to push tasks to ${params.provider} calendar`, error as Error)
+    logger.error(`Failed to push tasks to ${params.provider} calendar`, {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to push tasks to calendar' },
       { status: 500 }
