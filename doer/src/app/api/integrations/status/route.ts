@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
 
     if (connectionsError) {
-      logger.error('Error fetching calendar connections', connectionsError as Error, { userId: user.id })
+      logger.error('Error fetching calendar connections', {
+        error: connectionsError instanceof Error ? connectionsError.message : String(connectionsError),
+        errorStack: connectionsError instanceof Error ? connectionsError.stack : undefined,
+        userId: user.id,
+      })
       return NextResponse.json(
         { error: 'Failed to get connection status', details: connectionsError.message },
         { status: 500 }
@@ -63,7 +67,11 @@ export async function GET(request: NextRequest) {
       providers: providerStatuses,
     })
   } catch (error) {
-    logger.error('Unexpected error in integrations status route', error as Error, { path: request.url })
+    logger.error('Unexpected error in integrations status route', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      path: request.url,
+    })
     return NextResponse.json(
       { 
         error: 'Failed to get connection status',
