@@ -30,7 +30,8 @@ export async function GET(
 
     // Validate provider (just the string, not the config - status check doesn't need provider instance)
     if (!resolvedParams?.provider) {
-      logger.error('Missing provider parameter in status route', new Error('Provider param missing'), { 
+      logger.error('Missing provider parameter in status route', { 
+        error: 'Provider param missing',
         params: resolvedParams,
         url: request.url 
       })
@@ -44,7 +45,11 @@ export async function GET(
     try {
       provider = validateProvider(resolvedParams.provider)
     } catch (error) {
-      logger.error('Invalid provider in status route', error as Error, { provider: resolvedParams.provider })
+      logger.error('Invalid provider in status route', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        provider: resolvedParams.provider,
+      })
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Invalid provider' },
         { status: 400 }
@@ -61,7 +66,9 @@ export async function GET(
 
     // If no connection found or error (and it's not a "no rows" error), return not connected
     if (connectionError) {
-      logger.error('Error fetching calendar connection', connectionError as Error, { 
+      logger.error('Error fetching calendar connection', {
+        error: connectionError instanceof Error ? connectionError.message : String(connectionError),
+        errorStack: connectionError instanceof Error ? connectionError.stack : undefined,
         userId: user.id, 
         provider,
         errorCode: connectionError.code 
@@ -122,10 +129,11 @@ export async function GET(
     } catch {
       // Ignore errors resolving params
     }
-    logger.error('Unexpected error in status route', error as Error, { 
+    logger.error('Unexpected error in status route', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
       provider: providerParam,
       path: request.url,
-      errorDetails: error instanceof Error ? error.stack : String(error)
     })
     return NextResponse.json(
       { 
