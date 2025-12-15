@@ -1,55 +1,44 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { WaitlistModal } from '@/components/ui/WaitlistModal'
 
 export default function EarlyAccessPage() {
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
   const [waitlistSource, setWaitlistSource] = useState<string>('cold_ads_hero')
 
   const videos = [
-    { src: '/doer_tut1.mp4', title: 'Getting Started with DOER' },
-    { src: '/doer_tut2.mp4', title: 'Building Your Plan' },
-    { src: '/doer_tut3.mp4', title: 'Tracking Progress' },
+    { 
+      src: '/doer_tut1.mp4', 
+      description: 'Describe your goal or specific challenge.' 
+    },
+    { 
+      src: '/doer_tut2.mp4', 
+      description: 'Preview and refine your AI-generated plan.' 
+    },
+    { 
+      src: '/doer_tut3.mp4', 
+      description: 'Launch your customized plan and track your progress.' 
+    },
   ]
 
-  // Handle video loading and playback when slide changes
+  // Handle video loading and autoplay for all videos
   useEffect(() => {
-    // Pause all videos
     videoRefs.current.forEach((video) => {
       if (video) {
-        video.pause()
+        video.load()
+        const playPromise = video.play()
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.log('Video autoplay prevented:', error)
+          })
+        }
       }
     })
-
-    // Load and play current video
-    const currentVideo = videoRefs.current[currentVideoIndex]
-    if (currentVideo) {
-      currentVideo.load()
-      const playPromise = currentVideo.play()
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.log('Video autoplay prevented:', error)
-        })
-      }
-    }
-  }, [currentVideoIndex])
-
-  const nextVideo = () => {
-    setCurrentVideoIndex((prev) => (prev + 1) % videos.length)
-  }
-
-  const prevVideo = () => {
-    setCurrentVideoIndex((prev) => (prev - 1 + videos.length) % videos.length)
-  }
-
-  const goToVideo = (index: number) => {
-    setCurrentVideoIndex(index)
-  }
+  }, [])
 
   const handleOpenWaitlist = (source: string) => {
     setWaitlistSource(source)
@@ -107,36 +96,31 @@ export default function EarlyAccessPage() {
         </div>
       </section>
 
-      {/* Video Carousel Section */}
+      {/* Video Section */}
       <section className="px-4 sm:px-6 lg:px-8 py-16 sm:py-20 bg-gray-900/50">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-12">
             See DOER in action
           </h2>
 
-          {/* Carousel Container */}
-          <div className="relative">
-            {/* Video Container */}
-            <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
-              <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900">
-                <div className="relative aspect-video bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20">
-                  {videos.map((video, index) => (
-                    <div
-                      key={index}
-                      className={`absolute inset-0 transition-opacity duration-500 ${
-                        index === currentVideoIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-                      }`}
-                    >
+          {/* Videos Stacked Vertically */}
+          <div className="space-y-8">
+            {videos.map((video, index) => (
+              <div key={index} className="space-y-3">
+                {/* Video Container */}
+                <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
+                  <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900">
+                    <div className="relative aspect-video bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20">
                       <video
                         ref={(el) => {
                           videoRefs.current[index] = el
                         }}
                         src={video.src}
-                        autoPlay={index === currentVideoIndex}
+                        autoPlay
                         loop
                         muted
                         playsInline
-                        preload={index === currentVideoIndex ? 'auto' : 'none'}
+                        preload="auto"
                         className="w-full h-full object-contain rounded-lg"
                         onError={(e) => {
                           const videoEl = e.currentTarget
@@ -148,58 +132,26 @@ export default function EarlyAccessPage() {
                           })
                         }}
                         onLoadedMetadata={() => {
-                          const video = videoRefs.current[index]
-                          if (video) {
-                            video.setAttribute('webkit-playsinline', 'true')
-                            video.setAttribute('playsinline', 'true')
-                            video.setAttribute('x5-playsinline', 'true')
+                          const videoEl = videoRefs.current[index]
+                          if (videoEl) {
+                            videoEl.setAttribute('webkit-playsinline', 'true')
+                            videoEl.setAttribute('playsinline', 'true')
+                            videoEl.setAttribute('x5-playsinline', 'true')
                           }
                         }}
                       >
                         Your browser does not support the video tag.
                       </video>
                     </div>
-                  ))}
+                  </div>
                 </div>
+                
+                {/* Video Description */}
+                <p className="text-center text-lg text-gray-300">
+                  {video.description}
+                </p>
               </div>
-            </div>
-
-            {/* Navigation Arrows */}
-            <button
-              onClick={prevVideo}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-gray-800/90 hover:bg-gray-700 rounded-full border border-gray-700 text-white transition-all shadow-lg"
-              aria-label="Previous video"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button
-              onClick={nextVideo}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-gray-800/90 hover:bg-gray-700 rounded-full border border-gray-700 text-white transition-all shadow-lg"
-              aria-label="Next video"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
-
-            {/* Dot Indicators */}
-            <div className="flex justify-center gap-3 mt-6">
-              {videos.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToVideo(index)}
-                  className={`transition-all ${
-                    index === currentVideoIndex
-                      ? 'w-8 h-3 bg-orange-500 rounded-full'
-                      : 'w-3 h-3 bg-gray-600 rounded-full hover:bg-gray-500'
-                  }`}
-                  aria-label={`Go to video ${index + 1}`}
-                />
-              ))}
-            </div>
-
-            {/* Video Title */}
-            <div className="text-center mt-4">
-              <p className="text-lg text-gray-300">{videos[currentVideoIndex].title}</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
