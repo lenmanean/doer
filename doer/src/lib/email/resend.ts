@@ -81,12 +81,14 @@ export async function sendResendEmail({
       to: string
       subject: string
       html: string
+      reply_to?: string
       tags?: Array<{ name: string; value: string }>
     } = {
       from: 'updates@updates.usedoer.com',
       to,
       subject,
       html: emailHtml!,
+      reply_to: 'help@usedoer.com',
     }
 
     if (tag) {
