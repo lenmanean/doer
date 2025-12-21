@@ -83,7 +83,7 @@ export async function sendResendEmail({
       html: string
       tags?: Array<{ name: string; value: string }>
     } = {
-      from: 'updates@usedoer.com',
+      from: 'updates@updates.usedoer.com',
       to,
       subject,
       html: emailHtml!,
