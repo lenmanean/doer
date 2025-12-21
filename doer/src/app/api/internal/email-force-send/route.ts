@@ -24,26 +24,25 @@ export async function POST(request: NextRequest) {
   // Immediate console log to verify route is being hit (appears in Vercel function logs)
   console.log('[EMAIL-FORCE-SEND] Route handler executed')
   
-  // Diagnostic logging (without exposing secrets)
-  logger.info('Internal email-force-send route hit', {
-    hasEnvVar: !!process.env.INTERNAL_PREVIEW_SECRET,
-    envVarLength: process.env.INTERNAL_PREVIEW_SECRET?.length || 0,
-    hasAuthHeader: request.headers.has('x-internal-preview-secret'),
-    authHeaderLength: request.headers.get('x-internal-preview-secret')?.length || 0,
-  })
-
   // Verify preview secret for security - return 404 if invalid (don't expose route exists)
   const authHeader = request.headers.get('x-internal-preview-secret')
   const previewSecret = process.env.INTERNAL_PREVIEW_SECRET
 
+  // Diagnostic logging via console.log (appears in Vercel function logs)
+  console.log('[EMAIL-FORCE-SEND] Auth check:', {
+    hasEnvVar: !!previewSecret,
+    envVarLength: previewSecret?.length || 0,
+    hasAuthHeader: !!authHeader,
+    authHeaderLength: authHeader?.length || 0,
+    lengthsMatch: previewSecret?.length === authHeader?.length,
+  })
+
   if (!previewSecret || authHeader !== previewSecret) {
-    logger.warn('Internal email-force-send auth failed', {
-      hasPreviewSecret: !!previewSecret,
-      hasAuthHeader: !!authHeader,
-      secretLengthsMatch: previewSecret?.length === authHeader?.length,
-    })
+    console.log('[EMAIL-FORCE-SEND] Auth failed - returning 404')
     return new NextResponse(null, { status: 404 })
   }
+
+  console.log('[EMAIL-FORCE-SEND] Auth passed')
 
   try {
     const body = await request.json()
