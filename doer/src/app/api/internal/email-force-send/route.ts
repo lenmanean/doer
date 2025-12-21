@@ -21,6 +21,9 @@ export const dynamic = 'force-dynamic'
  * Body: { "type": "welcome" | "week_out" | "launch" }
  */
 export async function POST(request: NextRequest) {
+  // Immediate console log to verify route is being hit (appears in Vercel function logs)
+  console.log('[EMAIL-FORCE-SEND] Route handler executed')
+  
   // Diagnostic logging (without exposing secrets)
   logger.info('Internal email-force-send route hit', {
     hasEnvVar: !!process.env.INTERNAL_PREVIEW_SECRET,
