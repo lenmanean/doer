@@ -10,6 +10,7 @@ interface SendEmailOptions {
   html?: string
   react?: ReactElement
   tag?: string
+  from?: string // Optional override for from address (useful for testing)
 }
 
 interface SendEmailResult {
@@ -76,6 +77,9 @@ export async function sendResendEmail({
       }
     }
 
+    // Use provided from address or fall back to production domain
+    const fromAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@updates.usedoer.com'
+    
     const emailOptions: {
       from: string
       to: string
@@ -84,7 +88,7 @@ export async function sendResendEmail({
       reply_to?: string
       tags?: Array<{ name: string; value: string }>
     } = {
-      from: 'updates@updates.usedoer.com',
+      from: fromAddress,
       to,
       subject,
       html: emailHtml!,
