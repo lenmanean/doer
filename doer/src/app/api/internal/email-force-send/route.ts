@@ -45,22 +45,30 @@ export async function POST(request: NextRequest) {
   console.log('[EMAIL-FORCE-SEND] Auth passed')
 
   try {
+    console.log('[EMAIL-FORCE-SEND] Parsing request body...')
     const body = await request.json()
     const { type } = body
 
-    logger.info('Internal email-force-send request parsed', {
+    console.log('[EMAIL-FORCE-SEND] Request parsed:', {
       hasType: !!type,
       typeValue: type,
     })
 
     // Validate email type
     if (!type || !['welcome', 'week_out', 'launch'].includes(type)) {
-      logger.warn('Internal email-force-send invalid type', { type })
+      console.log('[EMAIL-FORCE-SEND] Invalid type - returning 404:', type)
       return new NextResponse(null, { status: 404 })
     }
 
+    console.log('[EMAIL-FORCE-SEND] Type validated:', type)
+
     // Hardcoded internal recipient
     const internalRecipient = 'bushybrowboi@gmail.com'
+    
+    console.log('[EMAIL-FORCE-SEND] Preparing to send email:', {
+      type,
+      recipient: internalRecipient,
+    })
     
     // Get base URL for unsubscribe links
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://usedoer.com'
@@ -72,38 +80,46 @@ export async function POST(request: NextRequest) {
     let tag: string
     let subject: string
 
+    console.log('[EMAIL-FORCE-SEND] Selecting email template for type:', type)
+
     switch (type) {
       case 'welcome': {
         tag = 'force-review-welcome'
         subject = 'Welcome to DOER!'
+        console.log('[EMAIL-FORCE-SEND] Sending welcome email...')
         emailResult = await sendResendEmail({
           to: internalRecipient,
           subject,
           react: Email0Welcome({ unsubscribeUrl }),
           tag,
         })
+        console.log('[EMAIL-FORCE-SEND] Welcome email result:', { success: emailResult.success })
         break
       }
       case 'week_out': {
         tag = 'force-review-week-out'
         subject = 'Launch is One Week Away!'
+        console.log('[EMAIL-FORCE-SEND] Sending week-out email...')
         emailResult = await sendResendEmail({
           to: internalRecipient,
           subject,
           react: EmailWeekOut({ unsubscribeUrl }),
           tag,
         })
+        console.log('[EMAIL-FORCE-SEND] Week-out email result:', { success: emailResult.success })
         break
       }
       case 'launch': {
         tag = 'force-review-launch'
         subject = 'DOER is Live! 🎉'
+        console.log('[EMAIL-FORCE-SEND] Sending launch email...')
         emailResult = await sendResendEmail({
           to: internalRecipient,
           subject,
           react: EmailLaunch({ unsubscribeUrl, signupUrl }),
           tag,
         })
+        console.log('[EMAIL-FORCE-SEND] Launch email result:', { success: emailResult.success })
         break
       }
       default: {
@@ -113,34 +129,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (emailResult.success) {
-      logger.info('Internal force-send email sent successfully', {
+      console.log('[EMAIL-FORCE-SEND] Email sent successfully:', {
         type,
-        recipient: internalRecipient,
         messageId: emailResult.messageId,
-        tag,
       })
-
       return NextResponse.json({
         sent: true,
         type,
       })
     } else {
-      logger.error('Internal force-send email failed', {
+      console.log('[EMAIL-FORCE-SEND] Email send failed - returning 404:', {
         type,
-        recipient: internalRecipient,
         error: emailResult.error,
-        tag,
       })
-
       // Return 404 on failure to avoid exposing errors
       return new NextResponse(null, { status: 404 })
     }
   } catch (error) {
-    logger.error('Unexpected error in internal force-send route', {
+    console.log('[EMAIL-FORCE-SEND] Exception caught - returning 404:', {
       error: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
     })
-
     // Return 404 on error to avoid exposing route
     return new NextResponse(null, { status: 404 })
   }
