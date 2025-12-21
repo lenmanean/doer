@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
     const signupUrl = `${baseUrl}/auth/signup`
 
     // Select email template based on type - using exact same templates as production
+    // Using custom domain (not test domain) since test domain only allows account owner's email
     let emailResult
     let tag: string
     let subject: string
@@ -87,13 +88,12 @@ export async function POST(request: NextRequest) {
         tag = 'force-review-welcome'
         subject = 'Welcome to DOER!'
         console.log('[EMAIL-FORCE-SEND] Sending welcome email...')
-        // Use Resend's default domain for testing (better deliverability)
         emailResult = await sendResendEmail({
           to: internalRecipient,
           subject,
           react: Email0Welcome({ unsubscribeUrl }),
           tag,
-          from: 'onboarding@resend.dev', // Resend's default test domain
+          // Using custom domain - DNS is verified, should work
         })
         console.log('[EMAIL-FORCE-SEND] Welcome email result:', { success: emailResult.success })
         break
@@ -102,13 +102,12 @@ export async function POST(request: NextRequest) {
         tag = 'force-review-week-out'
         subject = 'Launch is One Week Away!'
         console.log('[EMAIL-FORCE-SEND] Sending week-out email...')
-        // Use Resend's default domain for testing (better deliverability)
         emailResult = await sendResendEmail({
           to: internalRecipient,
           subject,
           react: EmailWeekOut({ unsubscribeUrl }),
           tag,
-          from: 'onboarding@resend.dev', // Resend's default test domain
+          // Using custom domain - DNS is verified, should work
         })
         console.log('[EMAIL-FORCE-SEND] Week-out email result:', { success: emailResult.success })
         break
@@ -117,13 +116,12 @@ export async function POST(request: NextRequest) {
         tag = 'force-review-launch'
         subject = 'DOER is Live! 🎉'
         console.log('[EMAIL-FORCE-SEND] Sending launch email...')
-        // Use Resend's default domain for testing (better deliverability)
         emailResult = await sendResendEmail({
           to: internalRecipient,
           subject,
           react: EmailLaunch({ unsubscribeUrl, signupUrl }),
           tag,
-          from: 'onboarding@resend.dev', // Resend's default test domain
+          // Using custom domain - DNS is verified, should work
         })
         console.log('[EMAIL-FORCE-SEND] Launch email result:', { success: emailResult.success })
         break
