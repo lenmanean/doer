@@ -21,11 +21,24 @@ export const dynamic = 'force-dynamic'
  * Body: { "type": "welcome" | "week_out" | "launch" }
  */
 export async function POST(request: NextRequest) {
+  // Diagnostic logging (without exposing secrets)
+  logger.info('Internal email-force-send route hit', {
+    hasEnvVar: !!process.env.INTERNAL_PREVIEW_SECRET,
+    envVarLength: process.env.INTERNAL_PREVIEW_SECRET?.length || 0,
+    hasAuthHeader: request.headers.has('x-internal-preview-secret'),
+    authHeaderLength: request.headers.get('x-internal-preview-secret')?.length || 0,
+  })
+
   // Verify preview secret for security - return 404 if invalid (don't expose route exists)
   const authHeader = request.headers.get('x-internal-preview-secret')
   const previewSecret = process.env.INTERNAL_PREVIEW_SECRET
 
   if (!previewSecret || authHeader !== previewSecret) {
+    logger.warn('Internal email-force-send auth failed', {
+      hasPreviewSecret: !!previewSecret,
+      hasAuthHeader: !!authHeader,
+      secretLengthsMatch: previewSecret?.length === authHeader?.length,
+    })
     return new NextResponse(null, { status: 404 })
   }
 
@@ -33,8 +46,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { type } = body
 
+    logger.info('Internal email-force-send request parsed', {
+      hasType: !!type,
+      typeValue: type,
+    })
+
     // Validate email type
     if (!type || !['welcome', 'week_out', 'launch'].includes(type)) {
+      logger.warn('Internal email-force-send invalid type', { type })
       return new NextResponse(null, { status: 404 })
     }
 
