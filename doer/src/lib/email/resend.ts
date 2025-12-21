@@ -69,8 +69,17 @@ export async function sendResendEmail({
         const { render } = await import('@react-email/render')
         // Render HTML version
         emailHtml = await render(react)
-        // Render plain text version for better deliverability
-        emailText = await render(react, { plainText: true })
+        // Try to render plain text version for better deliverability (optional - if it fails, we still send HTML)
+        try {
+          emailText = await render(react, { plainText: true })
+        } catch (plainTextError) {
+          // Plain text rendering failed, but that's okay - we'll send HTML only
+          logger.warn('Failed to render plain text version, sending HTML only', {
+            error: plainTextError instanceof Error ? plainTextError.message : String(plainTextError),
+            to,
+            subject,
+          })
+        }
       } catch (renderError) {
         logger.error('Failed to render React email component', {
           error: renderError instanceof Error ? renderError.message : String(renderError),
@@ -85,7 +94,9 @@ export async function sendResendEmail({
     }
 
     // Use provided from address or fall back to production domain
-    const fromAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@updates.usedoer.com'
+    // Format with sender name for better deliverability: "DOER <email@domain.com>"
+    const emailAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@updates.usedoer.com'
+    const fromAddress = emailAddress.includes('<') ? emailAddress : `DOER <${emailAddress}>`
 
     const emailOptions: {
       from: string
@@ -110,6 +121,7 @@ export async function sendResendEmail({
     }
 
     // Add List-Unsubscribe header (critical for Gmail deliverability)
+    // These headers help Gmail identify legitimate transactional/marketing emails
     if (unsubscribeUrl) {
       emailOptions.headers = {
         'List-Unsubscribe': `<${unsubscribeUrl}>`,
