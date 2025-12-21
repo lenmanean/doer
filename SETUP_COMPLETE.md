@@ -119,3 +119,15 @@ If the cron job fails:
 The system is now fully set up and should automatically capture health snapshots daily! 🎉
 
 
+
+
+
+
+
+
+
+
+
+
+
+

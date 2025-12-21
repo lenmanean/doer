@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
       subject: 'Welcome to DOER!',
       react: Email0Welcome({ unsubscribeUrl }),
       tag: 'waitlist-welcome',
+      unsubscribeUrl,
     })
 
     // Update email timestamps only if email was sent successfully

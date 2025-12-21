@@ -6,39 +6,32 @@ import {
   Section,
   Text,
   Link,
-  Button,
   Hr,
 } from '@react-email/components'
 
-interface EmailLaunchProps {
+interface Email1Props {
   unsubscribeUrl: string
-  signupUrl?: string
 }
 
-export function EmailLaunch({ unsubscribeUrl, signupUrl = 'https://usedoer.com/auth/signup' }: EmailLaunchProps) {
+export function Email1({ unsubscribeUrl }: Email1Props) {
   return (
     <Html>
       <Head />
       <Body style={main}>
         <Container style={container}>
           <Section style={section}>
-            <Text style={heading}>DOER is Live! 🎉</Text>
+            <Text style={heading}>How DOER Works</Text>
             <Text style={text}>
-              We're thrilled to announce that DOER is now officially launched!
+              We wanted to share a bit more about how DOER will help you achieve your goals.
             </Text>
             <Text style={text}>
-              As a waitlist member, you have early access to start using DOER right away. Create your account and begin turning your goals into reality.
+              DOER uses AI to break down your big goals into manageable daily tasks. Simply tell us what you want to accomplish, and we'll create a personalized plan with tasks automatically scheduled around your existing calendar events.
             </Text>
             <Text style={text}>
-              DOER will help you break down your goals, create actionable plans, and automatically schedule tasks around your calendar. Everything you need to achieve what matters most to you.
+              Whether you want to learn a new skill, start a business, get in shape, or achieve any other goal, DOER makes it easy by handling the planning and scheduling for you.
             </Text>
-            <Section style={buttonContainer}>
-              <Button style={button} href={signupUrl}>
-                Get Started with DOER
-              </Button>
-            </Section>
             <Text style={text}>
-              Thank you for being part of our journey. We can't wait to see what you'll accomplish!
+              We're getting closer to launch and can't wait to help you get started!
             </Text>
             <Text style={signature}>
               Best regards,<br />
@@ -88,23 +81,6 @@ const text = {
   lineHeight: '1.6',
   color: '#333333',
   margin: '0 0 16px',
-}
-
-const buttonContainer = {
-  padding: '24px 0',
-  textAlign: 'center' as const,
-}
-
-const button = {
-  backgroundColor: '#ff7f00',
-  borderRadius: '8px',
-  color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: '600',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
 }
 
 const signature = {

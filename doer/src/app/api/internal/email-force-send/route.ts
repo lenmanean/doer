@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
           subject,
           react: Email0Welcome({ unsubscribeUrl }),
           tag,
+          unsubscribeUrl,
           // Using custom domain - DNS is verified, should work
         })
         console.log('[EMAIL-FORCE-SEND] Welcome email result:', { success: emailResult.success })
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
           subject,
           react: EmailWeekOut({ unsubscribeUrl }),
           tag,
+          unsubscribeUrl,
           // Using custom domain - DNS is verified, should work
         })
         console.log('[EMAIL-FORCE-SEND] Week-out email result:', { success: emailResult.success })
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
           subject,
           react: EmailLaunch({ unsubscribeUrl, signupUrl }),
           tag,
+          unsubscribeUrl,
           // Using custom domain - DNS is verified, should work
         })
         console.log('[EMAIL-FORCE-SEND] Launch email result:', { success: emailResult.success })

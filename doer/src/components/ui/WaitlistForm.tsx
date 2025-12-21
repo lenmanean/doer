@@ -50,6 +50,45 @@ export function WaitlistForm({
   // Track if user has manually changed step to prevent useEffect from overriding
   const [userHasChangedStep, setUserHasChangedStep] = useState(false)
 
+  // UTM attribution state
+  const [utmParams, setUtmParams] = useState<{
+    utm_source?: string
+    utm_campaign?: string
+    utm_medium?: string
+    utm_content?: string
+    utm_term?: string
+    adset?: string
+    ad_name?: string
+  }>({})
+
+  // Capture UTM parameters from URL on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const urlParams = new URLSearchParams(window.location.search)
+    const utm: typeof utmParams = {}
+
+    const utmSource = urlParams.get('utm_source')
+    const utmCampaign = urlParams.get('utm_campaign')
+    const utmMedium = urlParams.get('utm_medium')
+    const utmContent = urlParams.get('utm_content')
+    const utmTerm = urlParams.get('utm_term')
+    const adset = urlParams.get('adset')
+    const adName = urlParams.get('ad_name')
+
+    if (utmSource) utm.utm_source = utmSource
+    if (utmCampaign) utm.utm_campaign = utmCampaign
+    if (utmMedium) utm.utm_medium = utmMedium
+    if (utmContent) utm.utm_content = utmContent
+    if (utmTerm) utm.utm_term = utmTerm
+    if (adset) utm.adset = adset
+    if (adName) utm.ad_name = adName
+
+    if (Object.keys(utm).length > 0) {
+      setUtmParams(utm)
+    }
+  }, [])
+
   // Update goal when initialGoal prop changes (only on mount or when initialGoal changes)
   useEffect(() => {
     if (initialGoal && initialGoal.trim() && !userHasChangedStep) {
@@ -136,6 +175,7 @@ export function WaitlistForm({
           email: email.trim(),
           goal: enableGoalCapture ? goal.trim() : undefined,
           source,
+          ...utmParams,
         }),
       })
 

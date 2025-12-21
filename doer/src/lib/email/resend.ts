@@ -11,6 +11,7 @@ interface SendEmailOptions {
   react?: ReactElement
   tag?: string
   from?: string // Optional override for from address (useful for testing)
+  unsubscribeUrl?: string // Required for List-Unsubscribe header (important for deliverability)
 }
 
 interface SendEmailResult {
@@ -37,6 +38,7 @@ export async function sendResendEmail({
   react,
   tag,
   from,
+  unsubscribeUrl,
 }: SendEmailOptions): Promise<SendEmailResult> {
   if (!resendApiKey) {
     const error = 'RESEND_API_KEY environment variable is not set'
@@ -59,12 +61,16 @@ export async function sendResendEmail({
   try {
     const resend = new Resend(resendApiKey)
 
-    // Render React component to HTML if provided
+    // Render React component to HTML and text if provided
     let emailHtml = html
+    let emailText: string | undefined
     if (react && !html) {
       try {
         const { render } = await import('@react-email/render')
+        // Render HTML version
         emailHtml = await render(react)
+        // Render plain text version for better deliverability
+        emailText = await render(react, { plainText: true })
       } catch (renderError) {
         logger.error('Failed to render React email component', {
           error: renderError instanceof Error ? renderError.message : String(renderError),
@@ -80,13 +86,15 @@ export async function sendResendEmail({
 
     // Use provided from address or fall back to production domain
     const fromAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@updates.usedoer.com'
-    
+
     const emailOptions: {
       from: string
       to: string
       subject: string
       html: string
+      text?: string
       reply_to?: string
+      headers?: Record<string, string>
       tags?: Array<{ name: string; value: string }>
     } = {
       from: fromAddress,
@@ -94,6 +102,19 @@ export async function sendResendEmail({
       subject,
       html: emailHtml!,
       reply_to: 'help@usedoer.com',
+    }
+
+    // Add plain text version if available (improves deliverability)
+    if (emailText) {
+      emailOptions.text = emailText
+    }
+
+    // Add List-Unsubscribe header (critical for Gmail deliverability)
+    if (unsubscribeUrl) {
+      emailOptions.headers = {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      }
     }
 
     if (tag) {

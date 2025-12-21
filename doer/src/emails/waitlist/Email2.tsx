@@ -6,39 +6,32 @@ import {
   Section,
   Text,
   Link,
-  Button,
   Hr,
 } from '@react-email/components'
 
-interface EmailLaunchProps {
+interface Email2Props {
   unsubscribeUrl: string
-  signupUrl?: string
 }
 
-export function EmailLaunch({ unsubscribeUrl, signupUrl = 'https://usedoer.com/auth/signup' }: EmailLaunchProps) {
+export function Email2({ unsubscribeUrl }: Email2Props) {
   return (
     <Html>
       <Head />
       <Body style={main}>
         <Container style={container}>
           <Section style={section}>
-            <Text style={heading}>DOER is Live! 🎉</Text>
+            <Text style={heading}>Smart Scheduling</Text>
             <Text style={text}>
-              We're thrilled to announce that DOER is now officially launched!
+              One of the key features that makes DOER special is our smart scheduling system.
             </Text>
             <Text style={text}>
-              As a waitlist member, you have early access to start using DOER right away. Create your account and begin turning your goals into reality.
+              DOER automatically finds the best times in your calendar to schedule tasks based on your availability, preferences, and the type of work required. It syncs with your Google Calendar, Outlook, or Apple Calendar to avoid conflicts and ensure you have time for what matters most.
             </Text>
             <Text style={text}>
-              DOER will help you break down your goals, create actionable plans, and automatically schedule tasks around your calendar. Everything you need to achieve what matters most to you.
+              No more manually blocking time or trying to figure out when to fit everything in. DOER handles it all for you.
             </Text>
-            <Section style={buttonContainer}>
-              <Button style={button} href={signupUrl}>
-                Get Started with DOER
-              </Button>
-            </Section>
             <Text style={text}>
-              Thank you for being part of our journey. We can't wait to see what you'll accomplish!
+              We're working hard to make sure everything is perfect before we launch. Stay tuned!
             </Text>
             <Text style={signature}>
               Best regards,<br />
@@ -88,23 +81,6 @@ const text = {
   lineHeight: '1.6',
   color: '#333333',
   margin: '0 0 16px',
-}
-
-const buttonContainer = {
-  padding: '24px 0',
-  textAlign: 'center' as const,
-}
-
-const button = {
-  backgroundColor: '#ff7f00',
-  borderRadius: '8px',
-  color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: '600',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
 }
 
 const signature = {

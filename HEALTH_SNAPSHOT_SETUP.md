@@ -112,3 +112,15 @@ LIMIT 10;
 - Verify active plans exist: `SELECT COUNT(*) FROM plans WHERE status = 'active';`
 
 
+
+
+
+
+
+
+
+
+
+
+
+

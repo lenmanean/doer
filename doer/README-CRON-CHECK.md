@@ -49,3 +49,15 @@ psql "$DATABASE_URL" -c "SELECT * FROM cron.job;"
 - If health snapshot cron exists: You'll see a job with `capture_health_snapshot` in the command
 
 
+
+
+
+
+
+
+
+
+
+
+
+

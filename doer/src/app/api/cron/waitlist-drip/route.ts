@@ -61,57 +61,58 @@ export async function GET(request: NextRequest) {
 
     if (isWeekOutDay) {
       const { data: weekOutCandidates, error: weekOutError } = await supabase
-        .from('waitlist')
-        .select('id, email')
-        .not('welcome_sent_at', 'is', null)
+      .from('waitlist')
+      .select('id, email')
+      .not('welcome_sent_at', 'is', null)
         .is('week_out_sent_at', null)
-        .is('unsubscribed_at', null)
-        .limit(100)
+      .is('unsubscribed_at', null)
+      .limit(100)
 
       if (weekOutError) {
         logger.error('Failed to fetch week-out email candidates', {
           error: weekOutError.message,
-        })
+      })
         results.errors.push(`Week-out email fetch error: ${weekOutError.message}`)
       } else if (weekOutCandidates && weekOutCandidates.length > 0) {
         for (const entry of weekOutCandidates) {
-          try {
-            const unsubscribeUrl = `${baseUrl}/api/unsubscribe?email=${encodeURIComponent(entry.email)}`
-            const emailResult = await sendResendEmail({
-              to: entry.email,
+        try {
+          const unsubscribeUrl = `${baseUrl}/api/unsubscribe?email=${encodeURIComponent(entry.email)}`
+          const emailResult = await sendResendEmail({
+            to: entry.email,
               subject: 'Launch is One Week Away!',
               react: EmailWeekOut({ unsubscribeUrl }),
               tag: 'waitlist-week-out',
-            })
+              unsubscribeUrl,
+          })
 
-            if (emailResult.success) {
-              const { error: updateError } = await supabase
-                .from('waitlist')
-                .update({
+          if (emailResult.success) {
+            const { error: updateError } = await supabase
+              .from('waitlist')
+              .update({
                   week_out_sent_at: now,
-                  last_email_sent_at: now,
-                })
-                .eq('id', entry.id)
+                last_email_sent_at: now,
+              })
+              .eq('id', entry.id)
 
-              if (updateError) {
+            if (updateError) {
                 logger.error('Failed to update week_out_sent_at', {
-                  error: updateError.message,
-                  email: entry.email,
-                })
+                error: updateError.message,
+                email: entry.email,
+              })
                 results.weekOut.failed++
               } else {
                 results.weekOut.sent++
               }
             } else {
               logger.error('Failed to send week-out email', {
-                error: emailResult.error,
+              error: emailResult.error,
                 email: entry.email,
               })
               results.weekOut.failed++
-            }
-          } catch (error) {
+          }
+        } catch (error) {
             logger.error('Exception sending week-out email', {
-              error: error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : String(error),
               email: entry.email,
             })
             results.weekOut.failed++
@@ -146,6 +147,7 @@ export async function GET(request: NextRequest) {
               subject: 'DOER is Live! 🎉',
               react: EmailLaunch({ unsubscribeUrl, signupUrl }),
               tag: 'waitlist-launch',
+              unsubscribeUrl,
             })
 
             if (emailResult.success) {
