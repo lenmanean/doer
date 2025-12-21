@@ -36,6 +36,7 @@ export async function sendResendEmail({
   html,
   react,
   tag,
+  from,
 }: SendEmailOptions): Promise<SendEmailResult> {
   if (!resendApiKey) {
     const error = 'RESEND_API_KEY environment variable is not set'
