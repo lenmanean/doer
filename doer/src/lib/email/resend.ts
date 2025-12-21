@@ -94,7 +94,9 @@ export async function sendResendEmail({
     }
 
     // Use provided from address or fall back to production domain
-    // Format with sender name for better deliverability: "DOER <email@domain.com>"
+    // IMPORTANT: For best deliverability, verify and use root domain (updates@usedoer.com) in Resend
+    // Subdomains (updates@updates.usedoer.com) start with zero reputation
+    // Set RESEND_FROM_ADDRESS=updates@usedoer.com once root domain is verified in Resend
     const emailAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@updates.usedoer.com'
     const fromAddress = emailAddress.includes('<') ? emailAddress : `DOER <${emailAddress}>`
 
@@ -120,14 +122,19 @@ export async function sendResendEmail({
       emailOptions.text = emailText
     }
 
-    // Add List-Unsubscribe header (critical for Gmail deliverability)
+    // Add headers critical for Gmail deliverability
     // These headers help Gmail identify legitimate transactional/marketing emails
-    if (unsubscribeUrl) {
-      emailOptions.headers = {
-        'List-Unsubscribe': `<${unsubscribeUrl}>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      }
+    emailOptions.headers = {
+      'X-Entity-Ref-ID': tag || 'waitlist-email', // Helps with tracking and deliverability
     }
+    
+    if (unsubscribeUrl) {
+      emailOptions.headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`
+      emailOptions.headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+    }
+    
+    // Add X-Mailer header to identify sender
+    emailOptions.headers['X-Mailer'] = 'DOER'
 
     if (tag) {
       emailOptions.tags = [{ name: tag, value: 'waitlist' }]
