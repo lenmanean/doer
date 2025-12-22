@@ -172,8 +172,14 @@ export default function AnalyticsPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <p className="text-red-400 text-sm">{error}</p>
+          <div 
+            className="mb-6 p-4 rounded-lg border"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+            }}
+          >
+            <p className="text-sm" style={{ color: 'var(--destructive)' }}>{error}</p>
           </div>
         )}
 
