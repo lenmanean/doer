@@ -105,7 +105,7 @@ html:not(.light) [class*="border-white"]:not([class*="border-white/"]) {
   --background: #0a0a0a;
   --foreground: #d7d2cb;
   --muted: #94a3b8;
-  --muted-foreground: rgba(215, 210, 203, 0.6);
+  --muted-foreground: color-mix(in srgb, var(--foreground) 50%, transparent);
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.05);
   --primary: #ff7f00;
@@ -125,7 +125,7 @@ html:not(.light) [class*="border-white"]:not([class*="border-white/"]) {
   --background: #ffffff;
   --foreground: #0f172a;
   --muted: #475569;
-  --muted-foreground: #334155;
+  --muted-foreground: color-mix(in srgb, var(--foreground) 50%, transparent);
   --border: #e2e8f0;
   --input: #f8fafc;
   --primary: #ff7f00;
