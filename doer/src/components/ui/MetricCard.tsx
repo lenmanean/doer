@@ -53,7 +53,12 @@ export function MetricCard({
         )}
       </div>
       {description && (
-        <p className="text-xs text-[#d7d2cb]/50 leading-tight">{description}</p>
+        <p 
+          className="text-xs leading-tight"
+          style={{ color: 'color-mix(in srgb, var(--foreground) 50%, transparent)' }}
+        >
+          {description}
+        </p>
       )}
     </div>
   )
