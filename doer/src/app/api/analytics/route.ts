@@ -17,172 +17,6 @@ import { ActivityHeatmapData } from '@/components/ui/ActivityHeatmap'
 import { TrendChartData } from '@/components/ui/TrendChart'
 import { BarChartData } from '@/components/ui/BarChart'
 
-// MOCK MODE - Set to false to revert to production implementation
-const USE_MOCK_DATA = true
-
-// Mock data generation function
-function generateMockAnalytics(timeRange: '7d' | '30d' | '90d' | 'all') {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-  
-  // Generate activity heatmap data (last 12 months)
-  const activityData: ActivityHeatmapData[] = []
-  const twelveMonthsAgo = new Date(today)
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
-  
-  for (let d = new Date(twelveMonthsAgo); d <= today; d.setDate(d.getDate() + 1)) {
-    const dateStr = formatDate(d)
-    // More realistic activity pattern - higher activity in recent months
-    const daysAgo = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
-    
-    // Activity decreases as we go back in time, but not too much
-    let activityProbability = 0
-    if (daysAgo < 30) {
-      activityProbability = 0.75 // High activity in last month
-    } else if (daysAgo < 90) {
-      activityProbability = 0.55 // Medium activity in last 3 months
-    } else if (daysAgo < 180) {
-      activityProbability = 0.40 // Lower activity 3-6 months ago
-    } else {
-      activityProbability = 0.25 // Even lower activity 6-12 months ago
-    }
-    
-    // Add some randomness but also pattern (weekdays are more active)
-    const dayOfWeek = d.getDay()
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      activityProbability *= 1.3 // Weekdays are more active
-    }
-    
-    const hasActivity = Math.random() < activityProbability
-    
-    if (hasActivity) {
-      // Generate realistic task counts (mostly 1-3, occasionally more)
-      let count = 1
-      const rand = Math.random()
-      if (rand < 0.6) {
-        count = 1
-      } else if (rand < 0.9) {
-        count = 2
-      } else if (rand < 0.97) {
-        count = 3
-      } else {
-        count = Math.floor(Math.random() * 3) + 4 // 4-6 tasks
-      }
-      
-      const taskNames = [
-        'Complete project proposal',
-        'Review code changes',
-        'Write documentation',
-        'Schedule team meeting',
-        'Update project status',
-        'Design new feature'
-      ]
-      
-      activityData.push({
-        date: dateStr,
-        count,
-        tasks: count === 1 ? [taskNames[Math.floor(Math.random() * taskNames.length)]] : undefined
-      })
-    }
-  }
-  
-  // Generate completion trend data based on timeRange
-  let trendDays = 30
-  switch (timeRange) {
-    case '7d':
-      trendDays = 7
-      break
-    case '30d':
-      trendDays = 30
-      break
-    case '90d':
-      trendDays = 90
-      break
-    case 'all':
-      trendDays = 180
-      break
-  }
-  
-  const completionTrend: TrendChartData[] = []
-  const trendStart = new Date(today)
-  trendStart.setDate(trendStart.getDate() - trendDays)
-  
-  for (let d = new Date(trendStart); d <= today; d.setDate(d.getDate() + 1)) {
-    const dateStr = formatDate(d)
-    // Varying completion rates with some upward trend
-    const progress = (today.getTime() - d.getTime()) / (today.getTime() - trendStart.getTime())
-    const baseRate = 65 + (progress * 15) + (Math.random() - 0.5) * 20
-    const rate = Math.max(40, Math.min(95, baseRate))
-    
-    completionTrend.push({
-      date: dateStr,
-      value: Math.round(rate * 10) / 10
-    })
-  }
-  
-  // Generate productivity patterns (by day of week)
-  const productivityPatterns: BarChartData[] = [
-    { category: 'Mon', value: 24 },
-    { category: 'Tue', value: 28 },
-    { category: 'Wed', value: 22 },
-    { category: 'Thu', value: 26 },
-    { category: 'Fri', value: 18 },
-    { category: 'Sat', value: 12 },
-    { category: 'Sun', value: 8 }
-  ]
-  
-  // Generate rescheduling analysis
-  const reschedulingAnalysis: BarChartData[] = [
-    {
-      category: 'This Week',
-      value: 18,
-      subValues: {
-        'First-time': 14,
-        'Rescheduled': 4
-      }
-    },
-    {
-      category: 'Last Week',
-      value: 22,
-      subValues: {
-        'First-time': 17,
-        'Rescheduled': 5
-      }
-    },
-    {
-      category: '2 Weeks Ago',
-      value: 20,
-      subValues: {
-        'First-time': 15,
-        'Rescheduled': 5
-      }
-    }
-  ]
-  
-  // Generate metrics
-  const metrics = {
-    completionRate: 78.5,
-    currentStreak: 12,
-    onTimeRate: 82.3,
-    rescheduleRate: 18.2
-  }
-  
-  return {
-    activityData,
-    completionTrend,
-    productivityPatterns,
-    reschedulingAnalysis,
-    metrics
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     // Get query parameters
@@ -192,16 +26,6 @@ export async function GET(request: NextRequest) {
     type TimeRange = '7d' | '30d' | '90d' | 'all'
     const validTimeRanges: TimeRange[] = ['7d', '30d', '90d', 'all']
     const timeRange: TimeRange = (validTimeRanges.includes(timeRangeParam as TimeRange) ? timeRangeParam : '30d') as TimeRange
-    
-    // MOCK MODE: Return mock data immediately
-    if (USE_MOCK_DATA) {
-      const mockData = generateMockAnalytics(timeRange)
-      return NextResponse.json({
-        ...mockData,
-        calendarUsage: null,
-        calendarPlans: null
-      })
-    }
     
     const supabase = await createClient()
     
@@ -266,10 +90,8 @@ export async function GET(request: NextRequest) {
     
     if (activityError) {
       console.error('Error fetching activity completions:', activityError)
-      return NextResponse.json(
-        { error: 'Failed to fetch activity data' },
-        { status: 500 }
-      )
+      // Return empty data instead of error to allow page to load
+      // Empty arrays will be handled gracefully by frontend
     }
     
     // Get task names separately
@@ -310,10 +132,7 @@ export async function GET(request: NextRequest) {
     
     if (scheduledError) {
       console.error('Error fetching scheduled tasks:', scheduledError)
-      return NextResponse.json(
-        { error: 'Failed to fetch scheduled tasks' },
-        { status: 500 }
-      )
+      // Continue with empty data - will result in empty completion trend
     }
     
     // Group scheduled tasks by date
@@ -337,10 +156,7 @@ export async function GET(request: NextRequest) {
     
     if (completedError) {
       console.error('Error fetching completed tasks:', completedError)
-      return NextResponse.json(
-        { error: 'Failed to fetch completed tasks' },
-        { status: 500 }
-      )
+      // Continue with empty data - will result in empty completion trend
     }
     
     // Group completed tasks by date
@@ -367,10 +183,7 @@ export async function GET(request: NextRequest) {
     
     if (productivityError) {
       console.error('Error fetching productivity completions:', productivityError)
-      return NextResponse.json(
-        { error: 'Failed to fetch productivity data' },
-        { status: 500 }
-      )
+      // Continue with empty data - will result in empty productivity patterns
     }
     
     const productivityPatterns = transformProductivityPatternsData(
@@ -390,10 +203,7 @@ export async function GET(request: NextRequest) {
     
     if (reschedulingError) {
       console.error('Error fetching rescheduling schedules:', reschedulingError)
-      return NextResponse.json(
-        { error: 'Failed to fetch rescheduling data' },
-        { status: 500 }
-      )
+      // Continue with empty data - will result in empty rescheduling analysis
     }
     
     const reschedulingAnalysis = transformReschedulingAnalysisData(

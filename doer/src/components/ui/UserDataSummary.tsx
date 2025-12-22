@@ -69,9 +69,55 @@ export function UserDataSummary({ userId, className }: UserDataSummaryProps) {
         // Calculate average tasks per plan
         const averageTasksPerPlan = totalPlans > 0 ? Math.round(totalTasks / totalPlans) : 0
 
-        // Calculate longest streak (simplified - count consecutive days with completions)
-        // For now, use a mock calculation - this would need proper backend implementation
-        const longestStreak = 0 // TODO: Implement proper streak calculation
+        // Calculate longest streak - get all unique completion dates
+        let longestStreak = 0
+        const { data: allCompletions } = await supabase
+          .from('task_completions')
+          .select('scheduled_date')
+          .eq('user_id', userId)
+          .order('scheduled_date', { ascending: true })
+
+        if (allCompletions && allCompletions.length > 0) {
+          // Get unique dates (in case of multiple completions per day)
+          const uniqueDates = new Set<string>()
+          allCompletions.forEach(c => {
+            const dateStr = c.scheduled_date // Already in YYYY-MM-DD format from database
+            uniqueDates.add(dateStr)
+          })
+
+          // Convert to sorted array (ascending for streak calculation)
+          const sortedDates = Array.from(uniqueDates).sort((a, b) => {
+            // Compare as strings (YYYY-MM-DD format sorts correctly)
+            return a.localeCompare(b)
+          })
+
+          // Find longest consecutive streak
+          if (sortedDates.length > 0) {
+            let currentStreak = 1
+            let maxStreak = 1
+
+            for (let i = 1; i < sortedDates.length; i++) {
+              // Parse dates to check if they're consecutive
+              const prevDate = new Date(sortedDates[i - 1] + 'T00:00:00')
+              const currDate = new Date(sortedDates[i] + 'T00:00:00')
+              
+              // Calculate difference in days
+              const diffTime = currDate.getTime() - prevDate.getTime()
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+              if (diffDays === 1) {
+                // Consecutive day - increment streak
+                currentStreak++
+                maxStreak = Math.max(maxStreak, currentStreak)
+              } else {
+                // Gap found - reset streak
+                currentStreak = 1
+              }
+            }
+
+            longestStreak = maxStreak
+          }
+        }
 
         setStats({
           totalTasks,
