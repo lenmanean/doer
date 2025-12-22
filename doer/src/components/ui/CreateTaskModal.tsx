@@ -328,6 +328,7 @@ export function CreateTaskModal({
     loading: loadingUsage,
     error: usageError,
     getMetric: getUsageMetric,
+    refresh: refreshUsage,
   } = useUsageSummary(user?.id)
   const aiCreditsUsage = getUsageMetric('api_credits')
   const aiCreditsDepleted = aiCreditsUsage ? aiCreditsUsage.available <= 0 : false
@@ -668,13 +669,18 @@ export function CreateTaskModal({
       }])
       
       clearError()
+      
+      // Refresh usage summary when modal opens to ensure accurate credit balance
+      if (user?.id) {
+        refreshUsage()
+      }
     } else {
       // Modal is closing - reset all loading states as safety measure
       setIsLoading(false)
       setIsCreating(false)
       setIsAnalyzingTodoList(false)
     }
-  }, [isOpen, selectedTime, selectedDate, clearError])
+  }, [isOpen, selectedTime, selectedDate, clearError, user?.id, refreshUsage])
 
   // Handle modal close attempts with unsaved changes protection
   const handleCloseAttempt = () => {
@@ -2800,9 +2806,24 @@ export function CreateTaskModal({
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center gap-2 p-3 rounded-lg bg-red-500/20 border border-red-500/50"
+                      className="flex flex-col gap-2 p-4 rounded-lg bg-red-500/20 border border-red-500/50"
                     >
-                      <p className="text-sm text-red-500">{aiError}</p>
+                      {aiError === 'USAGE_LIMIT_EXCEEDED' || aiError.includes('USAGE_LIMIT_EXCEEDED') ? (
+                        <>
+                          <p className="text-sm font-medium text-red-500">You are out of API credits</p>
+                          <p className="text-xs text-red-400/80">
+                            Upgrade to the Pro Monthly or Pro Annual plan for unlimited credits.
+                          </p>
+                          <a
+                            href="/pricing"
+                            className="text-xs text-red-400 underline hover:text-red-300 mt-1"
+                          >
+                            View pricing plans →
+                          </a>
+                        </>
+                      ) : (
+                        <p className="text-sm text-red-500">{aiError}</p>
+                      )}
                     </motion.div>
                   )}
 

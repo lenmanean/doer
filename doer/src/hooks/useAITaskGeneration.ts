@@ -57,7 +57,10 @@ export function useAITaskGeneration(): UseAITaskGenerationReturn {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate task')
+        // Preserve the error code for better error handling in UI
+        // Check both error and message fields
+        const errorCode = data.error || data.message || 'Failed to generate task'
+        throw new Error(errorCode)
       }
 
       if (!data.success) {
