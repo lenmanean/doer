@@ -128,7 +128,7 @@ export function BarChart({
   // Early return after all hooks
   if (data.length === 0) {
     return (
-      <div className={cn('p-8 text-center text-[#d7d2cb]/50', className)}>
+      <div className={cn('p-8 text-center text-[var(--muted-foreground)]', className)}>
         No data available
       </div>
     )
@@ -149,7 +149,7 @@ export function BarChart({
   return (
     <div className={cn('relative', className)}>
       {title && (
-        <h3 className="text-sm font-semibold text-[#d7d2cb] mb-4">{title}</h3>
+        <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4">{title}</h3>
       )}
 
       <div ref={containerRef} className="relative w-full" style={{ height: `${chartHeight + 60}px`, minHeight: '300px' }}>
@@ -171,7 +171,7 @@ export function BarChart({
                 <text
                   x={padding - 10}
                   y={y + 5}
-                  fill="var(--muted-foreground)"
+                  fill="currentColor"
                   fontSize="12"
                   textAnchor="end"
                   className="text-[var(--muted-foreground)]"
@@ -274,7 +274,7 @@ export function BarChart({
                 key={index}
                 x={x}
                 y={chartHeight + 20}
-                fill="var(--muted-foreground)"
+                fill="currentColor"
                 fontSize="12"
                 textAnchor="middle"
                 transform={`rotate(-45 ${x} ${chartHeight + 20})`}
@@ -294,14 +294,14 @@ export function BarChart({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute bg-[#0a0a0a] border border-white/20 rounded-lg p-3 shadow-xl pointer-events-none z-10"
+              className="absolute bg-[var(--background)] border border-[var(--border)] rounded-lg p-3 shadow-xl pointer-events-none z-10"
               style={{
                 left: `${tooltipPosition.left}px`,
                 top: `${tooltipPosition.top}px`,
                 transform: 'translateX(-50%)'
               }}
             >
-              <div className="text-xs font-semibold text-[#d7d2cb] mb-2">
+              <div className="text-xs font-semibold text-[var(--foreground)] mb-2">
                 {hoveredData[xKey as keyof BarChartData] as string}
               </div>
               {stacked && hoveredData.subValues ? (
@@ -313,15 +313,15 @@ export function BarChart({
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: colors[i % colors.length] }}
                         />
-                        <span className="text-xs text-[#d7d2cb]/70">{key}</span>
+                        <span className="text-xs text-[var(--muted-foreground)]">{key}</span>
                       </div>
-                      <span className="text-xs font-semibold text-[#d7d2cb]">{Math.round(value)}</span>
+                      <span className="text-xs font-semibold text-[var(--foreground)]">{Math.round(value)}</span>
                     </div>
                   ))}
-                  <div className="pt-1 mt-1 border-t border-white/10">
+                  <div className="pt-1 mt-1 border-t border-[var(--border)]">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-[#d7d2cb]">Total</span>
-                      <span className="text-xs font-bold text-[#d7d2cb]">
+                      <span className="text-xs font-semibold text-[var(--foreground)]">Total</span>
+                      <span className="text-xs font-bold text-[var(--foreground)]">
                         {Math.round(Object.values(hoveredData.subValues).reduce((sum, val) => sum + val, 0))}
                       </span>
                     </div>

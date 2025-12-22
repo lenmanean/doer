@@ -105,7 +105,7 @@ html:not(.light) [class*="border-white"]:not([class*="border-white/"]) {
   --background: #0a0a0a;
   --foreground: #d7d2cb;
   --muted: #94a3b8;
-  --muted-foreground: #64748b;
+  --muted-foreground: rgba(215, 210, 203, 0.6);
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.05);
   --primary: #ff7f00;
