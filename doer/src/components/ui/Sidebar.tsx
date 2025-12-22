@@ -353,7 +353,7 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
                 <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">
                   Sign Out
                 </h3>
-                <p className="text-[var(--muted-foreground)] mb-6">
+                <p className="text-[#d7d2cb]/60 mb-6">
                   Are you sure you want to sign out? You'll need to log in again to access your account.
                 </p>
                 <div className="flex space-x-3">
