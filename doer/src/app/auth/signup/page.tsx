@@ -55,9 +55,9 @@ function CustomSignupForm() {
   // Don't render signup form during pre-launch
   if (IS_PRE_LAUNCH) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[#d7d2cb] text-lg">Redirecting to waitlist...</p>
+          <p className="text-gray-900 dark:text-gray-100 text-lg">Redirecting to waitlist...</p>
         </div>
       </div>
     )
@@ -241,7 +241,7 @@ function CustomSignupForm() {
       {/* Email/Password Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="username" className="block text-sm font-medium text-[#d7d2cb]">
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Username
           </label>
           <div className="mt-1 relative">
@@ -255,21 +255,21 @@ function CustomSignupForm() {
                 setUsername(e.target.value)
                 setUsernameError('')
               }}
-              className={`appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border ${usernameError ? 'border-red-500' : 'border-white/20'} bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300`}
+              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 min-h-[44px] border ${usernameError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
               placeholder="Choose a username (3-20 characters)"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="h-5 w-5 text-[#d7d2cb]/60" />
+              <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
           </div>
           {usernameError && (
             <p className="mt-1 text-sm text-red-500">{usernameError}</p>
           )}
-          <p className="mt-1 text-xs text-[#d7d2cb]/50">Letters, numbers, underscores, and hyphens only</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Letters, numbers, underscores, and hyphens only</p>
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-[#d7d2cb]">
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Email Address
           </label>
           <div className="mt-1 relative">
@@ -280,17 +280,17 @@ function CustomSignupForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
               placeholder="Enter your email"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-[#d7d2cb]/60" />
+              <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
           </div>
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-[#d7d2cb]">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Password
           </label>
           <div className="mt-1 relative">
@@ -301,28 +301,28 @@ function CustomSignupForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
               placeholder="Create a password"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-[#d7d2cb]/60" />
+              <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <button
               type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center min-h-[44px] min-w-[44px]"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
-                <EyeOff className="h-5 w-5 text-[#d7d2cb]/60" />
+                <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               ) : (
-                <Eye className="h-5 w-5 text-[#d7d2cb]/60" />
+                <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               )}
             </button>
           </div>
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#d7d2cb]">
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Confirm Password
           </label>
           <div className="mt-1 relative">
@@ -333,21 +333,21 @@ function CustomSignupForm() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-2 pl-10 pr-10 border border-white/20 bg-white/5 backdrop-blur-sm placeholder-[#d7d2cb]/50 text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[#ff7f00]/50 focus:bg-white/10 sm:text-sm transition-all duration-300"
+              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
               placeholder="Confirm your password"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-[#d7d2cb]/60" />
+              <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <button
               type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center min-h-[44px] min-w-[44px]"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             >
               {showConfirmPassword ? (
-                <EyeOff className="h-5 w-5 text-[#d7d2cb]/60" />
+                <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               ) : (
-                <Eye className="h-5 w-5 text-[#d7d2cb]/60" />
+                <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               )}
             </button>
           </div>
@@ -357,7 +357,7 @@ function CustomSignupForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-[var(--primary)] hover:bg-[#e67300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-[#ff7f00]/25"
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-orange-500/25 min-h-[44px]"
           >
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
@@ -366,11 +366,11 @@ function CustomSignupForm() {
 
       {/* Sign In Link */}
       <div className="text-center">
-        <div className="text-sm text-[#d7d2cb]/70">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
           <a
             href="/login"
-            className="text-[#ff7f00] hover:text-[#ff9500] transition-colors duration-300 font-medium"
+            className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-colors duration-300 font-medium min-h-[44px] inline-flex items-center"
           >
             Sign in here
           </a>
@@ -383,7 +383,7 @@ function CustomSignupForm() {
           <div className="w-full border-t border-white/20" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-[#0a0a0a] text-[#d7d2cb]/60">Or continue with</span>
+          <span className="px-2 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400">Or continue with</span>
         </div>
       </div>
 
@@ -391,7 +391,7 @@ function CustomSignupForm() {
       <div>
         <button
           onClick={handleGoogleSignUp}
-          className="w-full inline-flex justify-center py-3 px-4 border border-white/20 rounded-xl shadow-sm bg-white/5 backdrop-blur-sm text-sm font-medium text-[#d7d2cb] hover:bg-white/10 transition-all duration-300"
+          className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 min-h-[44px]"
         >
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -408,13 +408,13 @@ function CustomSignupForm() {
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#d7d2cb]">
+          <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-gray-100">
             Create Your Account
           </h2>
-          <p className="mt-2 text-center text-sm text-[#d7d2cb]/70">
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Join DOER and start your journey
           </p>
         </div>
