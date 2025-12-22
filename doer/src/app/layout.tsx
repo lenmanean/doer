@@ -204,7 +204,10 @@ export default async function RootLayout({
                     '/analytics',
                     '/data',
                     '/internal',
-                    '/test'
+                    '/test',
+                    '/integrations',
+                    '/community',
+                    '/help'
                   ];
                   const isAuthenticatedRoute = authenticatedRoutes.some(route => path.startsWith(route));
                   

@@ -18,6 +18,9 @@ const AUTHENTICATED_ROUTES = [
   '/data', // Redirects to /analytics, but still authenticated
   '/internal', // Internal pages (may have additional auth checks)
   '/test', // Test pages (dev only, but authenticated)
+  '/integrations', // Uses authenticated UI (Sidebar, useOnboardingProtection)
+  '/community', // Uses authenticated UI (Sidebar, useOnboardingProtection)
+  '/help', // Uses authenticated UI (Sidebar, useOnboardingProtection)
 ]
 
 /**
