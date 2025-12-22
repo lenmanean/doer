@@ -161,7 +161,7 @@ export default function IntegrationsPage() {
             <h1 className="text-3xl sm:text-4xl font-bold text-[var(--foreground)] mb-2">
               Integrations
             </h1>
-            <p className="text-[var(--muted-foreground)]">
+            <p className="text-[#d7d2cb]/60">
               Connect and manage your calendar integrations
             </p>
           </div>
@@ -221,7 +221,7 @@ export default function IntegrationsPage() {
                         {providerInfo.description}
                       </CardDescription>
                       {isConnected && status?.connection && (
-                        <div className="text-xs text-[var(--muted-foreground)] space-y-1">
+                        <div className="text-xs text-[#d7d2cb]/60 space-y-1">
                           <p>
                             Last sync: {status.connection.last_sync_at
                               ? new Date(status.connection.last_sync_at).toLocaleString()

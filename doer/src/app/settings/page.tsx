@@ -1961,7 +1961,7 @@ export default function SettingsPage() {
                                 <Upload className="w-4 h-4" />
                                 {profilePicturePreview ? 'Change Picture' : 'Upload Picture'}
                               </label>
-                              <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                              <p className="text-xs text-[#d7d2cb]/60 mt-1">
                                 JPG, PNG or GIF. Max size 5MB.
                               </p>
                             </div>
@@ -1978,7 +1978,7 @@ export default function SettingsPage() {
                             value={settingsData.firstName}
                             onChange={(e) => setSettingsData({ ...settingsData, firstName: e.target.value })}
                             placeholder="Enter your first name"
-                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           />
                         </div>
 
@@ -1992,7 +1992,7 @@ export default function SettingsPage() {
                             value={settingsData.lastName}
                             onChange={(e) => setSettingsData({ ...settingsData, lastName: e.target.value })}
                             placeholder="Enter your last name"
-                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                            className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                           />
                         </div>
 
@@ -2011,7 +2011,7 @@ export default function SettingsPage() {
                               className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             />
                           </div>
-                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                          <p className="text-xs text-[#d7d2cb]/60 mt-1">
                             Optional - Used for age-appropriate features and personalized experiences
                           </p>
                         </div>
@@ -2028,7 +2028,7 @@ export default function SettingsPage() {
                               value={settingsData.phoneNumber}
                               onChange={(e) => setSettingsData({ ...settingsData, phoneNumber: e.target.value })}
                               placeholder="+1 (555) 123-4567"
-                              className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                              className="w-full pl-10 pr-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             />
                             {settingsData.phoneNumber && (
                               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -2061,7 +2061,7 @@ export default function SettingsPage() {
                                 </button>
                               </div>
                             )}
-                            <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            <p className="text-xs text-[#d7d2cb]/60 mt-1">
                               Optional - Used for account recovery and security notifications. E.164 format recommended (e.g., +15551234567)
                             </p>
                           </div>
@@ -2131,7 +2131,7 @@ export default function SettingsPage() {
                               })()}
                             </optgroup>
                           </select>
-                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                          <p className="text-xs text-[#d7d2cb]/60 mt-1">
                             Used for scheduling and time display. Defaults to your browser timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
                           </p>
                         </div>
@@ -2161,7 +2161,7 @@ export default function SettingsPage() {
                             <option value="zh-TW">中文 (繁體)</option>
                             <option value="ko-KR">한국어</option>
                           </select>
-                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                          <p className="text-xs text-[#d7d2cb]/60 mt-1">
                             Used for date/time formatting and language preferences. Defaults to your browser locale.
                           </p>
                         </div>
@@ -2335,7 +2335,7 @@ export default function SettingsPage() {
                               </>
                             ) : (
                               <>
-                                <p className="text-xs text-[var(--muted-foreground)]">
+                                <p className="text-xs text-[#d7d2cb]/60">
                                   Enter the verification code sent to {emailNewValue}.
                                   {emailCodeExpiresAt && (
                                     <>
@@ -2815,7 +2815,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
                           <div>
                             <p className="text-sm font-medium text-[var(--foreground)]">Include Weekends in Scheduling</p>
-                            <p className="text-xs text-[var(--muted-foreground)]">Allow tasks to be scheduled on weekends (Saturday and Sunday)</p>
+                            <p className="text-xs text-[#d7d2cb]/60">Allow tasks to be scheduled on weekends (Saturday and Sunday)</p>
                           </div>
                           <button
                             onClick={() => {
@@ -2853,7 +2853,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
                           <div>
                             <p className="text-sm font-medium text-[var(--foreground)]">Enable Smart Scheduling</p>
-                            <p className="text-xs text-[var(--muted-foreground)]">Allow AI to automatically reschedule tasks when needed</p>
+                            <p className="text-xs text-[#d7d2cb]/60">Allow AI to automatically reschedule tasks when needed</p>
                           </div>
                           <button
                             onClick={() => {
@@ -2907,7 +2907,7 @@ export default function SettingsPage() {
                             </>
                           )}
                         </button>
-                        <p className="text-xs text-[var(--muted-foreground)] mt-2">
+                        <p className="text-xs text-[#d7d2cb]/60 mt-2">
                           This will sign you out of all devices and sessions. You'll need to sign in again.
                         </p>
                       </CardContent>
@@ -2922,7 +2922,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between p-4 bg-white/5 border border-white/20 rounded-lg">
                           <div className="flex-1">
                             <p className="text-sm font-medium text-[var(--foreground)] mb-1">Improve the Model for Everyone</p>
-                            <p className="text-xs text-[var(--muted-foreground)]">
+                            <p className="text-xs text-[#d7d2cb]/60">
                               Allow your anonymized usage data to help improve the AI model (optional)
                             </p>
                           </div>
@@ -2987,7 +2987,7 @@ export default function SettingsPage() {
                               )}
                             </button>
                           </div>
-                          <p className="text-xs text-[var(--muted-foreground)] mt-2">
+                          <p className="text-xs text-[#d7d2cb]/60 mt-2">
                             Download all your data including plans, tasks, and settings.
                           </p>
                         </div>
