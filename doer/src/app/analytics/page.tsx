@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
                 {metrics.onTimeRate}%
               </span>
             </div>
-            <p className="text-xs text-[var(--muted-foreground)] leading-tight">Tasks completed on schedule</p>
+            <p className="text-xs text-[#d7d2cb]/50 leading-tight">Tasks completed on schedule</p>
           </div>
           <MetricCard
             title="Reschedule Rate"

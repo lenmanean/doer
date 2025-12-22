@@ -53,7 +53,7 @@ export function MetricCard({
         )}
       </div>
       {description && (
-        <p className="text-xs text-[var(--muted-foreground)] leading-tight">{description}</p>
+        <p className="text-xs text-[#d7d2cb]/50 leading-tight">{description}</p>
       )}
     </div>
   )
