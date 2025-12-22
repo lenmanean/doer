@@ -207,13 +207,13 @@ export default function ApiTokenSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <div className="max-w-5xl mx-auto py-12 px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex items-center gap-3">
-          <KeyRound className="h-9 w-9 text-orange-400" />
+          <KeyRound className="h-9 w-9 text-[var(--primary)]" />
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">API Tokens</h1>
-            <p className="text-slate-400">
+            <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">API Tokens</h1>
+            <p className="text-[var(--muted-foreground)]">
               Manage personal access tokens for integrating with the DOER API. Tokens inherit your plan limits and
               permissions.
             </p>

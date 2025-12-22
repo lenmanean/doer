@@ -17,14 +17,14 @@ export default function CommunityPage() {
   // Show loading state while user data is being fetched
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#d7d2cb]">Loading...</div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Sidebar */}
       <Sidebar 
         user={profile || { email: user?.email || '' }}
@@ -40,10 +40,10 @@ export default function CommunityPage() {
           <FadeInWrapper delay={0.1} direction="up">
             <div className="mb-8 flex items-start justify-between">
               <div>
-                <h1 className="text-5xl font-bold tracking-tight text-[#d7d2cb] mb-4">
+                <h1 className="text-5xl font-bold tracking-tight text-[var(--foreground)] mb-4">
                   Community
                 </h1>
-                <p className="text-base leading-relaxed text-[#d7d2cb]/70 max-w-prose">
+                <p className="text-base leading-relaxed text-[var(--muted-foreground)] max-w-prose">
                   Connect with other achievers, share your progress, and get support on your journey.
                 </p>
               </div>
@@ -62,7 +62,7 @@ export default function CommunityPage() {
                   damping: 17 
                 }}
               >
-                <Inbox className="w-6 h-6 text-[#d7d2cb]" />
+                <Inbox className="w-6 h-6 text-[var(--foreground)]" />
               </motion.button>
             </div>
           </FadeInWrapper>
@@ -73,10 +73,10 @@ export default function CommunityPage() {
               {/* Discord Panel */}
               <Card className="bg-white/5 backdrop-blur-md border border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-semibold text-[#d7d2cb]">
+                  <CardTitle className="text-2xl font-semibold text-[var(--foreground)]">
                     Join our Discord
                   </CardTitle>
-                  <CardDescription className="text-[#d7d2cb]/70">
+                  <CardDescription className="text-[var(--muted-foreground)]">
                     Connect with the community in real-time
                   </CardDescription>
                 </CardHeader>
@@ -115,23 +115,23 @@ export default function CommunityPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-[#d7d2cb] mb-2">Inbox</h2>
-                <p className="text-[#d7d2cb]/70">Your messages and notifications</p>
+                <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">Inbox</h2>
+                <p className="text-[var(--muted-foreground)]">Your messages and notifications</p>
               </div>
 
               <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-16 h-16 bg-white/5 border border-white/20 rounded-full flex items-center justify-center mb-4">
-                  <Inbox className="w-8 h-8 text-[#d7d2cb]/60" />
+                <div className="w-16 h-16 bg-[var(--input)] border border-[var(--border)] rounded-full flex items-center justify-center mb-4">
+                  <Inbox className="w-8 h-8 text-[var(--muted-foreground)]" />
                 </div>
-                <h3 className="text-xl font-semibold text-[#d7d2cb] mb-2">
+                <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
                   Coming Soon
                 </h3>
-                <p className="text-sm text-[#d7d2cb]/60 text-center mb-6">
+                <p className="text-sm text-[var(--muted-foreground)] text-center mb-6">
                   Inbox functionality will be available with multi-user support
                 </p>
                 <button
                   onClick={() => setShowInboxModal(false)}
-                  className="px-4 py-2 bg-white/5 backdrop-blur-md border border-white/20 rounded-lg text-[#d7d2cb] hover:bg-white/10 transition-colors"
+                  className="px-4 py-2 bg-[var(--input)] backdrop-blur-md border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
                 >
                   Close
                 </button>

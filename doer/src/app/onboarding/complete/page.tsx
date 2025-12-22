@@ -44,14 +44,14 @@ export default function OnboardingCompletePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#d7d2cb]">Loading...</div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <StaggeredFadeIn className="max-w-2xl mx-auto space-y-8">
         {/* Success Icon */}
         <FadeInWrapper delay={0.1} direction="up">
@@ -66,25 +66,25 @@ export default function OnboardingCompletePage() {
         <FadeInWrapper delay={0.2} direction="up">
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-3xl font-bold text-[#d7d2cb]">
+              <CardTitle className="text-3xl font-bold text-[var(--foreground)]">
                 Onboarding Complete!
               </CardTitle>
-              <CardDescription className="text-lg text-[#d7d2cb]/70">
+              <CardDescription className="text-lg text-[var(--muted-foreground)]">
                 Your information has been saved successfully
               </CardDescription>
             </CardHeader>
             
             <CardContent className="text-center space-y-6">
               <div className="space-y-4">
-                <p className="text-[#d7d2cb] text-lg">
+                <p className="text-[var(--foreground)] text-lg">
                   Thank you for providing your goal information. We're working hard to create your personalized roadmap.
                 </p>
                 
-                <div className="bg-[#ff7f00]/10 border border-[#ff7f00]/20 rounded-xl p-6">
-                  <h3 className="text-xl font-semibold text-[#d7d2cb] mb-2">
+                <div className="bg-[var(--primary)]/10 border border-[var(--primary)]/20 rounded-xl p-6">
+                  <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
                     What's Next?
                   </h3>
-                  <p className="text-[#d7d2cb]/70">
+                  <p className="text-[var(--muted-foreground)]">
                     Our AI has analyzed your goals and generated a comprehensive roadmap tailored specifically for you. 
                     Review your personalized roadmap and then choose your plan to complete onboarding.
                   </p>
@@ -146,8 +146,8 @@ export default function OnboardingCompletePage() {
               <div className="p-8">
                 {/* Header */}
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-[#d7d2cb] mb-2">Choose Your Plan</h2>
-                  <p className="text-[#d7d2cb]/70">Select the plan that best fits your needs</p>
+                  <h2 className="text-2xl font-bold text-[var(--foreground)] mb-2">Choose Your Plan</h2>
+                  <p className="text-[var(--muted-foreground)]">Select the plan that best fits your needs</p>
                 </div>
 
                 {/* Pricing Cards */}
@@ -158,26 +158,26 @@ export default function OnboardingCompletePage() {
                     whileTap={{ scale: 0.98 }}
                     className="relative"
                   >
-                    <Card className="h-full bg-white/10 backdrop-blur-md border border-[#ff7f00]/30 hover:border-[#ff7f00]/50 hover:bg-white/15 transition-all duration-300 flex flex-col">
+                    <Card className="h-full bg-[var(--input)] backdrop-blur-md border border-[var(--primary)]/30 hover:border-[var(--primary)]/50 hover:bg-[var(--accent)] transition-all duration-300 flex flex-col">
                       <CardHeader className="text-center pb-4">
                         <div className="flex justify-center mb-4">
-                          <div className="w-12 h-12 bg-[#ff7f00]/20 rounded-xl flex items-center justify-center">
-                            <Star className="w-6 h-6 text-[#ff7f00]" />
+                          <div className="w-12 h-12 bg-[var(--primary)]/20 rounded-xl flex items-center justify-center">
+                            <Star className="w-6 h-6 text-[var(--primary)]" />
                           </div>
                         </div>
                         <div className="relative flex items-center justify-center mb-2">
-                          <CardTitle className="text-2xl text-[#d7d2cb]">Pro</CardTitle>
+                          <CardTitle className="text-2xl text-[var(--foreground)]">Pro</CardTitle>
                           <Badge className="absolute left-[calc(50%+1.5rem)] bg-green-500/20 text-green-400 border-green-500/30 pointer-events-none whitespace-nowrap">
                             14-day trial
                           </Badge>
                         </div>
                         <div className="flex flex-col items-center gap-1 mb-4">
-                          <span className="text-4xl font-bold text-[#d7d2cb]">FREE</span>
-                          <span className="text-[#d7d2cb]/60 line-through">$20/month</span>
+                          <span className="text-4xl font-bold text-[var(--foreground)]">FREE</span>
+                          <span className="text-[var(--muted-foreground)] line-through">$20/month</span>
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 space-y-4">
-                        <ul className="space-y-3 text-sm text-[#d7d2cb]/80 flex-1">
+                        <ul className="space-y-3 text-sm text-[var(--foreground)] flex-1">
                           <li className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                             <span>Interactive timeline & calendar</span>
@@ -201,7 +201,7 @@ export default function OnboardingCompletePage() {
                         </ul>
                         <Button
                           onClick={() => handlePlanSelect('pro')}
-                          className="w-full bg-[#ff7f00] hover:bg-[#ff7f00]/90 text-white shadow-none mt-auto"
+                          className="w-full bg-[var(--primary)] hover:opacity-90 text-[var(--primary-foreground)] shadow-none mt-auto"
                         >
                           Start Free Trial
                         </Button>
@@ -222,14 +222,14 @@ export default function OnboardingCompletePage() {
                             <Zap className="w-6 h-6 text-blue-400" />
                           </div>
                         </div>
-                        <CardTitle className="text-2xl text-[#d7d2cb] mb-2">Pro+</CardTitle>
+                        <CardTitle className="text-2xl text-[var(--foreground)] mb-2">Pro+</CardTitle>
                         <div className="flex items-center justify-center gap-2 mb-4">
-                          <span className="text-4xl font-bold text-[#d7d2cb]">$49.99</span>
-                          <span className="text-[#d7d2cb]/60">/month</span>
+                          <span className="text-4xl font-bold text-[var(--foreground)]">$49.99</span>
+                          <span className="text-[var(--muted-foreground)]">/month</span>
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 space-y-4">
-                        <ul className="space-y-3 text-sm text-[#d7d2cb]/80 flex-1">
+                        <ul className="space-y-3 text-sm text-[var(--foreground)] flex-1">
                           <li className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                             <span>Everything in Pro</span>
@@ -263,11 +263,11 @@ export default function OnboardingCompletePage() {
                 </div>
 
                 {/* Enterprise Section */}
-                <div className="text-center border-t border-white/10 pt-6">
-                  <p className="text-[#d7d2cb]/60">
+                <div className="text-center border-t border-[var(--border)] pt-6">
+                  <p className="text-[var(--muted-foreground)]">
                     <a
                       href="#"
-                      className="text-[#ff7f00] hover:text-[#ff7f00]/80 underline decoration-[#ff7f00]/50 hover:decoration-[#ff7f00] transition-colors duration-200 cursor-pointer"
+                      className="text-[var(--primary)] hover:opacity-80 underline decoration-[var(--primary)]/50 hover:decoration-[var(--primary)] transition-colors duration-200 cursor-pointer"
                       onClick={(e) => {
                         e.preventDefault()
                         // TODO: Add navigation to enterprise/contact page when created

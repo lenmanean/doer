@@ -146,14 +146,14 @@ export default function HelpPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#d7d2cb]">Loading...</div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[var(--background)]">
       <Sidebar 
         user={profile || { email: user?.email || '' }}
         onSignOut={handleSignOut}
@@ -165,10 +165,10 @@ export default function HelpPage() {
           {/* Header */}
           <FadeInWrapper delay={0.1} direction="up">
             <div className="mb-8">
-              <h1 className="text-5xl font-bold tracking-tight text-[#d7d2cb] mb-4">
+              <h1 className="text-5xl font-bold tracking-tight text-[var(--foreground)] mb-4">
                 Help Center
               </h1>
-              <p className="text-base leading-relaxed text-[#d7d2cb]/70">
+              <p className="text-base leading-relaxed text-[var(--muted-foreground)]">
                 Find answers to common questions and get support
               </p>
             </div>
@@ -180,8 +180,8 @@ export default function HelpPage() {
               <Card className="border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-colors cursor-pointer">
                 <CardContent className="p-6">
                   <BookOpen className="w-8 h-8 text-blue-400 mb-3" />
-                  <h3 className="text-lg font-semibold text-[#d7d2cb] mb-2">Documentation</h3>
-                  <p className="text-sm text-[#d7d2cb]/60">Comprehensive guides and tutorials</p>
+                  <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">Documentation</h3>
+                  <p className="text-sm text-[var(--muted-foreground)]">Comprehensive guides and tutorials</p>
                 </CardContent>
               </Card>
 
@@ -191,8 +191,8 @@ export default function HelpPage() {
               >
                 <CardContent className="p-6">
                   <MessageSquare className="w-8 h-8 text-purple-400 mb-3" />
-                  <h3 className="text-lg font-semibold text-[#d7d2cb] mb-2">Community</h3>
-                  <p className="text-sm text-[#d7d2cb]/60">Join discussions on Discord</p>
+                  <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">Community</h3>
+                  <p className="text-sm text-[var(--muted-foreground)]">Join discussions on Discord</p>
                 </CardContent>
               </Card>
 
@@ -202,8 +202,8 @@ export default function HelpPage() {
               >
                 <CardContent className="p-6">
                   <Bug className="w-8 h-8 text-green-400 mb-3" />
-                  <h3 className="text-lg font-semibold text-[#d7d2cb] mb-2">Report Bug</h3>
-                  <p className="text-sm text-[#d7d2cb]/60">Help us improve the app</p>
+                  <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">Report Bug</h3>
+                  <p className="text-sm text-[var(--muted-foreground)]">Help us improve the app</p>
                 </CardContent>
               </Card>
             </div>
@@ -230,13 +230,13 @@ export default function HelpPage() {
                               onClick={() => setExpandedFAQ(expandedFAQ === faq.id ? null : faq.id)}
                               className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 transition-colors text-left"
                             >
-                              <span className="text-sm font-medium text-[#d7d2cb] pr-4">
+                              <span className="text-sm font-medium text-[var(--foreground)] pr-4">
                                 {faq.question}
                               </span>
                               {expandedFAQ === faq.id ? (
-                                <ChevronUp className="w-4 h-4 text-[#d7d2cb]/60 flex-shrink-0" />
+                                <ChevronUp className="w-4 h-4 text-[var(--muted-foreground)] flex-shrink-0" />
                               ) : (
-                                <ChevronDown className="w-4 h-4 text-[#d7d2cb]/60 flex-shrink-0" />
+                                <ChevronDown className="w-4 h-4 text-[var(--muted-foreground)] flex-shrink-0" />
                               )}
                             </button>
                             <AnimatePresence>
@@ -248,8 +248,8 @@ export default function HelpPage() {
                                   transition={{ duration: 0.2 }}
                                   className="overflow-hidden"
                                 >
-                                  <div className="p-4 bg-white/[0.02] border-t border-white/10">
-                                    <p className="text-sm text-[#d7d2cb]/70 leading-relaxed">
+                                  <div className="p-4 bg-[var(--input)] border-t border-[var(--border)]">
+                                    <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
                                       {faq.answer}
                                     </p>
                                   </div>
@@ -285,7 +285,7 @@ export default function HelpPage() {
                   className="fixed inset-0 z-50 flex items-center justify-center p-4"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Card className="w-full max-w-md bg-[#0a0a0a]/95 backdrop-blur-xl border-white/20">
+                  <Card className="w-full max-w-md bg-[var(--background)]/95 backdrop-blur-xl border-[var(--border)]">
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
@@ -294,7 +294,7 @@ export default function HelpPage() {
                         </CardTitle>
                         <button
                           onClick={() => setShowBugModal(false)}
-                          className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors"
+                          className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -313,17 +313,17 @@ export default function HelpPage() {
                           <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Bug className="w-6 h-6 text-green-400" />
                           </div>
-                          <h3 className="text-lg font-semibold text-[#d7d2cb] mb-2">
+                          <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">
                             Thank you!
                           </h3>
-                          <p className="text-sm text-[#d7d2cb]/60">
+                          <p className="text-sm text-[var(--muted-foreground)]">
                             Your bug report has been submitted successfully.
                           </p>
                         </motion.div>
                       ) : (
                         <form onSubmit={handleBugSubmit} className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                               Title
                             </label>
                             <input
@@ -332,18 +332,18 @@ export default function HelpPage() {
                               onChange={(e) => setBugReport({ ...bugReport, title: e.target.value })}
                               placeholder="Brief description of the issue"
                               required
-                              className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                               Category
                             </label>
                             <select
                               value={bugReport.category}
                               onChange={(e) => setBugReport({ ...bugReport, category: e.target.value })}
-                              className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             >
                               <option value="bug">Bug</option>
                               <option value="feature">Feature Request</option>
@@ -353,13 +353,13 @@ export default function HelpPage() {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                               Severity
                             </label>
                             <select
                               value={bugReport.severity}
                               onChange={(e) => setBugReport({ ...bugReport, severity: e.target.value })}
-                              className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             >
                               <option value="low">Low</option>
                               <option value="medium">Medium</option>
@@ -369,7 +369,7 @@ export default function HelpPage() {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                               Description
                             </label>
                             <textarea
@@ -378,18 +378,18 @@ export default function HelpPage() {
                               placeholder="Describe the issue in detail..."
                               required
                               rows={6}
-                              className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb] resize-none"
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] resize-none"
                             />
                           </div>
 
                           <button
                             type="submit"
                             disabled={submittingBug}
-                            className="w-full px-4 py-2 bg-white/10 backdrop-blur-md border border-white/30 rounded-lg text-[#d7d2cb] hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full px-4 py-2 bg-[var(--primary)] backdrop-blur-md border border-[var(--primary)] rounded-lg text-[var(--primary-foreground)] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             {submittingBug ? (
                               <>
-                                <div className="w-4 h-4 border-2 border-[#d7d2cb] border-t-transparent rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-[var(--primary-foreground)] border-t-transparent rounded-full animate-spin" />
                                 Submitting...
                               </>
                             ) : (

@@ -141,8 +141,8 @@ export default function AnalyticsPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff7f00]"></div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
       </div>
     )
   }
@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[var(--background)]">
       <Sidebar 
         user={user ? { email: user.email || '' } : undefined}
         onSignOut={handleSignOut}
@@ -164,8 +164,8 @@ export default function AnalyticsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#d7d2cb] mb-2">Data & Analytics</h1>
-          <p className="text-[#d7d2cb]/70">
+          <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Data & Analytics</h1>
+          <p className="text-[var(--muted-foreground)]">
             Track your progress, productivity patterns, and performance metrics
           </p>
         </div>
@@ -194,8 +194,8 @@ export default function AnalyticsPage() {
             color="#3b82f6"
             formatValue={(v) => `${Math.round(v)} days`}
           />
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col">
-            <h3 className="text-sm font-medium text-[#d7d2cb]/70 mb-1.5">On-Time Rate</h3>
+          <div className="bg-[var(--input)] border border-[var(--border)] rounded-lg p-4 flex flex-col">
+            <h3 className="text-sm font-medium text-[var(--muted-foreground)] mb-1.5">On-Time Rate</h3>
             <div className="flex items-center gap-2 mb-2">
               <ProgressRing
                 percentage={metrics.onTimeRate}
@@ -204,11 +204,11 @@ export default function AnalyticsPage() {
                 color="#f59e0b"
                 showBreakdown={false}
               />
-              <span className="text-2xl font-bold text-[#d7d2cb]" style={{ color: '#f59e0b' }}>
+              <span className="text-2xl font-bold text-[var(--foreground)]" style={{ color: '#f59e0b' }}>
                 {metrics.onTimeRate}%
               </span>
             </div>
-            <p className="text-xs text-[#d7d2cb]/50 leading-tight">Tasks completed on schedule</p>
+            <p className="text-xs text-[var(--muted-foreground)] leading-tight">Tasks completed on schedule</p>
           </div>
           <MetricCard
             title="Reschedule Rate"
