@@ -351,11 +351,12 @@ export function CreateTaskModal({
     if (usageError) {
       return (
         <div
-          className={`rounded-lg border px-4 py-3 text-xs ${
-            currentTheme === 'dark'
-              ? 'border-red-500/40 bg-red-500/10 text-red-200'
-              : 'border-red-200 bg-red-50 text-red-600'
-          }`}
+          className="rounded-lg border px-4 py-3 text-xs"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+            backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
+            color: 'color-mix(in srgb, var(--destructive) 90%, transparent)',
+          }}
         >
           Unable to load AI credits. Please try again.
         </div>
@@ -366,11 +367,12 @@ export function CreateTaskModal({
       if (aiCreditsDepleted) {
         return (
           <div
-            className={`rounded-lg border px-4 py-3 text-xs font-medium ${
-              currentTheme === 'dark'
-                ? 'border-red-500/40 bg-red-500/10 text-red-200'
-                : 'border-red-200 bg-red-50 text-red-600'
-            }`}
+            className="rounded-lg border px-4 py-3 text-xs font-medium"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+              backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
+              color: 'color-mix(in srgb, var(--destructive) 90%, transparent)',
+            }}
           >
             No AI credits remaining this billing cycle.
           </div>
@@ -2593,9 +2595,13 @@ export function CreateTaskModal({
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-red-500/20 border border-red-500/50"
+                  className="flex items-center gap-2 p-3 rounded-lg border"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+                  }}
                 >
-                  <p className="text-sm text-red-500">{error}</p>
+                  <p className="text-sm" style={{ color: 'var(--destructive)' }}>{error}</p>
                 </motion.div>
               )}
 
@@ -2806,23 +2812,34 @@ export function CreateTaskModal({
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex flex-col gap-2 p-4 rounded-lg bg-red-500/20 border border-red-500/50"
+                      className="flex flex-col gap-2 p-4 rounded-lg border"
+                      style={{
+                        backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
+                        borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+                      }}
                     >
                       {aiError === 'USAGE_LIMIT_EXCEEDED' || aiError.includes('USAGE_LIMIT_EXCEEDED') ? (
                         <>
-                          <p className="text-sm font-medium text-red-500">You are out of API credits</p>
-                          <p className="text-xs text-red-400/80">
+                          <p className="text-sm font-medium" style={{ color: 'var(--destructive)' }}>
+                            You are out of API credits
+                          </p>
+                          <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--destructive) 80%, transparent)' }}>
                             Upgrade to the Pro Monthly or Pro Annual plan for unlimited credits.
                           </p>
                           <a
                             href="/pricing"
-                            className="text-xs text-red-400 underline hover:text-red-300 mt-1"
+                            className="text-xs underline mt-1 transition-colors"
+                            style={{ 
+                              color: 'color-mix(in srgb, var(--destructive) 80%, transparent)',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--destructive)'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = 'color-mix(in srgb, var(--destructive) 80%, transparent)'}
                           >
                             View pricing plans →
                           </a>
                         </>
                       ) : (
-                        <p className="text-sm text-red-500">{aiError}</p>
+                        <p className="text-sm" style={{ color: 'var(--destructive)' }}>{aiError}</p>
                       )}
                     </motion.div>
                   )}
