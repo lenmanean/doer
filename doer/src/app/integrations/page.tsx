@@ -139,14 +139,14 @@ export default function IntegrationsPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center overflow-x-hidden">
-        <div className="text-gray-900 dark:text-gray-100">Loading...</div>
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center overflow-x-hidden">
+        <div className="text-[var(--foreground)]">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--background)] overflow-x-hidden">
       <Sidebar
         user={profile || { email: user?.email || '' }}
         onSignOut={handleSignOut}
@@ -158,10 +158,10 @@ export default function IntegrationsPage() {
         <div className="space-y-6">
           {/* Header */}
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold text-[var(--foreground)] mb-2">
               Integrations
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-[var(--muted-foreground)]">
               Connect and manage your calendar integrations
             </p>
           </div>
@@ -221,7 +221,7 @@ export default function IntegrationsPage() {
                         {providerInfo.description}
                       </CardDescription>
                       {isConnected && status?.connection && (
-                        <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                        <div className="text-xs text-[var(--muted-foreground)] space-y-1">
                           <p>
                             Last sync: {status.connection.last_sync_at
                               ? new Date(status.connection.last_sync_at).toLocaleString()

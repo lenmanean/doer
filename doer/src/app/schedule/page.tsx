@@ -2020,8 +2020,8 @@ function ScheduleContent() {
                                   ? 'border-white/10'
                                   : ''
                                 : theme === 'dark'
-                                  ? 'bg-[#0a0a0a] border-white/10 hover:bg-white/10'
-                                  : 'bg-white border-gray-200 hover:bg-gray-50'
+                                  ? 'bg-[#0a0a0a] border-white/10'
+                                  : 'bg-white border-gray-200'
                             }`}
                             style={{ 
                               height: `${rowHeight}px`,
@@ -2035,23 +2035,41 @@ function ScheduleContent() {
                                   backgroundColor: 'color-mix(in srgb, var(--primary) 15%, white)',
                                   borderColor: 'color-mix(in srgb, var(--primary) 30%, transparent)'
                                 } 
-                              : {})
+                              : theme === 'dark' ? {
+                                backgroundColor: '#0a0a0a'
+                              } : {
+                                backgroundColor: '#ffffff'
+                              })
                             }}
                             onMouseEnter={(e) => {
-                              if (day.isSelected && !slot.isExtraRow) {
+                              if (slot.isExtraRow) return
+                              if (day.isSelected) {
                                 if (theme === 'dark') {
                                   e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--primary) 20%, #0a0a0a)'
                                 } else {
                                   e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--primary) 25%, white)'
                                 }
+                              } else {
+                                if (theme === 'dark') {
+                                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+                                } else {
+                                  e.currentTarget.style.backgroundColor = '#f9fafb'
+                                }
                               }
                             }}
                             onMouseLeave={(e) => {
-                              if (day.isSelected && !slot.isExtraRow) {
+                              if (slot.isExtraRow) return
+                              if (day.isSelected) {
                                 if (theme === 'dark') {
                                   e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--primary) 10%, #0a0a0a)'
                                 } else {
                                   e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--primary) 15%, white)'
+                                }
+                              } else {
+                                if (theme === 'dark') {
+                                  e.currentTarget.style.backgroundColor = '#0a0a0a'
+                                } else {
+                                  e.currentTarget.style.backgroundColor = '#ffffff'
                                 }
                               }
                             }}

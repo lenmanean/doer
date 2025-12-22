@@ -200,7 +200,7 @@ export function TimePicker({ value, onChange, theme, id, className = '', timeFor
         <Clock className="w-4 h-4 text-[var(--muted-foreground)]" />
         <span className={`flex-1 text-left ${
           hour === null || minute === null 
-            ? 'text-[var(--muted-foreground)]'
+            ? theme === 'dark' ? 'text-[#d7d2cb]/50' : 'text-[var(--muted-foreground)]'
             : ''
         }`}>
           {formatDisplayTime()}

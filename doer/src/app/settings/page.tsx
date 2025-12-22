@@ -2236,7 +2236,7 @@ export default function SettingsPage() {
                               value={usernameInput}
                               onChange={(e) => setUsernameInput(e.target.value)}
                               placeholder="Choose a new username"
-                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                              className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                             />
                             {usernameMessage && (
                               <p
@@ -2303,7 +2303,7 @@ export default function SettingsPage() {
                                     value={emailNewValue}
                                     onChange={(e) => setEmailNewValue(e.target.value)}
                                     placeholder="you@example.com"
-                                    className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                                    className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                                   />
                                 </div>
                                 <div>
@@ -2315,7 +2315,7 @@ export default function SettingsPage() {
                                     value={emailPasswordInput}
                                     onChange={(e) => setEmailPasswordInput(e.target.value)}
                                     placeholder="Enter password"
-                                    className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+                                    className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                                   />
                                 </div>
                                 <button
@@ -2350,7 +2350,7 @@ export default function SettingsPage() {
                                   value={emailOtpInput}
                                   onChange={(e) => setEmailOtpInput(e.target.value)}
                                   placeholder="000000"
-                                  className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] tracking-widest text-center"
+                                  className="w-full px-4 py-2 bg-[var(--input)] border border-[var(--border)] rounded-lg text-[var(--foreground)] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] tracking-widest text-center"
                                 />
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <button
@@ -2398,7 +2398,7 @@ export default function SettingsPage() {
                               value={currentPassword}
                               onChange={(e) => setCurrentPassword(e.target.value)}
                               placeholder="Enter current password"
-                              className="w-full pl-10 pr-12 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb] focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
+                              className="w-full pl-10 pr-12 py-2 bg-white/5 border border-white/20 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-[#d7d2cb] focus:ring-1 focus:ring-[#d7d2cb]"
                             />
                             <button
                               type="button"
@@ -2485,7 +2485,7 @@ export default function SettingsPage() {
                               value={deleteConfirmation}
                               onChange={(e) => setDeleteConfirmation(e.target.value)}
                               placeholder="Type DELETE to confirm"
-                              className="w-full px-4 py-2 bg-white/5 border border-red-500/30 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                              className="w-full px-4 py-2 bg-white/5 border border-red-500/30 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                             />
                             <div className="flex gap-3">
                               <button

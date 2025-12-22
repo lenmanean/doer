@@ -2643,7 +2643,7 @@ export function CreateTaskModal({
                       rows={3}
                       className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none ${
                         currentTheme === 'dark'
-                          ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400'
+                          ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
@@ -2688,7 +2688,7 @@ export function CreateTaskModal({
                               placeholder="e.g., '5 minutes', '30 minutes', '1 hour'"
                               className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ff7f00] ${
                                 currentTheme === 'dark'
-                                  ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400'
+                                  ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                               }`}
                             />
@@ -2838,7 +2838,7 @@ export function CreateTaskModal({
                                 type="text"
                                 value={editableAITask.name}
                                 onChange={(e) => handleAITaskFieldChange('name', e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
+                                className="w-full px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-[#ff7f00]"
                               />
                             </div>
                             
@@ -2849,7 +2849,7 @@ export function CreateTaskModal({
                                 value={editableAITask.details || ''}
                                 onChange={(e) => handleAITaskFieldChange('details', e.target.value)}
                                 rows={2}
-                                className="w-full px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none"
+                                className="w-full px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50 focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none"
                                 placeholder="Enter task details..."
                               />
                             </div>
@@ -3101,7 +3101,7 @@ export function CreateTaskModal({
                             placeholder={`Task ${index + 1}`}
                             className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
                               currentTheme === 'dark'
-                                ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400'
+                                ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                 : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                             }`}
                           />
@@ -3303,7 +3303,7 @@ export function CreateTaskModal({
                                 placeholder="Enter task name"
                                 className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
                                   currentTheme === 'dark'
-                                    ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400'
+                                    ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                                 }`}
                               />
@@ -3323,7 +3323,7 @@ export function CreateTaskModal({
                                 rows={2}
                                 className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none ${
                                   currentTheme === 'dark'
-                                    ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-gray-400'
+                                    ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                                 }`}
                               />
