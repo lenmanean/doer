@@ -5,12 +5,19 @@
 /**
  * Authenticated routes that require user login
  * These routes should use user theme preferences from database
+ * 
+ * Note: This list should match routes protected by middleware.ts
+ * (i.e., routes NOT in the publicRoutes array in middleware)
  */
 const AUTHENTICATED_ROUTES = [
   '/dashboard',
   '/schedule',
   '/settings',
   '/onboarding',
+  '/analytics',
+  '/data', // Redirects to /analytics, but still authenticated
+  '/internal', // Internal pages (may have additional auth checks)
+  '/test', // Test pages (dev only, but authenticated)
 ]
 
 /**

@@ -11,8 +11,8 @@ export default function DataPageRedirect() {
   }, [router])
   
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff7f00]"></div>
+    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
     </div>
   )
 }

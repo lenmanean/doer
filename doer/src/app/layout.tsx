@@ -193,9 +193,20 @@ export default async function RootLayout({
                 });
                 
                 try {
-                  // Check if we're on a public page (not dashboard, schedule, settings)
+                  // Check if we're on a public page
+                  // Match AUTHENTICATED_ROUTES from route-utils.ts
                   const path = window.location.pathname;
-                  const isAuthenticatedRoute = path.includes('/dashboard') || path.includes('/schedule') || path.includes('/settings') || path.includes('/onboarding');
+                  const authenticatedRoutes = [
+                    '/dashboard',
+                    '/schedule',
+                    '/settings',
+                    '/onboarding',
+                    '/analytics',
+                    '/data',
+                    '/internal',
+                    '/test'
+                  ];
+                  const isAuthenticatedRoute = authenticatedRoutes.some(route => path.startsWith(route));
                   
                   // Check authentication state from data attribute (server-rendered)
                   const htmlElement = document.documentElement;
