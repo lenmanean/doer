@@ -93,11 +93,11 @@ export async function sendResendEmail({
       }
     }
 
-    // Use provided from address or fall back to production domain
-    // IMPORTANT: For best deliverability, verify and use root domain (updates@usedoer.com) in Resend
+    // Use provided from address or fall back to verified root domain
+    // Root domain (updates@usedoer.com) is verified in Resend and provides better deliverability
     // Subdomains (updates@updates.usedoer.com) start with zero reputation
-    // Set RESEND_FROM_ADDRESS=updates@usedoer.com once root domain is verified in Resend
-    const emailAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@updates.usedoer.com'
+    // Can override with RESEND_FROM_ADDRESS environment variable if needed
+    const emailAddress = from || process.env.RESEND_FROM_ADDRESS || 'updates@usedoer.com'
     const fromAddress = emailAddress.includes('<') ? emailAddress : `DOER <${emailAddress}>`
 
     const emailOptions: {

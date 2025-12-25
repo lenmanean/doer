@@ -31,12 +31,13 @@ COMMENT ON COLUMN "public"."waitlist"."adset" IS 'Ad set identifier from adverti
 COMMENT ON COLUMN "public"."waitlist"."ad_name" IS 'Ad name identifier from advertising platforms';
 
 COMMENT ON COLUMN "public"."waitlist"."welcome_sent_at" IS 'Timestamp when welcome email was sent (immediately on signup)';
-COMMENT ON COLUMN "public"."waitlist"."email_1_sent_at" IS 'Timestamp when first drip email was sent (2 days after welcome)';
-COMMENT ON COLUMN "public"."waitlist"."email_2_sent_at" IS 'Timestamp when second drip email was sent (3 days after email 1)';
-COMMENT ON COLUMN "public"."waitlist"."email_3_sent_at" IS 'Timestamp when third drip email was sent (5 days after email 2)';
+COMMENT ON COLUMN "public"."waitlist"."email_1_sent_at" IS 'NOT USED - Reserved for future use';
+COMMENT ON COLUMN "public"."waitlist"."email_2_sent_at" IS 'NOT USED - Reserved for future use';
+COMMENT ON COLUMN "public"."waitlist"."email_3_sent_at" IS 'NOT USED - Reserved for future use';
 COMMENT ON COLUMN "public"."waitlist"."launch_sent_at" IS 'Timestamp when launch day email was sent';
 COMMENT ON COLUMN "public"."waitlist"."unsubscribed_at" IS 'Timestamp when user unsubscribed from waitlist emails';
 COMMENT ON COLUMN "public"."waitlist"."last_email_sent_at" IS 'Timestamp of the most recent email sent to this waitlist entry';
+
 
 
 
