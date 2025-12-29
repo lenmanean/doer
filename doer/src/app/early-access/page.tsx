@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { CheckCircle, ChevronDown } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { WaitlistModal } from '@/components/ui/WaitlistModal'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
+import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 
 export default function EarlyAccessPage() {
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
@@ -54,29 +56,53 @@ export default function EarlyAccessPage() {
       <section className="relative px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-32">
         <div className="max-w-5xl mx-auto text-center">
           {/* Top CTA */}
-          <div className="max-w-xl mx-auto mb-12">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => handleOpenWaitlist('cold_ads_top')}
-              className="w-full text-lg px-8 py-6"
-            >
-              Join the early access waitlist
-            </Button>
-          </div>
+          <FadeInWrapper delay={0} direction="up">
+            <div className="max-w-xl mx-auto mb-12">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => handleOpenWaitlist('cold_ads_top')}
+                className="w-full text-lg px-8 py-6 pulsing-glow"
+              >
+                Join the early access waitlist
+              </Button>
+            </div>
+          </FadeInWrapper>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-            An AI planner that turns any written goal into a day-by-day roadmap.
-          </h1>
+          <FadeInWrapper delay={0.1} direction="up">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+              An AI planner that turns any written goal into a day-by-day roadmap.
+            </h1>
+          </FadeInWrapper>
 
           {/* Subheadline */}
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
-            On January 1, DOER launches with auto-scheduling, progress tracking, and seamless calendar syncing. Join early to reserve your access and receive bonus AI credits on launch day.
-          </p>
+          <FadeInWrapper delay={0.2} direction="up">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
+              On January 1, DOER launches with auto-scheduling, progress tracking, and seamless calendar syncing. Join early to reserve your access and receive bonus AI credits on launch day.
+            </p>
+          </FadeInWrapper>
+
+          {/* Screenshot */}
+          <FadeInWrapper delay={0.3} direction="up">
+            <div className="mb-12 max-w-4xl mx-auto">
+              <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
+                <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900">
+                  <div className="relative aspect-video">
+                    <img
+                      src="/ai-plan-preview.png"
+                      alt="DOER AI Plan Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeInWrapper>
 
           {/* Videos with Dropdown */}
-          <div className="mb-12 max-w-4xl mx-auto">
+          <FadeInWrapper delay={0.4} direction="up">
+            <div className="mb-12 max-w-4xl mx-auto">
             <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
               <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900 p-4">
                 <div className="space-y-4">
@@ -94,28 +120,32 @@ export default function EarlyAccessPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </FadeInWrapper>
 
           {/* CTA */}
-          <div className="max-w-xl mx-auto">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => handleOpenWaitlist('cold_ads_hero')}
-              className="w-full text-lg px-8 py-6"
-            >
-              Join the early access waitlist
-            </Button>
-          </div>
+          <FadeInWrapper delay={0.5} direction="up">
+            <div className="max-w-xl mx-auto">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => handleOpenWaitlist('cold_ads_hero')}
+                className="w-full text-lg px-8 py-6 pulsing-glow"
+              >
+                Join the early access waitlist
+              </Button>
+            </div>
+          </FadeInWrapper>
         </div>
       </section>
 
       {/* Steps Section */}
       <section className="px-4 sm:px-6 lg:px-8 py-16 sm:py-20 bg-gray-900/50">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-12">
-            See DOER in action
-          </h2>
+          <FadeInWrapper delay={0.2} direction="up">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-12">
+              See DOER in action
+            </h2>
+          </FadeInWrapper>
 
           {/* Vertical Expandable Steps */}
           <div className="space-y-4">
@@ -139,41 +169,54 @@ export default function EarlyAccessPage() {
       <section className="px-4 sm:px-6 lg:px-8 py-16 sm:py-20 bg-gray-900">
         <div className="max-w-4xl mx-auto text-center">
           {/* Trust Element */}
-          <div className="mb-12">
-            <p className="text-xl sm:text-2xl text-gray-300 mb-4">
-              Launching January 1, 2025
-            </p>
-            <p className="text-lg text-gray-400">
-              Join the waitlist now to secure your early access and bonus credits
-            </p>
-          </div>
+          <FadeInWrapper delay={0.2} direction="up">
+            <div className="mb-12">
+              <p className="text-xl sm:text-2xl text-gray-300 mb-4">
+                Launching January 1, 2025
+              </p>
+              <p className="text-lg text-gray-400">
+                Join the waitlist now to secure your early access and bonus credits
+              </p>
+            </div>
+          </FadeInWrapper>
 
           {/* Benefits */}
-          <div className="mb-12">
-            <h3 className="text-2xl sm:text-3xl font-bold text-white mb-8">
-              What you'll get:
-            </h3>
-            <ul className="space-y-4 text-left max-w-2xl mx-auto">
-              {benefits.map((benefit, index) => (
-                <li key={index} className="flex items-start gap-4">
-                  <CheckCircle className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-lg text-gray-300">{benefit}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <FadeInWrapper delay={0.3} direction="up">
+            <div className="mb-12">
+              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-8">
+                What you'll get:
+              </h3>
+              <ul className="space-y-4 text-left max-w-2xl mx-auto">
+                {benefits.map((benefit, index) => (
+                  <motion.li
+                    key={index}
+                    className="flex items-start gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.4 + index * 0.1, duration: 0.5 }}
+                  >
+                    <CheckCircle className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-lg text-gray-300">{benefit}</span>
+                  </motion.li>
+                ))}
+              </ul>
+            </div>
+          </FadeInWrapper>
 
           {/* Secondary CTA */}
-          <div className="max-w-xl mx-auto">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => handleOpenWaitlist('cold_ads_bottom')}
-              className="w-full text-lg px-8 py-6"
-            >
-              Reserve your early access
-            </Button>
-          </div>
+          <FadeInWrapper delay={0.6} direction="up">
+            <div className="max-w-xl mx-auto">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => handleOpenWaitlist('cold_ads_bottom')}
+                className="w-full text-lg px-8 py-6 pulsing-glow"
+              >
+                Reserve your early access
+              </Button>
+            </div>
+          </FadeInWrapper>
         </div>
       </section>
 

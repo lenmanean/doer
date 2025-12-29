@@ -1071,3 +1071,17 @@ input[type="date"]::-ms-clear { display: none; }
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* Pulsing glow animation for buttons */
+@keyframes pulsing-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 127, 0, 0.25), 0 0 40px rgba(255, 127, 0, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 127, 0, 0.4), 0 0 60px rgba(255, 127, 0, 0.25);
+  }
+}
+
+.pulsing-glow {
+  animation: pulsing-glow 3s ease-in-out infinite;
+}
+
