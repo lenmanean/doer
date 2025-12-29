@@ -3,15 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { CheckCircle, ChevronDown } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
-import { WaitlistModal } from '@/components/ui/WaitlistModal'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 
 export default function EarlyAccessPage() {
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
-  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
-  const [waitlistSource, setWaitlistSource] = useState<string>('cold_ads_hero')
 
   const steps = [
     { 
@@ -36,11 +32,6 @@ export default function EarlyAccessPage() {
       description: 'Activate your plan, monitor progress in real-time, and work together with others to accomplish your goals.' 
     },
   ]
-
-  const handleOpenWaitlist = (source: string) => {
-    setWaitlistSource(source)
-    setWaitlistModalOpen(true)
-  }
 
   const benefits = [
     'Auto-scheduling that adapts to your calendar',
@@ -85,17 +76,10 @@ export default function EarlyAccessPage() {
             </div>
           </FadeInWrapper>
 
-          {/* CTA */}
+          {/* Email Input */}
           <FadeInWrapper delay={0.4} direction="up">
             <div className="max-w-xl mx-auto">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => handleOpenWaitlist('cold_ads_hero')}
-                className="w-full text-lg px-8 py-6 pulsing-glow"
-              >
-                Join the early access waitlist
-              </Button>
+              <EmailInputForm source="cold_ads_hero" />
             </div>
           </FadeInWrapper>
         </div>
@@ -167,29 +151,108 @@ export default function EarlyAccessPage() {
             </div>
           </FadeInWrapper>
 
-          {/* Secondary CTA */}
+          {/* Email Input */}
           <FadeInWrapper delay={0.6} direction="up">
             <div className="max-w-xl mx-auto">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => handleOpenWaitlist('cold_ads_bottom')}
-                className="w-full text-lg px-8 py-6 pulsing-glow"
-              >
-                Reserve your early access
-              </Button>
+              <EmailInputForm source="cold_ads_bottom" />
             </div>
           </FadeInWrapper>
         </div>
       </section>
-
-      {/* Waitlist Modal */}
-      <WaitlistModal
-        isOpen={waitlistModalOpen}
-        onClose={() => setWaitlistModalOpen(false)}
-        source={waitlistSource}
-      />
     </div>
+  )
+}
+
+// Inline Email Input Form Component
+function EmailInputForm({ source }: { source: string }) {
+  const [email, setEmail] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [isSuccess, setIsSuccess] = useState(false)
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email.trim())
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsSuccess(false)
+
+    // Validate email
+    if (!email.trim()) {
+      setError('Please enter your email address')
+      return
+    }
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          source,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join waitlist')
+      }
+
+      setIsSuccess(true)
+      setEmail('')
+
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    } catch (err: any) {
+      const errorMessage = err.message || 'Something went wrong. Please try again.'
+      setError(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="relative">
+        <input
+          type="email"
+          id={`waitlist-email-${source}`}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
+          disabled={isLoading || isSuccess}
+          className="w-full px-4 py-3 pr-24 bg-gray-800 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+        />
+        <button
+          type="submit"
+          disabled={isLoading || isSuccess || !email.trim()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-[#ff7f00] text-white rounded-lg font-medium hover:bg-[#e67300] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 pulsing-glow"
+        >
+          {isLoading ? 'Joining...' : isSuccess ? 'Joined!' : 'Join'}
+        </button>
+      </div>
+      {error && (
+        <p className="text-sm text-red-400 text-center">{error}</p>
+      )}
+      {isSuccess && (
+        <p className="text-sm text-green-400 text-center">
+          Thank you! You're on the waitlist.
+        </p>
+      )}
+    </form>
   )
 }
 
