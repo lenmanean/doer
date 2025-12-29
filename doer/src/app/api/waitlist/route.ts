@@ -101,11 +101,12 @@ export async function POST(request: NextRequest) {
       .eq('email', normalizedEmail)
       .single()
 
-    // If email already exists, return success (don't reveal it exists)
+    // If email already exists, return success with alreadyExists flag
     if (existingEntry) {
       return NextResponse.json({
         success: true,
         message: 'Thank you for joining our waitlist!',
+        alreadyExists: true,
       })
     }
 
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           message: 'Thank you for joining our waitlist!',
+          alreadyExists: true,
         })
       }
       

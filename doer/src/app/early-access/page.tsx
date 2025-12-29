@@ -169,6 +169,7 @@ function EmailInputForm({ source }: { source: string }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
+  const [alreadyExists, setAlreadyExists] = useState(false)
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -179,6 +180,7 @@ function EmailInputForm({ source }: { source: string }) {
     e.preventDefault()
     setError('')
     setIsSuccess(false)
+    setAlreadyExists(false)
 
     // Validate email
     if (!email.trim()) {
@@ -209,13 +211,20 @@ function EmailInputForm({ source }: { source: string }) {
         throw new Error(data.error || 'Failed to join waitlist')
       }
 
-      setIsSuccess(true)
-      setEmail('')
+      // Check if email already existed
+      if (data.alreadyExists) {
+        setAlreadyExists(true)
+        // Don't clear the email field so user can see what they entered
+      } else {
+        setIsSuccess(true)
+        setEmail('')
+      }
 
-      // Reset success message after 3 seconds
+      // Reset messages after 5 seconds
       setTimeout(() => {
         setIsSuccess(false)
-      }, 3000)
+        setAlreadyExists(false)
+      }, 5000)
     } catch (err: any) {
       const errorMessage = err.message || 'Something went wrong. Please try again.'
       setError(errorMessage)
@@ -246,6 +255,11 @@ function EmailInputForm({ source }: { source: string }) {
       </div>
       {error && (
         <p className="text-sm text-red-400 text-center">{error}</p>
+      )}
+      {alreadyExists && (
+        <p className="text-sm text-orange-400 text-center">
+          This email is already on the waitlist.
+        </p>
       )}
       {isSuccess && (
         <p className="text-sm text-green-400 text-center">
