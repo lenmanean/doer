@@ -170,6 +170,7 @@ function EmailInputForm({ source }: { source: string }) {
   const [error, setError] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [alreadyExists, setAlreadyExists] = useState(false)
+  const [consentGiven, setConsentGiven] = useState(false)
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -190,6 +191,12 @@ function EmailInputForm({ source }: { source: string }) {
 
     if (!validateEmail(email)) {
       setError('Please enter a valid email address')
+      return
+    }
+
+    // Validate consent
+    if (!consentGiven) {
+      setError('Please agree to receive emails about product updates')
       return
     }
 
@@ -218,6 +225,7 @@ function EmailInputForm({ source }: { source: string }) {
       } else {
         setIsSuccess(true)
         setEmail('')
+        setConsentGiven(false)
       }
 
       // Reset messages after 5 seconds
@@ -247,7 +255,7 @@ function EmailInputForm({ source }: { source: string }) {
         />
         <button
           type="submit"
-          disabled={isLoading || isSuccess || !email.trim()}
+          disabled={isLoading || isSuccess || !email.trim() || !consentGiven}
           className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-[#ff7f00] text-white rounded-lg font-medium hover:bg-[#e67300] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 pulsing-glow"
         >
           {isLoading ? 'Joining...' : isSuccess ? 'Joined!' : 'Join'}
@@ -266,6 +274,44 @@ function EmailInputForm({ source }: { source: string }) {
           Thank you! You're on the waitlist.
         </p>
       )}
+      
+      {/* Consent Agreement */}
+      <div className="flex items-start gap-2 pt-2">
+        <input
+          type="checkbox"
+          id={`consent-${source}`}
+          checked={consentGiven}
+          onChange={(e) => setConsentGiven(e.target.checked)}
+          disabled={isLoading || isSuccess}
+          className="mt-1 w-4 h-4 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-2 focus:ring-orange-500 focus:ring-offset-0 focus:ring-offset-gray-900 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+        <label
+          htmlFor={`consent-${source}`}
+          className="text-xs text-gray-400 leading-relaxed cursor-pointer"
+        >
+          I agree to receive emails from DOER about product updates, launch announcements, and early access opportunities. You can unsubscribe at any time. See our{' '}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-500 hover:text-orange-400 underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Privacy Policy
+          </a>
+          {' '}and{' '}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-500 hover:text-orange-400 underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Terms of Service
+          </a>
+          .
+        </label>
+      </div>
     </form>
   )
 }
