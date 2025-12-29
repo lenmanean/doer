@@ -10,7 +10,6 @@ import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 
 export default function EarlyAccessPage() {
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
-  const [expandedHeroVideo, setExpandedHeroVideo] = useState<string | null>('step1')
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
   const [waitlistSource, setWaitlistSource] = useState<string>('cold_ads_hero')
 
@@ -100,30 +99,8 @@ export default function EarlyAccessPage() {
             </div>
           </FadeInWrapper>
 
-          {/* Videos with Dropdown */}
-          <FadeInWrapper delay={0.4} direction="up">
-            <div className="mb-12 max-w-4xl mx-auto">
-            <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
-              <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900 p-4">
-                <div className="space-y-4">
-                  {steps.map((step) => {
-                    const isExpanded = expandedHeroVideo === step.id
-                    return (
-                      <HeroVideoCard
-                        key={step.id}
-                        step={step}
-                        isExpanded={isExpanded}
-                        onToggle={() => setExpandedHeroVideo(isExpanded ? null : step.id)}
-                      />
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </FadeInWrapper>
-
           {/* CTA */}
-          <FadeInWrapper delay={0.5} direction="up">
+          <FadeInWrapper delay={0.4} direction="up">
             <div className="max-w-xl mx-auto">
               <Button
                 variant="primary"
