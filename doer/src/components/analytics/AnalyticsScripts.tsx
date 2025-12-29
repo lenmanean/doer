@@ -2,6 +2,7 @@
 
 import Script from 'next/script'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Analytics } from '@vercel/analytics/react'
 import { getConsentCategories } from '@/lib/cookies/cookie-utils'
 
@@ -13,9 +14,19 @@ const GOOGLE_ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID
  * Conditionally loads analytics and marketing scripts based on user consent
  */
 export function AnalyticsScripts() {
+  const pathname = usePathname()
   const [consentCategories, setConsentCategories] = useState<string[]>([])
 
+  // Don't load analytics/marketing scripts on early-access page
+  const isEarlyAccessPage = pathname === '/early-access'
+
   useEffect(() => {
+    // Don't check consent on early-access page (only essential cookies allowed)
+    if (isEarlyAccessPage) {
+      setConsentCategories([])
+      return
+    }
+
     // Check consent on mount and when it changes
     const checkConsent = () => {
       const categories = getConsentCategories()
@@ -40,7 +51,12 @@ export function AnalyticsScripts() {
       window.removeEventListener('storage', handleStorageChange)
       clearInterval(interval)
     }
-  }, [])
+  }, [isEarlyAccessPage])
+
+  // On early-access page, don't load any analytics/marketing scripts
+  if (isEarlyAccessPage) {
+    return null
+  }
 
   const hasAnalyticsConsent = consentCategories.includes('analytics')
   const hasMarketingConsent = consentCategories.includes('marketing')

@@ -16,6 +16,11 @@ export function AnalyticsInitializer() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Skip analytics initialization on early-access page
+    if (pathname === '/early-access') {
+      return
+    }
+
     const consentCategories = getConsentCategories()
 
     // Initialize analytics if consent given
@@ -27,10 +32,15 @@ export function AnalyticsInitializer() {
     if (consentCategories.includes('marketing')) {
       initializeMarketing(consentCategories)
     }
-  }, [])
+  }, [pathname])
 
   // Track page views on route changes across all platforms (GA4, Pixel, Vercel Analytics)
   useEffect(() => {
+    // Skip tracking on early-access page
+    if (pathname === '/early-access') {
+      return
+    }
+
     const url = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
     
     // Unified tracking service handles all platforms with proper consent checks

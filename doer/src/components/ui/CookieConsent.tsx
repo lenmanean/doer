@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Check, Cookie } from 'lucide-react'
 import { Button } from './Button'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { saveConsentPreferences, getConsentCategories } from '@/lib/cookies/cookie-utils'
 import { initializeAnalytics } from '@/lib/analytics/analytics-service'
 import { initializeMarketing } from '@/lib/analytics/marketing-service'
@@ -43,11 +44,20 @@ const COOKIE_CATEGORIES: Record<CookieCategory, { name: string; description: str
 }
 
 export function CookieConsent() {
+  const pathname = usePathname()
   const [isVisible, setIsVisible] = useState(false)
   const [showCustomize, setShowCustomize] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<CookieCategory[]>(['essential'])
 
+  // Don't show cookie consent on early-access page
+  const isEarlyAccessPage = pathname === '/early-access'
+
   useEffect(() => {
+    // Don't show on early-access page
+    if (isEarlyAccessPage) {
+      return
+    }
+
     // Check if consent has already been given
     if (typeof window === 'undefined') return
 
@@ -59,7 +69,7 @@ export function CookieConsent() {
       }, 1000)
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [isEarlyAccessPage])
 
   const saveConsent = async (categories: CookieCategory[]) => {
     if (typeof window === 'undefined') return
@@ -130,7 +140,8 @@ export function CookieConsent() {
     })
   }
 
-  if (!isVisible) return null
+  // Don't render on early-access page
+  if (isEarlyAccessPage || !isVisible) return null
 
   return (
     <AnimatePresence>
