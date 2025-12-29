@@ -54,22 +54,8 @@ export default function EarlyAccessPage() {
       {/* Hero Section */}
       <section className="relative px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-32">
         <div className="max-w-5xl mx-auto text-center">
-          {/* Top CTA */}
-          <FadeInWrapper delay={0} direction="up">
-            <div className="max-w-xl mx-auto mb-12">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => handleOpenWaitlist('cold_ads_top')}
-                className="w-full text-lg px-8 py-6 pulsing-glow"
-              >
-                Join the early access waitlist
-              </Button>
-            </div>
-          </FadeInWrapper>
-
           {/* Headline */}
-          <FadeInWrapper delay={0.1} direction="up">
+          <FadeInWrapper delay={0} direction="up">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               An AI planner that turns any written goal into a day-by-day roadmap.
             </h1>
