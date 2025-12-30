@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Cron job endpoint for auto-pulling calendar events
- * Runs every hour via Vercel Cron
+ * Runs daily at midnight UTC via Vercel Cron
  * 
  * Security: Verifies cron secret from Vercel
  * Uses service role client to bypass RLS for cron operations

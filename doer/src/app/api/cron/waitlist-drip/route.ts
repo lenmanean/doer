@@ -17,7 +17,7 @@ function getBaseUrl(): string {
 
 /**
  * Cron job endpoint for waitlist email automation
- * Runs every 30 minutes via Vercel Cron
+ * Runs daily at midnight UTC via Vercel Cron
  * 
  * Security: Verifies cron secret from Vercel
  * Uses service role client to bypass RLS for cron operations
