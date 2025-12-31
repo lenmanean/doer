@@ -33,6 +33,18 @@ export async function initializeUsageBalances(userId: string): Promise<void> {
 
   // Initialize balances for each metric
   for (const metric of metrics) {
+    const allocation = limits[metric]
+    
+    // Skip balance initialization for unlimited credits (-1)
+    if (allocation === -1) {
+      logger.debug('Skipping balance initialization for unlimited metric', {
+        userId,
+        metric,
+        allocation,
+      })
+      continue
+    }
+    
     // Check if balance already exists for this cycle
     const { data: existing } = await supabase.rpc('current_usage_balance', {
       p_user_id: userId,
@@ -50,7 +62,7 @@ export async function initializeUsageBalances(userId: string): Promise<void> {
       p_metric: metric,
       p_cycle_start: subscription.currentPeriodStart,
       p_cycle_end: subscription.currentPeriodEnd,
-      p_allocation: limits[metric],
+      p_allocation: allocation,
       p_reference: {
         reason: 'subscription_initialization',
         subscription_id: subscription.id,

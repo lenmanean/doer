@@ -216,7 +216,6 @@
         "monthly": "Monatlich",
         "annual": "Jährlich (20 % sparen)"
       },
-      "creditTooltip": "Credits decken die API-Endpunkte von Doer ab – Plangenerierung, automatische Planung, KI-Retrospektiven und Integrationen. Jeder API-Aufruf oder Integrationsvorgang verbraucht ein Credit.",
       "includedFeatures": "Enthaltene Funktionen",
       "plans": {
         "basic": {
@@ -225,12 +224,6 @@
           "price": "$0",
           "suffix": "",
           "note": "Immer kostenlos",
-          "credits": {
-            "api": {
-              "label": "API-Credits",
-              "value": "10 / Monat"
-            }
-          },
           "highlights": [
             "Persönlicher Arbeitsbereich und automatische Tagesplanung",
             "KI-Erinnerungen und Tageszusammenfassungen bis zu 3x täglich",
@@ -256,22 +249,6 @@
           "note": {
             "monthly": "Monatliche Abrechnung — jederzeit kündbar",
             "annual": "Jährliche Abrechnung — 192 $ / Jahr (20 % sparen)"
-          },
-          "credits": {
-            "api": {
-              "label": "API-Credits",
-              "value": {
-                "monthly": "100 / Monat",
-                "annual": "150 / Monat"
-              }
-            },
-            "integrations": {
-              "label": "Integrationsaktionen",
-              "value": {
-                "monthly": "3.000 / Monat",
-                "annual": "4.000 / Monat"
-              }
-            }
           },
           "highlights": [
             "Erhöhte Limits für Plan-, Ziel- und Aufgabenautomatisierungen",

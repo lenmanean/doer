@@ -17,8 +17,6 @@ interface PlanDetails {
   name: string
   cycle: BillingCycle
   priceCents: number | null
-  apiCreditLimit: number
-  integrationActionLimit: number
 }
 
 function CheckoutForm() {
@@ -637,20 +635,6 @@ function CheckoutForm() {
 
                 <div className="border-t border-white/10 pt-4 space-y-3">
                   <h4 className="font-semibold text-[#d7d2cb] mb-2">What's Included</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-[#d7d2cb]/80">
-                        {planDetails.apiCreditLimit.toLocaleString()} API Credits per {billingCycle === 'monthly' ? 'month' : 'year'}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-[#d7d2cb]/80">
-                        {planDetails.integrationActionLimit.toLocaleString()} Integration Actions per {billingCycle === 'monthly' ? 'month' : 'year'}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>

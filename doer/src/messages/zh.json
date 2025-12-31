@@ -216,7 +216,6 @@
         "monthly": "按月",
         "annual": "按年（节省 20%）"
       },
-      "creditTooltip": "积分用于 Doer 的 API 接口，包括计划生成、自动排程、AI 回顾和各类集成。每次 API 调用或集成操作都会消耗 1 个积分。",
       "includedFeatures": "包含功能",
       "plans": {
         "basic": {
@@ -225,12 +224,6 @@
           "price": "$0",
           "suffix": "",
           "note": "永久免费",
-          "credits": {
-            "api": {
-              "label": "API 积分",
-              "value": "每月 10 次"
-            }
-          },
           "highlights": [
             "个人工作空间与每日日程自动化",
             "每天最多 3 次的 AI 提醒和总结",
@@ -256,22 +249,6 @@
           "note": {
             "monthly": "按月计费 — 随时取消",
             "annual": "按年计费 — 每年 $192（节省 20%）"
-          },
-          "credits": {
-            "api": {
-              "label": "API 积分",
-              "value": {
-                "monthly": "每月 100 次",
-                "annual": "每月 150 次"
-              }
-            },
-            "integrations": {
-              "label": "集成操作",
-              "value": {
-                "monthly": "每月 3,000 次",
-                "annual": "每月 4,000 次"
-              }
-            }
           },
           "highlights": [
             "更高的计划、目标与任务自动化额度",

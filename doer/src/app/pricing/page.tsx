@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useMemo, useRef, useState } from 'react'
-import { Info } from 'lucide-react'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { Button } from '@/components/ui/Button'
@@ -16,20 +15,6 @@ import { logger } from '@/lib/logger'
 // Hide pricing page during pre-launch - redirect to homepage
 const SHOW_PRICING_PAGE = !IS_PRE_LAUNCH
 
-type CreditTooltipProps = {
-  text: string
-}
-
-function CreditTooltip({ text }: CreditTooltipProps) {
-  return (
-    <span className="group relative inline-flex">
-      <Info className="h-3.5 w-3.5 text-slate-500 transition-colors group-hover:text-slate-300" />
-      <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs text-slate-300 shadow-lg group-hover:block">
-        {text}
-      </span>
-    </span>
-  )
-}
 
 export default function PricingPage() {
   const router = useRouter()
@@ -96,12 +81,7 @@ export default function PricingPage() {
       price: t('pages.pricing.plans.basic.price'),
       suffix: t('pages.pricing.plans.basic.suffix'),
       note: t('pages.pricing.plans.basic.note'),
-      credits: [
-        {
-          label: t('pages.pricing.plans.basic.credits.api.label'),
-          value: t('pages.pricing.plans.basic.credits.api.value'),
-        },
-      ],
+      credits: [],
       highlights: [
         t('pages.pricing.plans.basic.highlights.0'),
         t('pages.pricing.plans.basic.highlights.1'),
@@ -121,16 +101,7 @@ export default function PricingPage() {
       price: t(`pages.pricing.plans.pro.price.${billingCycle}.primary`),
       suffix: t(`pages.pricing.plans.pro.price.${billingCycle}.suffix`),
       note: t(`pages.pricing.plans.pro.note.${billingCycle}`),
-      credits: [
-        {
-          label: t('pages.pricing.plans.pro.credits.api.label'),
-          value: t(`pages.pricing.plans.pro.credits.api.value.${billingCycle}`),
-        },
-        {
-          label: t('pages.pricing.plans.pro.credits.integrations.label'),
-          value: t(`pages.pricing.plans.pro.credits.integrations.value.${billingCycle}`),
-        },
-      ],
+      credits: [],
       highlights: [
         t('pages.pricing.plans.pro.highlights.0'),
         t('pages.pricing.plans.pro.highlights.1'),
@@ -300,24 +271,6 @@ export default function PricingPage() {
 
                 <p className="text-sm text-slate-300">{plan.blurb}</p>
 
-                {plan.credits.length > 0 && (
-                  <div className="space-y-2 text-sm text-slate-400">
-                    {plan.credits.map((credit) => (
-                      <div
-                        key={credit.label}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2"
-                      >
-                        <span className="flex items-center gap-1 font-medium text-slate-300">
-                          {credit.label}
-                          <CreditTooltip text={creditTooltipText} />
-                        </span>
-                        <span className="font-semibold text-slate-100">
-                          {credit.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {plan.highlights.length > 0 && (
                   <div className="space-y-3">

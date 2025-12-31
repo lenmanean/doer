@@ -196,12 +196,6 @@ export default function SettingsPage() {
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
     : null
 
-  const apiCreditsUsage = getUsageMetric('api_credits')
-  const integrationUsage = getUsageMetric('integration_actions')
-  const usageLabels = {
-    api_credits: 'AI Credits',
-    integration_actions: 'Integration Actions',
-  } as const
 
   useEffect(() => {
     if (user && profile && !justSaved) {
@@ -2584,18 +2578,6 @@ export default function SettingsPage() {
                                         </div>
                                       </div>
                                     )}
-                                    <div className="mt-2 space-y-1">
-                                      <p className="text-sm text-[#d7d2cb]/60">
-                                        API Credits: <span className="text-[#d7d2cb] font-semibold">
-                                          {subscription.planDetails.apiCreditLimit.toLocaleString()}
-                                        </span>
-                                      </p>
-                                      <p className="text-sm text-[#d7d2cb]/60">
-                                        Integration Actions: <span className="text-[#d7d2cb] font-semibold">
-                                          {subscription.planDetails.integrationActionLimit.toLocaleString()}
-                                      </span>
-                                    </p>
-                                    </div>
                                   </div>
                                   <PlanManagementDropdown
                                     onUpgrade={() => window.location.href = '/pricing'}
@@ -2631,80 +2613,6 @@ export default function SettingsPage() {
                               </div>
                             )}
 
-                            <div>
-                              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                                Usage this Cycle
-                              </label>
-                              {loadingUsage ? (
-                                <div className="flex items-center gap-2 text-[#d7d2cb]/70 text-sm">
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Checking usage…
-                                </div>
-                              ) : usageError ? (
-                                <p className="text-sm text-red-400">{usageError}</p>
-                              ) : usageMetrics && usageMetrics.length > 0 ? (
-                                <div className="space-y-4">
-                                  {[apiCreditsUsage, integrationUsage]
-                                    .filter(Boolean)
-                                    .map((metric) => {
-                                      const data = metric!
-                                      const usedPercent =
-                                        data.allocation > 0
-                                          ? Math.min(100, Math.round((data.used / data.allocation) * 100))
-                                          : 0
-                                      return (
-                                        <div key={data.metric}>
-                                          <div className="flex items-center justify-between text-sm text-[#d7d2cb]/80 mb-1">
-                                            <span>{usageLabels[data.metric]}</span>
-                                            <span className="font-semibold text-[#d7d2cb]">
-                                              {data.used.toLocaleString()} / {data.allocation.toLocaleString()} used
-                                            </span>
-                                          </div>
-                                          <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                            <div
-                                              className={`h-full rounded-full ${
-                                                usedPercent > 85 ? 'bg-red-400' : 'bg-[#ff7f00]'
-                                              }`}
-                                              style={{ width: `${usedPercent}%` }}
-                                            />
-                                          </div>
-                                          <p className="text-xs text-[#d7d2cb]/60 mt-1">
-                                            {data.available > 0
-                                              ? (() => {
-                                                  // Use cycleEnd from usage metrics as it's the correct renewal date
-                                                  let renewDate = new Date(data.cycleEnd)
-                                                  const today = new Date()
-                                                  today.setHours(0, 0, 0, 0)
-                                                  renewDate.setHours(0, 0, 0, 0)
-                                                  
-                                                  // If cycleEnd is in the past, calculate next renewal based on billing cycle
-                                                  if (renewDate < today && subscription) {
-                                                    renewDate = new Date(data.cycleEnd)
-                                                    if (subscription.billingCycle === 'monthly') {
-                                                      renewDate.setMonth(renewDate.getMonth() + 1)
-                                                    } else if (subscription.billingCycle === 'annual') {
-                                                      renewDate.setFullYear(renewDate.getFullYear() + 1)
-                                                    }
-                                                  }
-                                                  
-                                                  const month = String(renewDate.getMonth() + 1).padStart(2, '0')
-                                                  const day = String(renewDate.getDate()).padStart(2, '0')
-                                                  const year = renewDate.getFullYear()
-                                                  const formattedDate = `${month}/${day}/${year}`
-                                                  return `${data.available.toLocaleString()} remaining — renews ${formattedDate}`
-                                                })()
-                                              : 'No credits remaining — renews next billing cycle.'}
-                                          </p>
-                                        </div>
-                                      )
-                                    })}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-[#d7d2cb]/60">
-                                  Usage data will appear after your first plan or automation run this cycle.
-                                </p>
-                              )}
-                            </div>
                           </div>
                         ) : (
                           <div className="text-center py-8 space-y-4">

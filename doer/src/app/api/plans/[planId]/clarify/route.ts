@@ -70,7 +70,7 @@ export async function POST(
         return NextResponse.json(
           {
             error: 'USAGE_LIMIT_EXCEEDED',
-            message: 'You have exhausted your plan generation credits for this billing cycle.',
+            message: 'You have reached your plan\'s limit for this feature. Please upgrade your plan or wait for the next billing cycle.',
             remaining: creditError.remaining,
           },
           { status: 429 }
@@ -243,7 +243,7 @@ export async function POST(
       return NextResponse.json(
         {
           error: 'USAGE_LIMIT_EXCEEDED',
-          message: 'You have exhausted your plan generation credits for this billing cycle.',
+          message: 'You have reached your plan\'s limit for this feature. Please upgrade your plan or wait for the next billing cycle.',
           remaining: error.remaining,
         },
         { status: 429 }

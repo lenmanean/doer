@@ -286,8 +286,8 @@ export async function getActiveSubscriptionFromStripe(
     // Fallback to default values
     planDetails = {
       name: planSlug === 'pro' ? 'Pro' : 'Basic',
-      apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 150 : 100) : 10,
-      integrationActionLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 4000 : 3000) : 100,
+      apiCreditLimit: planSlug === 'pro' ? -1 : 5, // -1 = unlimited for Pro, 5 for Basic
+      integrationActionLimit: planSlug === 'pro' ? -1 : 100, // -1 = unlimited for Pro
       priceCents: null,
     }
   }
@@ -356,8 +356,8 @@ export async function getAllSubscriptionsFromStripe(
       })
       planDetails = {
         name: planSlug === 'pro' ? 'Pro' : 'Basic',
-        apiCreditLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 150 : 100) : 10,
-        integrationActionLimit: planSlug === 'pro' ? (billingCycle === 'annual' ? 4000 : 3000) : 100,
+        apiCreditLimit: planSlug === 'pro' ? -1 : 5, // -1 = unlimited for Pro, 5 for Basic
+        integrationActionLimit: planSlug === 'pro' ? -1 : 100, // -1 = unlimited for Pro
         priceCents: null,
       }
     }

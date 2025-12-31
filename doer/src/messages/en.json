@@ -215,7 +215,6 @@
         "monthly": "Monthly",
         "annual": "Annual (save 33%)"
       },
-      "creditTooltip": "Credits cover Doer’s API endpoints—plan generation, auto-scheduling, AI retrospectives, and integrations. Each API call or integration action consumes one credit.",
       "includedFeatures": "Included features",
       "plans": {
         "basic": {
@@ -224,12 +223,6 @@
           "price": "$0",
           "suffix": "",
           "note": "Always free",
-          "credits": {
-            "api": {
-              "label": "API credits",
-              "value": "10 / month"
-            }
-          },
           "highlights": [
             "Personal workspace and daily schedule automation",
             "AI nudges and recap digest up to 3x each day",
@@ -255,22 +248,6 @@
           "note": {
             "monthly": "Billed monthly — cancel anytime",
             "annual": "Billed annually — $160 / yr (save 33%)"
-          },
-          "credits": {
-            "api": {
-              "label": "API credits",
-              "value": {
-                "monthly": "100 / month",
-                "annual": "150 / month"
-              }
-            },
-            "integrations": {
-              "label": "Integration actions",
-              "value": {
-                "monthly": "3,000 / month",
-                "annual": "4,000 / month"
-              }
-            }
           },
           "highlights": [
             "Increased limits on plan, goal, and task schedule automations",

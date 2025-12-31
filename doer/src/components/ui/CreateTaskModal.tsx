@@ -25,7 +25,6 @@ import { formatDateForDB, getToday } from '@/lib/date-utils'
 import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { useSupabase } from '@/components/providers/supabase-provider'
-import { useUsageSummary } from '@/hooks/useUsageSummary'
 import { ConfirmDeleteModal } from './ConfirmDeleteModal'
 
 interface CreateTaskModalProps {
@@ -324,77 +323,6 @@ export function CreateTaskModal({
   // Force dark mode for now - theme functionality disabled
   const currentTheme = 'dark'
   const { user } = useSupabase()
-  const {
-    loading: loadingUsage,
-    error: usageError,
-    getMetric: getUsageMetric,
-    refresh: refreshUsage,
-  } = useUsageSummary(user?.id)
-  const aiCreditsUsage = getUsageMetric('api_credits')
-  const aiCreditsDepleted = aiCreditsUsage ? aiCreditsUsage.available <= 0 : false
-  const aiCreditsBanner = useMemo(() => {
-    if (!user?.id) return null
-
-    const baseClasses =
-      currentTheme === 'dark'
-        ? 'rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#d7d2cb]'
-        : 'rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-800'
-
-    if (loadingUsage) {
-      return (
-        <div className={baseClasses}>
-          Checking your AI credits…
-        </div>
-      )
-    }
-
-    if (usageError) {
-      return (
-        <div
-          className="rounded-lg border px-4 py-3 text-xs"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
-            backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
-            color: 'color-mix(in srgb, var(--destructive) 90%, transparent)',
-          }}
-        >
-          Unable to load AI credits. Please try again.
-        </div>
-      )
-    }
-
-    if (aiCreditsUsage) {
-      if (aiCreditsDepleted) {
-        return (
-          <div
-            className="rounded-lg border px-4 py-3 text-xs font-medium"
-            style={{
-              borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
-              backgroundColor: 'color-mix(in srgb, var(--destructive) 10%, transparent)',
-              color: 'color-mix(in srgb, var(--destructive) 90%, transparent)',
-            }}
-          >
-            No AI credits remaining this billing cycle.
-          </div>
-        )
-      }
-
-      return (
-        <div className={baseClasses}>
-          <span className="font-semibold">
-            {aiCreditsUsage.available.toLocaleString()} of {aiCreditsUsage.allocation.toLocaleString()} AI credits
-          </span>{' '}
-          remaining this cycle.
-        </div>
-      )
-    }
-
-    return (
-      <div className={baseClasses}>
-        Usage data will appear after your first AI-generated task this cycle.
-      </div>
-    )
-  }, [aiCreditsDepleted, aiCreditsUsage, currentTheme, loadingUsage, usageError, user?.id])
   
   const [formData, setFormData] = useState({
     name: '',
@@ -672,7 +600,7 @@ export function CreateTaskModal({
       
       clearError()
       
-      // Refresh usage summary when modal opens to ensure accurate credit balance
+      // Refresh usage summary when modal opens
       if (user?.id) {
         refreshUsage()
       }
@@ -2614,9 +2542,6 @@ export function CreateTaskModal({
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-4"
                 >
-                  {aiCreditsBanner && (
-                    <div>{aiCreditsBanner}</div>
-                  )}
 
                   {/* Start Time Field - Only show when time slot is selected */}
                   {selectedTime && (
@@ -2821,10 +2746,10 @@ export function CreateTaskModal({
                       {aiError === 'USAGE_LIMIT_EXCEEDED' || aiError.includes('USAGE_LIMIT_EXCEEDED') ? (
                         <>
                           <p className="text-sm font-medium" style={{ color: 'var(--destructive)' }}>
-                            You are out of API credits
+                            Feature limit reached
                           </p>
                           <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--destructive) 80%, transparent)' }}>
-                            Upgrade to the Pro Monthly or Pro Annual plan for unlimited credits.
+                            You've reached your plan's limit for this feature. Please upgrade your plan or wait for the next billing cycle.
                           </p>
                           <a
                             href="/pricing"
@@ -3101,9 +3026,6 @@ export function CreateTaskModal({
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-4"
                 >
-                  {aiCreditsBanner && (
-                    <div>{aiCreditsBanner}</div>
-                  )}
 
                   <div className="mb-4">
                     <h3 className={`text-sm font-medium mb-2 ${

@@ -357,6 +357,17 @@ export async function syncSubscriptionSnapshot(
     for (const metric of METRICS) {
       const allocation =
         metric === 'api_credits' ? planCycle.apiCreditLimit : planCycle.integrationActionLimit
+      
+      // Skip balance initialization for unlimited credits (-1)
+      if (allocation === -1) {
+        logger.debug('[subscription-sync] Skipping balance initialization for unlimited metric', {
+          userId,
+          metric,
+          allocation,
+        })
+        continue
+      }
+      
       const { error } = await supabase.rpc('reset_usage_cycle', {
         p_user_id: userId,
         p_metric: metric,

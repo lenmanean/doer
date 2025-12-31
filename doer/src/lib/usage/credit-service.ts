@@ -45,11 +45,24 @@ export class CreditService {
     return this.subscriptionCache
   }
 
-  private async shouldBypassCredits(): Promise<boolean> {
+  private async shouldBypassCredits(metric?: UsageMetric): Promise<boolean> {
     // Only bypass if user has unmetered access (admin override)
     // Plan enforcement is always enabled in production
     if (await this.hasUnmeteredAccess()) {
       return true
+    }
+
+    // Check if the plan has unlimited credits for this metric
+    if (metric) {
+      const subscription = await this.getSubscription()
+      if (subscription) {
+        const limits = getUsageLimits(subscription.planCycle)
+        const limit = limits[metric]
+        // -1 indicates unlimited credits
+        if (limit === -1) {
+          return true
+        }
+      }
     }
 
     return false
@@ -79,7 +92,7 @@ export class CreditService {
   }
 
   private async ensureBalance(metric: UsageMetric) {
-    if (await this.shouldBypassCredits()) {
+    if (await this.shouldBypassCredits(metric)) {
       return null
     }
 
@@ -90,6 +103,12 @@ export class CreditService {
     }
 
     const limits = getUsageLimits(subscription.planCycle)
+    const allocation = limits[metric]
+
+    // Skip balance initialization for unlimited credits (-1)
+    if (allocation === -1) {
+      return null
+    }
 
     const { data, error } = await this.supabase.rpc('current_usage_balance', {
       p_user_id: this.userId,
@@ -104,7 +123,6 @@ export class CreditService {
       return data
     }
 
-    const allocation = limits[metric]
     const { error: resetError } = await this.supabase.rpc('reset_usage_cycle', {
       p_user_id: this.userId,
       p_metric: metric,
@@ -176,7 +194,7 @@ export class CreditService {
     amount: number,
     reference?: UsageReference
   ): Promise<ReservationResult> {
-    if (await this.shouldBypassCredits()) {
+    if (await this.shouldBypassCredits(metric)) {
       return { remaining: Number.POSITIVE_INFINITY }
     }
 
@@ -197,7 +215,7 @@ export class CreditService {
   }
 
   async commit(metric: UsageMetric, amount: number, reference?: UsageReference): Promise<number> {
-    if (await this.shouldBypassCredits()) {
+    if (await this.shouldBypassCredits(metric)) {
       return Number.POSITIVE_INFINITY
     }
 
@@ -217,7 +235,7 @@ export class CreditService {
   }
 
   async release(metric: UsageMetric, amount: number, reference?: UsageReference): Promise<number> {
-    if (await this.shouldBypassCredits()) {
+    if (await this.shouldBypassCredits(metric)) {
       return Number.POSITIVE_INFINITY
     }
 

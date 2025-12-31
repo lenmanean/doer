@@ -113,10 +113,6 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2 text-[#d7d2cb]/80">
                       <Shield className="w-4 h-4 text-green-400" />
-                      <span>Limited API Credits</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[#d7d2cb]/80">
-                      <Shield className="w-4 h-4 text-green-400" />
                       <span>Basic Features</span>
                     </div>
                   </div>
@@ -159,18 +155,6 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-[#d7d2cb]/80">
-                      <Zap className="w-4 h-4 text-[#ff7f00]" />
-                      <span>
-                        {billingCycle === 'monthly' ? '100' : '1,200'} API Credits per {billingCycle === 'monthly' ? 'month' : 'year'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[#d7d2cb]/80">
-                      <Zap className="w-4 h-4 text-[#ff7f00]" />
-                      <span>
-                        {billingCycle === 'monthly' ? '3,000' : '36,000'} Integration Actions per {billingCycle === 'monthly' ? 'month' : 'year'}
-                      </span>
-                    </div>
                     <div className="flex items-center gap-2 text-[#d7d2cb]/80">
                       <Zap className="w-4 h-4 text-[#ff7f00]" />
                       <span>All Premium Features</span>

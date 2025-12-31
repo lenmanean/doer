@@ -780,8 +780,8 @@ export default function ReviewPage() {
       
       if (error instanceof Error) {
         if (error.message.includes('USAGE_LIMIT_EXCEEDED') || error.message.includes('credits')) {
-          genErrorTitle = 'Credit Limit Reached'
-          genErrorDescription = 'You have exhausted your plan generation credits. Please upgrade your plan or wait for the next billing cycle.'
+          genErrorTitle = 'Feature Limit Reached'
+          genErrorDescription = 'You have reached your plan\'s limit for this feature. Please upgrade your plan or wait for the next billing cycle.'
         } else if (error.message.includes('timeout') || error.message.includes('time out')) {
           genErrorTitle = 'Request Timeout'
           genErrorDescription = 'The request took too long. Please try again.'
@@ -1075,8 +1075,8 @@ export default function ReviewPage() {
       
       if (error instanceof Error) {
         if (error.message.includes('USAGE_LIMIT_EXCEEDED') || error.message.includes('credits')) {
-          regenErrorTitle = 'Credit Limit Reached'
-          regenErrorDescription = 'You have exhausted your plan generation credits. Please upgrade your plan or wait for the next billing cycle.'
+          regenErrorTitle = 'Feature Limit Reached'
+          regenErrorDescription = 'You have reached your plan\'s limit for this feature. Please upgrade your plan or wait for the next billing cycle.'
         } else if (error.message.includes('timeout') || error.message.includes('time out')) {
           regenErrorTitle = 'Request Timeout'
           regenErrorDescription = 'The request took too long. Please try again.'
