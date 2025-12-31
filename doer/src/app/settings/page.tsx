@@ -47,7 +47,6 @@ import { PlanManagementDropdown } from '@/components/ui/PlanManagementDropdown'
 import { validateUsername } from '@/lib/validation/username'
 import { validateEmail } from '@/lib/validation/email'
 import { formatDistanceToNow } from 'date-fns'
-import { useUsageSummary } from '@/hooks/useUsageSummary'
 import { CookieManagement } from '@/components/settings/CookieManagement'
 
 interface SettingsData {
@@ -84,13 +83,6 @@ export default function SettingsPage() {
   const { theme, setTheme, accentColor, setAccentColor } = useTheme()
   const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
   const { addToast } = useToast()
-  const {
-    metrics: usageMetrics,
-    loading: loadingUsage,
-    error: usageError,
-    getMetric: getUsageMetric,
-    refresh: refreshUsage,
-  } = useUsageSummary(user?.id)
   const [activeSection, setActiveSection] = useState('account')
   const [showSwitchPlanModal, setShowSwitchPlanModal] = useState(false)
   const [settingsData, setSettingsData] = useState<SettingsData>({
