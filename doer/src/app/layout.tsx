@@ -206,7 +206,7 @@ export default async function RootLayout({
                     '/internal',
                     '/test',
                     '/integrations',
-                    '/community',
+                    // '/community', // Temporarily disabled until multi-user functionality is implemented
                     '/help'
                   ];
                   const isAuthenticatedRoute = authenticatedRoutes.some(route => path.startsWith(route));

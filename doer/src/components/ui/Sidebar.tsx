@@ -44,7 +44,7 @@ const Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false, 
     { name: 'Schedule', href: '/schedule', icon: Calendar },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Integrations', href: '/integrations', icon: Zap },
-    { name: 'Community', href: '/community', icon: Users },
+    // { name: 'Community', href: '/community', icon: Users }, // Temporarily disabled until multi-user functionality is implemented
     { name: 'Settings', href: '/settings', icon: Cog },
     { name: 'Help', href: '/help', icon: HelpCircle },
   ]

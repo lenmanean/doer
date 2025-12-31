@@ -19,7 +19,7 @@ const AUTHENTICATED_ROUTES = [
   '/internal', // Internal pages (may have additional auth checks)
   '/test', // Test pages (dev only, but authenticated)
   '/integrations', // Uses authenticated UI (Sidebar, useOnboardingProtection)
-  '/community', // Uses authenticated UI (Sidebar, useOnboardingProtection)
+  // '/community', // Temporarily disabled until multi-user functionality is implemented
   '/help', // Uses authenticated UI (Sidebar, useOnboardingProtection)
 ]
 

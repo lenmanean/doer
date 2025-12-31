@@ -5,8 +5,9 @@ import { Users, Plus } from 'lucide-react'
 
 export default function GroupsNotificationWidget() {
   const handleViewGroups = () => {
+    // Temporarily disabled until multi-user functionality is implemented
     // Navigate to groups page or open in new tab
-    window.open('/community', '_blank')
+    // window.open('/community', '_blank')
   }
 
   return (

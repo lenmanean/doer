@@ -185,7 +185,8 @@ export default function HelpPage() {
                 </CardContent>
               </Card>
 
-              <Card 
+              {/* Community card temporarily disabled until multi-user functionality is implemented */}
+              {/* <Card 
                 className="border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer"
                 onClick={() => window.location.href = '/community'}
               >
@@ -194,7 +195,7 @@ export default function HelpPage() {
                   <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">Community</h3>
                   <p className="text-sm text-[var(--muted-foreground)]">Join discussions on Discord</p>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card 
                 className="border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-colors cursor-pointer"

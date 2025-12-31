@@ -93,7 +93,7 @@ export async function middleware(req: NextRequest) {
     '/blog',
     '/careers',
     '/changelog',
-    '/community',
+    // '/community', // Temporarily disabled until multi-user functionality is implemented
     '/contact',
     '/documentation',
     '/feature-request',
@@ -112,6 +112,12 @@ export async function middleware(req: NextRequest) {
     '/report-misuse', // Report misuse page (public, for abuse reporting)
     '/early-access', // Cold ads landing page (public)
   ]
+
+  // Redirect /community to dashboard (temporarily disabled until multi-user functionality is implemented)
+  if (pathname === '/community' || pathname.startsWith('/community/')) {
+    const redirectUrl = new URL('/dashboard', req.url)
+    return NextResponse.redirect(redirectUrl)
+  }
 
   // Allow public routes
   const isPublicRoute = publicRoutes.some(route => 
