@@ -15,6 +15,54 @@ import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { PushToCalendarPanel } from '@/components/integrations/PushToCalendarPanel'
 import { SyncWarningModal } from '@/components/integrations/SyncWarningModal'
 import { supabase } from '@/lib/supabase/client'
+import { integrations, type IntegrationDefinition } from '@/data/integrations'
+import { 
+  SiGooglecalendar, 
+  SiApple, 
+  SiTodoist, 
+  SiAsana, 
+  SiTrello, 
+  SiNotion, 
+  SiEvernote, 
+  SiSlack, 
+  SiStrava,
+  SiCoursera,
+  SiUdemy
+} from 'react-icons/si'
+import { FaHeartbeat, FaMicrosoft } from 'react-icons/fa'
+import { MdEmail } from 'react-icons/md'
+import type { ComponentType } from 'react'
+
+// Mapping integration keys to icon components
+const integrationIconMap: Record<string, ComponentType<{ className?: string }>> = {
+  googleCalendar: SiGooglecalendar,
+  outlook: MdEmail,
+  appleCalendar: SiApple,
+  todoist: SiTodoist,
+  asana: SiAsana,
+  trello: SiTrello,
+  notion: SiNotion,
+  evernote: SiEvernote,
+  slack: SiSlack,
+  microsoftTeams: FaMicrosoft,
+  strava: SiStrava,
+  appleHealth: FaHeartbeat,
+  coursera: SiCoursera,
+  udemy: SiUdemy,
+}
+
+// Convert URL identifier back to integration key
+function urlToIntegrationKey(urlIdentifier: string): string {
+  // Map calendar integrations
+  if (urlIdentifier === 'google') return 'googleCalendar'
+  if (urlIdentifier === 'apple') return 'appleCalendar'
+  if (urlIdentifier === 'outlook') return 'outlook'
+  
+  // Convert kebab-case to camelCase for other integrations
+  return urlIdentifier.split('-').map((part, index) => 
+    index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)
+  ).join('')
+}
 
 /**
  * Provider-Specific Integrations Page
@@ -34,9 +82,14 @@ export default function ProviderIntegrationsPage() {
   
   // Get provider from URL params
   const providerParam = params?.provider as string
-  const provider = (['google', 'outlook', 'apple'].includes(providerParam || '') 
-    ? providerParam 
-    : 'google') as 'google' | 'outlook' | 'apple'
+  const provider = providerParam || 'google'
+  
+  // Get integration key from URL identifier
+  const integrationKey = urlToIntegrationKey(provider)
+  const integration = integrations.find(int => int.key === integrationKey)
+  
+  // Check if this is a calendar integration (has API routes)
+  const isCalendarIntegration = ['google', 'outlook', 'apple'].includes(provider)
   
   // Reset connection handled ref when provider changes
   useEffect(() => {
@@ -46,18 +99,18 @@ export default function ProviderIntegrationsPage() {
     }
   }, [provider])
   
-  // Validate provider
+  // Validate provider exists
   useEffect(() => {
-    if (providerParam && !['google', 'outlook', 'apple'].includes(providerParam)) {
+    if (providerParam && !integration) {
       addToast({
         type: 'error',
         title: 'Invalid provider',
-        description: 'The specified provider is not supported.',
+        description: 'The specified integration is not supported.',
         duration: 5000,
       })
       router.push('/integrations')
     }
-  }, [providerParam, router, addToast])
+  }, [providerParam, integration, router, addToast])
   
   // Calendar connection state
   const [connection, setConnection] = useState<any>(null)
@@ -122,45 +175,72 @@ export default function ProviderIntegrationsPage() {
     }
   }, [provider, user?.id, connection?.id])
   
-  // Provider display info
-  const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {
-    google: {
-      name: 'Google Calendar',
-      icon: (
-        <Image
-          src="/integrations/google-calendar.png"
-          alt="Google Calendar"
-          width={40}
-          height={40}
-          className="w-10 h-10 object-contain"
-        />
-      ),
-    },
-    outlook: {
-      name: 'Microsoft Outlook',
-      icon: (
-        <Image
-          src="/integrations/outlook-calendar.png"
-          alt="Microsoft Outlook"
-          width={40}
-          height={40}
-          className="w-10 h-10 object-contain"
-        />
-      ),
-    },
-    apple: {
-      name: 'Apple Calendar',
-      icon: (
-        <Image
-          src="/integrations/apple-calendar.png"
-          alt="Apple Calendar"
-          width={40}
-          height={40}
-          className="w-10 h-10 object-contain"
-        />
-      ),
-    },
-  }
+  // Provider display info - create for all integrations
+  const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {}
+  
+  integrations.forEach(integ => {
+    const urlId = integ.key === 'googleCalendar' ? 'google' 
+                : integ.key === 'appleCalendar' ? 'apple'
+                : integ.key === 'outlook' ? 'outlook'
+                : integ.key.replace(/([A-Z])/g, '-$1').toLowerCase()
+    
+    // Use image icons for calendar integrations
+    if (integ.key === 'googleCalendar') {
+      providerInfo['google'] = {
+        name: integ.name,
+        icon: (
+          <Image
+            src="/integrations/google-calendar.png"
+            alt="Google Calendar"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-contain"
+          />
+        ),
+      }
+    } else if (integ.key === 'outlook') {
+      providerInfo['outlook'] = {
+        name: integ.name,
+        icon: (
+          <Image
+            src="/integrations/outlook-calendar.png"
+            alt="Microsoft Outlook"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-contain"
+          />
+        ),
+      }
+    } else if (integ.key === 'appleCalendar') {
+      providerInfo['apple'] = {
+        name: integ.name,
+        icon: (
+          <Image
+            src="/integrations/apple-calendar.png"
+            alt="Apple Calendar"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-contain"
+          />
+        ),
+      }
+    } else {
+      // Use react-icons for other integrations
+      const IconComponent = integrationIconMap[integ.key]
+      providerInfo[urlId] = {
+        name: integ.name,
+        icon: IconComponent ? (
+          <div className="w-10 h-10 flex items-center justify-center text-[var(--foreground)]">
+            <IconComponent className="w-full h-full" />
+          </div>
+        ) : (
+          <div className="w-10 h-10 flex items-center justify-center text-2xl">
+            {integ.icon}
+          </div>
+        ),
+      }
+    }
+  })
   
   useEffect(() => {
     if (!user) {
@@ -190,8 +270,13 @@ export default function ProviderIntegrationsPage() {
     }
   }, [user?.id])
   
-  // Load available calendars
+  // Load available calendars (only for calendar integrations)
   const loadCalendars = useCallback(async () => {
+    if (!isCalendarIntegration) {
+      setCalendars([])
+      return
+    }
+    
     try {
       setLoadingCalendars(true)
       const response = await fetch(`/api/integrations/${provider}/calendars`)
@@ -213,11 +298,18 @@ export default function ProviderIntegrationsPage() {
     } finally {
       setLoadingCalendars(false)
     }
-  }, [provider, addToast])
+  }, [provider, isCalendarIntegration, addToast])
   
   // Load connection status function
   const loadConnection = useCallback(async (retryCount = 0) => {
     if (!user?.id) return
+    
+    // Only calendar integrations have connection status endpoints
+    if (!isCalendarIntegration) {
+      setLoadingConnection(false)
+      setConnection(null)
+      return false
+    }
     
     try {
       setLoadingConnection(true)
@@ -262,7 +354,7 @@ export default function ProviderIntegrationsPage() {
     } finally {
       setLoadingConnection(false)
     }
-  }, [user?.id, provider, loadCalendars, loadActivePlan, addToast])
+  }, [user?.id, provider, isCalendarIntegration, loadCalendars, loadActivePlan, addToast])
   
   // Handle OAuth callback query parameters
   useEffect(() => {
@@ -348,12 +440,25 @@ export default function ProviderIntegrationsPage() {
   
   // Connect Calendar
   const handleConnect = async () => {
-    // Show notification for Apple Calendar as it's under development
-    if (provider === 'apple') {
+    // Only Google and Outlook are implemented; show unavailable message for all others
+    if (provider !== 'google' && provider !== 'outlook') {
+      const integrationName = integration?.name || providerInfo[provider]?.name || 'This integration'
       addToast({
         type: 'info',
-        title: 'Apple Calendar Integration',
-        description: 'Apple Calendar is currently unavailable, please try again later.',
+        title: `${integrationName} Integration`,
+        description: `${integrationName} is currently unavailable, please try again later.`,
+        duration: 7000,
+      })
+      return
+    }
+
+    // Only calendar integrations have API routes
+    if (!isCalendarIntegration) {
+      const integrationName = integration?.name || providerInfo[provider]?.name || 'This integration'
+      addToast({
+        type: 'info',
+        title: `${integrationName} Integration`,
+        description: `${integrationName} is currently unavailable, please try again later.`,
         duration: 7000,
       })
       return
@@ -740,7 +845,7 @@ export default function ProviderIntegrationsPage() {
                   <div>
                     <CardTitle>{currentProviderInfo?.name}</CardTitle>
                     <CardDescription>
-                      Sync your calendar events with DOER plans
+                      {integration?.description || 'Connect and manage your integration'}
                     </CardDescription>
                   </div>
                 </div>
@@ -789,7 +894,9 @@ export default function ProviderIntegrationsPage() {
               ) : !connection ? (
                 <div className="space-y-4">
                   <p className="text-sm text-[var(--foreground)]/70">
-                    Connect your {currentProviderInfo?.name} to automatically detect busy slots and sync your DOER tasks.
+                    {isCalendarIntegration 
+                      ? `Connect your ${currentProviderInfo?.name} to automatically detect busy slots and sync your DOER tasks.`
+                      : `Connect your ${currentProviderInfo?.name} to integrate with DOER plans.`}
                   </p>
                   <Button onClick={handleConnect} className="flex items-center gap-2">
                     Connect {currentProviderInfo?.name}

@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
+import { integrations } from '@/data/integrations'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
 
 /**
- * Get connection status for all calendar providers
+ * Convert integration key to URL-friendly identifier
+ */
+function integrationKeyToUrl(key: string): string {
+  // Map calendar integrations to existing URLs
+  if (key === 'googleCalendar') return 'google'
+  if (key === 'appleCalendar') return 'apple'
+  if (key === 'outlook') return 'outlook'
+  
+  // Convert camelCase to kebab-case for other integrations
+  return key.replace(/([A-Z])/g, '-$1').toLowerCase()
+}
+
+/**
+ * Get connection status for all integrations
  * GET /api/integrations/status
  */
 export async function GET(request: NextRequest) {
@@ -21,7 +35,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all calendar connections for the user
+    // Fetch all calendar connections for the user (only calendar integrations use this table)
     const { data: connections, error: connectionsError } = await supabase
       .from('calendar_connections')
       .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, last_sync_at, created_at')
@@ -39,20 +53,23 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Create a map of provider -> connection for quick lookup
+    // Create a map of provider URL identifier -> connection for quick lookup
     const connectionsMap = new Map(
       (connections || []).map(conn => [conn.provider, conn])
     )
 
-    // Return status for all supported providers
-    const providers = ['google', 'outlook', 'apple'] as const
-    
-    const providerStatuses = providers.map(provider => {
-      const connection = connectionsMap.get(provider)
+    // Return status for all integrations
+    const providerStatuses = integrations.map(integration => {
+      const providerUrl = integrationKeyToUrl(integration.key)
+      const connection = connectionsMap.get(providerUrl)
+      
+      // Only calendar integrations have connections in the calendar_connections table
+      const isCalendarIntegration = ['googleCalendar', 'outlook', 'appleCalendar'].includes(integration.key)
+      
       return {
-        provider,
-        connected: !!connection,
-        connection: connection ? {
+        provider: providerUrl,
+        connected: !!connection && isCalendarIntegration,
+        connection: connection && isCalendarIntegration ? {
           id: connection.id,
           selected_calendar_ids: connection.selected_calendar_ids,
           auto_sync_enabled: connection.auto_sync_enabled,

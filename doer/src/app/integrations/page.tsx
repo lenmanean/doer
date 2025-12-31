@@ -12,75 +12,157 @@ import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
 import { CheckCircle, XCircle, Settings, ArrowRight, Zap } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
+import { integrations, type IntegrationDefinition } from '@/data/integrations'
+import { 
+  SiGooglecalendar, 
+  SiApple, 
+  SiTodoist, 
+  SiAsana, 
+  SiTrello, 
+  SiNotion, 
+  SiEvernote, 
+  SiSlack, 
+  SiStrava,
+  SiCoursera,
+  SiUdemy
+} from 'react-icons/si'
+import { FaHeartbeat, FaMicrosoft } from 'react-icons/fa'
+import { MdEmail } from 'react-icons/md'
+import type { ComponentType } from 'react'
 
 interface ProviderStatus {
-  provider: 'google' | 'outlook' | 'apple'
+  provider: string
   connected: boolean
   connection: {
     id: string
-    selected_calendar_ids: string[]
-    auto_sync_enabled: boolean
-    auto_push_enabled: boolean
+    selected_calendar_ids?: string[]
+    auto_sync_enabled?: boolean
+    auto_push_enabled?: boolean
     last_sync_at: string | null
     created_at: string
   } | null
 }
 
 interface ProviderInfo {
-  provider: 'google' | 'outlook' | 'apple'
+  key: string
+  provider: string // URL-friendly identifier
   name: string
   description: string
   icon: React.ReactNode
-  color: string
+  category: string
 }
 
-const PROVIDER_INFO: ProviderInfo[] = [
-  {
-    provider: 'google',
-    name: 'Google Calendar',
-    description: 'Sync your Google Calendar events with DOER plans and automatically detect busy slots.',
-    icon: (
-      <Image
-        src="/integrations/google-calendar.png"
-        alt="Google Calendar"
-        width={48}
-        height={48}
-        className="w-12 h-12 object-contain"
-      />
-    ),
-    color: 'text-blue-500',
-  },
-  {
-    provider: 'outlook',
-    name: 'Microsoft Outlook',
-    description: 'Sync your Outlook calendar events with DOER plans and automatically detect busy slots.',
-    icon: (
-      <Image
-        src="/integrations/outlook-calendar.png"
-        alt="Microsoft Outlook"
-        width={48}
-        height={48}
-        className="w-12 h-12 object-contain"
-      />
-    ),
-    color: 'text-blue-600',
-  },
-  {
-    provider: 'apple',
-    name: 'Apple Calendar',
-    description: 'Sync your iCloud Calendar events with DOER plans and automatically detect busy slots.',
-    icon: (
-      <Image
-        src="/integrations/apple-calendar.png"
-        alt="Apple Calendar"
-        width={48}
-        height={48}
-        className="w-12 h-12 object-contain"
-      />
-    ),
-    color: 'text-gray-600',
-  },
-]
+// Mapping integration keys to icon components
+const integrationIconMap: Record<string, ComponentType<{ className?: string }>> = {
+  googleCalendar: SiGooglecalendar,
+  outlook: MdEmail,
+  appleCalendar: SiApple,
+  todoist: SiTodoist,
+  asana: SiAsana,
+  trello: SiTrello,
+  notion: SiNotion,
+  evernote: SiEvernote,
+  slack: SiSlack,
+  microsoftTeams: FaMicrosoft,
+  strava: SiStrava,
+  appleHealth: FaHeartbeat,
+  coursera: SiCoursera,
+  udemy: SiUdemy,
+}
+
+// Convert integration key to URL-friendly identifier
+function integrationKeyToUrl(key: string): string {
+  // Map calendar integrations to existing URLs
+  if (key === 'googleCalendar') return 'google'
+  if (key === 'appleCalendar') return 'apple'
+  if (key === 'outlook') return 'outlook'
+  
+  // Convert camelCase to kebab-case for other integrations
+  return key.replace(/([A-Z])/g, '-$1').toLowerCase()
+}
+
+// Create provider info from integrations data
+function createProviderInfo(integration: IntegrationDefinition): ProviderInfo {
+  const IconComponent = integrationIconMap[integration.key]
+  const iconElement = IconComponent ? (
+    <div className="w-12 h-12 flex items-center justify-center text-[var(--foreground)]">
+      <IconComponent className="w-full h-full" />
+    </div>
+  ) : (
+    <div className="w-12 h-12 flex items-center justify-center text-3xl">
+      {integration.icon}
+    </div>
+  )
+
+  // For calendar integrations, use image icons if available
+  if (integration.key === 'googleCalendar') {
+    return {
+      key: integration.key,
+      provider: 'google',
+      name: integration.name,
+      description: integration.description,
+      icon: (
+        <Image
+          src="/integrations/google-calendar.png"
+          alt="Google Calendar"
+          width={48}
+          height={48}
+          className="w-12 h-12 object-contain"
+        />
+      ),
+      category: integration.category,
+    }
+  }
+  
+  if (integration.key === 'outlook') {
+    return {
+      key: integration.key,
+      provider: 'outlook',
+      name: integration.name,
+      description: integration.description,
+      icon: (
+        <Image
+          src="/integrations/outlook-calendar.png"
+          alt="Microsoft Outlook"
+          width={48}
+          height={48}
+          className="w-12 h-12 object-contain"
+        />
+      ),
+      category: integration.category,
+    }
+  }
+  
+  if (integration.key === 'appleCalendar') {
+    return {
+      key: integration.key,
+      provider: 'apple',
+      name: integration.name,
+      description: integration.description,
+      icon: (
+        <Image
+          src="/integrations/apple-calendar.png"
+          alt="Apple Calendar"
+          width={48}
+          height={48}
+          className="w-12 h-12 object-contain"
+        />
+      ),
+      category: integration.category,
+    }
+  }
+
+  return {
+    key: integration.key,
+    provider: integrationKeyToUrl(integration.key),
+    name: integration.name,
+    description: integration.description,
+    icon: iconElement,
+    category: integration.category,
+  }
+}
+
+const PROVIDER_INFO: ProviderInfo[] = integrations.map(createProviderInfo)
 
 /**
  * Integrations Hub Page
@@ -162,14 +244,14 @@ export default function IntegrationsPage() {
               Integrations
             </h1>
             <p className="text-[#d7d2cb]/60">
-              Connect and manage your calendar integrations
+              Connect and manage your integrations
             </p>
           </div>
 
           {/* Provider Cards */}
           {loadingProviders ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i}>
                   <CardHeader>
                     <Skeleton className="h-6 w-32 bg-gray-200 dark:bg-gray-700" />
@@ -188,7 +270,7 @@ export default function IntegrationsPage() {
 
                 return (
                   <Card
-                    key={providerInfo.provider}
+                    key={providerInfo.key}
                     className="cursor-pointer hover:border-[var(--primary)] transition-colors"
                     onClick={() => handleProviderClick(providerInfo.provider)}
                   >
@@ -220,7 +302,7 @@ export default function IntegrationsPage() {
                       <CardDescription>
                         {providerInfo.description}
                       </CardDescription>
-                      {isConnected && status?.connection && (
+                      {isConnected && status?.connection && status.connection.selected_calendar_ids && (
                         <div className="text-xs text-[#d7d2cb]/60 space-y-1">
                           <p>
                             Last sync: {status.connection.last_sync_at
