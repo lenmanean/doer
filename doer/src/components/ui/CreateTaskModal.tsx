@@ -599,18 +599,13 @@ export function CreateTaskModal({
       }])
       
       clearError()
-      
-      // Refresh usage summary when modal opens
-      if (user?.id) {
-        refreshUsage()
-      }
     } else {
       // Modal is closing - reset all loading states as safety measure
       setIsLoading(false)
       setIsCreating(false)
       setIsAnalyzingTodoList(false)
     }
-  }, [isOpen, selectedTime, selectedDate, clearError, user?.id, refreshUsage])
+  }, [isOpen, selectedTime, selectedDate, clearError, user?.id])
 
   // Handle modal close attempts with unsaved changes protection
   const handleCloseAttempt = () => {
