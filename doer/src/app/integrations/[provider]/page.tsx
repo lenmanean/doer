@@ -1145,12 +1145,12 @@ export default function ProviderIntegrationsPage() {
         </div>
       </main>
       
-      {/* Push to Calendar Panel */}
-      {showPushPanel && (
+      {/* Push to Calendar Panel - Only for calendar integrations */}
+      {showPushPanel && isCalendarIntegration && (
         <PushToCalendarPanel
           isOpen={showPushPanel}
           onClose={() => setShowPushPanel(false)}
-          provider={provider}
+          provider={provider as 'google' | 'outlook' | 'apple'}
           connectionId={connection?.id}
           selectedCalendarIds={selectedCalendarIds}
         />
