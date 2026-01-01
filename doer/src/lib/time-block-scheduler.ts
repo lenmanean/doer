@@ -413,6 +413,23 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     return task
   })
   
+  // Post-adjustment validation: Verify no task has target day before its dependencies' target days
+  // This ensures dependency ordering is correct before scheduling
+  for (const task of tasksWithTargetDays) {
+    if (!task.idx || !taskDependencies.has(task.idx)) continue
+    
+    const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+    for (const depIdx of dependentTaskIdxs) {
+      const depTask = tasksWithTargetDays.find(t => t.idx === depIdx)
+      if (depTask && depTask.targetDay > task.targetDay) {
+        // Violation: task is scheduled before its dependency
+        // Adjust task's target day to be same or later than dependency
+        console.log(`  🔧 Post-adjustment fix: Adjusting "${task.name}" target day from ${task.targetDay} to ${depTask.targetDay} (depends on "${depTask.name}")`)
+        task.targetDay = depTask.targetDay
+      }
+    }
+  }
+  
   const adjustTargetDaySemantics = (
     task: typeof tasksWithTargetDays[number]
   ): { targetDay: number; enforce: boolean } => {
@@ -566,6 +583,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   }
 
   // Helper function to check if moving a task to a new day would violate dependencies
+  // This checks against targetDays (used during workload balancing before scheduling)
   const violatesDependencies = (
     task: typeof tasksWithTargetDays[number] & { enforceTargetDay?: boolean },
     newDay: number,
@@ -589,6 +607,47 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         const depTask = allTasks.find(t => t.idx === depTaskIdx)
         if (depTask && depTask.targetDay < newDay) {
           return true // Would violate: dependent task is on an earlier day
+        }
+      }
+    }
+    
+    return false
+  }
+
+  // Helper function to check if moving a task would violate dependencies based on actual placements
+  // This is used after scheduling to check against actual scheduled days
+  const violatesDependenciesWithPlacements = (
+    task: typeof tasksWithTargetDays[number],
+    newDay: number,
+    placements: TimeBlockPlacement[],
+    taskDependencies: Map<number, number[]>,
+    tasks: typeof tasksWithTargetDays
+  ): boolean => {
+    // Check forward dependencies - task cannot be moved before its dependencies
+    if (task.idx && taskDependencies.has(task.idx)) {
+      const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+      for (const depIdx of dependentTaskIdxs) {
+        const depTask = tasks.find(t => t.idx === depIdx)
+        if (!depTask) continue
+        
+        // Find where the dependency is actually scheduled
+        const depPlacement = placements.find(p => p.task_id === depTask.id)
+        if (depPlacement && depPlacement.day_index > newDay) {
+          return true // Would violate: dependency is scheduled on a later day
+        }
+      }
+    }
+    
+    // Check reverse dependencies - tasks that depend on this one must be on same or later day
+    for (const [depTaskIdx, deps] of taskDependencies.entries()) {
+      if (deps.includes(task.idx || -1)) {
+        const depTask = tasks.find(t => t.idx === depTaskIdx)
+        if (!depTask) continue
+        
+        // Find where the dependent task is actually scheduled
+        const depPlacement = placements.find(p => p.task_id === depTask.id)
+        if (depPlacement && depPlacement.day_index < newDay) {
+          return true // Would violate: dependent task is scheduled on an earlier day
         }
       }
     }
@@ -754,6 +813,27 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           continue
         }
         
+        // CRITICAL: Check if this task has dependencies on tasks with later targetDays
+        // If so, be very conservative about moving it earlier
+        let hasLaterDependencies = false
+        if (task.idx && dependencies.has(task.idx)) {
+          const dependentTaskIdxs = dependencies.get(task.idx) || []
+          for (const depIdx of dependentTaskIdxs) {
+            const depTask = tasks.find(t => t.idx === depIdx)
+            if (depTask && depTask.targetDay > task.targetDay) {
+              hasLaterDependencies = true
+              break
+            }
+          }
+        }
+        
+        // If task has dependencies on later days, don't move it earlier
+        // This prevents dependency violations after scheduling
+        if (hasLaterDependencies && task.targetDay < heavyDay) {
+          console.log(`  ⚖️ Skipping movement of "${task.name}" - has dependencies on later days`)
+          continue
+        }
+        
         // Find lighter days within priority range
         // Consider both existing workload and new task workload
         // Also check capacity limits to prevent overload
@@ -770,6 +850,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             // Check if moving would violate dependencies
             // This checks both forward and reverse dependencies
             const wouldViolateDeps = violatesDependencies(task, day, tasks, dependencies)
+            
+            // CRITICAL: If task has dependencies on later days, don't move it to an earlier day
+            if (hasLaterDependencies && day < task.targetDay) {
+              return false // Would move task before its dependencies
+            }
             
             // For Priority 1 tasks, be more strict about moving earlier
             // Don't move Priority 1 tasks to days before their dependencies
@@ -2158,7 +2243,171 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     day_index: p.day_index 
   })))
 
-  // Post-scheduling validation
+  // Post-scheduling validation: Check for dependency violations
+  const dependencyViolations: Array<{
+    task: typeof tasksWithTargetDays[number],
+    taskDay: number,
+    depTask: typeof tasksWithTargetDays[number],
+    depDay: number
+  }> = []
+  
+  for (const task of tasksWithTargetDays) {
+    if (!task.idx || !taskDependencies.has(task.idx)) continue
+    
+    const taskPlacement = placements.find(p => p.task_id === task.id)
+    if (!taskPlacement) continue
+    
+    const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+    for (const depIdx of dependentTaskIdxs) {
+      const depTask = tasksWithTargetDays.find(t => t.idx === depIdx)
+      if (!depTask) continue
+      
+      const depPlacement = placements.find(p => p.task_id === depTask.id)
+      if (!depPlacement) continue
+      
+      // Check if task is scheduled before its dependency
+      if (taskPlacement.day_index < depPlacement.day_index) {
+        dependencyViolations.push({
+          task,
+          taskDay: taskPlacement.day_index,
+          depTask,
+          depDay: depPlacement.day_index
+        })
+      }
+    }
+  }
+  
+  // Fix dependency violations by rescheduling violating tasks
+  if (dependencyViolations.length > 0) {
+    console.error(`❌ Post-scheduling validation failed: ${dependencyViolations.length} dependency violation(s) detected`)
+    for (const violation of dependencyViolations) {
+      console.error(`  ❌ Task "${violation.task.name}" (day ${violation.taskDay}) depends on "${violation.depTask.name}" (day ${violation.depDay}) - dependency violation`)
+      
+      // Find the violating placement
+      const violatingPlacement = placements.find(p => p.task_id === violation.task.id)
+      if (!violatingPlacement) continue
+      
+      // Remove the violating placement
+      const placementIndex = placements.indexOf(violatingPlacement)
+      if (placementIndex !== -1) {
+        placements.splice(placementIndex, 1)
+        
+        // Update daily scheduled time
+        const task = tasks.find(t => t.id === violation.task.id)
+        if (task) {
+          const currentScheduled = dailyScheduled[violation.taskDay] || 0
+          dailyScheduled[violation.taskDay] = Math.max(0, currentScheduled - (task.estimated_duration_minutes || 0))
+          totalScheduledHours -= (task.estimated_duration_minutes || 0) / 60
+        }
+        
+        // Remove from scheduled slots
+        const dateStr = violatingPlacement.date
+        const slots = scheduledSlots.get(dateStr) || []
+        const [startHour, startMinute] = violatingPlacement.start_time.split(':').map(Number)
+        const [endHour, endMinute] = violatingPlacement.end_time.split(':').map(Number)
+        const startMinutes = startHour * 60 + startMinute
+        const endMinutes = endHour * 60 + endMinute
+        const slotIndex = slots.findIndex(slot => slot.start === startMinutes && slot.end === endMinutes && slot.taskId === violation.task.id)
+        if (slotIndex !== -1) {
+          slots.splice(slotIndex, 1)
+        }
+      }
+      
+      // Reschedule the task on a day after its dependency
+      const minDay = violation.depDay // Must be on same day or later
+      const task = tasks.find(t => t.id === violation.task.id)
+      if (!task) continue
+      
+      let rescheduled = false
+      const taskDuration = task.estimated_duration_minutes || 0
+      
+      // Try to schedule on dependency day or later days
+      for (let dayIndex = minDay; dayIndex < totalDays && !rescheduled; dayIndex++) {
+        if (isSingleDayPlan && dayIndex !== 0) continue
+        
+        const dayConfig = dayConfigs[dayIndex]
+        if (!dayConfig) continue
+        if (dayConfig.isWeekend && !allowWeekends) continue
+        
+        const alreadyScheduled = dailyScheduled[dayIndex] || 0
+        const dayCapacity = dayConfig.dailyCapacity
+        const availableCapacity = dayCapacity - alreadyScheduled
+        
+        if (availableCapacity < taskDuration) continue
+        
+        // Check dependencies using placements
+        if (!canScheduleOnDay(task, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
+          continue
+        }
+        
+        const currentDate = new Date(startDate)
+        currentDate.setDate(startDate.getDate() + dayIndex)
+        const dateStr = currentDate.toISOString().split('T')[0]
+        
+        let initialStartTime = findBestTimeSlot(
+          dayIndex,
+          taskDuration,
+          dayConfig,
+          currentTime,
+          currentDate,
+          requireStartDate
+        )
+        
+        if (initialStartTime) {
+          const startTime = findNextAvailableSlot(
+            initialStartTime,
+            taskDuration,
+            dateStr,
+            scheduledSlots,
+            dayConfig,
+            currentTime,
+            requireStartDate
+          )
+          
+          if (startTime) {
+            const endTime = addMinutesToTime(startTime, taskDuration)
+            
+            placements.push({
+              task_id: task.id,
+              date: dateStr,
+              day_index: dayIndex,
+              start_time: startTime,
+              end_time: endTime,
+              duration_minutes: taskDuration
+            })
+            
+            if (!scheduledSlots.has(dateStr)) {
+              scheduledSlots.set(dateStr, [])
+            }
+            const [startHour, startMinute] = startTime.split(':').map(Number)
+            const [endHour, endMinute] = endTime.split(':').map(Number)
+            const startMinutes = startHour * 60 + startMinute
+            const endMinutes = endHour * 60 + endMinute
+            scheduledSlots.get(dateStr)!.push({
+              start: startMinutes,
+              end: endMinutes,
+              taskId: task.id
+            })
+            
+            dailyScheduled[dayIndex] = alreadyScheduled + taskDuration
+            totalScheduledHours += taskDuration / 60
+            rescheduled = true
+            
+            console.log(`  ✅ Fixed violation: Rescheduled "${violation.task.name}" from day ${violation.taskDay} to day ${dayIndex}`)
+          }
+        }
+      }
+      
+      if (!rescheduled) {
+        console.error(`  ❌ Could not reschedule "${violation.task.name}" - adding to unscheduled tasks`)
+        if (!unscheduledTasks.includes(task.id)) {
+          unscheduledTasks.push(task.id)
+        }
+      }
+    }
+  }
+  
+  // Post-scheduling validation: Check for unscheduled tasks
   const scheduledTaskIds = new Set(placements.map(p => p.task_id))
   const allTaskIds = new Set(tasks.map(t => t.id))
   const actuallyUnscheduled = Array.from(allTaskIds).filter(id => !scheduledTaskIds.has(id))

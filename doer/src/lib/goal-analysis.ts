@@ -462,13 +462,74 @@ function checkForWorkdayEnd(clarifications?: Record<string, any> | string[]): bo
 /**
  * Helper function to check if adding a dependency would create a cycle
  * Returns true if adding fromIdx -> toIdx would create a cycle
+ * 
+ * IMPORTANT: Forward dependencies (lower idx -> higher idx) are generally safe
+ * and should be allowed even if they would technically create a cycle.
+ * Only prevent cycles where the dependency goes backwards (higher idx -> lower idx).
  */
 function wouldCreateCycle(
   dependencies: Map<number, number[]>,
   fromIdx: number,
-  toIdx: number
+  toIdx: number,
+  tasks: Array<{ name: string; idx: number }>
 ): boolean {
-  // If toIdx already depends on fromIdx (directly or transitively), adding fromIdx -> toIdx would create a cycle
+  // Get task indices for comparison
+  const fromTask = tasks.find(t => t.idx === fromIdx)
+  const toTask = tasks.find(t => t.idx === toIdx)
+  
+  // If we're adding a forward dependency (lower idx -> higher idx), it's generally safe
+  // This represents the natural flow: earlier tasks depend on later tasks
+  // Only prevent if it would create an actual cycle (toIdx already depends on fromIdx)
+  if (fromTask && toTask && fromIdx < toIdx) {
+    // This is a forward dependency - check if toIdx already depends on fromIdx (would create cycle)
+    const visited = new Set<number>()
+    const stack: number[] = [toIdx]
+    
+    while (stack.length > 0) {
+      const current = stack.pop()!
+      if (current === fromIdx) {
+        return true // Cycle detected: toIdx depends on fromIdx, and we're adding fromIdx -> toIdx
+      }
+      if (visited.has(current)) {
+        continue
+      }
+      visited.add(current)
+      
+      const deps = dependencies.get(current) || []
+      for (const dep of deps) {
+        stack.push(dep)
+      }
+    }
+    
+    // Forward dependency that doesn't create a cycle - allow it
+    return false
+  }
+  
+  // For backwards dependencies (higher idx -> lower idx), be more strict
+  // Check if adding this would create a cycle
+  if (fromTask && toTask && fromIdx > toIdx) {
+    // This is a backwards dependency - check if toIdx already depends on fromIdx
+    const visited = new Set<number>()
+    const stack: number[] = [toIdx]
+    
+    while (stack.length > 0) {
+      const current = stack.pop()!
+      if (current === fromIdx) {
+        return true // Cycle detected
+      }
+      if (visited.has(current)) {
+        continue
+      }
+      visited.add(current)
+      
+      const deps = dependencies.get(current) || []
+      for (const dep of deps) {
+        stack.push(dep)
+      }
+    }
+  }
+  
+  // If we can't determine task order, use conservative cycle detection
   const visited = new Set<number>()
   const stack: number[] = [toIdx]
   
@@ -500,10 +561,11 @@ function safeAddDependency(
   dependentIdx: number,
   prerequisiteIdx: number,
   dependentName: string,
-  prerequisiteName: string
+  prerequisiteName: string,
+  tasks: Array<{ name: string; idx: number }>
 ): boolean {
   // Check if this would create a cycle
-  if (wouldCreateCycle(dependencies, prerequisiteIdx, dependentIdx)) {
+  if (wouldCreateCycle(dependencies, prerequisiteIdx, dependentIdx, tasks)) {
     console.log(`🔧 Skipped dependency: "${dependentName}" -> "${prerequisiteName}" (would create cycle)`)
     return false
   }
@@ -529,6 +591,23 @@ export function detectTaskDependencies(
 ): Map<number, number[]> {
   let dependencies = new Map<number, number[]>()
   const lowerTaskNames = tasks.map(t => ({ ...t, lowerName: t.name.toLowerCase() }))
+  
+  // Helper to add dependency with cycle checking
+  const addDependency = (dependentIdx: number, prerequisiteIdx: number, dependentName: string, prerequisiteName: string) => {
+    if (wouldCreateCycle(dependencies, prerequisiteIdx, dependentIdx, tasks)) {
+      console.log(`🔧 Skipped dependency: "${dependentName}" -> "${prerequisiteName}" (would create cycle)`)
+      return false
+    }
+    
+    if (!dependencies.has(dependentIdx)) {
+      dependencies.set(dependentIdx, [])
+    }
+    const deps = dependencies.get(dependentIdx)!
+    if (!deps.includes(prerequisiteIdx)) {
+      deps.push(prerequisiteIdx)
+    }
+    return true
+  }
 
   for (const task of lowerTaskNames) {
     const taskDeps: number[] = []
@@ -550,18 +629,7 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('make'))
         ) {
           // Make otherTask (create/build) depend on task (outline/structure)
-          // Check if this would create a cycle before adding
-          if (!wouldCreateCycle(dependencies, task.idx, otherTask.idx)) {
-            if (!dependencies.has(otherTask.idx)) {
-              dependencies.set(otherTask.idx, [])
-            }
-            const otherTaskDeps = dependencies.get(otherTask.idx)!
-            if (!otherTaskDeps.includes(task.idx)) {
-              otherTaskDeps.push(task.idx)
-            }
-          } else {
-            console.log(`🔧 Skipped dependency: "${otherTask.name}" -> "${task.name}" (would create cycle)`)
-          }
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -781,7 +849,7 @@ export function detectTaskDependencies(
           && !(task.lowerName.includes('practice') && otherTask.lowerName.includes('explore'))
         ) {
           // Make otherTask (explore/practice/write/build) depend on task (understand/learn)
-          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -799,7 +867,7 @@ export function detectTaskDependencies(
           !otherTask.lowerName.includes('test')
         ) {
           // Make otherTask (practice) depend on task (explore/understand)
-          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -813,7 +881,7 @@ export function detectTaskDependencies(
           (otherTask.lowerName.includes('loop') ||
             otherTask.lowerName.includes('function'))
         ) {
-          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -823,7 +891,7 @@ export function detectTaskDependencies(
           otherTask.idx !== task.idx &&
           otherTask.lowerName.includes('function')
         ) {
-          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
