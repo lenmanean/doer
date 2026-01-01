@@ -1180,20 +1180,49 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         const taskDuration = task.estimated_duration_minutes || 0
         const range = getTargetDayRange(task.priority || 4)
         
-        // Find ANY day with capacity, even if it violates dependencies
+        // Find the earliest target day of all prerequisites
+        let earliestPrerequisiteDay = -1
+        if (task.idx && taskDependencies.has(task.idx)) {
+          const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+          for (const depIdx of dependentTaskIdxs) {
+            const depTask = tasksWithTargetDays.find(t => t.idx === depIdx)
+            if (depTask) {
+              const depTargetDay = depTask.targetDay
+              if (earliestPrerequisiteDay === -1 || depTargetDay < earliestPrerequisiteDay) {
+                earliestPrerequisiteDay = depTargetDay
+              }
+            }
+          }
+        }
+        
+        // Find days with capacity that respect dependency constraints
         const candidateDays = Array.from(finalWorkloadPerDay.entries())
           .filter(([day, totalWorkload]) => {
             const dayConfig = dayConfigs[day]
             const dayCapacity = dayConfig?.dailyCapacity || 0
             const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
             
+            // CRITICAL: Don't move task to a day before its prerequisites
+            // If task has prerequisites, only allow moving to days >= earliest prerequisite target day
+            const violatesDependency = earliestPrerequisiteDay !== -1 && day < earliestPrerequisiteDay
+            
             return day !== overloadedDay &&
               day >= range.start &&
               day <= range.end &&
-              !wouldExceed // Must have capacity
+              !wouldExceed && // Must have capacity
+              !violatesDependency // Must not violate dependency constraints
           })
           .sort((a, b) => {
-            // Prefer days with most available capacity
+            // First: Prefer days that are >= prerequisite target day (after prerequisites)
+            if (earliestPrerequisiteDay !== -1) {
+              const aAfterPrereq = a[0] >= earliestPrerequisiteDay
+              const bAfterPrereq = b[0] >= earliestPrerequisiteDay
+              if (aAfterPrereq !== bAfterPrereq) {
+                return aAfterPrereq ? -1 : 1 // Prefer days after prerequisites
+              }
+            }
+            
+            // Second: Prefer days with most available capacity
             const aConfig = dayConfigs[a[0]]
             const bConfig = dayConfigs[b[0]]
             const aCapacity = aConfig?.dailyCapacity || 0
