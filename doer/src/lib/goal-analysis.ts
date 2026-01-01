@@ -583,8 +583,12 @@ export function detectTaskDependencies(
   const lowerTaskNames = tasks.map(t => ({ ...t, lowerName: t.name.toLowerCase() }))
   
   // Helper to add dependency with cycle checking
+  // When adding dependentIdx -> prerequisiteIdx (dependent depends on prerequisite),
+  // check if adding that direction would create a cycle
   const addDependency = (dependentIdx: number, prerequisiteIdx: number, dependentName: string, prerequisiteName: string) => {
-    if (wouldCreateCycle(dependencies, prerequisiteIdx, dependentIdx, tasks)) {
+    // Check if adding dependentIdx -> prerequisiteIdx would create a cycle
+    // This is the correct direction: we're adding dependent -> prerequisite
+    if (wouldCreateCycle(dependencies, dependentIdx, prerequisiteIdx, tasks)) {
       console.log(`🔧 Skipped dependency: "${dependentName}" -> "${prerequisiteName}" (would create cycle)`)
       return false
     }
