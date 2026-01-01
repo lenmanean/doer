@@ -1,0 +1,108 @@
+warning: in the working copy of 'doer/src/app/help/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'doer/src/app/layout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'doer/src/components/ui/GroupsNotificationWidget.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'doer/src/components/ui/Sidebar.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'doer/src/middleware.ts', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/doer/src/app/help/page.tsx b/doer/src/app/help/page.tsx[m
+[1mindex 8ad30bb..ca94f8f 100644[m
+[1m--- a/doer/src/app/help/page.tsx[m
+[1m+++ b/doer/src/app/help/page.tsx[m
+[36m@@ -185,7 +185,8 @@[m [mexport default function HelpPage() {[m
+                 </CardContent>[m
+               </Card>[m
+ [m
+[31m-              <Card [m
+[32m+[m[32m              {/* Community card temporarily disabled until multi-user functionality is implemented */}[m
+[32m+[m[32m              {/* <Card[m[41m [m
+                 className="border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer"[m
+                 onClick={() => window.location.href = '/community'}[m
+               >[m
+[36m@@ -194,7 +195,7 @@[m [mexport default function HelpPage() {[m
+                   <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">Community</h3>[m
+                   <p className="text-sm text-[var(--muted-foreground)]">Join discussions on Discord</p>[m
+                 </CardContent>[m
+[31m-              </Card>[m
+[32m+[m[32m              </Card> */}[m
+ [m
+               <Card [m
+                 className="border-green-500/20 bg-green-500/5 hover:bg-green-500/10 transition-colors cursor-pointer"[m
+[1mdiff --git a/doer/src/app/layout.tsx b/doer/src/app/layout.tsx[m
+[1mindex 0e95084..63b9571 100644[m
+[1m--- a/doer/src/app/layout.tsx[m
+[1m+++ b/doer/src/app/layout.tsx[m
+[36m@@ -206,7 +206,7 @@[m [mexport default async function RootLayout({[m
+                     '/internal',[m
+                     '/test',[m
+                     '/integrations',[m
+[31m-                    '/community',[m
+[32m+[m[32m                    // '/community', // Temporarily disabled until multi-user functionality is implemented[m
+                     '/help'[m
+                   ];[m
+                   const isAuthenticatedRoute = authenticatedRoutes.some(route => path.startsWith(route));[m
+[1mdiff --git a/doer/src/components/ui/GroupsNotificationWidget.tsx b/doer/src/components/ui/GroupsNotificationWidget.tsx[m
+[1mindex 43a0406..12a7a47 100644[m
+[1m--- a/doer/src/components/ui/GroupsNotificationWidget.tsx[m
+[1m+++ b/doer/src/components/ui/GroupsNotificationWidget.tsx[m
+[36m@@ -5,8 +5,9 @@[m [mimport { Users, Plus } from 'lucide-react'[m
+ [m
+ export default function GroupsNotificationWidget() {[m
+   const handleViewGroups = () => {[m
+[32m+[m[32m    // Temporarily disabled until multi-user functionality is implemented[m
+     // Navigate to groups page or open in new tab[m
+[31m-    window.open('/community', '_blank')[m
+[32m+[m[32m    // window.open('/community', '_blank')[m
+   }[m
+ [m
+   return ([m
+[1mdiff --git a/doer/src/components/ui/Sidebar.tsx b/doer/src/components/ui/Sidebar.tsx[m
+[1mindex 22419a7..46eae49 100644[m
+[1m--- a/doer/src/components/ui/Sidebar.tsx[m
+[1m+++ b/doer/src/components/ui/Sidebar.tsx[m
+[36m@@ -44,7 +44,7 @@[m [mconst Sidebar = ({ user, onSignOut, currentPath, hasPendingReschedules = false,[m
+     { name: 'Schedule', href: '/schedule', icon: Calendar },[m
+     { name: 'Analytics', href: '/analytics', icon: BarChart3 },[m
+     { name: 'Integrations', href: '/integrations', icon: Zap },[m
+[31m-    { name: 'Community', href: '/community', icon: Users },[m
+[32m+[m[32m    // { name: 'Community', href: '/community', icon: Users }, // Temporarily disabled until multi-user functionality is implemented[m
+     { name: 'Settings', href: '/settings', icon: Cog },[m
+     { name: 'Help', href: '/help', icon: HelpCircle },[m
+   ][m
+[1mdiff --git a/doer/src/lib/utils/route-utils.ts b/doer/src/lib/utils/route-utils.ts[m
+[1mindex 45433a7..ffa5a0f 100644[m
+[1m--- a/doer/src/lib/utils/route-utils.ts[m
+[1m+++ b/doer/src/lib/utils/route-utils.ts[m
+[36m@@ -19,7 +19,7 @@[m [mconst AUTHENTICATED_ROUTES = [[m
+   '/internal', // Internal pages (may have additional auth checks)[m
+   '/test', // Test pages (dev only, but authenticated)[m
+   '/integrations', // Uses authenticated UI (Sidebar, useOnboardingProtection)[m
+[31m-  '/community', // Uses authenticated UI (Sidebar, useOnboardingProtection)[m
+[32m+[m[32m  // '/community', // Temporarily disabled until multi-user functionality is implemented[m
+   '/help', // Uses authenticated UI (Sidebar, useOnboardingProtection)[m
+ ][m
+ [m
+[1mdiff --git a/doer/src/middleware.ts b/doer/src/middleware.ts[m
+[1mindex 01e7177..e680497 100644[m
+[1m--- a/doer/src/middleware.ts[m
+[1m+++ b/doer/src/middleware.ts[m
+[36m@@ -93,7 +93,7 @@[m [mexport async function middleware(req: NextRequest) {[m
+     '/blog',[m
+     '/careers',[m
+     '/changelog',[m
+[31m-    '/community',[m
+[32m+[m[32m    // '/community', // Temporarily disabled until multi-user functionality is implemented[m
+     '/contact',[m
+     '/documentation',[m
+     '/feature-request',[m
+[36m@@ -113,6 +113,12 @@[m [mexport async function middleware(req: NextRequest) {[m
+     '/early-access', // Cold ads landing page (public)[m
+   ][m
+ [m
+[32m+[m[32m  // Redirect /community to dashboard (temporarily disabled until multi-user functionality is implemented)[m
+[32m+[m[32m  if (pathname === '/community' || pathname.startsWith('/community/')) {[m
+[32m+[m[32m    const redirectUrl = new URL('/dashboard', req.url)[m
+[32m+[m[32m    return NextResponse.redirect(redirectUrl)[m
+[32m+[m[32m  }[m
+[32m+[m
+   // Allow public routes[m
+   const isPublicRoute = publicRoutes.some(route => [m
+     pathname === route || pathname.startsWith(`${route}/`)[m

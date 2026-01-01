@@ -235,7 +235,12 @@ function EmailInputForm({ source }: { source: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="relative">
+      <motion.div
+        className="relative"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
         <input
           type="email"
           id={`waitlist-email-${source}`}
@@ -245,30 +250,58 @@ function EmailInputForm({ source }: { source: string }) {
           disabled={isLoading || isSuccess}
           className="w-full px-4 py-3 pr-24 bg-gray-800 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
         />
-        <button
+        <motion.button
           type="submit"
           disabled={isLoading || isSuccess || !email.trim()}
           className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-[#ff7f00] text-white rounded-lg font-medium hover:bg-[#e67300] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 pulsing-glow"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           {isLoading ? 'Joining...' : isSuccess ? 'Joined!' : 'Join'}
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
+      
       {error && (
-        <p className="text-sm text-red-400 text-center">{error}</p>
+        <motion.p
+          className="text-sm text-red-400 text-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+        >
+          {error}
+        </motion.p>
       )}
       {alreadyExists && (
-        <p className="text-sm text-orange-400 text-center">
+        <motion.p
+          className="text-sm text-orange-400 text-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+        >
           This email is already on the waitlist.
-        </p>
+        </motion.p>
       )}
       {isSuccess && (
-        <p className="text-sm text-green-400 text-center">
+        <motion.p
+          className="text-sm text-green-400 text-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+        >
           Thank you! You're on the waitlist.
-        </p>
+        </motion.p>
       )}
       
       {/* Consent Agreement */}
-      <p className="text-xs text-gray-400 text-center leading-relaxed pt-2">
+      <motion.p
+        className="text-xs text-gray-400 text-center leading-relaxed pt-2"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
         By submitting this form, you agree to receive emails from DOER about product updates, launch announcements, and early access opportunities. You can unsubscribe at any time. See our{' '}
         <a
           href="/privacy"
@@ -288,7 +321,7 @@ function EmailInputForm({ source }: { source: string }) {
           Terms of Service
         </a>
         .
-      </p>
+      </motion.p>
     </form>
   )
 }
@@ -604,68 +637,85 @@ function StepCardContent({
       </button>
 
       {/* Expandable Content */}
-      <div
-        className={`transition-all duration-500 ease-in-out overflow-hidden ${
-          isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
+      <motion.div
+        initial={false}
+        animate={{
+          height: isExpanded ? 'auto' : 0,
+          opacity: isExpanded ? 1 : 0,
+        }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+        className="overflow-hidden"
       >
         <div className="px-6 pb-6 pt-2 bg-gray-900 border-t border-gray-700">
-          <div className="mb-6">
-            <h4 className="text-xl font-bold text-white mb-3">
-              {step.title}
-            </h4>
-            <p className="text-base text-gray-300 leading-relaxed">
-              {step.description}
-            </p>
-          </div>
-          
-          {/* Video */}
           {isExpanded && (
-            <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg border-2 border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '200px' }}>
-              <video
-                ref={videoRef}
-                src={videoSrc}
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="auto"
-                className="w-full h-auto rounded-lg"
-                style={{ 
-                  display: 'block',
-                  objectFit: 'contain'
-                }}
-                onError={(e) => {
-                  const video = e.currentTarget
-                  const error = video.error
-                  console.error('Video loading error:', {
-                    code: error?.code,
-                    message: error?.message,
-                    src: video.src,
-                  })
-                }}
-                onLoadedData={() => {
-                  if (isMobile && videoRef.current) {
-                    videoRef.current.play().catch(() => {
-                      // Silently fail - user may need to interact
-                    })
-                  }
-                }}
-                onLoadedMetadata={() => {
-                  if (videoRef.current) {
-                    videoRef.current.style.display = 'block'
-                    videoRef.current.setAttribute('webkit-playsinline', 'true')
-                    videoRef.current.setAttribute('playsinline', 'true')
-                    videoRef.current.setAttribute('x5-playsinline', 'true')
-                  }
-                }}
+            <>
+              <motion.div
+                className="mb-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
               >
-                Your browser does not support the video tag.
-              </video>
-            </div>
+                <h4 className="text-xl font-bold text-white mb-3">
+                  {step.title}
+                </h4>
+                <p className="text-base text-gray-300 leading-relaxed">
+                  {step.description}
+                </p>
+              </motion.div>
+              
+              {/* Video */}
+              <motion.div
+                className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg border-2 border-gray-700 overflow-hidden w-full mx-auto"
+                style={{ minHeight: '200px' }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <video
+                  ref={videoRef}
+                  src={videoSrc}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="auto"
+                  className="w-full h-auto rounded-lg"
+                  style={{ 
+                    display: 'block',
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    const video = e.currentTarget
+                    const error = video.error
+                    console.error('Video loading error:', {
+                      code: error?.code,
+                      message: error?.message,
+                      src: video.src,
+                    })
+                  }}
+                  onLoadedData={() => {
+                    if (isMobile && videoRef.current) {
+                      videoRef.current.play().catch(() => {
+                        // Silently fail - user may need to interact
+                      })
+                    }
+                  }}
+                  onLoadedMetadata={() => {
+                    if (videoRef.current) {
+                      videoRef.current.style.display = 'block'
+                      videoRef.current.setAttribute('webkit-playsinline', 'true')
+                      videoRef.current.setAttribute('playsinline', 'true')
+                      videoRef.current.setAttribute('x5-playsinline', 'true')
+                    }
+                  }}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </motion.div>
+            </>
           )}
         </div>
-      </div>
+      </motion.div>
     </>
   )
 }

@@ -569,6 +569,7 @@ export function detectTaskDependencies(
 
     // Pattern: "learn" / "study" must come before "practice" / "apply"
     // Make practice/apply tasks depend on learn/study tasks
+    // BUT exclude test/testing tasks - learning comes before testing, not after
     if (task.lowerName.includes('learn') || task.lowerName.includes('study')) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -576,6 +577,8 @@ export function detectTaskDependencies(
           (otherTask.lowerName.includes('practice') ||
             otherTask.lowerName.includes('apply') ||
             otherTask.lowerName.includes('implement'))
+          // EXCLUDE test/testing - learning comes before testing, not after
+          && !otherTask.lowerName.includes('test')
         ) {
           // Make otherTask (practice/apply) depend on task (learn/study)
           if (!dependencies.has(otherTask.idx)) {
@@ -589,7 +592,8 @@ export function detectTaskDependencies(
       }
     }
 
-    // Pattern: "practice" / "rehearse" / "mock interview" must come AFTER "set up" / "setup" / "tech check" / "test"
+    // Pattern: "practice" / "rehearse" / "mock interview" must come AFTER "set up" / "setup" / "tech check"
+    // BUT NOT after "test" or "testing" - practice comes before testing, not after
     if (
       task.lowerName.includes('practice') ||
       task.lowerName.includes('rehears') ||
@@ -601,8 +605,9 @@ export function detectTaskDependencies(
           (otherTask.lowerName.includes('set up') ||
             otherTask.lowerName.includes('setup') ||
             otherTask.lowerName.includes('tech check') ||
-            otherTask.lowerName.includes('test') ||
             (otherTask.lowerName.includes('check') && (otherTask.lowerName.includes('tech') || otherTask.lowerName.includes('equipment'))))
+          // EXCLUDE test/testing - practice should come BEFORE test, not after
+          && !otherTask.lowerName.includes('test')
         ) {
           if (!taskDeps.includes(otherTask.idx)) {
             taskDeps.push(otherTask.idx)
@@ -691,6 +696,7 @@ export function detectTaskDependencies(
 
     // Pattern: "understand" / "learn" basic concepts must come before "explore" / "practice" / "write" / "build"
     // Make explore/practice/write/build tasks depend on understand/learn tasks
+    // BUT exclude test/testing tasks - learning should not depend on testing
     if (
       task.lowerName.includes('understand') ||
       (task.lowerName.includes('learn') && !task.lowerName.includes('practice'))
@@ -703,6 +709,8 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('write') ||
             otherTask.lowerName.includes('build') ||
             (otherTask.lowerName.includes('learn') && otherTask.lowerName.includes('practice')))
+          // EXCLUDE test/testing - learning comes before testing, not after
+          && !otherTask.lowerName.includes('test')
         ) {
           // Make otherTask (explore/practice/write/build) depend on task (understand/learn)
           if (!dependencies.has(otherTask.idx)) {
@@ -876,6 +884,22 @@ export function detectTaskDependencies(
   const cycles = detectCircularDependencies(dependencies)
   if (cycles.length > 0) {
     console.warn('⚠️  Circular dependencies detected:', cycles.map(cycle => cycle.join(' -> ')).join(', '))
+    // Resolve circular dependencies
+    dependencies = resolveCircularDependencies(dependencies, cycles, tasks)
+    console.log('✅ Circular dependencies resolved')
+    
+    // Validate that cycles are actually resolved
+    const remainingCycles = detectCircularDependencies(dependencies)
+    if (remainingCycles.length > 0) {
+      console.error('❌ Failed to resolve all circular dependencies:', remainingCycles.map(cycle => cycle.join(' -> ')).join(', '))
+    }
+  }
+
+  // Pre-scheduling validation: Ensure dependencies are acyclic
+  const finalCycles = detectCircularDependencies(dependencies)
+  if (finalCycles.length > 0) {
+    console.error('❌ Pre-scheduling validation failed: Dependencies still contain cycles after resolution')
+    throw new Error(`Cannot schedule tasks with circular dependencies: ${finalCycles.map(cycle => cycle.join(' -> ')).join(', ')}`)
   }
 
   return dependencies
@@ -914,5 +938,78 @@ function detectCircularDependencies(dependencies: Map<number, number[]>): Array<
   }
   
   return cycles
+}
+
+/**
+ * Resolve circular dependencies by breaking cycles while preserving logical order
+ * Uses task type hierarchy: setup → learn → practice → build → test → final
+ */
+function resolveCircularDependencies(
+  dependencies: Map<number, number[]>,
+  cycles: Array<number[]>,
+  tasks: Array<{ name: string; idx: number }>
+): Map<number, number[]> {
+  const taskTypePriority = (taskName: string): number => {
+    const lower = taskName.toLowerCase()
+    // Higher number = later in sequence
+    if (lower.includes('set up') || lower.includes('setup') || lower.includes('install') || lower.includes('configure') || lower.includes('environment')) return 1
+    if (lower.includes('learn') || lower.includes('understand') || lower.includes('study') || lower.includes('research')) return 2
+    if (lower.includes('practice') || lower.includes('rehears') || lower.includes('exercise')) return 3
+    if (lower.includes('build') || lower.includes('create') || lower.includes('write') || lower.includes('develop') || lower.includes('implement')) return 4
+    if (lower.includes('test') || lower.includes('testing')) return 5
+    if (lower.includes('final') || lower.includes('review') || lower.includes('polish') || lower.includes('debug')) return 6
+    return 0 // Unknown type
+  }
+
+  const resolvedDeps = new Map<number, number[]>()
+  // Copy all dependencies
+  dependencies.forEach((deps, taskIdx) => {
+    resolvedDeps.set(taskIdx, [...deps])
+  })
+
+  // For each cycle, break it by removing the weakest dependency
+  for (const cycle of cycles) {
+    if (cycle.length < 2) continue
+    
+    // Find the dependency in the cycle that should be removed
+    // Remove the one where a later task type depends on an earlier task type (backwards dependency)
+    let weakestDep: { from: number; to: number } | null = null
+    let weakestScore = Infinity
+    
+    for (let i = 0; i < cycle.length; i++) {
+      const fromIdx = cycle[i]
+      const toIdx = cycle[(i + 1) % cycle.length]
+      const fromTask = tasks.find(t => t.idx === fromIdx)
+      const toTask = tasks.find(t => t.idx === toIdx)
+      
+      if (!fromTask || !toTask) continue
+      
+      const fromType = taskTypePriority(fromTask.name)
+      const toType = taskTypePriority(toTask.name)
+      
+      // Score: lower is weaker (should be removed)
+      // If fromType > toType, it's a backwards dependency (e.g., test depends on practice)
+      // If fromType < toType, it's a forward dependency (e.g., practice depends on learn)
+      const score = fromType - toType
+      
+      if (score < weakestScore) {
+        weakestScore = score
+        weakestDep = { from: fromIdx, to: toIdx }
+      }
+    }
+    
+    // Remove the weakest dependency
+    if (weakestDep) {
+      const deps = resolvedDeps.get(weakestDep.from) || []
+      const filtered = deps.filter(depIdx => depIdx !== weakestDep!.to)
+      resolvedDeps.set(weakestDep.from, filtered)
+      
+      const fromTask = tasks.find(t => t.idx === weakestDep!.from)
+      const toTask = tasks.find(t => t.idx === weakestDep!.to)
+      console.log(`  🔧 Breaking cycle: Removing dependency from "${fromTask?.name || weakestDep.from}" to "${toTask?.name || weakestDep.to}"`)
+    }
+  }
+  
+  return resolvedDeps
 }
 

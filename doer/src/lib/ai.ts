@@ -414,10 +414,20 @@ TASK DEPENDENCY ENFORCEMENT:
   - Tasks that execute using outputs from foundational tasks → Priority 2+
   - Tasks that practice or rehearse using completed work → Priority 2
   - Tasks that review, polish, or enhance completed work → Priority 3+
+• CRITICAL DEPENDENCY ORDERING RULES:
+  - Learning tasks (learn, understand, study) MUST come BEFORE practice tasks
+  - Practice tasks MUST come BEFORE testing tasks (practice → test, NOT test → practice)
+  - Building/creating tasks MUST come BEFORE testing tasks (build → test)
+  - Testing tasks MUST come BEFORE final review/polish tasks (test → final)
+  - Setup/installation tasks MUST come BEFORE learning/practice tasks
+  - Example CORRECT order: Setup → Learn → Practice → Build → Test → Final Review
+  - Example INCORRECT order: Practice → Learn (backwards), Test → Practice (backwards)
 • When assigning priority, ask: "Does any other task need the output/result of this task?" If yes → Priority 1
 • When assigning idx, think: "What must be done first for this task to be possible?"
 • Base your analysis on the specific goal description provided, not on generic patterns
 • If you're unsure about dependency order or priority, err on the side of putting foundational tasks earlier with Priority 1
+• VERIFY: Before finalizing, check that your task order follows the logical flow: Setup → Learn → Practice → Build → Test → Final
+• AVOID: Creating circular dependencies or backwards dependencies (e.g., practice depending on test)
 
 STRUCTURE REQUIREMENTS:
 1. Tasks: All tasks in unified list with duration estimates
