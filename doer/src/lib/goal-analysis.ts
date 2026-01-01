@@ -997,14 +997,17 @@ export function detectTaskDependencies(
       }
     }
 
-    // Pattern: "create" / "build" must come before "final review" when they reference the same artifact
-    // Make final review tasks depend on create/build tasks
-    // CRITICAL: Only create dependency if both tasks reference the same artifact (e.g., both mention "slides", "code", etc.)
+    // Pattern: "create" / "build" / "update" / "organize" / "revise" must come before "final review" when they reference the same artifact
+    // Make final review tasks depend on create/build/update/organize/revise tasks
+    // CRITICAL: Only create dependency if both tasks reference the same artifact (e.g., both mention "slides", "code", "resume", "portfolio", etc.)
     if (
       task.lowerName.includes('build') ||
-      task.lowerName.includes('create')
+      task.lowerName.includes('create') ||
+      task.lowerName.includes('update') ||
+      task.lowerName.includes('organize') ||
+      task.lowerName.includes('revise')
     ) {
-      // Extract artifact keywords from the create/build task
+      // Extract artifact keywords from the create/build/update task
       const artifactKeywords: string[] = []
       if (task.lowerName.includes('slide')) artifactKeywords.push('slide')
       if (task.lowerName.includes('note')) artifactKeywords.push('note')
@@ -1017,6 +1020,8 @@ export function detectTaskDependencies(
       if (task.lowerName.includes('report')) artifactKeywords.push('report')
       if (task.lowerName.includes('website')) artifactKeywords.push('website')
       if (task.lowerName.includes('app')) artifactKeywords.push('app')
+      if (task.lowerName.includes('resume')) artifactKeywords.push('resume')
+      if (task.lowerName.includes('portfolio')) artifactKeywords.push('portfolio')
       
       for (const otherTask of lowerTaskNames) {
         if (
@@ -1037,6 +1042,8 @@ export function detectTaskDependencies(
           if (otherTask.lowerName.includes('report')) reviewArtifactKeywords.push('report')
           if (otherTask.lowerName.includes('website')) reviewArtifactKeywords.push('website')
           if (otherTask.lowerName.includes('app')) reviewArtifactKeywords.push('app')
+          if (otherTask.lowerName.includes('resume')) reviewArtifactKeywords.push('resume')
+          if (otherTask.lowerName.includes('portfolio')) reviewArtifactKeywords.push('portfolio')
           
           // Only create dependency if both tasks reference the same artifact
           // If no specific artifacts found, create dependency anyway (general review of created work)
@@ -1045,7 +1052,7 @@ export function detectTaskDependencies(
               artifactKeywords.some(keyword => reviewArtifactKeywords.includes(keyword)))
           
           if (hasMatchingArtifact) {
-            // Make otherTask (final review) depend on task (create/build)
+            // Make otherTask (final review) depend on task (create/build/update/organize/revise)
             addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
           }
         }
