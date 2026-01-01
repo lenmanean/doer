@@ -996,6 +996,61 @@ export function detectTaskDependencies(
         }
       }
     }
+
+    // Pattern: "create" / "build" must come before "final review" when they reference the same artifact
+    // Make final review tasks depend on create/build tasks
+    // CRITICAL: Only create dependency if both tasks reference the same artifact (e.g., both mention "slides", "code", etc.)
+    if (
+      task.lowerName.includes('build') ||
+      task.lowerName.includes('create')
+    ) {
+      // Extract artifact keywords from the create/build task
+      const artifactKeywords: string[] = []
+      if (task.lowerName.includes('slide')) artifactKeywords.push('slide')
+      if (task.lowerName.includes('note')) artifactKeywords.push('note')
+      if (task.lowerName.includes('code')) artifactKeywords.push('code')
+      if (task.lowerName.includes('presentation')) artifactKeywords.push('presentation')
+      if (task.lowerName.includes('program')) artifactKeywords.push('program')
+      if (task.lowerName.includes('application')) artifactKeywords.push('application')
+      if (task.lowerName.includes('project')) artifactKeywords.push('project')
+      if (task.lowerName.includes('document')) artifactKeywords.push('document')
+      if (task.lowerName.includes('report')) artifactKeywords.push('report')
+      if (task.lowerName.includes('website')) artifactKeywords.push('website')
+      if (task.lowerName.includes('app')) artifactKeywords.push('app')
+      
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('final review') ||
+            (otherTask.lowerName.includes('final') && otherTask.lowerName.includes('review')))
+        ) {
+          // Extract artifact keywords from the final review task
+          const reviewArtifactKeywords: string[] = []
+          if (otherTask.lowerName.includes('slide')) reviewArtifactKeywords.push('slide')
+          if (otherTask.lowerName.includes('note')) reviewArtifactKeywords.push('note')
+          if (otherTask.lowerName.includes('code')) reviewArtifactKeywords.push('code')
+          if (otherTask.lowerName.includes('presentation')) reviewArtifactKeywords.push('presentation')
+          if (otherTask.lowerName.includes('program')) reviewArtifactKeywords.push('program')
+          if (otherTask.lowerName.includes('application')) reviewArtifactKeywords.push('application')
+          if (otherTask.lowerName.includes('project')) reviewArtifactKeywords.push('project')
+          if (otherTask.lowerName.includes('document')) reviewArtifactKeywords.push('document')
+          if (otherTask.lowerName.includes('report')) reviewArtifactKeywords.push('report')
+          if (otherTask.lowerName.includes('website')) reviewArtifactKeywords.push('website')
+          if (otherTask.lowerName.includes('app')) reviewArtifactKeywords.push('app')
+          
+          // Only create dependency if both tasks reference the same artifact
+          // If no specific artifacts found, create dependency anyway (general review of created work)
+          const hasMatchingArtifact = artifactKeywords.length === 0 && reviewArtifactKeywords.length === 0 ||
+            (artifactKeywords.length > 0 && reviewArtifactKeywords.length > 0 &&
+              artifactKeywords.some(keyword => reviewArtifactKeywords.includes(keyword)))
+          
+          if (hasMatchingArtifact) {
+            // Make otherTask (final review) depend on task (create/build)
+            addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
+          }
+        }
+      }
+    }
     
     // Pattern: Explicitly prevent test tasks from depending on practice exercises
     // Test tasks should depend on build/code, not on practice
