@@ -2316,7 +2316,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // Reschedule the task on a day after its dependency
       const minDay = violation.depDay // Must be on same day or later
       const task = tasks.find(t => t.id === violation.task.id)
-      if (!task) continue
+      const taskWithTarget = tasksWithTargetDays.find(t => t.id === violation.task.id)
+      if (!task || !taskWithTarget) continue
       
       let rescheduled = false
       const taskDuration = task.estimated_duration_minutes || 0
@@ -2335,8 +2336,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         
         if (availableCapacity < taskDuration) continue
         
-        // Check dependencies using placements
-        if (!canScheduleOnDay(task, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
+        // Check dependencies using placements - use taskWithTarget which has targetDay
+        if (!canScheduleOnDay(taskWithTarget, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
           continue
         }
         
