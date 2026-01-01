@@ -3,6 +3,53 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateRoadmapContent } from '@/lib/ai'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { addDays, formatDateForDB, parseDateFromDB, formatTimeForDisplay } from '@/lib/date-utils'
+
+/**
+ * Calculate the number of active days needed to fit a given duration,
+ * accounting for weekends being disabled.
+ * @param totalDuration Total duration in minutes
+ * @param dailyCapacity Daily capacity in minutes
+ * @param startDate Start date
+ * @param allowWeekends Whether weekends are allowed
+ * @returns Number of calendar days needed (including weekends if disabled)
+ */
+function calculateActiveDaysNeeded(
+  totalDuration: number,
+  dailyCapacity: number,
+  startDate: Date,
+  allowWeekends: boolean
+): number {
+  // Calculate total active days needed
+  const activeDaysNeeded = Math.ceil(totalDuration / dailyCapacity)
+  
+  // If weekends are allowed, return active days directly (they're the same as calendar days)
+  if (allowWeekends) {
+    return activeDaysNeeded
+  }
+  
+  // If weekends are disabled, count only weekdays
+  // Start from startDate and count weekdays until we have enough active days
+  let activeDaysCount = 0
+  let currentDate = new Date(startDate)
+  let calendarDaysCount = 0
+  
+  while (activeDaysCount < activeDaysNeeded) {
+    const dayOfWeek = currentDate.getDay()
+    // 0 = Sunday, 6 = Saturday
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    
+    if (!isWeekend) {
+      activeDaysCount++
+    }
+    
+    calendarDaysCount++
+    if (activeDaysCount < activeDaysNeeded) {
+      currentDate = addDays(currentDate, 1)
+    }
+  }
+  
+  return calendarDaysCount
+}
 import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
@@ -360,6 +407,7 @@ export async function POST(req: NextRequest) {
     
     const prefs = (settings?.preferences as any) ?? {}
     const workdayPrefs = prefs.workday || {}
+    const allowWeekends = Boolean(workdayPrefs.allow_weekends ?? prefs.allow_weekends ?? false)
     const workdaySettings = {
       workday_end_hour: workdayPrefs.workday_end_hour,
     }
@@ -793,16 +841,31 @@ export async function POST(req: NextRequest) {
         let proposedTimelineDays: number
         if (willMoveStartDate) {
           // Start date moved to tomorrow - calculate total days needed from scratch
-          // Total days = ceil(totalDuration / dailyCapacity)
-          const capacityBasedDays = Math.ceil(totalDuration / dailyCapacity)
+          // Account for weekends being disabled when calculating active days
+          const capacityBasedDays = calculateActiveDaysNeeded(
+            totalDuration,
+            dailyCapacity,
+            parsedStartDate,
+            allowWeekends
+          )
           
           // Respect minimum timeline if user explicitly specified one
           const minimumTimeline = timelineRequirement?.minimumDays
           if (minimumTimeline && minimumTimeline > capacityBasedDays) {
-            proposedTimelineDays = minimumTimeline
+            // If user specified minimum, ensure it accounts for weekends too
+            const minimumActiveDays = allowWeekends 
+              ? minimumTimeline 
+              : calculateActiveDaysNeeded(
+                  totalDuration,
+                  dailyCapacity,
+                  parsedStartDate,
+                  false
+                )
+            proposedTimelineDays = Math.max(capacityBasedDays, minimumActiveDays)
             console.log('📅 Respecting user-specified minimum timeline:', {
               userMinimum: minimumTimeline,
               capacityBased: capacityBasedDays,
+              minimumActiveDays,
               finalTimeline: proposedTimelineDays
             })
           } else {
@@ -813,6 +876,8 @@ export async function POST(req: NextRequest) {
             dailyCapacity,
             totalDuration,
             totalDaysNeeded: proposedTimelineDays,
+            allowWeekends,
+            activeDaysOnly: !allowWeekends
           })
         } else {
           // Still starting today - calculate additional days needed
@@ -820,17 +885,41 @@ export async function POST(req: NextRequest) {
           const additionalDays = calculateDaysNeeded(totalDuration, effectiveRemainingMinutes, dailyCapacity)
           const capacityBasedDays = timelineDays + additionalDays
           
+          // If weekends are disabled, ensure we have enough active days
+          let adjustedCapacityBasedDays = capacityBasedDays
+          if (!allowWeekends) {
+            // Calculate how many active days we actually have in the proposed timeline
+            const totalActiveDaysNeeded = calculateActiveDaysNeeded(
+              totalDuration,
+              dailyCapacity,
+              parsedStartDate,
+              false
+            )
+            // Use the larger of the two to ensure we have enough active days
+            adjustedCapacityBasedDays = Math.max(capacityBasedDays, totalActiveDaysNeeded)
+          }
+          
           // Respect minimum timeline if user explicitly specified one
           const minimumTimeline = timelineRequirement?.minimumDays
-          if (minimumTimeline && minimumTimeline > capacityBasedDays) {
-            proposedTimelineDays = minimumTimeline
+          if (minimumTimeline && minimumTimeline > adjustedCapacityBasedDays) {
+            // If user specified minimum, ensure it accounts for weekends too
+            const minimumActiveDays = allowWeekends 
+              ? minimumTimeline 
+              : calculateActiveDaysNeeded(
+                  totalDuration,
+                  dailyCapacity,
+                  parsedStartDate,
+                  false
+                )
+            proposedTimelineDays = Math.max(adjustedCapacityBasedDays, minimumActiveDays)
             console.log('📅 Respecting user-specified minimum timeline:', {
               userMinimum: minimumTimeline,
-              capacityBased: capacityBasedDays,
+              capacityBased: adjustedCapacityBasedDays,
+              minimumActiveDays,
               finalTimeline: proposedTimelineDays
             })
           } else {
-            proposedTimelineDays = capacityBasedDays
+            proposedTimelineDays = adjustedCapacityBasedDays
           }
         }
         
