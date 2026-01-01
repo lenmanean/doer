@@ -1044,10 +1044,17 @@ export function detectTaskDependencies(
           if (otherTask.lowerName.includes('app')) reviewArtifactKeywords.push('app')
           if (otherTask.lowerName.includes('resume')) reviewArtifactKeywords.push('resume')
           if (otherTask.lowerName.includes('portfolio')) reviewArtifactKeywords.push('portfolio')
+          if (otherTask.lowerName.includes('material')) reviewArtifactKeywords.push('material')
           
           // Only create dependency if both tasks reference the same artifact
+          // Special case: "materials" is a catch-all that matches any artifact keyword
           // If no specific artifacts found, create dependency anyway (general review of created work)
-          const hasMatchingArtifact = artifactKeywords.length === 0 && reviewArtifactKeywords.length === 0 ||
+          const hasMatchingArtifact = 
+            // Case 1: Review mentions "materials" - matches any artifact keyword
+            (reviewArtifactKeywords.includes('material') && artifactKeywords.length > 0) ||
+            // Case 2: Both have no specific artifacts (general review of general work)
+            (artifactKeywords.length === 0 && reviewArtifactKeywords.length === 0) ||
+            // Case 3: Both have specific artifacts and at least one matches
             (artifactKeywords.length > 0 && reviewArtifactKeywords.length > 0 &&
               artifactKeywords.some(keyword => reviewArtifactKeywords.includes(keyword)))
           
