@@ -479,29 +479,19 @@ function wouldCreateCycle(
   
   // If we're adding a forward dependency (lower idx -> higher idx), it's generally safe
   // This represents the natural flow: earlier tasks depend on later tasks
-  // Only prevent if it would create an actual cycle (toIdx already depends on fromIdx)
+  // Only prevent if it would create a DIRECT cycle (toIdx -> fromIdx directly)
+  // For forward dependencies, be more lenient - only prevent if there's a direct backwards dependency
   if (fromTask && toTask && fromIdx < toIdx) {
-    // This is a forward dependency - check if toIdx already depends on fromIdx (would create cycle)
-    const visited = new Set<number>()
-    const stack: number[] = [toIdx]
-    
-    while (stack.length > 0) {
-      const current = stack.pop()!
-      if (current === fromIdx) {
-        return true // Cycle detected: toIdx depends on fromIdx, and we're adding fromIdx -> toIdx
-      }
-      if (visited.has(current)) {
-        continue
-      }
-      visited.add(current)
-      
-      const deps = dependencies.get(current) || []
-      for (const dep of deps) {
-        stack.push(dep)
-      }
+    // This is a forward dependency - check if toIdx already depends on fromIdx DIRECTLY
+    // Don't check transitive dependencies for forward deps - they're usually safe
+    const toDeps = dependencies.get(toIdx) || []
+    if (toDeps.includes(fromIdx)) {
+      return true // Direct cycle: toIdx -> fromIdx, and we're adding fromIdx -> toIdx
     }
     
-    // Forward dependency that doesn't create a cycle - allow it
+    // For forward dependencies, only check for direct cycles
+    // Transitive cycles through backwards dependencies should be handled by breaking those backwards deps
+    // Forward dependency that doesn't create a direct cycle - allow it
     return false
   }
   
@@ -704,6 +694,8 @@ export function detectTaskDependencies(
     // Make practice/apply tasks depend on learn/study tasks
     // BUT exclude test/testing tasks - learning comes before testing, not after
     // CRITICAL: Practice should depend on learn, NOT on final review
+    // CRITICAL: This is a fundamental ordering - learn ALWAYS comes before practice
+    // Override cycle detection for this specific case if needed
     if (task.lowerName.includes('learn') || task.lowerName.includes('study')) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -719,6 +711,25 @@ export function detectTaskDependencies(
           && !(otherTask.lowerName.includes('final') && (otherTask.lowerName.includes('review') || otherTask.lowerName.includes('polish')))
         ) {
           // Make otherTask (practice/apply) depend on task (learn/study)
+          // For learn -> practice, always add the dependency even if cycle detection says no
+          // This is a fundamental ordering that should never be skipped
+          const wouldCycle = wouldCreateCycle(dependencies, task.idx, otherTask.idx, tasks)
+          if (wouldCycle) {
+            // If there's a cycle, it's likely because practice -> learn was added incorrectly
+            // Remove any practice -> learn dependencies first, then add learn -> practice
+            if (dependencies.has(otherTask.idx)) {
+              const practiceDeps = dependencies.get(otherTask.idx)!
+              const learnDepIndex = practiceDeps.indexOf(task.idx)
+              if (learnDepIndex !== -1) {
+                practiceDeps.splice(learnDepIndex, 1)
+                console.log(`🔧 Removed backwards dependency: "${otherTask.name}" no longer depends on "${task.name}" (practice should depend on learn, not the reverse)`)
+                if (practiceDeps.length === 0) {
+                  dependencies.delete(otherTask.idx)
+                }
+              }
+            }
+          }
+          // Now add the correct dependency: practice -> learn
           addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
@@ -825,6 +836,7 @@ export function detectTaskDependencies(
     // Make explore/practice/write/build tasks depend on understand/learn tasks
     // BUT exclude test/testing tasks - learning should not depend on testing
     // CRITICAL: "explore" comes BEFORE "practice" - don't make explore depend on practice
+    // CRITICAL: Learn tasks should NEVER depend on practice tasks - this is backwards
     if (
       task.lowerName.includes('understand') ||
       (task.lowerName.includes('learn') && !task.lowerName.includes('practice'))
@@ -841,6 +853,9 @@ export function detectTaskDependencies(
           && !otherTask.lowerName.includes('test')
           // EXCLUDE practice from explore dependencies - explore comes before practice
           && !(task.lowerName.includes('practice') && otherTask.lowerName.includes('explore'))
+          // CRITICAL: Don't create dependencies where learn tasks depend on practice tasks
+          // This pattern should only create practice -> learn, never learn -> practice
+          && !(task.lowerName.includes('learn') && otherTask.lowerName.includes('practice') && task.idx > otherTask.idx)
         ) {
           // Make otherTask (explore/practice/write/build) depend on task (understand/learn)
           addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
@@ -868,22 +883,30 @@ export function detectTaskDependencies(
 
     // Pattern: Sequential learning - "variables" -> "loops" -> "functions"
     // Make loops depend on variables, functions depend on loops
-    if (task.lowerName.includes('variable')) {
+    // CRITICAL: Only apply to learn/understand tasks, NOT practice tasks
+    // Practice tasks should depend on learn tasks, not on other practice tasks through this pattern
+    if (task.lowerName.includes('variable') && 
+        (task.lowerName.includes('learn') || task.lowerName.includes('understand'))) {
       for (const otherTask of lowerTaskNames) {
         if (
           otherTask.idx !== task.idx &&
           (otherTask.lowerName.includes('loop') ||
             otherTask.lowerName.includes('function'))
+          // Only apply to learn/understand tasks, not practice tasks
+          && (otherTask.lowerName.includes('learn') || otherTask.lowerName.includes('understand'))
         ) {
           addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
-    if (task.lowerName.includes('loop')) {
+    if (task.lowerName.includes('loop') && 
+        (task.lowerName.includes('learn') || task.lowerName.includes('understand'))) {
       for (const otherTask of lowerTaskNames) {
         if (
           otherTask.idx !== task.idx &&
           otherTask.lowerName.includes('function')
+          // Only apply to learn/understand tasks, not practice tasks
+          && (otherTask.lowerName.includes('learn') || otherTask.lowerName.includes('understand'))
         ) {
           addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
@@ -1079,6 +1102,39 @@ export function detectTaskDependencies(
         }
       }
     }
+    
+    // CRITICAL: Clean up backwards dependencies - learn tasks should NOT depend on practice tasks
+    // Learn should ALWAYS come before practice, never the reverse
+    if ((task.lowerName.includes('learn') || task.lowerName.includes('understand') || task.lowerName.includes('study')) &&
+        !task.lowerName.includes('practice')) {
+      if (dependencies.has(task.idx)) {
+        const taskDeps = dependencies.get(task.idx)!
+        const invalidDeps: number[] = []
+        
+        for (const depIdx of taskDeps) {
+          const depTask = lowerTaskNames.find(t => t.idx === depIdx)
+          if (depTask && (
+            depTask.lowerName.includes('practice') ||
+            depTask.lowerName.includes('exercise') ||
+            depTask.lowerName.includes('apply')
+          )) {
+            // Learn task incorrectly depends on practice task - remove this dependency
+            invalidDeps.push(depIdx)
+            console.log(`🔧 Removed backwards dependency: "${task.name}" no longer depends on "${depTask.name}" (learn should come BEFORE practice, not after)`)
+          }
+        }
+        
+        // Remove invalid dependencies
+        if (invalidDeps.length > 0) {
+          const cleanedDeps = taskDeps.filter(dep => !invalidDeps.includes(dep))
+          if (cleanedDeps.length === 0) {
+            dependencies.delete(task.idx)
+          } else {
+            dependencies.set(task.idx, cleanedDeps)
+          }
+        }
+      }
+    }
   }
 
   // Log detected dependencies
@@ -1203,7 +1259,18 @@ function resolveCircularDependencies(
       // Score: lower is weaker (should be removed)
       // If fromType > toType, it's a backwards dependency (e.g., test depends on practice)
       // If fromType < toType, it's a forward dependency (e.g., practice depends on learn)
-      const score = fromType - toType
+      let score = fromType - toType
+      
+      // CRITICAL: Prioritize keeping learn -> practice dependencies
+      // If this is a learn -> practice dependency (fromType=2, toType=3), make it very strong (high score)
+      // If this is a practice -> learn dependency (fromType=3, toType=2), make it very weak (low score)
+      if (fromType === 2 && toType === 3) {
+        // Learn -> practice: this is correct, don't remove it
+        score = 1000 // Very high score = keep this dependency
+      } else if (fromType === 3 && toType === 2) {
+        // Practice -> learn: this is backwards, remove it
+        score = -1000 // Very low score = remove this dependency
+      }
       
       if (score < weakestScore) {
         weakestScore = score
