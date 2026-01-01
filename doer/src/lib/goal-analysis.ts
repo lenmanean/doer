@@ -460,6 +460,66 @@ function checkForWorkdayEnd(clarifications?: Record<string, any> | string[]): bo
 }
 
 /**
+ * Helper function to check if adding a dependency would create a cycle
+ * Returns true if adding fromIdx -> toIdx would create a cycle
+ */
+function wouldCreateCycle(
+  dependencies: Map<number, number[]>,
+  fromIdx: number,
+  toIdx: number
+): boolean {
+  // If toIdx already depends on fromIdx (directly or transitively), adding fromIdx -> toIdx would create a cycle
+  const visited = new Set<number>()
+  const stack: number[] = [toIdx]
+  
+  while (stack.length > 0) {
+    const current = stack.pop()!
+    if (current === fromIdx) {
+      return true // Cycle detected: toIdx depends on fromIdx (directly or transitively)
+    }
+    if (visited.has(current)) {
+      continue
+    }
+    visited.add(current)
+    
+    const deps = dependencies.get(current) || []
+    for (const dep of deps) {
+      stack.push(dep)
+    }
+  }
+  
+  return false
+}
+
+/**
+ * Helper function to safely add a dependency, checking for cycles first
+ * Returns true if dependency was added, false if it would create a cycle
+ */
+function safeAddDependency(
+  dependencies: Map<number, number[]>,
+  dependentIdx: number,
+  prerequisiteIdx: number,
+  dependentName: string,
+  prerequisiteName: string
+): boolean {
+  // Check if this would create a cycle
+  if (wouldCreateCycle(dependencies, prerequisiteIdx, dependentIdx)) {
+    console.log(`🔧 Skipped dependency: "${dependentName}" -> "${prerequisiteName}" (would create cycle)`)
+    return false
+  }
+  
+  // Add the dependency
+  if (!dependencies.has(dependentIdx)) {
+    dependencies.set(dependentIdx, [])
+  }
+  const deps = dependencies.get(dependentIdx)!
+  if (!deps.includes(prerequisiteIdx)) {
+    deps.push(prerequisiteIdx)
+  }
+  return true
+}
+
+/**
  * Detect task dependencies based on semantic patterns in task names
  * Returns a map of task idx -> array of dependent task idxs
  * (e.g., if task 3 depends on task 2, map will have: 3 -> [2])
@@ -490,12 +550,17 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('make'))
         ) {
           // Make otherTask (create/build) depend on task (outline/structure)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
+          // Check if this would create a cycle before adding
+          if (!wouldCreateCycle(dependencies, task.idx, otherTask.idx)) {
+            if (!dependencies.has(otherTask.idx)) {
+              dependencies.set(otherTask.idx, [])
+            }
+            const otherTaskDeps = dependencies.get(otherTask.idx)!
+            if (!otherTaskDeps.includes(task.idx)) {
+              otherTaskDeps.push(task.idx)
+            }
+          } else {
+            console.log(`🔧 Skipped dependency: "${otherTask.name}" -> "${task.name}" (would create cycle)`)
           }
         }
       }
@@ -716,13 +781,7 @@ export function detectTaskDependencies(
           && !(task.lowerName.includes('practice') && otherTask.lowerName.includes('explore'))
         ) {
           // Make otherTask (explore/practice/write/build) depend on task (understand/learn)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
-          }
+          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -740,13 +799,7 @@ export function detectTaskDependencies(
           !otherTask.lowerName.includes('test')
         ) {
           // Make otherTask (practice) depend on task (explore/understand)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
-          }
+          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -760,13 +813,7 @@ export function detectTaskDependencies(
           (otherTask.lowerName.includes('loop') ||
             otherTask.lowerName.includes('function'))
         ) {
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
-          }
+          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -776,13 +823,7 @@ export function detectTaskDependencies(
           otherTask.idx !== task.idx &&
           otherTask.lowerName.includes('function')
         ) {
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
-          }
+          safeAddDependency(dependencies, otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -841,11 +882,13 @@ export function detectTaskDependencies(
       }
     }
 
-    // Pattern: "build" / "create" must come before "test"
-    // Make test tasks depend on build/create tasks
+    // Pattern: "build" / "create" / "code" must come before "test"
+    // Make test tasks depend on build/create/code tasks
+    // CRITICAL: Test should depend on building/coding, NOT on practice exercises
     if (
       task.lowerName.includes('build') ||
-      task.lowerName.includes('create')
+      task.lowerName.includes('create') ||
+      (task.lowerName.includes('code') && !task.lowerName.includes('practice'))
     ) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -853,13 +896,38 @@ export function detectTaskDependencies(
           (otherTask.lowerName.includes('test') ||
             otherTask.lowerName.includes('testing'))
         ) {
-          // Make otherTask (test) depend on task (build/create)
+          // Make otherTask (test) depend on task (build/create/code)
           if (!dependencies.has(otherTask.idx)) {
             dependencies.set(otherTask.idx, [])
           }
           const otherTaskDeps = dependencies.get(otherTask.idx)!
           if (!otherTaskDeps.includes(task.idx)) {
             otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+    
+    // Pattern: Explicitly prevent test tasks from depending on practice exercises
+    // Test tasks should depend on build/code, not on practice
+    if (
+      task.lowerName.includes('practice') &&
+      (task.lowerName.includes('exercise') || task.lowerName.includes('drill') || task.lowerName.includes('challenge'))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          (otherTask.lowerName.includes('test') || otherTask.lowerName.includes('testing'))
+        ) {
+          // Remove any dependency from test to practice exercises
+          // Test should NOT depend on practice exercises
+          if (dependencies.has(otherTask.idx)) {
+            const otherTaskDeps = dependencies.get(otherTask.idx)!
+            const depIndex = otherTaskDeps.indexOf(task.idx)
+            if (depIndex !== -1) {
+              otherTaskDeps.splice(depIndex, 1)
+              console.log(`🔧 Removed backwards dependency: "${otherTask.name}" no longer depends on "${task.name}" (test should depend on build/code, not practice)`)
+            }
           }
         }
       }

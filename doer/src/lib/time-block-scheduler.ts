@@ -435,11 +435,48 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       return { targetDay: lastDayIndex, enforce: true }
     }
 
-    if (
-      contains('practice') ||
-      contains('mock interview') ||
-      contains('rehears')
-    ) {
+    // Refined practice rule: Only push final practice/rehearsal to last day
+    // Early practice tasks (exercises, drills) should be allowed earlier
+    if (contains('practice') || contains('rehears')) {
+      // Check if this is final practice (preparation for event/deadline)
+      const isFinalPractice = 
+        contains('final practice') ||
+        contains('practice delivery') ||
+        contains('practice presentation') ||
+        contains('practice interview') ||
+        contains('mock interview') ||
+        (contains('practice') && (contains('final') || contains('delivery') || contains('presentation')))
+      
+      // Check if this is early practice (learning reinforcement)
+      const isEarlyPractice = 
+        contains('practice variables') ||
+        contains('practice loops') ||
+        contains('practice functions') ||
+        contains('practice with exercises') ||
+        contains('practice exercises') ||
+        (contains('practice') && (contains('exercise') || contains('drill') || contains('challenge')))
+      
+      // Only push final practice to last day, allow early practice to be scheduled earlier
+      if (isFinalPractice) {
+        return { targetDay: lastDayIndex, enforce: true }
+      } else if (isEarlyPractice) {
+        // Early practice can be scheduled earlier - don't enforce last day
+        return { targetDay: task.targetDay, enforce: false }
+      } else {
+        // Generic practice - check priority to determine if it's final prep
+        // Priority 3-4 practice tasks are likely final prep, Priority 1-2 are learning reinforcement
+        if (task.priority >= 3) {
+          // Higher priority practice (likely final prep) - push to last day but don't enforce
+          return { targetDay: lastDayIndex, enforce: false }
+        } else {
+          // Lower priority practice (likely learning) - allow earlier scheduling
+          return { targetDay: task.targetDay, enforce: false }
+        }
+      }
+    }
+    
+    // Mock interview is always final prep
+    if (contains('mock interview')) {
       return { targetDay: lastDayIndex, enforce: true }
     }
 
@@ -705,6 +742,18 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         const range = getTargetDayRangeFn(task.priority || 4)
         const taskDuration = task.estimated_duration_minutes || 0
         
+        // For Priority 1 tasks, be more conservative about moving
+        // These are foundational tasks that other tasks depend on
+        const isPriority1 = task.priority === 1
+        const isLocked = isTaskLocked(task, tasks, dependencies)
+        
+        // Priority 1 tasks with dependencies should be moved more carefully
+        // Only move if it doesn't create dependency issues and improves distribution significantly
+        if (isPriority1 && isLocked) {
+          console.log(`  ⚖️ Skipping movement of Priority 1 task "${task.name}" - has strict dependencies`)
+          continue
+        }
+        
         // Find lighter days within priority range
         // Consider both existing workload and new task workload
         // Also check capacity limits to prevent overload
@@ -722,6 +771,21 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             // This checks both forward and reverse dependencies
             const wouldViolateDeps = violatesDependencies(task, day, tasks, dependencies)
             
+            // For Priority 1 tasks, be more strict about moving earlier
+            // Don't move Priority 1 tasks to days before their dependencies
+            if (isPriority1 && day < task.targetDay) {
+              // Check if any dependency is scheduled on a day after the proposed new day
+              if (task.idx && dependencies.has(task.idx)) {
+                const dependentTaskIdxs = dependencies.get(task.idx) || []
+                for (const depIdx of dependentTaskIdxs) {
+                  const depTask = tasks.find(t => t.idx === depIdx)
+                  if (depTask && depTask.targetDay > day) {
+                    return false // Would move Priority 1 task before its dependency
+                  }
+                }
+              }
+            }
+            
             return day !== heavyDay &&
               day >= range.start &&
               day <= range.end &&
@@ -730,6 +794,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               !wouldViolateDeps // Would not violate dependencies
           })
           .sort((a, b) => {
+            // For Priority 1 tasks, prefer days closer to original target day
+            if (isPriority1) {
+              const aDist = Math.abs(a[0] - task.targetDay)
+              const bDist = Math.abs(b[0] - task.targetDay)
+              if (aDist !== bDist) {
+                return aDist - bDist
+              }
+            }
             // Sort by total workload (existing + new tasks) - lightest first
             return a[1] - b[1]
           })
@@ -986,6 +1058,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
 
   let latestSequentialDay = 0
   const tasksSkippedDueToDependencies: Array<{task: typeof tasksWithTargetDays[number], reason: string}> = []
+  const tasksFailedDueToCapacity: Array<{task: typeof tasksWithTargetDays[number], reason: string}> = []
 
   for (const taskWithTarget of tasksWithTargetDays) {
     const task = taskWithTarget
@@ -1183,6 +1256,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // 🔧 FIX: Don't split tasks across days - only schedule if ENTIRE task fits
       if (remainingDuration > availableCapacity) {
         console.log(`    Skipping day ${dayIndex} - task requires ${remainingDuration} min but only ${availableCapacity} min available (will not split task)`)
+        // Track this as a capacity failure for retry
+        const alreadyTracked = tasksFailedDueToCapacity.some(s => s.task.idx === task.idx)
+        if (!alreadyTracked && !scheduled) {
+          tasksFailedDueToCapacity.push({
+            task: taskWithTarget,
+            reason: `Insufficient capacity on day ${dayIndex}: need ${remainingDuration} min, only ${availableCapacity} min available`
+          })
+        }
         continue
       }
 
@@ -1473,13 +1554,18 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     }
 
     if (!scheduled) {
-      // Only add to unscheduledTasks if not being tracked for retry
-      const isTrackedForRetry = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
-      if (!isTrackedForRetry) {
-      console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
-      unscheduledTasks.push(task.id)
-      } else {
+      // Check if task was skipped due to dependencies or capacity
+      const isTrackedForDependencyRetry = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
+      const isTrackedForCapacityRetry = tasksFailedDueToCapacity.some(s => s.task.idx === task.idx)
+      
+      if (isTrackedForDependencyRetry) {
         console.log(`    ⏸️ Task "${task.name}" skipped due to unscheduled prerequisites - will retry after prerequisites are scheduled`)
+      } else if (isTrackedForCapacityRetry) {
+        console.log(`    ⏸️ Task "${task.name}" failed due to capacity constraints - will retry after other tasks are scheduled`)
+      } else {
+        // Task failed for other reasons (no valid days, etc.) - add to unscheduled
+        console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+        unscheduledTasks.push(task.id)
       }
     }
   }
@@ -1875,6 +1961,195 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   
   if (retryPass >= maxRetryPasses) {
     console.warn(`⚠️ Retry loop reached maximum passes (${maxRetryPasses}), stopping to prevent infinite loop`)
+  }
+
+  // Retry tasks that failed due to capacity constraints
+  // These tasks may now be schedulable after other tasks were scheduled and capacity freed up
+  if (tasksFailedDueToCapacity.length > 0) {
+    console.log(`🔄 Retrying ${tasksFailedDueToCapacity.length} task(s) that failed due to capacity constraints`)
+    
+    for (const failed of tasksFailedDueToCapacity) {
+      const task = failed.task
+      // Check if task is already scheduled
+      if (placements.some(p => p.task_id === task.id)) {
+        continue
+      }
+      
+      let remainingDuration = task.estimated_duration_minutes
+      let scheduled = false
+      const targetDay = task.targetDay || 0
+      console.log(`Retrying capacity-failed task: ${task.name} (${task.estimated_duration_minutes} min) - idx: ${task.idx}, priority: ${task.priority}, targetDay: ${targetDay}`)
+
+      // Search ALL days for available capacity
+      const searchDaysSet = new Set<number>()
+      for (let dayIndex = 0; dayIndex < totalDays; dayIndex++) {
+        searchDaysSet.add(dayIndex)
+      }
+      
+      // Filter search days to only include those that:
+      // 1. Have sufficient capacity
+      // 2. Don't violate dependencies (using canScheduleOnDay helper)
+      const validSearchDays = Array.from(searchDaysSet).filter(dayIdx => {
+        const dayConfig = dayConfigs[dayIdx]
+        if (!dayConfig) return false
+        
+        // Check capacity
+        const used = dailyScheduled[dayIdx] || 0
+        const available = dayConfig.dailyCapacity - used
+        if (available < remainingDuration) return false
+        
+        // Check dependencies using the same helper function as main scheduling loop
+        if (!canScheduleOnDay(task, dayIdx, placements, taskDependencies, tasksWithTargetDays)) {
+          return false
+        }
+        
+        return true
+      })
+      
+      const searchDays = validSearchDays.sort((a, b) => {
+        // Prioritize days with more available capacity
+        const aConfig = dayConfigs[a]
+        const bConfig = dayConfigs[b]
+        const aUsed = dailyScheduled[a] || 0
+        const bUsed = dailyScheduled[b] || 0
+        const aAvailable = (aConfig?.dailyCapacity || 0) - aUsed
+        const bAvailable = (bConfig?.dailyCapacity || 0) - bUsed
+        return bAvailable - aAvailable
+      })
+
+      // Try to schedule the task using the same logic as retry mechanism
+      for (const dayIndex of searchDays) {
+        if (remainingDuration <= 0) break
+        
+        if (isSingleDayPlan && dayIndex !== 0) {
+          continue
+        }
+        
+        const currentDate = new Date(startDate)
+        currentDate.setDate(startDate.getDate() + dayIndex)
+        const dateStr = currentDate.toISOString().split('T')[0]
+
+        const dayConfig = dayConfigs[dayIndex]
+        if (!dayConfig) continue
+
+        if (dayConfig.isWeekend && !allowWeekends) {
+          continue
+        }
+
+        const alreadyScheduled = dailyScheduled[dayIndex] || 0
+        const dayCapacity = dayConfig.dailyCapacity
+        const availableCapacity = dayCapacity - alreadyScheduled
+
+        if (availableCapacity <= 0 || remainingDuration > availableCapacity) {
+          continue
+        }
+
+        // Check dependencies
+        if (!canScheduleOnDay(task, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
+          continue
+        }
+
+        const durationToSchedule = remainingDuration
+        
+        let initialStartTime = findBestTimeSlot(
+          dayIndex,
+          durationToSchedule,
+          dayConfig,
+          currentTime,
+          currentDate,
+          requireStartDate
+        )
+
+        if (initialStartTime) {
+          const startTime = findNextAvailableSlot(
+            initialStartTime,
+            durationToSchedule,
+            dateStr,
+            scheduledSlots,
+            dayConfig,
+            currentTime,
+            requireStartDate
+          )
+
+          if (!startTime) {
+            continue
+          }
+
+          const endTime = addMinutesToTime(startTime, durationToSchedule)
+          
+          if (currentTime && currentDate && dayIndex === 0 && !requireStartDate) {
+            const [startHour, startMinute] = startTime.split(':').map(Number)
+            const taskStartTime = new Date(Date.UTC(
+              currentDate.getUTCFullYear(),
+              currentDate.getUTCMonth(),
+              currentDate.getUTCDate(),
+              startHour,
+              startMinute,
+              0,
+              0
+            ))
+            
+            const currentDateStr = `${currentTime.getUTCFullYear()}-${String(currentTime.getUTCMonth() + 1).padStart(2, '0')}-${String(currentTime.getUTCDate()).padStart(2, '0')}`
+            const taskDateStr = `${taskStartTime.getUTCFullYear()}-${String(taskStartTime.getUTCMonth() + 1).padStart(2, '0')}-${String(taskStartTime.getUTCDate()).padStart(2, '0')}`
+            
+            if (currentDateStr === taskDateStr && taskStartTime < currentTime) {
+              continue
+            }
+          }
+
+          const [startHour, startMinute] = startTime.split(':').map(Number)
+          const [endHour, endMinute] = endTime.split(':').map(Number)
+          const startMinutes = startHour * 60 + startMinute
+          const endMinutes = endHour * 60 + endMinute
+          
+          const daySlots = scheduledSlots.get(dateStr) || []
+          const hasOverlap = daySlots.some(slot => 
+            startMinutes < slot.end && endMinutes > slot.start
+          )
+          
+          if (hasOverlap) {
+            continue
+          }
+          
+          placements.push({
+            task_id: task.id,
+            date: dateStr,
+            day_index: dayIndex,
+            start_time: startTime,
+            end_time: endTime,
+            duration_minutes: durationToSchedule
+          })
+
+          if (!scheduledSlots.has(dateStr)) {
+            scheduledSlots.set(dateStr, [])
+          }
+          scheduledSlots.get(dateStr)!.push({
+            start: startMinutes,
+            end: endMinutes,
+            taskId: task.id
+          })
+
+          dailyScheduled[dayIndex] = alreadyScheduled + durationToSchedule
+          totalScheduledHours += durationToSchedule / 60
+          remainingDuration -= durationToSchedule
+          scheduled = true
+          
+          console.log(`    ✓ Capacity retry: Scheduled task "${task.name}" (${durationToSchedule} min) on ${dateStr}`)
+          const unscheduledIndex = unscheduledTasks.indexOf(task.id)
+          if (unscheduledIndex !== -1) {
+            unscheduledTasks.splice(unscheduledIndex, 1)
+          }
+          break
+        }
+      }
+
+      if (!scheduled) {
+        console.log(`    ⚠️ Capacity retry failed: Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+        if (!unscheduledTasks.includes(task.id)) {
+          unscheduledTasks.push(task.id)
+        }
+      }
+    }
   }
 
   console.log('🔧 Final placements order:', placements.map(p => ({ 
