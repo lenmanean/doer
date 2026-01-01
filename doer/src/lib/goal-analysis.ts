@@ -697,6 +697,7 @@ export function detectTaskDependencies(
     // Pattern: "understand" / "learn" basic concepts must come before "explore" / "practice" / "write" / "build"
     // Make explore/practice/write/build tasks depend on understand/learn tasks
     // BUT exclude test/testing tasks - learning should not depend on testing
+    // CRITICAL: "explore" comes BEFORE "practice" - don't make explore depend on practice
     if (
       task.lowerName.includes('understand') ||
       (task.lowerName.includes('learn') && !task.lowerName.includes('practice'))
@@ -711,8 +712,34 @@ export function detectTaskDependencies(
             (otherTask.lowerName.includes('learn') && otherTask.lowerName.includes('practice')))
           // EXCLUDE test/testing - learning comes before testing, not after
           && !otherTask.lowerName.includes('test')
+          // EXCLUDE practice from explore dependencies - explore comes before practice
+          && !(task.lowerName.includes('practice') && otherTask.lowerName.includes('explore'))
         ) {
           // Make otherTask (explore/practice/write/build) depend on task (understand/learn)
+          if (!dependencies.has(otherTask.idx)) {
+            dependencies.set(otherTask.idx, [])
+          }
+          const otherTaskDeps = dependencies.get(otherTask.idx)!
+          if (!otherTaskDeps.includes(task.idx)) {
+            otherTaskDeps.push(task.idx)
+          }
+        }
+      }
+    }
+    
+    // Pattern: "explore" / "understand" must come before "practice"
+    // Make practice tasks depend on explore/understand tasks (but not the reverse)
+    if (
+      task.lowerName.includes('explore') ||
+      (task.lowerName.includes('understand') && !task.lowerName.includes('practice'))
+    ) {
+      for (const otherTask of lowerTaskNames) {
+        if (
+          otherTask.idx !== task.idx &&
+          otherTask.lowerName.includes('practice') &&
+          !otherTask.lowerName.includes('test')
+        ) {
+          // Make otherTask (practice) depend on task (explore/understand)
           if (!dependencies.has(otherTask.idx)) {
             dependencies.set(otherTask.idx, [])
           }

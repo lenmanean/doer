@@ -559,6 +559,46 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     return false
   }
 
+  // Helper function to check if a task can be scheduled on a specific day based on dependencies
+  // Returns true if task can be scheduled on dayIndex, false if it would violate dependencies
+  const canScheduleOnDay = (
+    task: typeof tasksWithTargetDays[number],
+    dayIndex: number,
+    placements: TimeBlockPlacement[],
+    taskDependencies: Map<number, number[]>,
+    tasks: typeof tasksWithTargetDays
+  ): boolean => {
+    // If task has no dependencies, it can be scheduled on any day
+    if (!task.idx || !taskDependencies.has(task.idx)) {
+      return true
+    }
+
+    const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+    
+    // Check each prerequisite
+    for (const depIdx of dependentTaskIdxs) {
+      const depTask = tasks.find(t => t.idx === depIdx)
+      if (!depTask) continue
+      
+      // Find where the prerequisite is scheduled
+      const depPlacement = placements.find(p => p.task_id === depTask.id)
+      
+      if (depPlacement) {
+        // Prerequisite is already scheduled - check if it's on a later day
+        if (depPlacement.day_index > dayIndex) {
+          // CRITICAL: Cannot schedule task on dayIndex if prerequisite is on a later day
+          console.log(`    🔗 Cannot schedule "${task.name}" on day ${dayIndex}: prerequisite "${depTask.name}" is scheduled on day ${depPlacement.day_index}`)
+          return false
+        }
+        // If prerequisite is on same day or earlier, it's OK (time ordering will be handled separately)
+      }
+      // If prerequisite is not scheduled yet, we can still schedule this task
+      // (the prerequisite will be scheduled later, and we'll catch violations in post-validation)
+    }
+    
+    return true
+  }
+
   // Calculate existing workload per day from existing schedules
   const existingWorkloadPerDay = new Map<number, number>()
   for (const existing of existingSchedules) {
@@ -678,12 +718,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             // Check if moving this task would exceed capacity
             const wouldExceedCapacity = (totalWorkload + taskDuration) > dayCapacity
             
+            // Check if moving would violate dependencies
+            // This checks both forward and reverse dependencies
+            const wouldViolateDeps = violatesDependencies(task, day, tasks, dependencies)
+            
             return day !== heavyDay &&
               day >= range.start &&
               day <= range.end &&
               newTasksOnDay < idealNewTaskWorkload * 0.9 && // New task workload is light
               !wouldExceedCapacity && // Would not exceed capacity
-              !violatesDependencies(task, day, tasks, dependencies)
+              !wouldViolateDeps // Would not violate dependencies
           })
           .sort((a, b) => {
             // Sort by total workload (existing + new tasks) - lightest first
@@ -693,15 +737,123 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         if (lighterDays.length > 0) {
           const [newDay] = lighterDays[0]
           const oldDay = task.targetDay
-          task.targetDay = newDay
           
-          // Update workload tracking
-          workloadPerDay.set(heavyDay, heavyWorkload - taskDuration)
-          workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
+          // Double-check dependencies before moving (safety check)
+          if (!violatesDependencies(task, newDay, tasks, dependencies)) {
+            task.targetDay = newDay
+            
+            // Update workload tracking
+            workloadPerDay.set(heavyDay, heavyWorkload - taskDuration)
+            workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
+            
+            movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+            
+            console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min)`)
+          } else {
+            console.log(`  ⚖️ Skipped moving "${task.name}" to Day ${newDay} - would violate dependencies`)
+          }
+        }
+      }
+    }
+    
+    // Second pass: Actively fix overloaded days (days exceeding capacity)
+    // This is critical - we must prevent capacity violations
+    let overloadFixed = true
+    let overloadPass = 0
+    const maxOverloadPasses = 5 // Prevent infinite loops
+    
+    while (overloadFixed && overloadPass < maxOverloadPasses) {
+      overloadPass++
+      overloadFixed = false
+      
+      // Find overloaded days
+      const overloadedDays = Array.from(workloadPerDay.entries())
+        .filter(([day, workload]) => {
+          const dayConfig = dayConfigsArray[day]
+          const dayCapacity = dayConfig?.dailyCapacity || 0
+          return workload > dayCapacity
+        })
+        .sort((a, b) => b[1] - a[1]) // Sort by excess (most overloaded first)
+      
+      if (overloadedDays.length === 0) {
+        break // No overloaded days, we're done
+      }
+      
+      // Try to fix each overloaded day
+      for (const [overloadedDay, overloadedWorkload] of overloadedDays) {
+        const dayConfig = dayConfigsArray[overloadedDay]
+        const dayCapacity = dayConfig?.dailyCapacity || 0
+        const excess = overloadedWorkload - dayCapacity
+        
+        console.log(`⚖️ Fixing overload on Day ${overloadedDay}: ${overloadedWorkload} min > ${dayCapacity} min (excess: ${excess} min)`)
+        
+        // Find tasks on this overloaded day that can be moved
+        const tasksOnOverloadedDay = tasks.filter(t => t.targetDay === overloadedDay)
+        const movableTasks = tasksOnOverloadedDay.filter(t => 
+          !(t as any).enforceTargetDay &&
+          !isTaskLocked(t, tasks, dependencies)
+        )
+        
+        // Try to move tasks to fix the overload
+        for (const task of movableTasks) {
+          if (excess <= 0) break // Overload fixed
           
-          movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+          const range = getTargetDayRangeFn(task.priority || 4)
+          const taskDuration = task.estimated_duration_minutes || 0
           
-          console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min)`)
+          // Find days that can accept this task without exceeding capacity
+          const candidateDays = Array.from(workloadPerDay.entries())
+            .filter(([day, totalWorkload]) => {
+              const dayConfig = dayConfigsArray[day]
+              const dayCapacity = dayConfig?.dailyCapacity || 0
+              const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
+              
+              // Check dependencies - critical to prevent violations
+              const wouldViolateDeps = violatesDependencies(task, day, tasks, dependencies)
+              
+              return day !== overloadedDay &&
+                day >= range.start &&
+                day <= range.end &&
+                !wouldExceed && // Must not exceed capacity
+                !wouldViolateDeps // Must not violate dependencies
+            })
+            .sort((a, b) => {
+              // Prefer days with most available capacity
+              const aConfig = dayConfigsArray[a[0]]
+              const bConfig = dayConfigsArray[b[0]]
+              const aCapacity = aConfig?.dailyCapacity || 0
+              const bCapacity = bConfig?.dailyCapacity || 0
+              const aAvailable = aCapacity - a[1]
+              const bAvailable = bCapacity - b[1]
+              return bAvailable - aAvailable
+            })
+          
+          if (candidateDays.length > 0) {
+            const [newDay] = candidateDays[0]
+            const oldDay = task.targetDay
+            
+            // Double-check dependencies before moving (safety check)
+            if (!violatesDependencies(task, newDay, tasks, dependencies)) {
+              task.targetDay = newDay
+              
+              // Update workload tracking
+              workloadPerDay.set(overloadedDay, overloadedWorkload - taskDuration)
+              workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
+              
+              movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+              overloadFixed = true
+              
+              console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min) to fix overload`)
+              
+              // Recalculate excess for this day
+              const newWorkload = workloadPerDay.get(overloadedDay) || 0
+              if (newWorkload <= dayCapacity) {
+                break // This day is fixed, move to next overloaded day
+              }
+            } else {
+              console.log(`  ⚖️ Skipped moving "${task.name}" to Day ${newDay} to fix overload - would violate dependencies`)
+            }
+          }
         }
       }
     }
@@ -745,12 +897,13 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     finalWorkloadPerDay.set(task.targetDay, current + (task.estimated_duration_minutes || 0))
   })
   
-  // Check for days that exceed capacity
+  // Check for days that exceed capacity - this should not happen after balancing
   for (const [day, workload] of finalWorkloadPerDay.entries()) {
     const dayConfig = dayConfigs[day]
     const dayCapacity = dayConfig?.dailyCapacity || 0
     if (workload > dayCapacity) {
-      console.warn(`⚠️  Day ${day} overloaded: ${workload} min scheduled, capacity: ${dayCapacity} min (excess: ${workload - dayCapacity} min)`)
+      console.error(`❌ Day ${day} still overloaded after balancing: ${workload} min scheduled, capacity: ${dayCapacity} min (excess: ${workload - dayCapacity} min)`)
+      // This is a critical error - balancing should have fixed this
     }
   }
   const totalAvailableCapacity = dayConfigs.reduce((sum, config) => {
@@ -901,9 +1054,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       }
     }
     
+    // Filter search days to only include those that respect dependencies
+    // CRITICAL: Remove days where prerequisites are scheduled on later days
+    const validSearchDays = Array.from(searchDaysSet).filter(dayIdx => {
+      return canScheduleOnDay(task, dayIdx, placements, taskDependencies, tasksWithTargetDays)
+    })
+    
     // Convert Set to Array and sort with capacity-aware backfilling
     // This enables intelligent backfilling - prioritize days with more available capacity
-    const searchDays = Array.from(searchDaysSet).sort((a, b) => {
+    const searchDays = validSearchDays.sort((a, b) => {
       // Prioritize target day and days after it
       if (a < targetDay && b >= targetDay) return 1
       if (b < targetDay && a >= targetDay) return -1
@@ -1104,6 +1263,12 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // 🔧 FIX: Schedule the entire remaining duration (we already checked it fits above)
       const durationToSchedule = remainingDuration
       
+      // CRITICAL: Check day-level dependencies BEFORE attempting to schedule
+      // This prevents scheduling tasks on days before their prerequisites
+      if (!canScheduleOnDay(task, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
+        continue // Skip this day - would violate dependencies
+      }
+      
       // Enforce dependency time ordering: if this task has dependencies scheduled on the same day,
       // it must start after all prerequisite tasks end
       let earliestDependencyEndTime: string | null = null
@@ -1130,13 +1295,17 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               const depEndTime = addMinutesToTime(depPlacement.start_time, depDuration)
               prerequisiteEndTimes.push(depEndTime)
             }
-          } else if (depTaskWithTarget.targetDay === dayIndex) {
-            // Prerequisite has same target day but hasn't been scheduled yet
-            // BUT: also check if it's already scheduled on a different day
+          } else {
+            // Prerequisite is not scheduled on this day
+            // Check if it's scheduled elsewhere
             const isScheduledElsewhere = placements.some(p => p.task_id === depTask.id)
             if (!isScheduledElsewhere) {
-              unscheduledPrerequisitesOnSameDay.push(depIdx)
+              // Prerequisite not scheduled yet - check if it has same target day
+              if (depTaskWithTarget.targetDay === dayIndex) {
+                unscheduledPrerequisitesOnSameDay.push(depIdx)
+              }
             }
+            // If prerequisite is scheduled on a different day, canScheduleOnDay already validated it's on an earlier day
           }
         }
         
@@ -1378,38 +1547,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         searchDaysSet.add(targetDay)
       }
       
-      const baseDeviation = task.priority === 1 ? 2 : task.priority === 2 ? 3 : task.priority === 3 ? 4 : 5
-      const timelineDeviationLimit = Math.floor(Math.max(totalActiveDays - 1, 0) * 0.3)
-      const maxDeviation = Math.min(baseDeviation, timelineDeviationLimit)
-      
-      for (let offset = 1; offset <= maxDeviation; offset++) {
-        if (allowEarlierThanTarget && targetDay - offset >= 0) searchDaysSet.add(targetDay - offset)
-        if (targetDay + offset < totalDays) searchDaysSet.add(targetDay + offset)
-      }
-      
-      if (task.priority >= 3) {
-        for (let dayIndex = targetDay + maxDeviation + 1; dayIndex < totalDays; dayIndex++) {
-          searchDaysSet.add(dayIndex)
-        }
-        if (allowEarlierThanTarget) {
-          for (let dayIndex = targetDay - maxDeviation - 1; dayIndex >= 0; dayIndex--) {
-            searchDaysSet.add(dayIndex)
-          }
-        }
-      } else {
-        if (allowEarlierThanTarget) {
-          for (let dayIndex = targetDay - maxDeviation - 1; dayIndex >= 0; dayIndex--) {
-            searchDaysSet.add(dayIndex)
-          }
-        }
-        for (let dayIndex = targetDay + maxDeviation + 1; dayIndex < totalDays; dayIndex++) {
-          searchDaysSet.add(dayIndex)
-        }
+      // For retry, be more aggressive - search ALL days to find any available slot
+      // This ensures we don't miss scheduling opportunities
+      for (let dayIndex = 0; dayIndex < totalDays; dayIndex++) {
+        searchDaysSet.add(dayIndex)
       }
       
       // Filter search days to only include those that:
       // 1. Have sufficient capacity
-      // 2. Don't violate dependencies
+      // 2. Don't violate dependencies (using canScheduleOnDay helper)
       // 3. Are within allowed range
       const validSearchDays = Array.from(searchDaysSet).filter(dayIdx => {
         const dayConfig = dayConfigs[dayIdx]
@@ -1420,19 +1566,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         const available = dayConfig.dailyCapacity - used
         if (available < remainingDuration) return false
         
-        // Check dependencies - task cannot be scheduled before its dependencies
-        if (task.idx && taskDependencies.has(task.idx)) {
-          const dependentTaskIdxs = taskDependencies.get(task.idx) || []
-          for (const depIdx of dependentTaskIdxs) {
-            const depTask = tasks.find(t => t.idx === depIdx)
-            if (depTask) {
-              // Find which day the dependency is scheduled on
-              const depPlacement = placements.find(p => p.task_id === depTask.id)
-              if (depPlacement && depPlacement.day_index > dayIdx) {
-                return false // Would violate dependency
-              }
-            }
-          }
+        // Check dependencies using the same helper function as main scheduling loop
+        if (!canScheduleOnDay(task, dayIdx, placements, taskDependencies, tasksWithTargetDays)) {
+          return false
         }
         
         return true
@@ -1558,6 +1694,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           }
         }
 
+        // CRITICAL: Check day-level dependencies BEFORE attempting to schedule
+        if (!canScheduleOnDay(task, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
+          continue // Skip this day - would violate dependencies
+        }
+        
         const daysFromTarget = Math.abs(dayIndex - targetDay)
         const isTooEarly = dayIndex < targetDay && task.priority >= 3 && daysFromTarget > 2
         if (isTooEarly) {
