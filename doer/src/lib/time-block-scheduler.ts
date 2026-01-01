@@ -1054,6 +1054,57 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             } else {
               console.log(`  ⚖️ Skipped moving "${task.name}" to Day ${newDay} to fix overload - would violate dependencies`)
             }
+          } else {
+            // No candidate days found with strict dependency checks
+            // Try a more aggressive approach: allow moves that would require post-scheduling fixes
+            console.log(`  ⚖️ No strict candidate days for "${task.name}" - trying aggressive overload fix`)
+            
+            // Find days with capacity, even if they would violate dependencies
+            // We'll fix dependency violations in post-scheduling validation
+            const aggressiveCandidateDays = Array.from(workloadPerDay.entries())
+              .filter(([day, totalWorkload]) => {
+                const dayConfig = dayConfigsArray[day]
+                const dayCapacity = dayConfig?.dailyCapacity || 0
+                const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
+                
+                return day !== overloadedDay &&
+                  day >= range.start &&
+                  day <= range.end &&
+                  !wouldExceed // Must not exceed capacity (but can violate dependencies temporarily)
+              })
+              .sort((a, b) => {
+                // Prefer days with most available capacity
+                const aConfig = dayConfigsArray[a[0]]
+                const bConfig = dayConfigsArray[b[0]]
+                const aCapacity = aConfig?.dailyCapacity || 0
+                const bCapacity = bConfig?.dailyCapacity || 0
+                const aAvailable = aCapacity - a[1]
+                const bAvailable = bCapacity - b[1]
+                return bAvailable - aAvailable
+              })
+            
+            if (aggressiveCandidateDays.length > 0) {
+              const [newDay] = aggressiveCandidateDays[0]
+              const oldDay = task.targetDay
+              
+              // Move the task even if it violates dependencies - we'll fix this in post-scheduling
+              task.targetDay = newDay
+              
+              // Update workload tracking
+              workloadPerDay.set(overloadedDay, overloadedWorkload - taskDuration)
+              workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
+              
+              movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+              overloadFixed = true
+              
+              console.log(`  ⚖️ Aggressively moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min) to fix overload (dependency fix deferred)`)
+              
+              // Recalculate excess for this day
+              const newWorkload = workloadPerDay.get(overloadedDay) || 0
+              if (newWorkload <= dayCapacity) {
+                break // This day is fixed, move to next overloaded day
+              }
+            }
           }
         }
       }
@@ -1099,12 +1150,88 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   })
   
   // Check for days that exceed capacity - this should not happen after balancing
-  for (const [day, workload] of finalWorkloadPerDay.entries()) {
-    const dayConfig = dayConfigs[day]
-    const dayCapacity = dayConfig?.dailyCapacity || 0
-    if (workload > dayCapacity) {
-      console.error(`❌ Day ${day} still overloaded after balancing: ${workload} min scheduled, capacity: ${dayCapacity} min (excess: ${workload - dayCapacity} min)`)
-      // This is a critical error - balancing should have fixed this
+  // If any remain, try one more aggressive pass to fix them
+  const stillOverloadedDays = Array.from(finalWorkloadPerDay.entries())
+    .filter(([day, workload]) => {
+      const dayConfig = dayConfigs[day]
+      const dayCapacity = dayConfig?.dailyCapacity || 0
+      return workload > dayCapacity
+    })
+    .sort((a, b) => b[1] - a[1]) // Most overloaded first
+  
+  if (stillOverloadedDays.length > 0) {
+    console.log(`⚠️  ${stillOverloadedDays.length} day(s) still overloaded after balancing - attempting final aggressive fix`)
+    
+    // Final aggressive pass: move tasks from overloaded days to any day with capacity
+    for (const [overloadedDay, overloadedWorkload] of stillOverloadedDays) {
+      const dayConfig = dayConfigs[overloadedDay]
+      const dayCapacity = dayConfig?.dailyCapacity || 0
+      const excess = overloadedWorkload - dayCapacity
+      
+      const tasksOnOverloadedDay = tasksWithTargetDays.filter(t => t.targetDay === overloadedDay)
+      const movableTasks = tasksOnOverloadedDay.filter(t => 
+        !(t as any).enforceTargetDay &&
+        !isTaskLocked(t, tasksWithTargetDays, taskDependencies)
+      )
+      
+      for (const task of movableTasks) {
+        if (excess <= 0) break
+        
+        const taskDuration = task.estimated_duration_minutes || 0
+        const range = getTargetDayRange(task.priority || 4)
+        
+        // Find ANY day with capacity, even if it violates dependencies
+        const candidateDays = Array.from(finalWorkloadPerDay.entries())
+          .filter(([day, totalWorkload]) => {
+            const dayConfig = dayConfigs[day]
+            const dayCapacity = dayConfig?.dailyCapacity || 0
+            const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
+            
+            return day !== overloadedDay &&
+              day >= range.start &&
+              day <= range.end &&
+              !wouldExceed // Must have capacity
+          })
+          .sort((a, b) => {
+            // Prefer days with most available capacity
+            const aConfig = dayConfigs[a[0]]
+            const bConfig = dayConfigs[b[0]]
+            const aCapacity = aConfig?.dailyCapacity || 0
+            const bCapacity = bConfig?.dailyCapacity || 0
+            const aAvailable = aCapacity - a[1]
+            const bAvailable = bCapacity - b[1]
+            return bAvailable - aAvailable
+          })
+        
+        if (candidateDays.length > 0) {
+          const [newDay] = candidateDays[0]
+          const oldDay = task.targetDay
+          
+          // Move the task - we'll fix dependency violations in post-scheduling
+          task.targetDay = newDay
+          
+          // Update workload tracking
+          finalWorkloadPerDay.set(overloadedDay, overloadedWorkload - taskDuration)
+          finalWorkloadPerDay.set(newDay, (finalWorkloadPerDay.get(newDay) || 0) + taskDuration)
+          
+          console.log(`  ⚖️ Final aggressive move: "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min)`)
+          
+          // Recalculate excess
+          const newWorkload = finalWorkloadPerDay.get(overloadedDay) || 0
+          if (newWorkload <= dayCapacity) {
+            break // This day is fixed
+          }
+        }
+      }
+    }
+    
+    // Log final state
+    for (const [day, workload] of finalWorkloadPerDay.entries()) {
+      const dayConfig = dayConfigs[day]
+      const dayCapacity = dayConfig?.dailyCapacity || 0
+      if (workload > dayCapacity) {
+        console.error(`❌ Day ${day} still overloaded after final fix: ${workload} min scheduled, capacity: ${dayCapacity} min (excess: ${workload - dayCapacity} min)`)
+      }
     }
   }
   const totalAvailableCapacity = dayConfigs.reduce((sum, config) => {
@@ -2273,9 +2400,209 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       }
 
       if (!scheduled) {
-        console.log(`    ⚠️ Capacity retry failed: Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
-        if (!unscheduledTasks.includes(task.id)) {
-          unscheduledTasks.push(task.id)
+        // Last resort: Try to reschedule prerequisites or make room on prerequisite's day
+        console.log(`    🔄 Capacity retry failed, attempting prerequisite rescheduling for "${task.name}"`)
+        
+        // Find prerequisites that are scheduled on later days
+        if (task.idx && taskDependencies.has(task.idx)) {
+          const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+          let foundSolution = false
+          
+          for (const depIdx of dependentTaskIdxs) {
+            const depTask = tasksWithTargetDays.find(t => t.idx === depIdx)
+            if (!depTask) continue
+            
+            const depPlacement = placements.find(p => p.task_id === depTask.id)
+            if (!depPlacement) continue
+            
+            // If prerequisite is on a later day and that day is full, try to move prerequisite earlier
+            if (depPlacement.day_index > 0) {
+              const depDay = depPlacement.day_index
+              const depDayUsed = dailyScheduled[depDay] || 0
+              const depDayConfig = dayConfigs[depDay]
+              const depDayCapacity = depDayConfig?.dailyCapacity || 0
+              const depDayAvailable = depDayCapacity - depDayUsed
+              
+              // If prerequisite's day is full or doesn't have enough room for our task
+              if (depDayAvailable < task.estimated_duration_minutes) {
+                console.log(`    🔄 Attempting to move prerequisite "${depTask.name}" earlier to make room`)
+                
+                // Try to find an earlier day for the prerequisite
+                for (let earlierDay = depDay - 1; earlierDay >= 0; earlierDay--) {
+                  const earlierDayConfig = dayConfigs[earlierDay]
+                  if (!earlierDayConfig) continue
+                  
+                  const earlierDayUsed = dailyScheduled[earlierDay] || 0
+                  const earlierDayCapacity = earlierDayConfig.dailyCapacity
+                  const earlierDayAvailable = earlierDayCapacity - earlierDayUsed
+                  
+                  // Check if prerequisite can fit on earlier day
+                  if (earlierDayAvailable >= depTask.estimated_duration_minutes) {
+                    // Check if prerequisite can be scheduled on earlier day (dependencies)
+                    if (canScheduleOnDay(depTask, earlierDay, placements, taskDependencies, tasksWithTargetDays)) {
+                      // Remove prerequisite from current placement
+                      const depPlacementIndex = placements.findIndex(p => p.task_id === depTask.id)
+                      if (depPlacementIndex !== -1) {
+                        const oldPlacement = placements[depPlacementIndex]
+                        placements.splice(depPlacementIndex, 1)
+                        
+                        // Remove from scheduled slots
+                        const oldDateStr = oldPlacement.date
+                        const oldSlots = scheduledSlots.get(oldDateStr) || []
+                        const slotIndex = oldSlots.findIndex(s => s.taskId === depTask.id)
+                        if (slotIndex !== -1) {
+                          oldSlots.splice(slotIndex, 1)
+                          scheduledSlots.set(oldDateStr, oldSlots)
+                        }
+                        
+                        // Update daily scheduled
+                        dailyScheduled[depDay] = depDayUsed - depTask.estimated_duration_minutes
+                        
+                        // Try to schedule prerequisite on earlier day
+                        const earlierDate = new Date(startDate)
+                        earlierDate.setDate(startDate.getDate() + earlierDay)
+                        const earlierDateStr = earlierDate.toISOString().split('T')[0]
+                        
+                        const depStartTime = findBestTimeSlot(
+                          earlierDay,
+                          depTask.estimated_duration_minutes,
+                          earlierDayConfig,
+                          currentTime,
+                          earlierDate,
+                          requireStartDate
+                        )
+                        
+                        if (depStartTime) {
+                          const depFinalStartTime = findNextAvailableSlot(
+                            depStartTime,
+                            depTask.estimated_duration_minutes,
+                            earlierDateStr,
+                            scheduledSlots,
+                            earlierDayConfig,
+                            currentTime,
+                            requireStartDate
+                          )
+                          
+                          if (depFinalStartTime) {
+                            const depEndTime = addMinutesToTime(depFinalStartTime, depTask.estimated_duration_minutes)
+                            
+                            placements.push({
+                              task_id: depTask.id,
+                              date: earlierDateStr,
+                              day_index: earlierDay,
+                              start_time: depFinalStartTime,
+                              end_time: depEndTime,
+                              duration_minutes: depTask.estimated_duration_minutes
+                            })
+                            
+                            if (!scheduledSlots.has(earlierDateStr)) {
+                              scheduledSlots.set(earlierDateStr, [])
+                            }
+                            const [startHour, startMinute] = depFinalStartTime.split(':').map(Number)
+                            const [endHour, endMinute] = depEndTime.split(':').map(Number)
+                            scheduledSlots.get(earlierDateStr)!.push({
+                              start: startHour * 60 + startMinute,
+                              end: endHour * 60 + endMinute,
+                              taskId: depTask.id
+                            })
+                            
+                            dailyScheduled[earlierDay] = earlierDayUsed + depTask.estimated_duration_minutes
+                            totalScheduledHours += depTask.estimated_duration_minutes / 60
+                            
+                            console.log(`    ✓ Moved prerequisite "${depTask.name}" from day ${depDay} to day ${earlierDay}`)
+                            
+                            // Now try to schedule our task on the prerequisite's old day
+                            const newDepDayUsed = dailyScheduled[depDay] || 0
+                            const newDepDayAvailable = depDayCapacity - newDepDayUsed
+                            
+                            if (newDepDayAvailable >= task.estimated_duration_minutes) {
+                              // Try to schedule our task on the now-available day
+                              const taskDate = new Date(startDate)
+                              taskDate.setDate(startDate.getDate() + depDay)
+                              const taskDateStr = taskDate.toISOString().split('T')[0]
+                              
+                              const taskStartTime = findBestTimeSlot(
+                                depDay,
+                                task.estimated_duration_minutes,
+                                depDayConfig,
+                                currentTime,
+                                taskDate,
+                                requireStartDate
+                              )
+                              
+                              if (taskStartTime) {
+                                const taskFinalStartTime = findNextAvailableSlot(
+                                  taskStartTime,
+                                  task.estimated_duration_minutes,
+                                  taskDateStr,
+                                  scheduledSlots,
+                                  depDayConfig,
+                                  currentTime,
+                                  requireStartDate
+                                )
+                                
+                                if (taskFinalStartTime) {
+                                  const taskEndTime = addMinutesToTime(taskFinalStartTime, task.estimated_duration_minutes)
+                                  
+                                  placements.push({
+                                    task_id: task.id,
+                                    date: taskDateStr,
+                                    day_index: depDay,
+                                    start_time: taskFinalStartTime,
+                                    end_time: taskEndTime,
+                                    duration_minutes: task.estimated_duration_minutes
+                                  })
+                                  
+                                  if (!scheduledSlots.has(taskDateStr)) {
+                                    scheduledSlots.set(taskDateStr, [])
+                                  }
+                                  const [tStartHour, tStartMinute] = taskFinalStartTime.split(':').map(Number)
+                                  const [tEndHour, tEndMinute] = taskEndTime.split(':').map(Number)
+                                  scheduledSlots.get(taskDateStr)!.push({
+                                    start: tStartHour * 60 + tStartMinute,
+                                    end: tEndHour * 60 + tEndMinute,
+                                    taskId: task.id
+                                  })
+                                  
+                                  dailyScheduled[depDay] = newDepDayUsed + task.estimated_duration_minutes
+                                  totalScheduledHours += task.estimated_duration_minutes / 60
+                                  
+                                  console.log(`    ✓ Scheduled task "${task.name}" on day ${depDay} after moving prerequisite`)
+                                  foundSolution = true
+                                  
+                                  const unscheduledIndex = unscheduledTasks.indexOf(task.id)
+                                  if (unscheduledIndex !== -1) {
+                                    unscheduledTasks.splice(unscheduledIndex, 1)
+                                  }
+                                  break
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (foundSolution) break
+                }
+              }
+              
+              if (foundSolution) break
+            }
+          }
+          
+          if (!foundSolution) {
+            console.log(`    ⚠️ Capacity retry failed: Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+            if (!unscheduledTasks.includes(task.id)) {
+              unscheduledTasks.push(task.id)
+            }
+          }
+        } else {
+          console.log(`    ⚠️ Capacity retry failed: Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+          if (!unscheduledTasks.includes(task.id)) {
+            unscheduledTasks.push(task.id)
+          }
         }
       }
     }
