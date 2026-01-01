@@ -1,10 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
-import { integrations } from '@/data/integrations'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
+
+/**
+ * Integration definitions (server-side safe, no client-side imports)
+ */
+interface IntegrationDefinition {
+  key: string
+  name: string
+}
+
+const integrations: IntegrationDefinition[] = [
+  { key: 'appleCalendar', name: 'Apple Calendar' },
+  { key: 'outlook', name: 'Outlook' },
+  { key: 'googleCalendar', name: 'Google Calendar' },
+  { key: 'todoist', name: 'Todoist' },
+  { key: 'asana', name: 'Asana' },
+  { key: 'trello', name: 'Trello' },
+  { key: 'notion', name: 'Notion' },
+  { key: 'evernote', name: 'Evernote' },
+  { key: 'slack', name: 'Slack' },
+  { key: 'microsoftTeams', name: 'Microsoft Teams' },
+  { key: 'strava', name: 'Strava' },
+  { key: 'appleHealth', name: 'Apple Health' },
+  { key: 'coursera', name: 'Coursera' },
+  { key: 'udemy', name: 'Udemy' },
+]
 
 /**
  * Convert integration key to URL-friendly identifier
