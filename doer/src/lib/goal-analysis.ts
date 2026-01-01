@@ -467,7 +467,7 @@ function checkForWorkdayEnd(clarifications?: Record<string, any> | string[]): bo
 export function detectTaskDependencies(
   tasks: Array<{ name: string; idx: number }>
 ): Map<number, number[]> {
-  const dependencies = new Map<number, number[]>()
+  let dependencies = new Map<number, number[]>()
   const lowerTaskNames = tasks.map(t => ({ ...t, lowerName: t.name.toLowerCase() }))
 
   for (const task of lowerTaskNames) {
