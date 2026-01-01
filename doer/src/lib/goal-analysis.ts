@@ -729,7 +729,7 @@ export function detectTaskDependencies(
                 console.log(`🔧 Removed backwards dependency: "${otherTask.name}" no longer depends on "${task.name}" (practice should depend on learn, not the reverse)`)
                 if (practiceDeps.length === 0) {
                   dependencies.delete(otherTask.idx)
-                }
+          }
               }
             }
           }
@@ -900,9 +900,9 @@ export function detectTaskDependencies(
           && (otherTask.lowerName.includes('learn') || otherTask.lowerName.includes('understand'))
         ) {
           addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
+          }
+          }
         }
-      }
-    }
     if (task.lowerName.includes('loop') && 
         (task.lowerName.includes('learn') || task.lowerName.includes('understand'))) {
       for (const otherTask of lowerTaskNames) {
@@ -1171,9 +1171,9 @@ export function detectTaskDependencies(
             dependencies.delete(task.idx)
           } else {
             dependencies.set(task.idx, cleanedDeps)
-          }
         }
       }
+    }
     }
     
     // CRITICAL: Clean up backwards dependencies - learn tasks should NOT depend on practice tasks

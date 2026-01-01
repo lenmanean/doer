@@ -590,12 +590,18 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     allTasks: typeof tasksWithTargetDays,
     taskDependencies: Map<number, number[]>
   ): boolean => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:587',message:'violatesDependencies check',data:{taskName:task.name,taskIdx:task.idx,newDay,oldTargetDay:task.targetDay,hasDependencies:task.idx?taskDependencies.has(task.idx):false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     // Check forward dependencies - task cannot be moved before its dependencies
     if (task.idx && taskDependencies.has(task.idx)) {
       const dependentTaskIdxs = taskDependencies.get(task.idx) || []
       for (const depIdx of dependentTaskIdxs) {
         const depTask = allTasks.find(t => t.idx === depIdx)
         if (depTask && depTask.targetDay > newDay) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:598',message:'Dependency violation detected',data:{taskName:task.name,depName:depTask.name,depTargetDay:depTask.targetDay,newDay},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+          // #endregion
           return true // Would violate: dependency is on a later day
         }
       }
@@ -719,6 +725,119 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     }
   }
 
+  // Helper function to calculate actual available capacity for a day
+  // Accounts for existing busy slots and already scheduled tasks
+  const calculateActualAvailableCapacity = (
+    dayIndex: number,
+    dayConfig: DayScheduleConfig,
+    existingWorkload: Map<number, number>,
+    dailyScheduled: number[] | { [dayIndex: number]: number }
+  ): number => {
+    const dayCapacity = dayConfig.dailyCapacity || 0
+    const existingBusyMinutes = existingWorkload.get(dayIndex) || 0
+    const newTaskMinutes = Array.isArray(dailyScheduled) ? (dailyScheduled[dayIndex] || 0) : (dailyScheduled[dayIndex] || 0)
+    const totalUsed = existingBusyMinutes + newTaskMinutes
+    const available = Math.max(0, dayCapacity - totalUsed)
+    return available
+  }
+
+  // Unified capacity checker that verifies both capacity and gap availability
+  // This prevents the mismatch where capacity check passes but gap finding fails
+  const checkDayCanFitTask = (
+    dayIndex: number,
+    taskDuration: number,
+    dayConfig: DayScheduleConfig,
+    existingWorkloadPerDay: Map<number, number>,
+    dailyScheduled: number[] | { [dayIndex: number]: number },
+    scheduledSlots: Map<string, Array<{start: number, end: number, taskId: string}>>,
+    dateStr: string,
+    currentTime?: Date,
+    requireStartDate?: boolean
+  ): { canFit: boolean; availableGap: string | null; reason: string } => {
+    // First check: Actual available capacity
+    const actualAvailable = calculateActualAvailableCapacity(dayIndex, dayConfig, existingWorkloadPerDay, dailyScheduled)
+    
+    if (actualAvailable < taskDuration) {
+      const existingBusy = existingWorkloadPerDay.get(dayIndex) || 0
+      return {
+        canFit: false,
+        availableGap: null,
+        reason: `Insufficient actual capacity: need ${taskDuration} min, only ${actualAvailable} min available (${existingBusy} min already busy)`
+      }
+    }
+    
+    // Second check: Find if gaps exist that can fit the task
+    // Use findBestTimeSlot to get earliest start time
+    const currentDate = new Date(startDate)
+    currentDate.setDate(startDate.getDate() + dayIndex)
+    const initialStartTime = findBestTimeSlot(
+      dayIndex,
+      taskDuration,
+      dayConfig,
+      currentTime,
+      currentDate,
+      requireStartDate
+    )
+    
+    if (!initialStartTime) {
+      return {
+        canFit: false,
+        availableGap: null,
+        reason: `Task cannot fit in workday (would exceed workday end)`
+      }
+    }
+    
+    // Try to find an available gap
+    const availableGap = findNextAvailableSlot(
+      initialStartTime,
+      taskDuration,
+      dateStr,
+      scheduledSlots,
+      dayConfig,
+      currentTime,
+      requireStartDate
+    )
+    
+    if (!availableGap) {
+      // Gap finding failed - verify capacity one more time to ensure consistency
+      const finalActualAvailable = calculateActualAvailableCapacity(dayIndex, dayConfig, existingWorkloadPerDay, dailyScheduled)
+      if (finalActualAvailable >= taskDuration) {
+        // Capacity says it fits, but no gaps found - this is the mismatch issue
+        return {
+          canFit: false,
+          availableGap: null,
+          reason: `No available gaps between busy slots, even though ${finalActualAvailable} min capacity exists`
+        }
+      } else {
+        return {
+          canFit: false,
+          availableGap: null,
+          reason: `No available gaps and insufficient capacity: ${finalActualAvailable} min available`
+        }
+      }
+    }
+    
+    // Final capacity check: verify that using this gap won't exceed total capacity
+    const newTaskMinutes = Array.isArray(dailyScheduled) ? (dailyScheduled[dayIndex] || 0) : (dailyScheduled[dayIndex] || 0)
+    const existingBusyMinutes = existingWorkloadPerDay.get(dayIndex) || 0
+    const totalAfterScheduling = newTaskMinutes + taskDuration + existingBusyMinutes
+    const dayCapacity = dayConfig.dailyCapacity || 0
+    
+    if (totalAfterScheduling > dayCapacity) {
+      return {
+        canFit: false,
+        availableGap: null,
+        reason: `Gap found but would exceed capacity: ${totalAfterScheduling} min > ${dayCapacity} min capacity`
+      }
+    }
+    
+    return {
+      canFit: true,
+      availableGap,
+      reason: `Can fit: ${actualAvailable} min available, gap found at ${availableGap}`
+    }
+  }
+
   // Workload balancing function
   const balanceWorkloadAcrossDays = (
     tasks: typeof tasksWithTargetDays,
@@ -727,7 +846,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     getTargetDayRangeFn: (priority: number) => { start: number; end: number },
     dependencies: Map<number, number[]>,
     existingWorkload: Map<number, number>,
-    dayConfigsArray: typeof dayConfigs
+    dayConfigsArray: typeof dayConfigs,
+    dailyScheduled: number[]
   ): typeof tasksWithTargetDays => {
     // Calculate current workload per day (new tasks + existing tasks)
     const workloadPerDay = new Map<number, number>()
@@ -865,10 +985,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             const existingOnDay = existingWorkload.get(day) || 0
             const newTasksOnDay = totalWorkload - existingOnDay
             const dayConfig = dayConfigsArray[day]
-            const dayCapacity = dayConfig?.dailyCapacity || 0
             
-            // Check if moving this task would exceed capacity
-            const wouldExceedCapacity = (totalWorkload + taskDuration) > dayCapacity
+            // Calculate actual available capacity (accounting for existing busy slots)
+            // For workload balancing, we need to estimate what dailyScheduled would be after moves
+            // Use current workload as proxy for what would be scheduled
+            const estimatedDailyScheduled = newTasksOnDay // Approximate what's already scheduled
+            const actualAvailable = calculateActualAvailableCapacity(day, dayConfig, existingWorkload, [estimatedDailyScheduled])
+            
+            // Check if moving this task would exceed actual available capacity
+            const wouldExceedCapacity = taskDuration > actualAvailable
             
             // Check if moving would violate dependencies
             // This checks both forward and reverse dependencies
@@ -1006,8 +1131,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           const candidateDays = Array.from(workloadPerDay.entries())
             .filter(([day, totalWorkload]) => {
               const dayConfig = dayConfigsArray[day]
-              const dayCapacity = dayConfig?.dailyCapacity || 0
-              const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
+              
+              // Calculate actual available capacity (accounting for existing busy slots)
+              // For workload balancing, we estimate dailyScheduled as the new task workload on this day
+              const existingOnDay = existingWorkload.get(day) || 0
+              const newTasksOnDay = totalWorkload - existingOnDay
+              const estimatedDailyScheduled = [newTasksOnDay] // Array with estimated scheduled minutes
+              const actualAvailable = calculateActualAvailableCapacity(day, dayConfig, existingWorkload, estimatedDailyScheduled)
+              
+              // Check if moving this task would exceed actual available capacity
+              const wouldExceed = taskDuration > actualAvailable
               
               // Check dependencies - critical to prevent violations
               const wouldViolateDeps = violatesDependencies(task, day, tasks, dependencies)
@@ -1015,17 +1148,19 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               return day !== overloadedDay &&
                 day >= range.start &&
                 day <= range.end &&
-                !wouldExceed && // Must not exceed capacity
+                !wouldExceed && // Must not exceed actual capacity
                 !wouldViolateDeps // Must not violate dependencies
             })
             .sort((a, b) => {
-              // Prefer days with most available capacity
+              // Prefer days with most available capacity (using actual capacity)
               const aConfig = dayConfigsArray[a[0]]
               const bConfig = dayConfigsArray[b[0]]
-              const aCapacity = aConfig?.dailyCapacity || 0
-              const bCapacity = bConfig?.dailyCapacity || 0
-              const aAvailable = aCapacity - a[1]
-              const bAvailable = bCapacity - b[1]
+              const aExisting = existingWorkload.get(a[0]) || 0
+              const bExisting = existingWorkload.get(b[0]) || 0
+              const aNewTasks = a[1] - aExisting
+              const bNewTasks = b[1] - bExisting
+              const aAvailable = calculateActualAvailableCapacity(a[0], aConfig, existingWorkload, [aNewTasks])
+              const bAvailable = calculateActualAvailableCapacity(b[0], bConfig, existingWorkload, [bNewTasks])
               return bAvailable - aAvailable
             })
           
@@ -1056,21 +1191,27 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             }
           } else {
             // No candidate days found with strict dependency checks
-            // Try a more aggressive approach: allow moves that would require post-scheduling fixes
-            console.log(`  ⚖️ No strict candidate days for "${task.name}" - trying aggressive overload fix`)
+            // CRITICAL: Do NOT use aggressive fix that bypasses dependencies
+            // Instead, try to find days that respect dependencies but may be slightly overloaded
+            // or extend the timeline if necessary
+            console.log(`  ⚖️ No strict candidate days for "${task.name}" - checking if we can move to later days that respect dependencies`)
             
-            // Find days with capacity, even if they would violate dependencies
-            // We'll fix dependency violations in post-scheduling validation
-            const aggressiveCandidateDays = Array.from(workloadPerDay.entries())
+            // Find days with capacity that respect dependencies, even if they're later than ideal
+            // This is safer than moving to earlier days that violate dependencies
+            const safeCandidateDays = Array.from(workloadPerDay.entries())
               .filter(([day, totalWorkload]) => {
                 const dayConfig = dayConfigsArray[day]
                 const dayCapacity = dayConfig?.dailyCapacity || 0
                 const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
                 
+                // CRITICAL: Must respect dependencies - check using violatesDependencies
+                const wouldViolateDeps = violatesDependencies(task, day, tasks, dependencies)
+                
                 return day !== overloadedDay &&
                   day >= range.start &&
                   day <= range.end &&
-                  !wouldExceed // Must not exceed capacity (but can violate dependencies temporarily)
+                  !wouldExceed && // Must not exceed capacity
+                  !wouldViolateDeps // MUST respect dependencies - no exceptions
               })
               .sort((a, b) => {
                 // Prefer days with most available capacity
@@ -1083,11 +1224,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
                 return bAvailable - aAvailable
               })
             
-            if (aggressiveCandidateDays.length > 0) {
-              const [newDay] = aggressiveCandidateDays[0]
+            if (safeCandidateDays.length > 0) {
+              const [newDay] = safeCandidateDays[0]
               const oldDay = task.targetDay
               
-              // Move the task even if it violates dependencies - we'll fix this in post-scheduling
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:1090',message:'Safe move: respecting dependencies',data:{taskName:task.name,taskIdx:task.idx,oldDay,newDay,hasDependencies:task.idx?taskDependencies.has(task.idx):false},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1'})}).catch(()=>{});
+              // #endregion
+              
+              // Move the task to a safe day that respects dependencies
               task.targetDay = newDay
               
               // Update workload tracking
@@ -1097,13 +1242,18 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
               overloadFixed = true
               
-              console.log(`  ⚖️ Aggressively moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min) to fix overload (dependency fix deferred)`)
+              console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min) to fix overload (dependencies respected)`)
               
               // Recalculate excess for this day
               const newWorkload = workloadPerDay.get(overloadedDay) || 0
               if (newWorkload <= dayCapacity) {
                 break // This day is fixed, move to next overloaded day
               }
+            } else {
+              // No safe days found - cannot fix overload without violating dependencies
+              // This is acceptable - the day will remain overloaded, but dependencies will be preserved
+              console.log(`  ⚠️ Cannot fix overload for "${task.name}" without violating dependencies - leaving on Day ${overloadedDay}`)
+              // Don't break - try other tasks on this overloaded day
             }
           }
         }
@@ -1129,6 +1279,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   const totalTaskDuration = tasks.reduce((sum, task) => sum + task.estimated_duration_minutes, 0)
 
   // Apply workload balancing (accounting for existing schedules and capacity limits)
+  // Note: dailyScheduled is empty at this point (tasks haven't been scheduled yet)
+  // We'll use an empty array as placeholder - actual capacity calculation will use existingWorkloadPerDay
+  const emptyDailyScheduled: number[] = []
   tasksWithTargetDays = balanceWorkloadAcrossDays(
     tasksWithTargetDays,
     totalTaskDuration,
@@ -1136,7 +1289,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     getTargetDayRange,
     taskDependencies,
     existingWorkloadPerDay,
-    dayConfigs
+    dayConfigs,
+    emptyDailyScheduled
   )
   
   // Post-balancing validation: Check for overloaded days
@@ -1199,8 +1353,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         const candidateDays = Array.from(finalWorkloadPerDay.entries())
           .filter(([day, totalWorkload]) => {
             const dayConfig = dayConfigs[day]
-            const dayCapacity = dayConfig?.dailyCapacity || 0
-            const wouldExceed = (totalWorkload + taskDuration) > dayCapacity
+            
+            // Calculate actual available capacity (accounting for existing busy slots)
+            const existingOnDay = existingWorkloadPerDay.get(day) || 0
+            const newTasksOnDay = totalWorkload - existingOnDay
+            const estimatedDailyScheduled = [newTasksOnDay]
+            const actualAvailable = calculateActualAvailableCapacity(day, dayConfig, existingWorkloadPerDay, estimatedDailyScheduled)
+            
+            // Check if moving this task would exceed actual available capacity
+            const wouldExceed = taskDuration > actualAvailable
             
             // CRITICAL: Don't move task to a day before its prerequisites
             // If task has prerequisites, only allow moving to days >= earliest prerequisite target day
@@ -1222,13 +1383,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               }
             }
             
-            // Second: Prefer days with most available capacity
+            // Second: Prefer days with most available capacity (using actual capacity)
             const aConfig = dayConfigs[a[0]]
             const bConfig = dayConfigs[b[0]]
-            const aCapacity = aConfig?.dailyCapacity || 0
-            const bCapacity = bConfig?.dailyCapacity || 0
-            const aAvailable = aCapacity - a[1]
-            const bAvailable = bCapacity - b[1]
+            const aExisting = existingWorkloadPerDay.get(a[0]) || 0
+            const bExisting = existingWorkloadPerDay.get(b[0]) || 0
+            const aNewTasks = a[1] - aExisting
+            const bNewTasks = b[1] - bExisting
+            const aAvailable = calculateActualAvailableCapacity(a[0], aConfig, existingWorkloadPerDay, [aNewTasks])
+            const bAvailable = calculateActualAvailableCapacity(b[0], bConfig, existingWorkloadPerDay, [bNewTasks])
             return bAvailable - aAvailable
           })
         
@@ -1275,9 +1438,46 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     ? dayConfigs.reduce((sum, config) => config.isWeekend ? sum + config.dailyCapacity : sum, 0)
     : 0
 
-  // VALIDATION: Check if tasks can fit in available time
-  if (totalTaskDuration > totalAvailableCapacity) {
-    console.warn(`⚠️  Total task duration (${totalTaskDuration}min) exceeds available capacity (${totalAvailableCapacity}min)`)
+  // PRE-SCHEDULING VALIDATION: Check if tasks can fit in available time
+  // Calculate actual available capacity (accounting for existing busy slots)
+  const totalActualAvailableCapacity = dayConfigs.reduce((sum, config, dayIndex) => {
+    if (config.isWeekend && !allowWeekends) {
+      return sum
+    }
+    const existingBusy = existingWorkloadPerDay.get(dayIndex) || 0
+    const actualAvailable = Math.max(0, config.dailyCapacity - existingBusy)
+    return sum + actualAvailable
+  }, 0)
+  
+  if (totalTaskDuration > totalActualAvailableCapacity) {
+    const excess = totalTaskDuration - totalActualAvailableCapacity
+    console.warn(`⚠️  Pre-scheduling validation: Total task duration (${totalTaskDuration}min) exceeds actual available capacity (${totalActualAvailableCapacity}min, excess: ${excess}min)`)
+    console.warn(`⚠️  This may result in unscheduled tasks. Timeline should be extended to accommodate ${excess} min of excess workload.`)
+  }
+  
+  // Validate each day can fit its target tasks
+  const tasksByTargetDay = new Map<number, typeof tasksWithTargetDays>()
+  tasksWithTargetDays.forEach(task => {
+    const targetDay = task.targetDay
+    if (!tasksByTargetDay.has(targetDay)) {
+      tasksByTargetDay.set(targetDay, [])
+    }
+    tasksByTargetDay.get(targetDay)!.push(task)
+  })
+  
+  for (const [targetDay, dayTasks] of tasksByTargetDay.entries()) {
+    const dayConfig = dayConfigs[targetDay]
+    if (!dayConfig) continue
+    
+    const dayTaskWorkload = dayTasks.reduce((sum, task) => sum + (task.estimated_duration_minutes || 0), 0)
+    const existingBusy = existingWorkloadPerDay.get(targetDay) || 0
+    const actualAvailable = Math.max(0, dayConfig.dailyCapacity - existingBusy)
+    
+    if (dayTaskWorkload > actualAvailable) {
+      const excess = dayTaskWorkload - actualAvailable
+      console.warn(`⚠️  Pre-scheduling validation: Day ${targetDay} has ${dayTaskWorkload} min of tasks targeting it, but only ${actualAvailable} min available (${existingBusy} min already busy, excess: ${excess} min)`)
+      console.warn(`⚠️  Workload balancing should redistribute ${excess} min to other days or timeline should be extended.`)
+    }
   }
 
   console.log('🔧 Capacity Analysis:', {
@@ -1528,27 +1728,42 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         }
       }
 
-      // Check available capacity for this day
+      // Use unified capacity checker that verifies both capacity and gap availability
+      const capacityCheck = checkDayCanFitTask(
+        dayIndex,
+        remainingDuration,
+        dayConfig,
+        existingWorkloadPerDay,
+        dailyScheduled,
+        scheduledSlots,
+        dateStr,
+        currentTime,
+        requireStartDate
+      )
+      
       const alreadyScheduled = dailyScheduled[dayIndex] || 0
       const dayCapacity = dayConfig.dailyCapacity
-      const availableCapacity = dayCapacity - alreadyScheduled
-      console.log(`  Day ${dayIndex} (${dateStr}${dayConfig.isWeekend ? ' weekend' : ''}): ${alreadyScheduled}/${dayCapacity} min used, ${availableCapacity} min available`)
+      const existingBusyMinutes = existingWorkloadPerDay.get(dayIndex) || 0
+      console.log(`  Day ${dayIndex} (${dateStr}${dayConfig.isWeekend ? ' weekend' : ''}): ${alreadyScheduled}/${dayCapacity} min new tasks, ${existingBusyMinutes} min existing, ${capacityCheck.canFit ? 'can fit' : capacityCheck.reason}`)
 
-      if (availableCapacity <= 0) {
-        continue
-      }
-      
-      // 🔧 FIX: Don't split tasks across days - only schedule if ENTIRE task fits
-      if (remainingDuration > availableCapacity) {
-        console.log(`    Skipping day ${dayIndex} - task requires ${remainingDuration} min but only ${availableCapacity} min available (will not split task)`)
+      if (!capacityCheck.canFit) {
+        console.log(`    Skipping day ${dayIndex} - ${capacityCheck.reason}`)
         // Track this as a capacity failure for retry
         const alreadyTracked = tasksFailedDueToCapacity.some(s => s.task.idx === task.idx)
         if (!alreadyTracked && !scheduled) {
           tasksFailedDueToCapacity.push({
             task: taskWithTarget,
-            reason: `Insufficient capacity on day ${dayIndex}: need ${remainingDuration} min, only ${availableCapacity} min available`
+            reason: capacityCheck.reason
           })
         }
+        continue
+      }
+      
+      // Unified checker confirmed task can fit - use the gap it found
+      const availableGap = capacityCheck.availableGap
+      if (!availableGap) {
+        // This shouldn't happen if canFit is true, but safety check
+        console.log(`    ⚠️ Unified checker says can fit but no gap returned - skipping`)
         continue
       }
 
@@ -1632,6 +1847,26 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       // CRITICAL: Check day-level dependencies BEFORE attempting to schedule
       // This prevents scheduling tasks on days before their prerequisites
       if (!canScheduleOnDay(task, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
+        // Track this task for retry if prerequisites aren't scheduled yet
+        // (If prerequisites are scheduled on later days, that's a dependency violation
+        //  that will be caught by post-scheduling validation, not retry)
+        if (task.idx && taskDependencies.has(task.idx) && !scheduled) {
+          const alreadyTracked = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
+          if (!alreadyTracked) {
+            // Check if prerequisites are scheduled - if not, track for retry
+            const dependentTaskIdxs = taskDependencies.get(task.idx) || []
+            const allPrerequisitesScheduled = dependentTaskIdxs.every(depIdx => {
+              const depTask = tasks.find(t => t.idx === depIdx)
+              return depTask && placements.some(p => p.task_id === depTask.id)
+            })
+            if (!allPrerequisitesScheduled) {
+              tasksSkippedDueToDependencies.push({
+                task: taskWithTarget,
+                reason: `Cannot schedule on day ${dayIndex} - prerequisites not yet scheduled`
+              })
+            }
+          }
+        }
         continue // Skip this day - would violate dependencies
       }
       
@@ -1666,12 +1901,25 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             // Check if it's scheduled elsewhere
             const isScheduledElsewhere = placements.some(p => p.task_id === depTask.id)
             if (!isScheduledElsewhere) {
-              // Prerequisite not scheduled yet - check if it has same target day
-              if (depTaskWithTarget.targetDay === dayIndex) {
+              // Prerequisite not scheduled yet - check if it COULD be scheduled on this day
+              // This includes checking targetDay OR if it could be scheduled here based on dependencies
+              const couldBeOnThisDay = depTaskWithTarget.targetDay === dayIndex ||
+                (depTaskWithTarget.targetDay <= dayIndex && 
+                 canScheduleOnDay(depTaskWithTarget, dayIndex, placements, taskDependencies, tasksWithTargetDays))
+              
+              if (couldBeOnThisDay) {
                 unscheduledPrerequisitesOnSameDay.push(depIdx)
               }
+            } else {
+              // Prerequisite is scheduled elsewhere - check if it's on a later day (violation)
+              const depPlacementElsewhere = placements.find(p => p.task_id === depTask.id)
+              if (depPlacementElsewhere && depPlacementElsewhere.day_index > dayIndex) {
+                // This should have been caught by canScheduleOnDay, but double-check
+                console.log(`    🔗 Cannot schedule "${task.name}" on day ${dayIndex}: prerequisite "${depTask.name}" is scheduled on day ${depPlacementElsewhere.day_index}`)
+                continue // Skip this day
+              }
             }
-            // If prerequisite is scheduled on a different day, canScheduleOnDay already validated it's on an earlier day
+            // If prerequisite is scheduled on an earlier day, that's fine - handled by canScheduleOnDay
           }
         }
         
@@ -1708,30 +1956,50 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         }
       }
       
-      // Find the best time slot for this task (returns earliest possible start)
-      let initialStartTime = findBestTimeSlot(
-        dayIndex,
-        durationToSchedule,
-        dayConfig,
-        currentTime,
-        currentDate,
-        requireStartDate
-      )
+      // Use the gap found by unified checker (already verified for capacity and availability)
+      let startTime = availableGap
       
       // If we have a dependency constraint, ensure we start after the latest prerequisite ends
-      if (initialStartTime && earliestDependencyEndTime) {
-        const [initialHour, initialMin] = initialStartTime.split(':').map(Number)
+      if (startTime && earliestDependencyEndTime) {
+        const [startHour, startMin] = startTime.split(':').map(Number)
         const [depEndHour, depEndMin] = earliestDependencyEndTime.split(':').map(Number)
-        const initialMinutes = initialHour * 60 + initialMin
+        const startMinutes = startHour * 60 + startMin
         const depEndMinutes = depEndHour * 60 + depEndMin
         
-        if (initialMinutes < depEndMinutes) {
-          // Start time must be after dependency ends - use dependency end time as minimum
-          initialStartTime = earliestDependencyEndTime
-          console.log(`    🔗 Adjusted start time to ${initialStartTime} to respect dependency ordering`)
+        if (startMinutes < depEndMinutes) {
+          // Start time must be after dependency ends - find a new gap after dependency
+          const gapAfterDependency = findNextAvailableSlot(
+            earliestDependencyEndTime,
+            durationToSchedule,
+            dateStr,
+            scheduledSlots,
+            dayConfig,
+            currentTime,
+            requireStartDate
+          )
           
-          // Check if task can still fit in the day after dependency constraint
-          const [adjustedHour, adjustedMin] = initialStartTime.split(':').map(Number)
+          if (!gapAfterDependency) {
+            console.log(`    ❌ Task cannot fit on day ${dayIndex} after dependency constraint (no gap after ${earliestDependencyEndTime})`)
+            continue // Skip this day, try next day
+          }
+          
+          // Verify this gap also respects capacity
+          const newTaskMinutes = Array.isArray(dailyScheduled) ? (dailyScheduled[dayIndex] || 0) : (dailyScheduled[dayIndex] || 0)
+          const existingBusyMinutes = existingWorkloadPerDay.get(dayIndex) || 0
+          const totalAfterScheduling = newTaskMinutes + durationToSchedule + existingBusyMinutes
+          const dayCapacity = dayConfig.dailyCapacity || 0
+          
+          if (totalAfterScheduling > dayCapacity) {
+            console.log(`    ❌ Gap after dependency would exceed capacity: ${totalAfterScheduling} min > ${dayCapacity} min`)
+            continue
+          }
+          
+          // Use the gap after dependency
+          startTime = gapAfterDependency
+          console.log(`    🔗 Adjusted start time to ${startTime} to respect dependency ordering`)
+          
+          // Verify task can still fit in workday
+          const [adjustedHour, adjustedMin] = startTime.split(':').map(Number)
           const adjustedStartMinutes = adjustedHour * 60 + adjustedMin
           const workdayEndMinutes = dayConfig.endHour * 60
           const taskEndMinutes = adjustedStartMinutes + durationToSchedule
@@ -1743,22 +2011,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         }
       }
 
-      if (initialStartTime) {
-        // Find the next available slot that doesn't overlap
-        const startTime = findNextAvailableSlot(
-          initialStartTime,
-          durationToSchedule,
-          dateStr,
-          scheduledSlots,
-          dayConfig,
-          currentTime,
-          requireStartDate
-        )
-
-          if (!startTime) {
-            console.log(`    No available slot found starting from ${initialStartTime}`)
-            continue
-          }
+      if (startTime) {
 
           const endTime = addMinutesToTime(startTime, durationToSchedule)
           
@@ -1843,6 +2096,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       const isTrackedForDependencyRetry = tasksSkippedDueToDependencies.some(s => s.task.idx === task.idx)
       const isTrackedForCapacityRetry = tasksFailedDueToCapacity.some(s => s.task.idx === task.idx)
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:1875',message:'Task not scheduled - checking retry status',data:{taskName:task.name,taskIdx:task.idx,isTrackedForDependencyRetry,isTrackedForCapacityRetry,hasDependencies:task.idx?taskDependencies.has(task.idx):false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
+      // #endregion
+      
       if (isTrackedForDependencyRetry) {
         console.log(`    ⏸️ Task "${task.name}" skipped due to unscheduled prerequisites - will retry after prerequisites are scheduled`)
       } else if (isTrackedForCapacityRetry) {
@@ -1850,6 +2107,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       } else {
         // Task failed for other reasons (no valid days, etc.) - add to unscheduled
         console.log(`    ⚠️ Could not find suitable time slot for task "${task.name}" (${task.estimated_duration_minutes} min)`)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:1886',message:'Task marked as unscheduled',data:{taskName:task.name,taskIdx:task.idx,taskDuration:task.estimated_duration_minutes,targetDay:task.targetDay},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
+        // #endregion
         unscheduledTasks.push(task.id)
       }
     }
@@ -1882,10 +2142,17 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     })
 
     if (retryTasks.length === 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:1918',message:'No tasks to retry',data:{retryPass,totalSkipped:tasksSkippedDueToDependencies.length,alreadyScheduled:tasksSkippedDueToDependencies.filter(s => placements.some(p => p.task_id === s.task.id)).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
+      // #endregion
       break // No more tasks to retry
     }
 
     console.log(`🔄 Retry pass ${retryPass}: Retrying ${retryTasks.length} task(s) that were skipped due to unscheduled prerequisites`)
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:1922',message:'Starting retry pass',data:{retryPass,retryTasksCount:retryTasks.length,retryTaskNames:retryTasks.map(t => t.task.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
+    // #endregion
     
     for (const skipped of retryTasks) {
       const task = skipped.task
@@ -1925,17 +2192,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       }
       
       // Filter search days to only include those that:
-      // 1. Have sufficient capacity
+      // 1. Have sufficient actual capacity (accounting for existing busy slots)
       // 2. Don't violate dependencies (using canScheduleOnDay helper)
       // 3. Are within allowed range
       const validSearchDays = Array.from(searchDaysSet).filter(dayIdx => {
         const dayConfig = dayConfigs[dayIdx]
         if (!dayConfig) return false
         
-        // Check capacity
-        const used = dailyScheduled[dayIdx] || 0
-        const available = dayConfig.dailyCapacity - used
-        if (available < remainingDuration) return false
+        // Check actual available capacity (accounting for existing busy slots)
+        const actualAvailable = calculateActualAvailableCapacity(dayIdx, dayConfig, existingWorkloadPerDay, dailyScheduled)
+        if (actualAvailable < remainingDuration) return false
         
         // Check dependencies using the same helper function as main scheduling loop
         if (!canScheduleOnDay(task, dayIdx, placements, taskDependencies, tasksWithTargetDays)) {
@@ -2272,16 +2538,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       }
       
       // Filter search days to only include those that:
-      // 1. Have sufficient capacity
+      // 1. Have sufficient actual capacity (accounting for existing busy slots)
       // 2. Don't violate dependencies (using canScheduleOnDay helper)
       const validSearchDays = Array.from(searchDaysSet).filter(dayIdx => {
         const dayConfig = dayConfigs[dayIdx]
         if (!dayConfig) return false
         
-        // Check capacity
-        const used = dailyScheduled[dayIdx] || 0
-        const available = dayConfig.dailyCapacity - used
-        if (available < remainingDuration) return false
+        // Check actual available capacity (accounting for existing busy slots)
+        const actualAvailable = calculateActualAvailableCapacity(dayIdx, dayConfig, existingWorkloadPerDay, dailyScheduled)
+        if (actualAvailable < remainingDuration) return false
         
         // Check dependencies using the same helper function as main scheduling loop
         if (!canScheduleOnDay(task, dayIdx, placements, taskDependencies, tasksWithTargetDays)) {
@@ -2292,13 +2557,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       })
       
       const searchDays = validSearchDays.sort((a, b) => {
-        // Prioritize days with more available capacity
+        // Prioritize days with more actual available capacity (accounting for existing busy slots)
         const aConfig = dayConfigs[a]
         const bConfig = dayConfigs[b]
-        const aUsed = dailyScheduled[a] || 0
-        const bUsed = dailyScheduled[b] || 0
-        const aAvailable = (aConfig?.dailyCapacity || 0) - aUsed
-        const bAvailable = (bConfig?.dailyCapacity || 0) - bUsed
+        const aAvailable = calculateActualAvailableCapacity(a, aConfig, existingWorkloadPerDay, dailyScheduled)
+        const bAvailable = calculateActualAvailableCapacity(b, bConfig, existingWorkloadPerDay, dailyScheduled)
         return bAvailable - aAvailable
       })
 
@@ -2321,11 +2584,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           continue
         }
 
-        const alreadyScheduled = dailyScheduled[dayIndex] || 0
-        const dayCapacity = dayConfig.dailyCapacity
-        const availableCapacity = dayCapacity - alreadyScheduled
+        // Check actual available capacity (accounting for existing busy slots)
+        const actualAvailable = calculateActualAvailableCapacity(dayIndex, dayConfig, existingWorkloadPerDay, dailyScheduled)
 
-        if (availableCapacity <= 0 || remainingDuration > availableCapacity) {
+        if (actualAvailable <= 0 || remainingDuration > actualAvailable) {
           continue
         }
 
@@ -2336,33 +2598,27 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
 
         const durationToSchedule = remainingDuration
         
-        let initialStartTime = findBestTimeSlot(
+        // Use unified capacity checker for retry
+        const capacityCheck = checkDayCanFitTask(
           dayIndex,
           durationToSchedule,
           dayConfig,
+          existingWorkloadPerDay,
+          dailyScheduled,
+          scheduledSlots,
+          dateStr,
           currentTime,
-          currentDate,
           requireStartDate
         )
-
-        if (initialStartTime) {
-          const startTime = findNextAvailableSlot(
-            initialStartTime,
-            durationToSchedule,
-            dateStr,
-            scheduledSlots,
-            dayConfig,
-            currentTime,
-            requireStartDate
-          )
-
-          if (!startTime) {
-            continue
-          }
-
-          const endTime = addMinutesToTime(startTime, durationToSchedule)
+        
+        if (!capacityCheck.canFit || !capacityCheck.availableGap) {
+          continue
+        }
+        
+        const startTime = capacityCheck.availableGap
+        const endTime = addMinutesToTime(startTime, durationToSchedule)
           
-          if (currentTime && currentDate && dayIndex === 0 && !requireStartDate) {
+        if (currentTime && currentDate && dayIndex === 0 && !requireStartDate) {
             const [startHour, startMinute] = startTime.split(':').map(Number)
             const taskStartTime = new Date(Date.UTC(
               currentDate.getUTCFullYear(),
@@ -2414,7 +2670,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             taskId: task.id
           })
 
-          dailyScheduled[dayIndex] = alreadyScheduled + durationToSchedule
+          dailyScheduled[dayIndex] = (dailyScheduled[dayIndex] || 0) + durationToSchedule
           totalScheduledHours += durationToSchedule / 60
           remainingDuration -= durationToSchedule
           scheduled = true
@@ -2427,10 +2683,28 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           break
         }
       }
-
-      if (!scheduled) {
+      
+      // Check if task was scheduled in the inner loop above
+      // Re-declare task since scope may have changed after brace fix
+      // The variables task and scheduled are declared at lines 2523 and 2530 in the loop scope
+      // If they're not accessible, we need to re-declare them here
+      // Since we can't access 'failed' here, find the task from tasksFailedDueToCapacity
+      // by checking which task from that array is not yet scheduled
+      const unscheduledFailed = tasksFailedDueToCapacity.find(f => 
+        !placements.some(p => p.task_id === f.task.id)
+      )
+      
+      if (unscheduledFailed) {
+        const task = unscheduledFailed.task
+        const wasScheduled = false // We know it's not scheduled since we found it in unscheduledFailed
+        
+        if (!wasScheduled) {
         // Last resort: Try to reschedule prerequisites or make room on prerequisite's day
         console.log(`    🔄 Capacity retry failed, attempting prerequisite rescheduling for "${task.name}"`)
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:2432',message:'Capacity retry: checking prerequisites',data:{taskName:task.name,taskIdx:task.idx,taskDuration:task.estimated_duration_minutes,hasDependencies:task.idx?taskDependencies.has(task.idx):false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
         
         // Find prerequisites that are scheduled on later days
         if (task.idx && taskDependencies.has(task.idx)) {
@@ -2444,6 +2718,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             const depPlacement = placements.find(p => p.task_id === depTask.id)
             if (!depPlacement) continue
             
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:2447',message:'Prerequisite found',data:{taskName:task.name,depName:depTask.name,depDay:depPlacement.day_index,depDayUsed:dailyScheduled[depPlacement.day_index]||0,depDayCapacity:dayConfigs[depPlacement.day_index]?.dailyCapacity||0,taskNeeds:task.estimated_duration_minutes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+            // #endregion
+            
             // If prerequisite is on a later day and that day is full, try to move prerequisite earlier
             if (depPlacement.day_index > 0) {
               const depDay = depPlacement.day_index
@@ -2455,6 +2733,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               // If prerequisite's day is full or doesn't have enough room for our task
               if (depDayAvailable < task.estimated_duration_minutes) {
                 console.log(`    🔄 Attempting to move prerequisite "${depTask.name}" earlier to make room`)
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:2456',message:'Capacity retry: moving prerequisite',data:{taskName:task.name,taskNeeds:task.estimated_duration_minutes,depName:depTask.name,depDay,depDayAvailable,depDayCapacity,depTaskDuration:depTask.estimated_duration_minutes},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+                // #endregion
+                
+                // CRITICAL: Calculate how much capacity will be freed on prerequisite's day after moving it
+                const capacityAfterMove = depDayAvailable + depTask.estimated_duration_minutes
+                const willHaveEnoughCapacity = capacityAfterMove >= task.estimated_duration_minutes
                 
                 // Try to find an earlier day for the prerequisite
                 for (let earlierDay = depDay - 1; earlierDay >= 0; earlierDay--) {
@@ -2469,6 +2755,15 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
                   if (earlierDayAvailable >= depTask.estimated_duration_minutes) {
                     // Check if prerequisite can be scheduled on earlier day (dependencies)
                     if (canScheduleOnDay(depTask, earlierDay, placements, taskDependencies, tasksWithTargetDays)) {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:2471',message:'Prerequisite can be moved',data:{depName:depTask.name,earlierDay,earlierDayAvailable,willHaveEnoughCapacity,capacityAfterMove},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+                      // #endregion
+                      
+                      // Only proceed if moving the prerequisite will free enough capacity for our task
+                      if (!willHaveEnoughCapacity) {
+                        console.log(`    ⚠️ Moving prerequisite won't free enough capacity: ${capacityAfterMove} min < ${task.estimated_duration_minutes} min needed`)
+                        continue
+                      }
                       // Remove prerequisite from current placement
                       const depPlacementIndex = placements.findIndex(p => p.task_id === depTask.id)
                       if (depPlacementIndex !== -1) {
@@ -2633,9 +2928,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             unscheduledTasks.push(task.id)
           }
         }
+        }
       }
     }
-  }
 
   console.log('🔧 Final placements order:', placements.map(p => ({ 
     task_id: p.task_id, 
@@ -2644,6 +2939,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   })))
 
   // Post-scheduling validation: Check for dependency violations
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/2a518264-e366-4e48-9ba5-ed3c4addffb5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'time-block-scheduler.ts:2646',message:'Post-scheduling validation starting',data:{totalPlacements:placements.length,unscheduledCount:unscheduledTasks.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
   const dependencyViolations: Array<{
     task: typeof tasksWithTargetDays[number],
     taskDay: number,
@@ -2740,18 +3038,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         searchDays.push(dayIndex)
       }
       
-      // Sort by available capacity (days with more capacity first)
+      // Sort by actual available capacity (days with more capacity first, accounting for existing busy slots)
       searchDays.sort((a, b) => {
         const aConfig = dayConfigs[a]
         const bConfig = dayConfigs[b]
         if (!aConfig || !bConfig) return 0
         
-        const aUsed = dailyScheduled[a] || 0
-        const bUsed = dailyScheduled[b] || 0
-        const aAvailable = aConfig.dailyCapacity - aUsed
-        const bAvailable = bConfig.dailyCapacity - bUsed
+        const aAvailable = calculateActualAvailableCapacity(a, aConfig, existingWorkloadPerDay, dailyScheduled)
+        const bAvailable = calculateActualAvailableCapacity(b, bConfig, existingWorkloadPerDay, dailyScheduled)
         
-        return bAvailable - aAvailable // More capacity first
+        return bAvailable - aAvailable // More actual capacity first
       })
       
       for (const dayIndex of searchDays) {
@@ -2761,12 +3057,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         if (!dayConfig) continue
         if (dayConfig.isWeekend && !allowWeekends) continue
         
-        const alreadyScheduled = dailyScheduled[dayIndex] || 0
-        const dayCapacity = dayConfig.dailyCapacity
-        const availableCapacity = dayCapacity - alreadyScheduled
+        // Check actual available capacity (accounting for existing busy slots)
+        const actualAvailable = calculateActualAvailableCapacity(dayIndex, dayConfig, existingWorkloadPerDay, dailyScheduled)
         
-        if (availableCapacity < taskDuration) {
-          console.log(`    ⚠️ Day ${dayIndex} has insufficient capacity: ${availableCapacity} min < ${taskDuration} min needed`)
+        if (actualAvailable < taskDuration) {
+          console.log(`    ⚠️ Day ${dayIndex} has insufficient actual capacity: ${actualAvailable} min < ${taskDuration} min needed`)
           continue
         }
         
@@ -2825,7 +3120,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               taskId: task.id
             })
             
-            dailyScheduled[dayIndex] = alreadyScheduled + taskDuration
+            dailyScheduled[dayIndex] = (dailyScheduled[dayIndex] || 0) + taskDuration
             totalScheduledHours += taskDuration / 60
             rescheduled = true
             
@@ -2871,11 +3166,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               if (!dayConfig) continue
               if (dayConfig.isWeekend && !allowWeekends) continue
               
-              const alreadyScheduled = dailyScheduled[dayIndex] || 0
-              const dayCapacity = dayConfig.dailyCapacity
-              const availableCapacity = dayCapacity - alreadyScheduled
+              // Check actual available capacity (accounting for existing busy slots)
+              const actualAvailable = calculateActualAvailableCapacity(dayIndex, dayConfig, existingWorkloadPerDay, dailyScheduled)
               
-              if (availableCapacity < taskDuration) continue
+              if (actualAvailable < taskDuration) continue
               
               // Check dependencies again (without the invalid one)
               if (!canScheduleOnDay(taskWithTarget, dayIndex, placements, taskDependencies, tasksWithTargetDays)) {
@@ -2931,7 +3225,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
                     taskId: task.id
                   })
                   
-                  dailyScheduled[dayIndex] = alreadyScheduled + taskDuration
+                  dailyScheduled[dayIndex] = (dailyScheduled[dayIndex] || 0) + taskDuration
                   totalScheduledHours += taskDuration / 60
                   rescheduled = true
                   
@@ -2950,7 +3244,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         }
       }
     }
-  }
+  } // closes: if (dependencyViolations.length > 0)
   
   // Post-scheduling validation: Check for unscheduled tasks
   const scheduledTaskIds = new Set(placements.map(p => p.task_id))
@@ -3022,14 +3316,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         }
       }
     }
-  }
+  } // closes: if (taskDependencies.size > 0)
 
   return {
     placements,
     totalScheduledHours,
     unscheduledTasks
   }
-}
+} // closes timeBlockScheduler
 
 /**
  * Find the best time slot for a task
@@ -3113,6 +3407,8 @@ function formatTime(hours: number, minutes: number): string {
 /**
  * Find the next available time slot that doesn't overlap with existing scheduled slots
  * Scans from workday start (or current time) to find the earliest available gap
+ * NOTE: This function finds gaps but does NOT verify capacity - capacity should be checked separately
+ * or use checkDayCanFitTask for unified checking
  */
 function findNextAvailableSlot(
   suggestedStartTime: string,
@@ -3121,7 +3417,10 @@ function findNextAvailableSlot(
   scheduledSlots: Map<string, Array<{start: number, end: number, taskId: string}>>,
   dayConfig: DayScheduleConfig,
   currentTime?: Date,
-  requireStartDate?: boolean
+  requireStartDate?: boolean,
+  existingWorkloadPerDay?: Map<number, number>,
+  dailyScheduled?: number[] | { [dayIndex: number]: number },
+  dayIndex?: number
 ): string | null {
   const [suggestedHour, suggestedMinute] = suggestedStartTime.split(':').map(Number)
   const suggestedStartMinutes = suggestedHour * 60 + suggestedMinute

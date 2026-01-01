@@ -190,7 +190,62 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
       if (busyLines.length > 12) {
         availabilityContextLines.push(`- ... ${busyLines.length - 12} more slots omitted for brevity`)
       }
-      availabilityContextLines.push('IMPORTANT: Adjust your task generation and timeline to work around these existing commitments. If there are many conflicts, consider extending the timeline or breaking tasks into smaller chunks that can fit between commitments.')
+      
+      // Calculate actual available capacity per day from busy slots
+      const startDate = new Date(request.start_date)
+      const busySlotsByDay = new Map<string, number>() // date string -> minutes
+      
+      for (const slot of request.availability.busySlots) {
+        try {
+          const slotStart = new Date(slot.start)
+          const slotEnd = new Date(slot.end)
+          if (isNaN(slotStart.getTime()) || isNaN(slotEnd.getTime())) continue
+          
+          const slotDate = slotStart.toISOString().split('T')[0]
+          const slotDuration = Math.round((slotEnd.getTime() - slotStart.getTime()) / (1000 * 60))
+          
+          if (slotDuration > 0) {
+            const current = busySlotsByDay.get(slotDate) || 0
+            busySlotsByDay.set(slotDate, current + slotDuration)
+          }
+        } catch (error) {
+          // Skip invalid slots
+          continue
+        }
+      }
+      
+      // Calculate daily capacity (assuming 9am-5pm workday with 1 hour lunch = 420 minutes)
+      // This is a default - actual capacity will be calculated by scheduler based on user settings
+      const defaultDailyCapacity = 420 // 8 hours - 1 hour lunch = 7 hours = 420 minutes
+      
+      // Show capacity impact for first few days
+      if (busySlotsByDay.size > 0) {
+        availabilityContextLines.push('')
+        availabilityContextLines.push('ACTUAL AVAILABLE CAPACITY PER DAY (accounting for existing commitments):')
+        
+        const sortedDays = Array.from(busySlotsByDay.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .slice(0, 7) // Show first 7 days
+        
+        for (const [date, busyMinutes] of sortedDays) {
+          const available = Math.max(0, defaultDailyCapacity - busyMinutes)
+          const utilizationPercent = Math.round((busyMinutes / defaultDailyCapacity) * 100)
+          availabilityContextLines.push(`- ${date}: ${busyMinutes} min already scheduled, ${available} min available (${utilizationPercent}% utilized)`)
+        }
+        
+        if (busySlotsByDay.size > 7) {
+          availabilityContextLines.push(`- ... ${busySlotsByDay.size - 7} more days with existing commitments`)
+        }
+        
+        availabilityContextLines.push('')
+        availabilityContextLines.push('CRITICAL CAPACITY INSTRUCTIONS:')
+        availabilityContextLines.push('- Generate tasks that fit within the ACTUAL available capacity shown above')
+        availabilityContextLines.push('- If a day has less than 100 minutes available, consider extending the timeline to spread work across more days')
+        availabilityContextLines.push('- If total task duration exceeds available capacity across all days, extend timeline_days accordingly')
+        availabilityContextLines.push('- Example: If Day 1 has only 20 min available but tasks total 200 min, extend timeline to 2-3 days')
+      } else {
+        availabilityContextLines.push('IMPORTANT: Adjust your task generation and timeline to work around these existing commitments. If there are many conflicts, consider extending the timeline or breaking tasks into smaller chunks that can fit between commitments.')
+      }
     }
 
     const timeOffLines = request.availability.timeOff

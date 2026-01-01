@@ -17,8 +17,58 @@ function calculateActiveDaysNeeded(
   totalDuration: number,
   dailyCapacity: number,
   startDate: Date,
-  allowWeekends: boolean
+  allowWeekends: boolean,
+  existingBusySlotsPerDay?: Map<number, number>
 ): number {
+  // If we have existing busy slots, calculate actual available capacity per day
+  if (existingBusySlotsPerDay && existingBusySlotsPerDay.size > 0) {
+    // Calculate days needed using actual available capacity
+    let remainingDuration = totalDuration
+    let activeDaysCount = 0
+    let currentDate = new Date(startDate)
+    let calendarDaysCount = 0
+    const maxDays = 21 // Safety limit
+    
+    while (remainingDuration > 0 && calendarDaysCount < maxDays) {
+      const dayOfWeek = currentDate.getDay()
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+      
+      // Skip weekends if not allowed
+      if (isWeekend && !allowWeekends) {
+        calendarDaysCount++
+        currentDate = addDays(currentDate, 1)
+        continue
+      }
+      
+      // Calculate actual available capacity for this day
+      const dayIndex = calendarDaysCount
+      const existingBusyMinutes = existingBusySlotsPerDay.get(dayIndex) || 0
+      const actualAvailableCapacity = Math.max(0, dailyCapacity - existingBusyMinutes)
+      
+      if (actualAvailableCapacity > 0) {
+        // This day has capacity - use it
+        const durationToSchedule = Math.min(remainingDuration, actualAvailableCapacity)
+        remainingDuration -= durationToSchedule
+        activeDaysCount++
+      }
+      
+      calendarDaysCount++
+      if (remainingDuration > 0) {
+        currentDate = addDays(currentDate, 1)
+      }
+    }
+    
+    if (remainingDuration > 0) {
+      // Couldn't fit all tasks even with extended timeline
+      // Return the days we calculated plus additional days needed for remaining
+      const additionalDaysNeeded = Math.ceil(remainingDuration / dailyCapacity)
+      return calendarDaysCount + additionalDaysNeeded
+    }
+    
+    return calendarDaysCount
+  }
+  
+  // No existing busy slots - use theoretical capacity
   // Calculate total active days needed
   const activeDaysNeeded = Math.ceil(totalDuration / dailyCapacity)
   
@@ -324,6 +374,7 @@ export async function POST(req: NextRequest) {
       estimatedEndDate.setDate(estimatedEndDate.getDate() + 21) // Max 21 days
       
     let availability: NormalizedAvailability | undefined = undefined
+    const existingBusySlotsPerDay = new Map<number, number>()
     try {
       // Fetch existing task schedules from task_schedule table
       const { data: existingTaskSchedules, error: taskSchedulesError } = await supabase
@@ -382,12 +433,39 @@ export async function POST(req: NextRequest) {
       // Combine task schedules and calendar busy slots
       const allBusySlots = [...taskBusySlots, ...calendarBusySlots]
       
+      // Calculate existing busy slots per day for timeline calculation
       if (allBusySlots.length > 0) {
+        for (const slot of allBusySlots) {
+          try {
+            const slotStart = new Date(slot.start)
+            const slotEnd = new Date(slot.end)
+            const slotDateStr = slotStart.toISOString().split('T')[0]
+            const startDateStr = formatDateForDB(startDate)
+            
+            // Calculate day index (0 = start date, 1 = next day, etc.)
+            const slotDate = new Date(slotDateStr + 'T00:00:00')
+            const startDateObj = new Date(startDateStr + 'T00:00:00')
+            const dayDiff = Math.floor((slotDate.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24))
+            
+            if (dayDiff >= 0 && dayDiff < 21) {
+              // Calculate duration in minutes
+              const durationMinutes = Math.floor((slotEnd.getTime() - slotStart.getTime()) / (1000 * 60))
+              if (durationMinutes > 0) {
+                const current = existingBusySlotsPerDay.get(dayDiff) || 0
+                existingBusySlotsPerDay.set(dayDiff, current + durationMinutes)
+              }
+            }
+          } catch (error) {
+            console.warn('Error processing busy slot for timeline calculation:', slot, error)
+          }
+        }
+        
         availability = {
           busySlots: allBusySlots,
           timeOff: [],
         }
         console.log(`Found ${allBusySlots.length} total busy slots (${taskBusySlots.length} tasks + ${calendarBusySlots.length} calendar)`)
+        console.log(`Existing busy slots per day:`, Array.from(existingBusySlotsPerDay.entries()).map(([day, minutes]) => `Day ${day}: ${minutes} min`).join(', '))
       }
     } catch (error) {
       console.warn('Failed to fetch user availability for plan generation:', error)
@@ -842,11 +920,13 @@ export async function POST(req: NextRequest) {
         if (willMoveStartDate) {
           // Start date moved to tomorrow - calculate total days needed from scratch
           // Account for weekends being disabled when calculating active days
+          // Use actual available capacity (accounting for existing busy slots)
           const capacityBasedDays = calculateActiveDaysNeeded(
             totalDuration,
             dailyCapacity,
             parsedStartDate,
-            allowWeekends
+            allowWeekends,
+            existingBusySlotsPerDay
           )
           
           // Respect minimum timeline if user explicitly specified one
@@ -859,7 +939,8 @@ export async function POST(req: NextRequest) {
                   totalDuration,
                   dailyCapacity,
                   parsedStartDate,
-                  false
+                  false,
+                  existingBusySlotsPerDay
                 )
             proposedTimelineDays = Math.max(capacityBasedDays, minimumActiveDays)
             console.log('📅 Respecting user-specified minimum timeline:', {
@@ -889,11 +970,13 @@ export async function POST(req: NextRequest) {
           let adjustedCapacityBasedDays = capacityBasedDays
           if (!allowWeekends) {
             // Calculate how many active days we actually have in the proposed timeline
+            // Use actual available capacity (accounting for existing busy slots)
             const totalActiveDaysNeeded = calculateActiveDaysNeeded(
               totalDuration,
               dailyCapacity,
               parsedStartDate,
-              false
+              false,
+              existingBusySlotsPerDay
             )
             // Use the larger of the two to ensure we have enough active days
             adjustedCapacityBasedDays = Math.max(capacityBasedDays, totalActiveDaysNeeded)
@@ -909,7 +992,8 @@ export async function POST(req: NextRequest) {
                   totalDuration,
                   dailyCapacity,
                   parsedStartDate,
-                  false
+                  false,
+                  existingBusySlotsPerDay
                 )
             proposedTimelineDays = Math.max(adjustedCapacityBasedDays, minimumActiveDays)
             console.log('📅 Respecting user-specified minimum timeline:', {
