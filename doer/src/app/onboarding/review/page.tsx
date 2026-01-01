@@ -30,13 +30,15 @@ export default function ReviewPage() {
   const [editedPlan, setEditedPlan] = useState<ReviewPlanData | null>(null)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
-  const [showStrengthenButton, setShowStrengthenButton] = useState(true)
+  const [clarificationPhase, setClarificationPhase] = useState<'idle' | 'loading' | 'questions' | 'freeText' | 'review'>('idle')
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false)
   const [clarificationQuestions, setClarificationQuestions] = useState<Array<{ text: string; options: string[] }>>([])
   const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({})
   const [clarificationOtherTexts, setClarificationOtherTexts] = useState<Record<string, string>>({})
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [additionalInfoText, setAdditionalInfoText] = useState('')
+  const [clarificationError, setClarificationError] = useState<{ title: string; message: string } | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const isRequestInFlightRef = useRef(false)
   const [showPlanSelectionModal, setShowPlanSelectionModal] = useState(false)
@@ -690,6 +692,8 @@ export default function ReviewPage() {
     isRequestInFlightRef.current = true
 
     setIsGeneratingQuestions(true)
+    setClarificationPhase('loading')
+    setClarificationError(null)
 
     try {
       const response = await fetch(`/api/plans/${plan.id}/clarify`, {
@@ -726,7 +730,9 @@ export default function ReviewPage() {
           setCurrentQuestionIndex(0)
           setClarificationAnswers({})
           setClarificationOtherTexts({})
-          setShowStrengthenButton(false) // Hide button when questions are displayed
+          setAdditionalInfoText('')
+          setClarificationError(null)
+          setClarificationPhase('questions')
           addToast({
             type: 'success',
             title: 'Questions Generated',
@@ -738,7 +744,7 @@ export default function ReviewPage() {
             title: 'Plan Already Well-Defined',
             description: 'No clarification questions were generated. Your plan is already well-defined!',
           })
-          setShowStrengthenButton(true)
+          setClarificationPhase('idle')
         }
       } else {
         // No questions generated, show message
@@ -747,7 +753,7 @@ export default function ReviewPage() {
           title: 'Plan Already Well-Defined',
           description: 'No clarification questions were generated. Your plan is already well-defined!',
         })
-        setShowStrengthenButton(true)
+        setClarificationPhase('idle')
       }
     } catch (error) {
       // Don't show error if request was aborted
@@ -758,21 +764,15 @@ export default function ReviewPage() {
       // Handle network errors separately
       if (error instanceof TypeError && error.message.includes('fetch')) {
         console.error('Network error generating clarification questions:', error)
-        addToast({
-          type: 'error',
+        setClarificationError({
           title: 'Network Error',
-          description: 'Failed to connect to server. Please check your internet connection and try again.',
+          message: 'Failed to connect to server. Please check your internet connection and try again.'
         })
-        setShowStrengthenButton(true)
+        setClarificationPhase('loading')
         return
       }
       
       console.error('Error generating clarification questions:', error)
-      // Reset all clarification state on error
-      setClarificationQuestions([])
-      setCurrentQuestionIndex(0)
-      setClarificationAnswers({})
-      setClarificationOtherTexts({})
       
       // Provide specific error messages based on error type
       let genErrorTitle = 'Failed to Generate Questions'
@@ -790,12 +790,11 @@ export default function ReviewPage() {
         }
       }
       
-      addToast({
-        type: 'error',
+      setClarificationError({
         title: genErrorTitle,
-        description: genErrorDescription,
+        message: genErrorDescription
       })
-      setShowStrengthenButton(true)
+      setClarificationPhase('loading')
     } finally {
       setIsGeneratingQuestions(false)
       isRequestInFlightRef.current = false
@@ -827,9 +826,18 @@ export default function ReviewPage() {
     if (currentQuestionIndex < clarificationQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1)
     } else {
-      // All questions answered, submit
-      handleSubmitClarifications(newAnswers)
+      // All questions answered, move to free-text phase
+      setClarificationPhase('freeText')
     }
+  }
+
+  const handleFreeTextContinue = () => {
+    setClarificationPhase('review')
+  }
+
+  const handleFreeTextSkip = () => {
+    setAdditionalInfoText('')
+    setClarificationPhase('review')
   }
   
   const handleOtherTextChange = (text: string) => {
@@ -861,7 +869,9 @@ export default function ReviewPage() {
     setCurrentQuestionIndex(0)
     setIsGeneratingQuestions(false)
     setIsRegenerating(false)
-    setShowStrengthenButton(true)
+    setAdditionalInfoText('')
+    setClarificationError(null)
+    setClarificationPhase('idle')
     isRequestInFlightRef.current = false
     abortControllerRef.current = null
   }
@@ -938,6 +948,10 @@ export default function ReviewPage() {
         const answer = finalAnswers[index.toString()] || ''
         formattedAnswers[question.text] = answer
       })
+      
+      // Add free-text answer if provided
+      const FREE_TEXT_QUESTION = "Any additional information you'd like to share?"
+      formattedAnswers[FREE_TEXT_QUESTION] = additionalInfoText.trim()
 
       const response = await fetch(`/api/plans/${plan.id}/regenerate`, {
         method: 'POST',
@@ -1036,7 +1050,9 @@ export default function ReviewPage() {
       setCurrentQuestionIndex(0)
       setClarificationAnswers({})
       setClarificationOtherTexts({})
-      setShowStrengthenButton(true)
+      setAdditionalInfoText('')
+      setClarificationError(null)
+      setClarificationPhase('idle')
       
       // Show success message with warning if schedule generation failed
       const message = data.scheduleGenerationSuccess !== false 
@@ -1088,11 +1104,11 @@ export default function ReviewPage() {
         }
       }
       
-      addToast({
-        type: 'error',
+      setClarificationError({
         title: regenErrorTitle,
-        description: regenErrorDescription,
+        message: regenErrorDescription
       })
+      // Keep user in review phase so they can see the error and retry
       // Note: We keep clarificationQuestions visible so user can retry or skip
     } finally {
       setIsRegenerating(false)
@@ -1585,204 +1601,6 @@ export default function ReviewPage() {
         </FadeInWrapper>
 
 
-        {/* Clarification UI */}
-        {clarificationQuestions.length > 0 && (
-          <FadeInWrapper delay={0.3} direction="up">
-            <div className="bg-white/5 border border-white/10 rounded-lg p-6 mt-4">
-            {isGeneratingQuestions && (
-              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm text-blue-300 flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
-                  Generating clarification questions...
-                </p>
-              </div>
-            )}
-            {isRegenerating && (
-              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm text-blue-300 flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
-                  Regenerating plan with your answers...
-                </p>
-              </div>
-            )}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-[#d7d2cb]/70">
-                  Question {currentQuestionIndex + 1} of {clarificationQuestions.length}
-                </span>
-                <span className="text-sm text-[#d7d2cb]/70">
-                  {Math.round(((currentQuestionIndex + 1) / clarificationQuestions.length) * 100)}%
-                </span>
-              </div>
-              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-[var(--primary)] rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${((currentQuestionIndex + 1) / clarificationQuestions.length) * 100}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-[#d7d2cb] mb-4">
-                {clarificationQuestions[currentQuestionIndex]?.text || ''}
-              </h3>
-              <div className="space-y-3">
-                {clarificationQuestions[currentQuestionIndex]?.options.map((option, optionIndex) => {
-                  const isOther = option.toLowerCase().trim() === 'other'
-                  const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()] || ''
-                  const isSelected = isOther 
-                    ? currentAnswer.toLowerCase().startsWith('other')
-                    : currentAnswer === option
-                  
-                  return (
-                    <div key={optionIndex}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isOther) {
-                            // Set "Other" as answer, will be updated when user types
-                            setClarificationAnswers({
-                              ...clarificationAnswers,
-                              [currentQuestionIndex.toString()]: 'Other',
-                            })
-                          } else {
-                            handleClarificationAnswer(option)
-                          }
-                        }}
-                        className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
-                          isSelected
-                            ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
-                            : 'border-white/10 bg-white/5 text-[#d7d2cb] hover:border-white/20 hover:bg-white/10'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected
-                              ? 'border-[var(--primary)] bg-[var(--primary)]'
-                              : 'border-white/30'
-                          }`}>
-                            {isSelected && (
-                              <div className="w-2 h-2 rounded-full bg-white" />
-                            )}
-                          </div>
-                          <span className="flex-1 font-medium">{option}</span>
-                        </div>
-                      </button>
-                      {isOther && isSelected && (
-                        <div className="mt-2 ml-8">
-                          <input
-                            type="text"
-                            value={clarificationOtherTexts[currentQuestionIndex.toString()] || ''}
-                            onChange={(e) => handleOtherTextChange(e.target.value)}
-                            placeholder="Please specify..."
-                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
-                            autoFocus
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClarificationCancel}
-                  disabled={isRegenerating || isGeneratingQuestions}
-                  className="flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClarificationBack}
-                  disabled={isRegenerating || currentQuestionIndex === 0}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  {currentQuestionIndex === 0 ? 'Back' : 'Previous'}
-                </Button>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleClarificationCancel}
-                  disabled={isRegenerating || isGeneratingQuestions || isRequestInFlightRef.current}
-                  className="text-[#d7d2cb]/60 hover:text-[#d7d2cb]"
-                >
-                  Skip All
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => {
-                    const answer = clarificationAnswers[currentQuestionIndex.toString()] || ''
-                    const question = clarificationQuestions[currentQuestionIndex]
-                    if (!question) return
-                    
-                    // If "Other" is selected, check if custom text is provided
-                    if (answer.toLowerCase().startsWith('other')) {
-                      const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim()
-                      if (!otherText) {
-                        addToast({
-                          type: 'error',
-                          title: 'Please Specify',
-                          description: 'Please provide your answer in the "Other" field.',
-                        })
-                        return
-                      }
-                    }
-                    
-                    if (answer) {
-                      // Find the selected option to pass to handleClarificationAnswer
-                      const selectedOption = question.options.find(opt => {
-                        if (opt.toLowerCase().trim() === 'other') {
-                          return answer.toLowerCase().startsWith('other')
-                        }
-                        return answer === opt
-                      })
-                      
-                      if (selectedOption) {
-                        handleClarificationAnswer(selectedOption)
-                      }
-                    }
-                  }}
-                  disabled={
-                    isRegenerating || !clarificationAnswers[currentQuestionIndex.toString()]
-                  }
-                  className="flex items-center gap-2"
-                >
-                  {isRegenerating ? (
-                    'Processing...'
-                  ) : currentQuestionIndex === clarificationQuestions.length - 1 ? (
-                    <>
-                      Strengthen Plan
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  ) : (
-                    <>
-                      Next
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-          </FadeInWrapper>
-        )}
-
         {/* Action Buttons */}
         <FadeInWrapper delay={0.4} direction="up">
           <div className="flex justify-center gap-4 pt-4">
@@ -1790,32 +1608,15 @@ export default function ReviewPage() {
             onClick={handleRegenerate}
             variant="outline"
             className="flex items-center gap-2 px-8"
-            disabled={isGeneratingQuestions || isRegenerating}
+            disabled={isGeneratingQuestions || isRegenerating || clarificationPhase !== 'idle'}
           >
             <RotateCcw className="w-4 h-4" />
             Regenerate Plan
           </Button>
-          {plan?.id && !(clarificationQuestions.length > 0 && !isGeneratingQuestions) && (
-            <Button
-              key="strengthen-plan-button"
-              onClick={handleStrengthenPlan}
-              className="relative flex items-center justify-center gap-2 px-8 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35 transition-all duration-300 animate-purple-glow"
-              disabled={isGeneratingQuestions || isRegenerating}
-            >
-              {isGeneratingQuestions ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Strengthen Plan</span>
-                </>
-              )}
-            </Button>
-          )}
           <Button
             onClick={handleAcceptPlan}
             className="flex items-center gap-2 px-8 bg-[var(--primary)] hover:bg-[var(--primary)]/90"
-            disabled={isGeneratingQuestions || isRegenerating}
+            disabled={isGeneratingQuestions || isRegenerating || clarificationPhase !== 'idle'}
           >
             <CheckCircle className="w-4 h-4" />
             Accept Plan
@@ -1910,6 +1711,433 @@ export default function ReviewPage() {
           onClose={() => setShowPlanSelectionModal(false)}
           onContinue={handleContinueToDashboard}
         />
+      )}
+
+      {/* Fixed Bottom-Right Circular Strengthen Button */}
+      {plan?.id && clarificationPhase === 'idle' && (
+        <AnimatePresence>
+          <motion.button
+            key="strengthen-button"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={handleStrengthenPlan}
+            disabled={isGeneratingQuestions || isRegenerating}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/35 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+            aria-label="Strengthen plan"
+            title="Strengthen plan"
+          >
+            <Sparkles className="w-6 h-6" />
+          </motion.button>
+        </AnimatePresence>
+      )}
+
+      {/* Loading Spinner - appears when generating questions */}
+      {clarificationPhase === 'loading' && !clarificationError && (
+        <AnimatePresence>
+          <motion.div
+            key="loading-spinner"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-purple-600/90 text-white shadow-lg shadow-purple-600/25 flex items-center justify-center"
+            aria-label="Generating questions"
+            role="status"
+          >
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </motion.div>
+        </AnimatePresence>
+      )}
+
+      {/* Floating Clarification Panel */}
+      {(clarificationPhase === 'questions' || clarificationPhase === 'freeText' || clarificationPhase === 'review' || (clarificationPhase === 'loading' && clarificationError)) && (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-full max-w-md bg-[#0a0a0a] border border-white/20 rounded-xl shadow-2xl max-h-[85vh] flex flex-col"
+            style={{ maxWidth: '400px' }}
+            role="dialog"
+            aria-labelledby="clarification-panel-title"
+            aria-modal="true"
+          >
+            {/* Error State */}
+            {clarificationError && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-6"
+              >
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+                  <h4 className="text-lg font-semibold text-red-400 mb-2">{clarificationError.title}</h4>
+                  <p className="text-sm text-red-300">{clarificationError.message}</p>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClarificationCancel}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  {clarificationPhase === 'loading' && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={handleStrengthenPlan}
+                      className="flex-1"
+                    >
+                      Try Again
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Question Panel */}
+            {clarificationPhase === 'questions' && !clarificationError && (
+              <div className="p-6 flex flex-col h-full max-h-[85vh]">
+                {/* Header with Close Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 id="clarification-panel-title" className="text-lg font-semibold text-[#d7d2cb]">Strengthen Your Plan</h3>
+                  <button
+                    onClick={handleClarificationCancel}
+                    className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-2 rounded hover:bg-white/5 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Close clarification panel"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Progress Indicator */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-[#d7d2cb]/70">
+                      Question {currentQuestionIndex + 1} of {clarificationQuestions.length}
+                    </span>
+                    <span className="text-sm text-[#d7d2cb]/70">
+                      {Math.round(((currentQuestionIndex + 1) / clarificationQuestions.length) * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-[var(--primary)] rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${((currentQuestionIndex + 1) / clarificationQuestions.length) * 100}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+
+                {/* Question Content */}
+                <div className="flex-1 overflow-y-auto mb-6">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentQuestionIndex}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <h4 className="text-xl font-semibold text-[#d7d2cb] mb-4">
+                        {clarificationQuestions[currentQuestionIndex]?.text || ''}
+                      </h4>
+                      <div className="space-y-3">
+                        {clarificationQuestions[currentQuestionIndex]?.options.map((option, optionIndex) => {
+                          const isOther = option.toLowerCase().trim() === 'other'
+                          const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()] || ''
+                          const isSelected = isOther 
+                            ? currentAnswer.toLowerCase().startsWith('other')
+                            : currentAnswer === option
+                          
+                          return (
+                            <div key={optionIndex}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isOther) {
+                                    setClarificationAnswers({
+                                      ...clarificationAnswers,
+                                      [currentQuestionIndex.toString()]: 'Other',
+                                    })
+                                  } else {
+                                    handleClarificationAnswer(option)
+                                  }
+                                }}
+                                className={`w-full text-left px-4 py-3 min-h-[44px] rounded-lg border-2 transition-all touch-manipulation ${
+                                  isSelected
+                                    ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                                    : 'border-white/10 bg-white/5 text-[#d7d2cb] hover:border-white/20 hover:bg-white/10'
+                                }`}
+                                aria-pressed={isSelected}
+                                aria-label={`Select option: ${option}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                    isSelected
+                                      ? 'border-[var(--primary)] bg-[var(--primary)]'
+                                      : 'border-white/30'
+                                  }`}>
+                                    {isSelected && (
+                                      <div className="w-2 h-2 rounded-full bg-white" />
+                                    )}
+                                  </div>
+                                  <span className="flex-1 font-medium">{option}</span>
+                                </div>
+                              </button>
+                              {isOther && isSelected && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-2 ml-8"
+                                >
+                                  <input
+                                    type="text"
+                                    value={clarificationOtherTexts[currentQuestionIndex.toString()] || ''}
+                                    onChange={(e) => handleOtherTextChange(e.target.value)}
+                                    placeholder="Please specify..."
+                                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
+                                    autoFocus
+                                  />
+                                </motion.div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClarificationBack}
+                    disabled={currentQuestionIndex === 0}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => {
+                      const answer = clarificationAnswers[currentQuestionIndex.toString()] || ''
+                      const question = clarificationQuestions[currentQuestionIndex]
+                      if (!question) return
+                      
+                      if (answer.toLowerCase().startsWith('other')) {
+                        const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim()
+                        if (!otherText) {
+                          addToast({
+                            type: 'error',
+                            title: 'Please Specify',
+                            description: 'Please provide your answer in the "Other" field.',
+                          })
+                          return
+                        }
+                      }
+                      
+                      if (answer) {
+                        const selectedOption = question.options.find(opt => {
+                          if (opt.toLowerCase().trim() === 'other') {
+                            return answer.toLowerCase().startsWith('other')
+                          }
+                          return answer === opt
+                        })
+                        
+                        if (selectedOption) {
+                          handleClarificationAnswer(selectedOption)
+                        }
+                      }
+                    }}
+                    disabled={!clarificationAnswers[currentQuestionIndex.toString()]}
+                    className="flex items-center gap-2"
+                  >
+                    {currentQuestionIndex === clarificationQuestions.length - 1 ? (
+                      <>
+                        Continue
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        Next
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Free Text Panel */}
+            {clarificationPhase === 'freeText' && !clarificationError && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="p-6 flex flex-col h-full max-h-[85vh]"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[#d7d2cb]">Additional Information</h3>
+                  <button
+                    onClick={handleClarificationCancel}
+                    className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-2 rounded hover:bg-white/5 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Close clarification panel"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <p className="text-base text-[#d7d2cb] mb-4">
+                  Any additional information you'd like to share?
+                </p>
+
+                <div className="flex-1 mb-4">
+                  <textarea
+                    value={additionalInfoText}
+                    onChange={(e) => setAdditionalInfoText(e.target.value)}
+                    placeholder="Type your additional information here..."
+                    className="w-full h-full min-h-[150px] px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all resize-none text-base"
+                    maxLength={500}
+                    aria-label="Additional information input"
+                  />
+                  <p className="text-xs text-[#d7d2cb]/50 mt-2 text-right">
+                    {additionalInfoText.length}/500
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-white/10">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleFreeTextSkip}
+                    className="flex-1"
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleFreeTextContinue}
+                    className="flex-1 flex items-center gap-2"
+                  >
+                    Continue
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Review Panel */}
+            {clarificationPhase === 'review' && !clarificationError && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="p-6 flex flex-col h-full max-h-[85vh]"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[#d7d2cb]">Review Your Answers</h3>
+                  <button
+                    onClick={handleClarificationCancel}
+                    className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-2 rounded hover:bg-white/5 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Close clarification panel"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto mb-4 space-y-4" role="region" aria-label="Review answers">
+                  {clarificationQuestions.map((question, index) => {
+                    const answer = clarificationAnswers[index.toString()] || ''
+                    const displayAnswer = answer.startsWith('Other: ') ? answer.substring(7) : answer
+                    
+                    return (
+                      <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <p className="text-sm text-[#d7d2cb]/70 mb-2">{question.text}</p>
+                        <p className="text-base font-medium text-[#d7d2cb]">{displayAnswer || 'Not answered'}</p>
+                      </div>
+                    )
+                  })}
+                  
+                  {/* Free text answer if provided */}
+                  {additionalInfoText.trim() && (
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                      <p className="text-sm text-[#d7d2cb]/70 mb-2">Any additional information you'd like to share?</p>
+                      <p className="text-base font-medium text-[#d7d2cb]">{additionalInfoText}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-white/10">
+                  {clarificationError ? (
+                    <div className="space-y-3">
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-red-400 mb-1">{clarificationError.title}</h4>
+                        <p className="text-xs text-red-300">{clarificationError.message}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => {
+                          setClarificationError(null)
+                          handleSubmitClarifications()
+                        }}
+                        disabled={isRegenerating}
+                        className="w-full flex items-center justify-center gap-2"
+                      >
+                        {isRegenerating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Strengthening Plan...
+                          </>
+                        ) : (
+                          <>
+                            Try Again
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => handleSubmitClarifications()}
+                      disabled={isRegenerating}
+                      className="w-full flex items-center justify-center gap-2"
+                    >
+                      {isRegenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Strengthening Plan...
+                        </>
+                      ) : (
+                        <>
+                          Strengthen Plan
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
 
     </div>
