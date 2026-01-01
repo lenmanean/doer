@@ -1766,38 +1766,41 @@ export default function ReviewPage() {
             aria-modal="true"
           >
             {/* Error State */}
-            {clarificationError && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-6"
-              >
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-                  <h4 className="text-lg font-semibold text-red-400 mb-2">{clarificationError.title}</h4>
-                  <p className="text-sm text-red-300">{clarificationError.message}</p>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleClarificationCancel}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  {clarificationPhase === 'loading' && (
+            {clarificationError && (() => {
+              const error: { title: string; message: string } = clarificationError
+              return (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-6"
+                >
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+                    <h4 className="text-lg font-semibold text-red-400 mb-2">{error.title}</h4>
+                    <p className="text-sm text-red-300">{error.message}</p>
+                  </div>
+                  <div className="flex gap-3">
                     <Button
                       type="button"
-                      variant="primary"
-                      onClick={handleStrengthenPlan}
+                      variant="outline"
+                      onClick={handleClarificationCancel}
                       className="flex-1"
                     >
-                      Try Again
+                      Cancel
                     </Button>
-                  )}
-                </div>
-              </motion.div>
-            )}
+                    {clarificationPhase === 'loading' && (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={handleStrengthenPlan}
+                        className="flex-1"
+                      >
+                        Try Again
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              )
+            })()}
 
             {/* Question Panel */}
             {clarificationPhase === 'questions' && !clarificationError && (
@@ -2083,56 +2086,62 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="pt-4 border-t border-white/10">
-                  {clarificationError ? (
-                    <div className="space-y-3">
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-red-400 mb-1">{clarificationError.title}</h4>
-                        <p className="text-xs text-red-300">{clarificationError.message}</p>
+                  {(() => {
+                    if (!clarificationError) {
+                      return (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          onClick={() => handleSubmitClarifications()}
+                          disabled={isRegenerating}
+                          className="w-full flex items-center justify-center gap-2"
+                        >
+                          {isRegenerating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Strengthening Plan...
+                            </>
+                          ) : (
+                            <>
+                              Strengthen Plan
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </Button>
+                      )
+                    }
+                    const error: { title: string; message: string } = clarificationError
+                    return (
+                      <div className="space-y-3">
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-red-400 mb-1">{error.title}</h4>
+                          <p className="text-xs text-red-300">{error.message}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          onClick={() => {
+                            setClarificationError(null)
+                            handleSubmitClarifications()
+                          }}
+                          disabled={isRegenerating}
+                          className="w-full flex items-center justify-center gap-2"
+                        >
+                          {isRegenerating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Strengthening Plan...
+                            </>
+                          ) : (
+                            <>
+                              Try Again
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        onClick={() => {
-                          setClarificationError(null)
-                          handleSubmitClarifications()
-                        }}
-                        disabled={isRegenerating}
-                        className="w-full flex items-center justify-center gap-2"
-                      >
-                        {isRegenerating ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Strengthening Plan...
-                          </>
-                        ) : (
-                          <>
-                            Try Again
-                            <ArrowRight className="w-4 h-4" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={() => handleSubmitClarifications()}
-                      disabled={isRegenerating}
-                      className="w-full flex items-center justify-center gap-2"
-                    >
-                      {isRegenerating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Strengthening Plan...
-                        </>
-                      ) : (
-                        <>
-                          Strengthen Plan
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </Button>
-                  )}
+                    )
+                  })()}
                 </div>
               </motion.div>
             )}
