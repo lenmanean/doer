@@ -703,6 +703,7 @@ export function detectTaskDependencies(
     // Pattern: "learn" / "study" must come before "practice" / "apply"
     // Make practice/apply tasks depend on learn/study tasks
     // BUT exclude test/testing tasks - learning comes before testing, not after
+    // CRITICAL: Practice should depend on learn, NOT on final review
     if (task.lowerName.includes('learn') || task.lowerName.includes('study')) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -712,15 +713,13 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('implement'))
           // EXCLUDE test/testing - learning comes before testing, not after
           && !otherTask.lowerName.includes('test')
+          // EXCLUDE final review/polish - practice should come BEFORE final review, not depend on it
+          && !otherTask.lowerName.includes('final review')
+          && !otherTask.lowerName.includes('final polish')
+          && !(otherTask.lowerName.includes('final') && (otherTask.lowerName.includes('review') || otherTask.lowerName.includes('polish')))
         ) {
           // Make otherTask (practice/apply) depend on task (learn/study)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
-          }
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -798,6 +797,7 @@ export function detectTaskDependencies(
 
     // Pattern: "set up" / "setup" / "install" / "configure" must come before "learn" / "practice" / "build" / "write"
     // Make learn/practice/build tasks depend on setup/install tasks
+    // CRITICAL: Practice should depend on setup/learn, NOT on final review
     if (
       task.lowerName.includes('set up') ||
       task.lowerName.includes('setup') ||
@@ -816,13 +816,7 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('understand'))
         ) {
           // Make otherTask (learn/practice/build) depend on task (setup/install)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
-          }
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }
     }
@@ -1015,19 +1009,75 @@ export function detectTaskDependencies(
             (otherTask.lowerName.includes('final') && (otherTask.lowerName.includes('adjust') || otherTask.lowerName.includes('review'))))
         ) {
           // Make otherTask (final adjustments) depend on task (test)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
+          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
+        }
+      }
+    }
+  }
+
+  // CRITICAL: Clean up backwards dependencies - practice should NOT depend on final review
+  // This must happen AFTER all dependencies are added, to catch any backwards dependencies that were created
+  for (const task of lowerTaskNames) {
+    if (task.lowerName.includes('practice') || task.lowerName.includes('exercise')) {
+      // This is a practice task - check if it incorrectly depends on final review
+      if (dependencies.has(task.idx)) {
+        const taskDeps = dependencies.get(task.idx)!
+        const invalidDeps: number[] = []
+        
+        for (const depIdx of taskDeps) {
+          const depTask = lowerTaskNames.find(t => t.idx === depIdx)
+          if (depTask && (
+            depTask.lowerName.includes('final review') ||
+            depTask.lowerName.includes('final polish') ||
+            depTask.lowerName.includes('final adjustment') ||
+            (depTask.lowerName.includes('final') && (depTask.lowerName.includes('review') || depTask.lowerName.includes('polish')))
+          )) {
+            // Practice task incorrectly depends on final review - remove this dependency
+            invalidDeps.push(depIdx)
+            console.log(`🔧 Removed backwards dependency: "${task.name}" no longer depends on "${depTask.name}" (practice should come BEFORE final review, not after)`)
           }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
+        }
+        
+        // Remove invalid dependencies
+        if (invalidDeps.length > 0) {
+          const cleanedDeps = taskDeps.filter(dep => !invalidDeps.includes(dep))
+          if (cleanedDeps.length === 0) {
+            dependencies.delete(task.idx)
+          } else {
+            dependencies.set(task.idx, cleanedDeps)
           }
         }
       }
     }
-
-    if (taskDeps.length > 0) {
-      dependencies.set(task.idx, taskDeps)
+    
+    // Also check final review tasks - they should NOT depend on practice
+    if (task.lowerName.includes('final') && (task.lowerName.includes('review') || task.lowerName.includes('polish'))) {
+      if (dependencies.has(task.idx)) {
+        const taskDeps = dependencies.get(task.idx)!
+        const invalidDeps: number[] = []
+        
+        for (const depIdx of taskDeps) {
+          const depTask = lowerTaskNames.find(t => t.idx === depIdx)
+          if (depTask && (
+            depTask.lowerName.includes('practice') ||
+            depTask.lowerName.includes('exercise')
+          )) {
+            // Final review incorrectly depends on practice - remove this dependency
+            invalidDeps.push(depIdx)
+            console.log(`🔧 Removed backwards dependency: "${task.name}" no longer depends on "${depTask.name}" (final review should depend on test/build, not practice)`)
+          }
+        }
+        
+        // Remove invalid dependencies
+        if (invalidDeps.length > 0) {
+          const cleanedDeps = taskDeps.filter(dep => !invalidDeps.includes(dep))
+          if (cleanedDeps.length === 0) {
+            dependencies.delete(task.idx)
+          } else {
+            dependencies.set(task.idx, cleanedDeps)
+          }
+        }
+      }
     }
   }
 
