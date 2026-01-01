@@ -406,7 +406,42 @@ function DashboardContent() {
         }
       }) || []
       
-      setPlanTasks(enrichedTasks)
+      // Sort tasks by scheduled date and time (chronological order)
+      // Tasks with schedules come first, sorted by date then time
+      // Tasks without schedules come last, maintaining their original idx order
+      const sortedTasks = [...enrichedTasks].sort((a, b) => {
+        const aDate = a.schedule_date
+        const bDate = b.schedule_date
+        
+        // If both tasks have schedules, sort by date then time
+        if (aDate && bDate) {
+          // Compare dates (YYYY-MM-DD format is sortable)
+          if (aDate !== bDate) {
+            return aDate.localeCompare(bDate)
+          }
+          
+          // Same date - sort by start time
+          const aTime = a.start_time || ''
+          const bTime = b.start_time || ''
+          if (aTime && bTime) {
+            return aTime.localeCompare(bTime)
+          }
+          // If one has time and other doesn't, prioritize the one with time
+          if (aTime && !bTime) return -1
+          if (!aTime && bTime) return 1
+          // Neither has time - maintain original order by idx
+          return (a.idx || 0) - (b.idx || 0)
+        }
+        
+        // If only one has a schedule, prioritize the scheduled one
+        if (aDate && !bDate) return -1
+        if (!aDate && bDate) return 1
+        
+        // Neither has a schedule - maintain original order by idx
+        return (a.idx || 0) - (b.idx || 0)
+      })
+      
+      setPlanTasks(sortedTasks)
     } catch (error) {
       console.error('Error loading plan tasks:', error)
       setPlanTasks([])
