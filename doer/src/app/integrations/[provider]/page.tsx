@@ -175,6 +175,23 @@ export default function ProviderIntegrationsPage() {
     }
   }, [provider, user?.id, connection?.id])
   
+  // Mapping integration keys to image file names
+  const integrationImageMap: Record<string, string> = {
+    googleCalendar: 'google-calendar.png',
+    outlook: 'outlook-calendar.png',
+    appleCalendar: 'apple-calendar.png',
+    todoist: 'todoist.png',
+    asana: 'asana.png',
+    trello: 'trello.png',
+    evernote: 'evernote.png',
+    slack: 'slack.png',
+    microsoftTeams: 'microsoft-teams.png',
+    strava: 'strava.png',
+    appleHealth: 'apple-health.png',
+    coursera: 'coursera.png',
+    udemy: 'udemy.png',
+  }
+
   // Provider display info - create for all integrations
   const providerInfo: Record<string, { name: string; icon: React.ReactNode }> = {}
   
@@ -184,40 +201,17 @@ export default function ProviderIntegrationsPage() {
                 : integ.key === 'outlook' ? 'outlook'
                 : integ.key.replace(/([A-Z])/g, '-$1').toLowerCase()
     
-    // Use image icons for calendar integrations
-    if (integ.key === 'googleCalendar') {
-      providerInfo['google'] = {
+    // Check if we have an image for this integration
+    const imageFile = integrationImageMap[integ.key]
+    
+    if (imageFile) {
+      // Use image icon
+      providerInfo[urlId] = {
         name: integ.name,
         icon: (
           <Image
-            src="/integrations/google-calendar.png"
-            alt="Google Calendar"
-            width={40}
-            height={40}
-            className="w-10 h-10 object-contain"
-          />
-        ),
-      }
-    } else if (integ.key === 'outlook') {
-      providerInfo['outlook'] = {
-        name: integ.name,
-        icon: (
-          <Image
-            src="/integrations/outlook-calendar.png"
-            alt="Microsoft Outlook"
-            width={40}
-            height={40}
-            className="w-10 h-10 object-contain"
-          />
-        ),
-      }
-    } else if (integ.key === 'appleCalendar') {
-      providerInfo['apple'] = {
-        name: integ.name,
-        icon: (
-          <Image
-            src="/integrations/apple-calendar.png"
-            alt="Apple Calendar"
+            src={`/integrations/${imageFile}`}
+            alt={integ.name}
             width={40}
             height={40}
             className="w-10 h-10 object-contain"
@@ -225,7 +219,7 @@ export default function ProviderIntegrationsPage() {
         ),
       }
     } else {
-      // Use react-icons for other integrations
+      // Fallback to react-icons or emoji if no image available
       const IconComponent = integrationIconMap[integ.key]
       providerInfo[urlId] = {
         name: integ.name,

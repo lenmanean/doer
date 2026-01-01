@@ -81,8 +81,49 @@ function integrationKeyToUrl(key: string): string {
   return key.replace(/([A-Z])/g, '-$1').toLowerCase()
 }
 
+// Mapping integration keys to image file names
+const integrationImageMap: Record<string, string> = {
+  googleCalendar: 'google-calendar.png',
+  outlook: 'outlook-calendar.png',
+  appleCalendar: 'apple-calendar.png',
+  todoist: 'todoist.png',
+  asana: 'asana.png',
+  trello: 'trello.png',
+  evernote: 'evernote.png',
+  slack: 'slack.png',
+  microsoftTeams: 'microsoft-teams.png',
+  strava: 'strava.png',
+  appleHealth: 'apple-health.png',
+  coursera: 'coursera.png',
+  udemy: 'udemy.png',
+}
+
 // Create provider info from integrations data
 function createProviderInfo(integration: IntegrationDefinition): ProviderInfo {
+  // Check if we have an image for this integration
+  const imageFile = integrationImageMap[integration.key]
+  
+  if (imageFile) {
+    // Use image icon
+    return {
+      key: integration.key,
+      provider: integrationKeyToUrl(integration.key),
+      name: integration.name,
+      description: integration.description,
+      icon: (
+        <Image
+          src={`/integrations/${imageFile}`}
+          alt={integration.name}
+          width={48}
+          height={48}
+          className="w-12 h-12 object-contain"
+        />
+      ),
+      category: integration.category,
+    }
+  }
+
+  // Fallback to react-icons or emoji if no image available
   const IconComponent = integrationIconMap[integration.key]
   const iconElement = IconComponent ? (
     <div className="w-12 h-12 flex items-center justify-center text-[var(--foreground)]">
@@ -93,64 +134,6 @@ function createProviderInfo(integration: IntegrationDefinition): ProviderInfo {
       {integration.icon}
     </div>
   )
-
-  // For calendar integrations, use image icons if available
-  if (integration.key === 'googleCalendar') {
-    return {
-      key: integration.key,
-      provider: 'google',
-      name: integration.name,
-      description: integration.description,
-      icon: (
-        <Image
-          src="/integrations/google-calendar.png"
-          alt="Google Calendar"
-          width={48}
-          height={48}
-          className="w-12 h-12 object-contain"
-        />
-      ),
-      category: integration.category,
-    }
-  }
-  
-  if (integration.key === 'outlook') {
-    return {
-      key: integration.key,
-      provider: 'outlook',
-      name: integration.name,
-      description: integration.description,
-      icon: (
-        <Image
-          src="/integrations/outlook-calendar.png"
-          alt="Microsoft Outlook"
-          width={48}
-          height={48}
-          className="w-12 h-12 object-contain"
-        />
-      ),
-      category: integration.category,
-    }
-  }
-  
-  if (integration.key === 'appleCalendar') {
-    return {
-      key: integration.key,
-      provider: 'apple',
-      name: integration.name,
-      description: integration.description,
-      icon: (
-        <Image
-          src="/integrations/apple-calendar.png"
-          alt="Apple Calendar"
-          width={48}
-          height={48}
-          className="w-12 h-12 object-contain"
-        />
-      ),
-      category: integration.category,
-    }
-  }
 
   return {
     key: integration.key,
