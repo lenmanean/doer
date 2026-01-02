@@ -4,6 +4,8 @@
 
 This document describes the implementation of Stripe customer data cleanup and account deletion handling for DOER. The implementation ensures GDPR compliance, resilience, and auditability while respecting Stripe's deletion constraints.
 
+**Production Readiness**: ✅ This implementation is production-ready and works with **live Stripe keys** (`sk_live_*`). The code does not distinguish between test and live keys - it works identically with both. Only the integration tests are restricted to test mode to prevent accidental execution with live data.
+
 ## Architecture
 
 ### Deletion Flow

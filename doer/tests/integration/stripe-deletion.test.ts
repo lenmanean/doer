@@ -1,9 +1,16 @@
 /**
  * Integration tests for Stripe account deletion
- * These tests require Stripe test mode API keys
+ * 
+ * ⚠️ IMPORTANT: These tests ONLY run with Stripe TEST keys (sk_test_*)
+ * They will NOT run with live/production keys (sk_live_*) to prevent accidental
+ * deletion of real customer data.
+ * 
  * Run with: STRIPE_SECRET_KEY=sk_test_... npm test
  * 
  * Note: These tests create real Stripe test data and should be run in a test environment
+ * 
+ * The main implementation code (account-deletion.ts) works with both test and live keys
+ * and is production-ready. Only these integration tests are restricted to test mode.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -11,9 +18,17 @@ import Stripe from 'stripe'
 import { cleanupStripeBillingData } from '@/lib/stripe/account-deletion'
 
 // Skip tests if Stripe test key is not available
+// IMPORTANT: Only run with test keys (sk_test_*) - never with live keys (sk_live_*)
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-const shouldRunTests = stripeSecretKey && stripeSecretKey.startsWith('sk_test_')
+const isTestKey = stripeSecretKey && stripeSecretKey.startsWith('sk_test_')
+const isLiveKey = stripeSecretKey && stripeSecretKey.startsWith('sk_live_')
 
+if (isLiveKey) {
+  console.warn('⚠️  WARNING: Live Stripe key detected. Integration tests are skipped to prevent accidental deletion of real customer data.')
+  console.warn('   These tests are designed for test mode only. The main implementation code works with live keys.')
+}
+
+const shouldRunTests = isTestKey && !isLiveKey
 const describeIf = shouldRunTests ? describe : describe.skip
 
 describeIf('Stripe Account Deletion Integration Tests', () => {
