@@ -18,6 +18,7 @@ export interface StripeSubscription {
   billingCycle: BillingCycle
   currentPeriodStart: string
   currentPeriodEnd: string
+  trialEnd?: string
   cancelAtPeriodEnd: boolean
   stripeCustomerId: string
   planDetails: {
@@ -292,13 +293,24 @@ export async function getActiveSubscriptionFromStripe(
     }
   }
 
+  // For trialing subscriptions, use trial_end; otherwise use current_period_end
+  const trialEndTimestamp = (activeSubscription as any).trial_end
+  const trialEnd = subscriptionStatus === 'trialing' && trialEndTimestamp
+    ? formatStripeDate(trialEndTimestamp) || undefined
+    : undefined
+  
+  const currentPeriodEnd = subscriptionStatus === 'trialing' && trialEndTimestamp
+    ? formatStripeDate(trialEndTimestamp) || ''
+    : formatStripeDate((activeSubscription as any).current_period_end) || ''
+
   const result: StripeSubscription = {
     id: activeSubscription.id,
     status: subscriptionStatus,
     planSlug,
     billingCycle,
     currentPeriodStart: formatStripeDate((activeSubscription as any).current_period_start) || '',
-    currentPeriodEnd: formatStripeDate((activeSubscription as any).current_period_end) || '',
+    currentPeriodEnd,
+    trialEnd,
     cancelAtPeriodEnd: activeSubscription.cancel_at_period_end || false,
     stripeCustomerId,
     planDetails,

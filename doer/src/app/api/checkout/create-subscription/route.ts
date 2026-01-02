@@ -406,14 +406,16 @@ export async function POST(request: NextRequest) {
       subscription = await stripe.subscriptions.create(subscriptionParams)
 
       console.log('[Create Subscription] New subscription created:', {
-      subscriptionId: subscription.id,
-      status: subscription.status,
-      latestInvoice: subscription.latest_invoice
-        ? typeof subscription.latest_invoice === 'string'
-          ? subscription.latest_invoice
-          : subscription.latest_invoice.id
-        : null,
-    })
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        trialEnd: (subscription as any).trial_end,
+        currentPeriodEnd: (subscription as any).current_period_end,
+        latestInvoice: subscription.latest_invoice
+          ? typeof subscription.latest_invoice === 'string'
+            ? subscription.latest_invoice
+            : subscription.latest_invoice.id
+          : null,
+      })
     }
 
     const invoice = subscription.latest_invoice as Stripe.Invoice | string | null
@@ -524,6 +526,19 @@ export async function POST(request: NextRequest) {
           stripeSubscriptionId: subscription.id,
           status: subscription.status,
         })
+        
+        // Verify subscription status in Stripe after $0 invoice handling
+        try {
+          const verifiedSub = await stripe.subscriptions.retrieve(subscription.id)
+          console.log('[Create Subscription] Verified subscription status after $0 invoice:', {
+            subscriptionId: verifiedSub.id,
+            status: verifiedSub.status,
+            trialEnd: (verifiedSub as any).trial_end,
+            currentPeriodEnd: (verifiedSub as any).current_period_end,
+          })
+        } catch (verifyError) {
+          console.error('[Create Subscription] Error verifying subscription:', verifyError)
+        }
       } catch (assignError) {
         console.error('[Create Subscription] Error assigning subscription to database:', assignError)
         // Don't fail the request - webhook will handle it

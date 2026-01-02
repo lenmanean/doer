@@ -2558,11 +2558,11 @@ export default function SettingsPage() {
                                             <p className="text-xs text-[#d7d2cb]/70 mt-1">
                                               Your 14-day free trial ends on{' '}
                                               <span className="font-semibold text-[#d7d2cb]">
-                                                {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                                {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                                                   month: 'long',
                                                   day: 'numeric',
                                                   year: 'numeric'
-                                                })}
+                                                }) : 'Invalid Date'}
                                               </span>
                                               . After the trial ends, you'll be charged $20/month and your billing cycle will begin.
                                             </p>
