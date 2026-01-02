@@ -2538,17 +2538,30 @@ export default function SettingsPage() {
                                       {subscription.planDetails.name} - {subscription.billingCycle === 'monthly' ? 'Monthly' : 'Annual'}
                                     </p>
                                     <p className="text-sm text-[#d7d2cb]/60 mt-1">
-                                      Status: <span className={`capitalize ${
-                                        subscription.status === 'active' ? 'text-green-400' :
-                                        subscription.status === 'trialing' ? 'text-blue-400' :
-                                        subscription.status === 'past_due' ? 'text-orange-400' :
-                                        'text-red-400'
+                                      Status: <span className={`${
+                                        subscription.cancelAtPeriodEnd && subscription.status === 'trialing' 
+                                          ? 'text-orange-400' 
+                                          : subscription.status === 'active' 
+                                            ? 'text-green-400' 
+                                            : subscription.status === 'trialing' 
+                                              ? 'text-blue-400' 
+                                              : subscription.status === 'past_due' 
+                                                ? 'text-orange-400' 
+                                                : 'text-red-400'
                                       }`}>
-                                        {subscription.status}
+                                        {subscription.cancelAtPeriodEnd && subscription.status === 'trialing' 
+                                          ? 'Trial Canceled' 
+                                          : subscription.status === 'active' 
+                                            ? 'Active' 
+                                            : subscription.status === 'trialing' 
+                                              ? 'Trialing' 
+                                              : subscription.status === 'past_due' 
+                                                ? 'Past Due' 
+                                                : 'Canceled'}
                                       </span>
                                     </p>
                                     {subscription.status === 'trialing' && !subscription.cancelAtPeriodEnd && (
-                                      <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                      <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                         <div className="flex items-start gap-2">
                                           <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
@@ -2571,7 +2584,7 @@ export default function SettingsPage() {
                                       </div>
                                     )}
                                     {subscription.cancelAtPeriodEnd && (
-                                      <div className="mt-2 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                      <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
                                         <div className="flex items-start gap-2">
                                           <AlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
@@ -2593,15 +2606,17 @@ export default function SettingsPage() {
                                       </div>
                                     )}
                                   </div>
-                                  <PlanManagementDropdown
-                                    onUpgrade={() => window.location.href = '/pricing'}
-                                    onCancel={handleCancelSubscription}
-                                    onManagePayment={handleManagePayment}
-                                    isCanceling={cancelingSubscription}
-                                    isOpeningPortal={openingPortal}
-                                    showCancel={!(subscription.planSlug === 'basic' && subscription.billingCycle === 'monthly')}
-                                    showManagePayment={!(subscription.planSlug === 'basic' && subscription.billingCycle === 'monthly')}
-                                  />
+                                  <div className="ml-4 flex-shrink-0">
+                                    <PlanManagementDropdown
+                                      onUpgrade={() => window.location.href = '/pricing'}
+                                      onCancel={handleCancelSubscription}
+                                      onManagePayment={handleManagePayment}
+                                      isCanceling={cancelingSubscription}
+                                      isOpeningPortal={openingPortal}
+                                      showCancel={!(subscription.planSlug === 'basic' && subscription.billingCycle === 'monthly')}
+                                      showManagePayment={!(subscription.planSlug === 'basic' && subscription.billingCycle === 'monthly')}
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             </div>
