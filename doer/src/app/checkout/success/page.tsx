@@ -29,9 +29,9 @@ function CheckoutSuccessContent() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          // Redirect to settings page with upgrade flag to show updated subscription
-          console.log('[CheckoutSuccess] Countdown complete, redirecting to settings')
-          router.push(`/settings?upgraded=true&plan=${planSlug}&section=subscription`)
+          // Redirect to dashboard with upgrade flag to show updated subscription
+          console.log('[CheckoutSuccess] Countdown complete, redirecting to dashboard')
+          router.push(`/dashboard?upgraded=true&plan=${planSlug}`)
           return 0
         }
         return prev - 1

@@ -432,6 +432,43 @@ export async function getInvoicesFromStripe(
     // Convert amount from cents to dollars
     const amountDollars = invoice.total ? invoice.total / 100 : 0
     
+    // Check if invoice is associated with a basic plan subscription
+    // We check the invoice line items for the price ID to determine the plan
+    let isBasicPlanInvoice = false
+    
+    // Check invoice line items for basic plan price ID
+    if (invoice.lines?.data && invoice.lines.data.length > 0) {
+      const priceId = invoice.lines.data[0]?.price?.id
+      if (priceId === process.env.STRIPE_PRICE_BASIC) {
+        isBasicPlanInvoice = true
+      }
+    }
+    
+    // Also check subscription if available (fallback)
+    if (!isBasicPlanInvoice && invoice.subscription) {
+      const subscription = typeof invoice.subscription === 'string' 
+        ? null 
+        : invoice.subscription
+      
+      if (subscription) {
+        // Check subscription metadata
+        const metadata = subscription.metadata || {}
+        if (metadata.planSlug === 'basic') {
+          isBasicPlanInvoice = true
+        }
+        // Check subscription price ID
+        else if (subscription.items?.data?.[0]?.price?.id === process.env.STRIPE_PRICE_BASIC) {
+          isBasicPlanInvoice = true
+        }
+      }
+    }
+    
+    // Filter out invoices that are $0 AND associated with basic plan
+    // Keep all pro plan invoices visible (even if $0 for free trial)
+    if (amountDollars === 0 && isBasicPlanInvoice) {
+      continue
+    }
+    
     // Format date as ISO string
     const date = invoice.created 
       ? new Date(invoice.created * 1000).toISOString().split('T')[0]
