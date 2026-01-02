@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { cleanupStripeBillingData } from '@/lib/stripe/account-deletion'
 import { serverLogger } from '@/lib/logger/server'
+import { calculateDeletionDate } from '@/lib/billing/account-deletion'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,9 @@ if (stripeSecretKey) {
 
 /**
  * POST /api/settings/delete-account
- * Deletes the current user's account and all associated data
- * Includes Stripe customer cleanup if feature flag is enabled
+ * Schedules the current user's account for deletion at subscription period end
+ * Includes Stripe subscription cancellation (at period end)
+ * Account will be automatically deleted by cron job after period end
  */
 export async function POST(request: NextRequest) {
   const deletionStartTime = new Date()
@@ -48,14 +50,22 @@ export async function POST(request: NextRequest) {
     // Check feature flag
     const stripeDeletionEnabled = process.env.ENABLE_STRIPE_ACCOUNT_DELETION === 'true'
 
-    // Get user settings to retrieve Stripe customer ID before deletion
+    // Get user settings to retrieve Stripe customer ID
     const { data: userSettings } = await supabase
       .from('user_settings')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, scheduled_deletion_at')
       .eq('user_id', user.id)
       .maybeSingle()
 
     const stripeCustomerId = userSettings?.stripe_customer_id || null
+
+    // Check if account is already scheduled for deletion
+    if (userSettings?.scheduled_deletion_at) {
+      return NextResponse.json(
+        { error: 'Account is already scheduled for deletion' },
+        { status: 400 }
+      )
+    }
 
     // Get user email for audit log (for trial abuse prevention)
     const userEmail = user.email || null
@@ -66,14 +76,17 @@ export async function POST(request: NextRequest) {
                      'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
 
-    // Create audit log entry
+    // Calculate deletion date based on subscription period end
+    const scheduledDeletionAt = await calculateDeletionDate(user.id)
+
+    // Create audit log entry with 'scheduled' status
     const { data: auditRecord, error: auditError } = await supabaseService
       .from('account_deletion_audit')
       .insert({
         user_id: user.id,
         stripe_customer_id: stripeCustomerId,
         email: userEmail,
-        status: 'in_progress',
+        status: 'scheduled',
         stripe_cleanup_status: stripeCustomerId && stripeDeletionEnabled ? 'pending' : 'skipped',
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -86,12 +99,15 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         error: auditError.message,
       })
-      // Continue with deletion even if audit log fails
+      return NextResponse.json(
+        { error: 'Failed to schedule account deletion' },
+        { status: 500 }
+      )
     } else {
       auditRecordId = auditRecord.id
     }
 
-    // Step 1: Clean up Stripe billing data (if enabled and customer exists)
+    // Step 1: Schedule Stripe subscription cancellation (at period end)
     let stripeCleanupResult = null
     if (stripeDeletionEnabled && stripe && stripeCustomerId) {
       serverLogger.logAccountDeletion('subscription_cancel', 'started', {
@@ -138,12 +154,12 @@ export async function POST(request: NextRequest) {
         }
 
         if (stripeCleanupResult.success) {
-          serverLogger.logAccountDeletion('customer_delete', 'completed', {
+          serverLogger.logAccountDeletion('subscription_cancel', 'completed', {
             userId: user.id,
             stripeCustomerId,
           })
         } else {
-          serverLogger.logAccountDeletion('customer_delete', 'failed', {
+          serverLogger.logAccountDeletion('subscription_cancel', 'failed', {
             userId: user.id,
             stripeCustomerId,
             error: { message: 'Stripe cleanup partially failed', stripeError: stripeCleanupResult.errors },
@@ -151,7 +167,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (stripeError) {
         const errorMessage = stripeError instanceof Error ? stripeError.message : String(stripeError)
-        serverLogger.logAccountDeletion('customer_delete', 'failed', {
+        serverLogger.logAccountDeletion('subscription_cancel', 'failed', {
           userId: user.id,
           stripeCustomerId,
           error: { message: errorMessage },
@@ -171,7 +187,7 @@ export async function POST(request: NextRequest) {
             .eq('id', auditRecordId)
         }
 
-        // Continue with DOER deletion even if Stripe cleanup fails
+        // Continue with scheduling even if Stripe cleanup fails
         // User will be informed of partial success
       }
     } else if (!stripeCustomerId) {
@@ -184,192 +200,23 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Step 2: Delete all DOER database records
-    serverLogger.logAccountDeletion('db_cleanup', 'started', {
+    // Step 2: Schedule account deletion (set scheduled_deletion_at)
+    serverLogger.logAccountDeletion('schedule_deletion', 'started', {
       userId: user.id,
+      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
       stripeCustomerId,
     })
 
-    // Delete all user plans (cascades will handle milestones, tasks, etc.)
-    const { error: plansError } = await supabase
-      .from('plans')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (plansError) {
-      serverLogger.error('Error deleting user plans', {
-        userId: user.id,
-        error: plansError.message,
-      })
-      // Continue anyway, we'll try to delete the profile and user
-    }
-
-    // Delete free mode tasks (tasks with plan_id: null)
-    const { error: freeTasksError } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('user_id', user.id)
-      .is('plan_id', null)
-
-    if (freeTasksError) {
-      serverLogger.error('Error deleting free mode tasks', {
-        userId: user.id,
-        error: freeTasksError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete free mode task schedules (task_schedule with plan_id: null)
-    const { error: freeTaskSchedulesError } = await supabase
-      .from('task_schedule')
-      .delete()
-      .eq('user_id', user.id)
-      .is('plan_id', null)
-
-    if (freeTaskSchedulesError) {
-      serverLogger.error('Error deleting free mode task schedules', {
-        userId: user.id,
-        error: freeTaskSchedulesError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete health snapshots
-    const { error: healthSnapshotsError } = await supabase
-      .from('health_snapshots')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (healthSnapshotsError) {
-      serverLogger.error('Error deleting health snapshots', {
-        userId: user.id,
-        error: healthSnapshotsError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete onboarding responses
-    const { error: onboardingError } = await supabase
-      .from('onboarding_responses')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (onboardingError) {
-      serverLogger.error('Error deleting onboarding responses', {
-        userId: user.id,
-        error: onboardingError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete scheduling history
-    const { error: schedulingHistoryError } = await supabase
-      .from('scheduling_history')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (schedulingHistoryError) {
-      serverLogger.error('Error deleting scheduling history', {
-        userId: user.id,
-        error: schedulingHistoryError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete task completions
-    const { error: taskCompletionsError } = await supabase
-      .from('task_completions')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (taskCompletionsError) {
-      serverLogger.error('Error deleting task completions', {
-        userId: user.id,
-        error: taskCompletionsError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete billing-related records
-    const { error: subscriptionsError } = await supabaseService
-      .from('user_plan_subscriptions')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (subscriptionsError) {
-      serverLogger.error('Error deleting user plan subscriptions', {
-        userId: user.id,
-        error: subscriptionsError.message,
-      })
-      // Continue anyway
-    }
-
-    const { error: usageBalancesError } = await supabaseService
-      .from('plan_usage_balances')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (usageBalancesError) {
-      serverLogger.error('Error deleting usage balances', {
-        userId: user.id,
-        error: usageBalancesError.message,
-      })
-      // Continue anyway
-    }
-
-    const { error: usageLedgerError } = await supabaseService
-      .from('usage_ledger')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (usageLedgerError) {
-      serverLogger.error('Error deleting usage ledger', {
-        userId: user.id,
-        error: usageLedgerError.message,
-      })
-      // Continue anyway
-    }
-
-    const { error: apiTokensError } = await supabaseService
-      .from('api_tokens')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (apiTokensError) {
-      serverLogger.error('Error deleting API tokens', {
-        userId: user.id,
-        error: apiTokensError.message,
-      })
-      // Continue anyway
-    }
-
-    // Delete user profile (should cascade from user deletion, but let's be explicit)
-    const { error: profileError } = await supabase
+    // Set scheduled_deletion_at in user_settings
+    const { error: scheduleError } = await supabase
       .from('user_settings')
-      .delete()
+      .update({ scheduled_deletion_at: scheduledDeletionAt.toISOString() })
       .eq('user_id', user.id)
 
-    if (profileError) {
-      serverLogger.error('Error deleting user profile', {
+    if (scheduleError) {
+      serverLogger.error('Error scheduling account deletion', {
         userId: user.id,
-        error: profileError.message,
-      })
-      // Continue anyway
-    }
-
-    // Step 3: Delete the user from Supabase Auth using service role
-    serverLogger.logAccountDeletion('auth_delete', 'started', {
-      userId: user.id,
-      stripeCustomerId,
-    })
-
-    const { error: deleteUserError } = await supabaseService.auth.admin.deleteUser(user.id)
-
-    if (deleteUserError) {
-      serverLogger.logAccountDeletion('auth_delete', 'failed', {
-        userId: user.id,
-        stripeCustomerId,
-        error: { message: deleteUserError.message },
+        error: scheduleError.message,
       })
 
       // Update audit log
@@ -379,52 +226,45 @@ export async function POST(request: NextRequest) {
           .update({
             status: 'failed',
             error_details: { 
-              auth_error: deleteUserError.message,
-              step: 'auth_delete',
+              schedule_error: scheduleError.message,
+              step: 'schedule_deletion',
             },
           })
           .eq('id', auditRecordId)
       }
 
       return NextResponse.json(
-        { error: 'Failed to delete user account' },
+        { error: 'Failed to schedule account deletion' },
         { status: 500 }
       )
     }
 
-    serverLogger.logAccountDeletion('auth_delete', 'completed', {
+    serverLogger.logAccountDeletion('schedule_deletion', 'completed', {
       userId: user.id,
+      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
       stripeCustomerId,
     })
 
-    // Update audit log with completion
-    const deletionEndTime = new Date()
-    if (auditRecordId) {
-      const finalStatus = stripeCleanupResult && !stripeCleanupResult.success 
-        ? 'partial' 
-        : 'completed'
-      
-      await supabaseService
-        .from('account_deletion_audit')
-        .update({
-          status: finalStatus,
-          deletion_completed_at: deletionEndTime.toISOString(),
-        })
-        .eq('id', auditRecordId)
-    }
+    // Format deletion date for user message
+    const deletionDateFormatted = scheduledDeletionAt.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
 
-    // Sign out the user (this will happen automatically, but let's be explicit)
-    await supabase.auth.signOut()
-
-    // Determine response message based on Stripe cleanup result
-    let message = 'Account and all data have been permanently deleted.'
+    // Return success message indicating account will be deleted at period end
+    let message = `Your account has been scheduled for deletion on ${deletionDateFormatted}. You will retain access until then. You can restore your account at any time before this date by signing in.`
+    
     if (stripeCleanupResult && !stripeCleanupResult.success) {
-      message = 'Your account has been deleted. We encountered an issue removing your billing information from Stripe. Our team will complete this process manually. You will receive a confirmation email when complete.'
+      message += ' We encountered an issue scheduling your subscription cancellation. Our team will complete this process manually.'
     }
 
     return NextResponse.json({ 
       success: true,
       message,
+      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)

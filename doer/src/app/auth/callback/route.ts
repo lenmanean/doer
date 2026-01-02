@@ -115,7 +115,27 @@ export async function GET(request: NextRequest) {
           // Username exists but profile incomplete
           redirectPath = '/auth/profile-setup'
         } else {
-          redirectPath = '/dashboard'
+          // Check if account is scheduled for deletion
+          const { data: userSettings } = await supabase
+            .from('user_settings')
+            .select('scheduled_deletion_at')
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          if (userSettings?.scheduled_deletion_at) {
+            const deletionDate = new Date(userSettings.scheduled_deletion_at)
+            const now = new Date()
+            
+            // If deletion date is in the future, redirect to restore page
+            if (deletionDate > now) {
+              redirectPath = '/account/restore'
+            } else {
+              // If deletion date has passed, allow normal flow (cron should have deleted)
+              redirectPath = '/dashboard'
+            }
+          } else {
+            redirectPath = '/dashboard'
+          }
         }
 
         // Assign Basic plan to new users (non-blocking)

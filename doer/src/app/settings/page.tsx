@@ -1237,7 +1237,7 @@ export default function SettingsPage() {
       return
     }
 
-    if (!confirm('Are you absolutely sure? This action cannot be undone.')) {
+    if (!confirm('Are you absolutely sure? Your account will be scheduled for deletion at the end of your current billing period. You can restore your account at any time before then by signing in.')) {
       return
     }
 
@@ -1253,15 +1253,17 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete account')
+        throw new Error(errorData.error || 'Failed to schedule account deletion')
       }
 
-      alert('Account and all data have been permanently deleted.')
-      // Redirect to login (user is already signed out by the API)
-      window.location.href = '/login'
+      const data = await response.json()
+      // Show the message from the API (includes scheduled deletion date)
+      alert(data.message || 'Your account has been scheduled for deletion. You will retain access until the end of your billing period.')
+      // Sign out the user (they can sign back in to restore)
+      await handleSignOut()
     } catch (error: any) {
-      console.error('Error deleting account:', error)
-      alert(error.message || 'Failed to delete account. Please try again.')
+      console.error('Error scheduling account deletion:', error)
+      alert(error.message || 'Failed to schedule account deletion. Please try again.')
     } finally {
       setDeleting(false)
       setShowDeleteConfirm(false)

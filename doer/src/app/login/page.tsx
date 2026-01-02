@@ -88,6 +88,33 @@ function CustomLoginForm() {
           duration: 3000
         })
         
+        // Check if account is scheduled for deletion
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { data: userSettings } = await supabase
+              .from('user_settings')
+              .select('scheduled_deletion_at')
+              .eq('user_id', user.id)
+              .maybeSingle()
+
+            if (userSettings?.scheduled_deletion_at) {
+              const deletionDate = new Date(userSettings.scheduled_deletion_at)
+              const now = new Date()
+              
+              // If deletion date is in the future, redirect to restore page
+              if (deletionDate > now) {
+                router.push('/account/restore')
+                return
+              }
+              // If deletion date has passed, allow normal flow (cron should have deleted)
+            }
+          }
+        } catch (checkError) {
+          // If error checking scheduled deletion, continue with normal flow
+          console.error('Error checking scheduled deletion:', checkError)
+        }
+        
         // Check if there's a pending goal from homepage
         const pendingGoal = localStorage.getItem('pendingGoal')
         if (pendingGoal) {

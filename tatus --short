@@ -1,0 +1,55 @@
+[1mdiff --git a/doer/src/lib/billing/trial-eligibility.ts b/doer/src/lib/billing/trial-eligibility.ts[m
+[1mindex 6d31279..20ca6ce 100644[m
+[1m--- a/doer/src/lib/billing/trial-eligibility.ts[m
+[1m+++ b/doer/src/lib/billing/trial-eligibility.ts[m
+[36m@@ -124,35 +124,21 @@[m [mexport async function checkTrialEligibility([m
+       }[m
+ [m
+       // If we found deletion records but couldn't verify Pro subscription via Stripe,[m
+[31m-      // check if deletion was recent (within 30 days) - if so, block trial to prevent abuse[m
+[31m-      // If deletion was older, allow trial (might be legitimate re-signup after long time)[m
+[31m-      const mostRecentDeletion = deletionRecords[0]?.deletion_initiated_at[m
+[31m-      if (mostRecentDeletion) {[m
+[31m-        const deletionDate = new Date(mostRecentDeletion)[m
+[31m-        const daysSinceDeletion = (Date.now() - deletionDate.getTime()) / (1000 * 60 * 60 * 24)[m
+[31m-        [m
+[31m-        if (daysSinceDeletion <= 30) {[m
+[31m-          // Recent deletion - block trial to prevent abuse[m
+[31m-          logger.info('[checkTrialEligibility] Found recent account deletion for email, blocking trial', {[m
+[31m-            userId,[m
+[31m-            email: userEmail,[m
+[31m-            deletionCount: deletionRecords.length,[m
+[31m-            daysSinceDeletion: Math.round(daysSinceDeletion),[m
+[31m-            mostRecentDeletion,[m
+[31m-          })[m
+[31m-          return { [m
+[31m-            eligible: false, [m
+[31m-            reason: 'Recent account deletion detected (within 30 days)' [m
+[31m-          }[m
+[31m-        } else {[m
+[31m-          // Old deletion - might be legitimate re-signup, allow trial but log it[m
+[31m-          logger.info('[checkTrialEligibility] Found old account deletion for email, allowing trial', {[m
+[31m-            userId,[m
+[31m-            email: userEmail,[m
+[31m-            deletionCount: deletionRecords.length,[m
+[31m-            daysSinceDeletion: Math.round(daysSinceDeletion),[m
+[31m-            mostRecentDeletion,[m
+[31m-          })[m
+[32m+[m[32m      // we should still block the trial because we can't be certain they didn't have Pro[m
+[32m+[m[32m      // This prevents abuse: users who delete accounts and recreate them to get multiple trials[m
+[32m+[m[32m      // The only way to get a trial again is to use a different email address[m
+[32m+[m[32m      if (deletionRecords && deletionRecords.length > 0) {[m
+[32m+[m[32m        const mostRecentDeletion = deletionRecords[0]?.deletion_initiated_at[m
+[32m+[m[32m        logger.info('[checkTrialEligibility] Found account deletion for email, blocking trial', {[m
+[32m+[m[32m          userId,[m
+[32m+[m[32m          email: userEmail,[m
+[32m+[m[32m          deletionCount: deletionRecords.length,[m
+[32m+[m[32m          mostRecentDeletion,[m
+[32m+[m[32m          note: 'Blocking trial to prevent abuse via account deletion/recreation',[m
+[32m+[m[32m        })[m
+[32m+[m[32m        return {[m[41m [m
+[32m+[m[32m          eligible: false,[m[41m [m
+[32m+[m[32m          reason: 'Previous account with this email was deleted'[m[41m [m
+         }[m
+       }[m
+     }[m

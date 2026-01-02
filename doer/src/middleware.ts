@@ -151,6 +151,34 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  // Check if account is scheduled for deletion
+  // Allow access to restore page even if scheduled for deletion
+  if (pathname !== '/account/restore') {
+    try {
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('scheduled_deletion_at')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (userSettings?.scheduled_deletion_at) {
+        const deletionDate = new Date(userSettings.scheduled_deletion_at)
+        const now = new Date()
+        
+        // If deletion date is in the future, redirect to restore page
+        if (deletionDate > now) {
+          const restoreUrl = new URL('/account/restore', req.url)
+          return NextResponse.redirect(restoreUrl)
+        }
+        // If deletion date has passed, allow normal flow (cron should have deleted, but handle gracefully)
+      }
+    } catch (error) {
+      // If error checking scheduled deletion, allow normal flow
+      // Log error but don't block user access
+      console.error('Error checking scheduled deletion in middleware:', error)
+    }
+  }
+
   // Authenticated user, allow access to protected routes
   return res
 }
