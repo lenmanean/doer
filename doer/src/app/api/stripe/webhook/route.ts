@@ -29,6 +29,52 @@ function extractCustomerId(subscription: Stripe.Subscription | Stripe.Checkout.S
   return null
 }
 
+/**
+ * Check if a Stripe customer is deleted and if the corresponding user exists in DOER
+ * Returns { customerDeleted: boolean, userExists: boolean, userId: string | null }
+ */
+async function checkCustomerAndUserStatus(
+  stripe: Stripe | null,
+  stripeCustomerId: string | null
+): Promise<{ customerDeleted: boolean; userExists: boolean; userId: string | null }> {
+  if (!stripe || !stripeCustomerId) {
+    return { customerDeleted: false, userExists: false, userId: null }
+  }
+
+  try {
+    // Check if customer is deleted in Stripe
+    const customer = await stripe.customers.retrieve(stripeCustomerId)
+    const customerDeleted = typeof customer === 'object' && 'deleted' in customer && customer.deleted === true
+
+    // Check if user exists in DOER
+    const supabase = getServiceRoleClient()
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('user_id')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle()
+
+    const userId = userSettings?.user_id || null
+    const userExists = !!userId
+
+    return { customerDeleted, userExists, userId }
+  } catch (error) {
+    // If customer retrieval fails, assume not deleted (might be a different error)
+    // But still check if user exists
+    const supabase = getServiceRoleClient()
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('user_id')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle()
+
+    const userId = userSettings?.user_id || null
+    const userExists = !!userId
+
+    return { customerDeleted: false, userExists, userId }
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!stripe) {
     return NextResponse.json(
@@ -62,6 +108,18 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const stripeCustomerId = extractCustomerId(session)
+        
+        // Check if customer is deleted (shouldn't happen for new checkout, but handle gracefully)
+        if (stripeCustomerId) {
+          const { customerDeleted, userExists } = await checkCustomerAndUserStatus(stripe, stripeCustomerId)
+          if (customerDeleted) {
+            logger.info('Ignoring checkout.session.completed for deleted customer', {
+              sessionId: session.id,
+              stripeCustomerId,
+            })
+            break
+          }
+        }
         
         // Extract user ID from metadata
         const userId = session.metadata?.userId
@@ -163,6 +221,29 @@ export async function POST(req: NextRequest) {
         }
         
         const stripeCustomerId = extractCustomerId(subscription)
+        
+        // Check if customer is deleted - if so, ignore webhook
+        if (stripeCustomerId) {
+          const { customerDeleted, userExists, userId: checkedUserId } = await checkCustomerAndUserStatus(stripe, stripeCustomerId)
+          if (customerDeleted) {
+            logger.info('Ignoring subscription event for deleted customer', {
+              subscriptionId: subscription.id,
+              stripeCustomerId,
+              eventType: event.type,
+            })
+            break
+          }
+          // If user doesn't exist but customer isn't deleted, log inconsistency
+          if (!userExists && checkedUserId === null) {
+            logger.warn('Subscription event for customer with no user in DOER', {
+              subscriptionId: subscription.id,
+              stripeCustomerId,
+              eventType: event.type,
+            })
+            // Continue processing in case user was just created
+          }
+        }
+        
         let userId = subscription.metadata?.userId
         
         // Fallback: If userId is missing from subscription metadata, try to get it from customer metadata or user_settings
@@ -277,11 +358,25 @@ export async function POST(req: NextRequest) {
           try {
             // Retrieve the subscription to get the latest state
             const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+            const stripeCustomerId = extractCustomerId(subscription)
+            
+            // Check if customer is deleted - if so, ignore webhook
+            if (stripeCustomerId) {
+              const { customerDeleted } = await checkCustomerAndUserStatus(stripe, stripeCustomerId)
+              if (customerDeleted) {
+                logger.info('Ignoring invoice.payment_succeeded for deleted customer', {
+                  subscriptionId: subscription.id,
+                  invoiceId: invoice.id,
+                  stripeCustomerId,
+                })
+                break
+              }
+            }
+            
             let userId = subscription.metadata?.userId
             
             // Fallback: If userId is missing from subscription metadata, try to get it from customer
             if (!userId) {
-              const stripeCustomerId = extractCustomerId(subscription)
               if (stripeCustomerId) {
                 try {
                   const customer = await stripe.customers.retrieve(stripeCustomerId)
@@ -341,6 +436,49 @@ export async function POST(req: NextRequest) {
         } else {
           logger.warn('Payment succeeded but invoice missing subscription reference', {
             invoiceId: invoice.id,
+          })
+        }
+        break
+      }
+
+      case 'customer.deleted': {
+        // Customer deleted event - update audit log if record exists
+        const customer = event.data.object as Stripe.Customer
+        const stripeCustomerId = customer.id
+        
+        logger.info('Customer deleted event received', {
+          stripeCustomerId,
+        })
+        
+        // Try to find user by stripe_customer_id and update audit log
+        const supabase = getServiceRoleClient()
+        const { data: userSettings } = await supabase
+          .from('user_settings')
+          .select('user_id')
+          .eq('stripe_customer_id', stripeCustomerId)
+          .maybeSingle()
+        
+        if (userSettings?.user_id) {
+          // Update audit log if record exists
+          await supabase
+            .from('account_deletion_audit')
+            .update({
+              stripe_cleanup_status: 'completed',
+              customer_deleted: true,
+            })
+            .eq('user_id', userSettings.user_id)
+            .eq('stripe_customer_id', stripeCustomerId)
+          
+          // Invalidate cache
+          subscriptionCache.invalidateUser(userSettings.user_id)
+          
+          logger.info('Updated audit log for customer deletion', {
+            userId: userSettings.user_id,
+            stripeCustomerId,
+          })
+        } else {
+          logger.warn('Customer deleted event for unknown user', {
+            stripeCustomerId,
           })
         }
         break

@@ -2494,9 +2494,19 @@ export default function SettingsPage() {
                         ) : (
                           <div className="space-y-4">
                             <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                              <p className="text-sm text-red-400 mb-2">
-                                ⚠️ This action is irreversible. All your data will be permanently deleted.
+                              <p className="text-sm text-red-400 mb-3 font-semibold">
+                                ⚠️ Permanent Account Deletion
                               </p>
+                              <p className="text-sm text-[#d7d2cb] mb-3">
+                                This action cannot be undone. All of your data will be permanently deleted:
+                              </p>
+                              <ul className="text-xs text-[#d7d2cb]/80 space-y-1 mb-3 list-disc list-inside">
+                                <li>All plans, tasks, and progress</li>
+                                <li>All settings and preferences</li>
+                                <li>Your subscription will be canceled immediately</li>
+                                <li>Your billing information will be removed from Stripe</li>
+                                <li>Financial transaction records are retained by Stripe for legal compliance</li>
+                              </ul>
                               <p className="text-xs text-[#d7d2cb]/60">
                                 Type <span className="font-bold text-red-400">DELETE</span> to confirm
                               </p>

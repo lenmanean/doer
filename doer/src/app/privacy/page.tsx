@@ -212,7 +212,8 @@ export default function PrivacyPage() {
                 <p className="mb-4 leading-relaxed">We retain your personal information for as long as necessary to provide our Service and fulfill the purposes outlined in this Privacy Policy:</p>
                 <ul className="list-disc pl-6 mb-4 space-y-2 leading-relaxed">
                   <li><strong>Active Accounts:</strong> We retain your data while your account is active and you are using our Service</li>
-                  <li><strong>Account Deletion:</strong> When you delete your account, we immediately delete your personal data from our active systems. However, data may remain in our backups for 30-90 days before being permanently deleted</li>
+                  <li><strong>Account Deletion:</strong> When you delete your account, we immediately delete your personal data from our active systems. However, data may remain in our backups for 30-90 days before being permanently deleted. Audit logs of account deletions are retained for 7 years for compliance purposes.</li>
+                  <li><strong>Billing Data:</strong> Financial transaction records are retained by our payment processor (Stripe) for legal compliance. Personal identifiers in these records may be redacted upon request. See section 7.3 for more details.</li>
                   <li><strong>Legal Requirements:</strong> We may retain certain information for longer periods if required by law, to resolve disputes, or to enforce our agreements</li>
                   <li><strong>Anonymized Data:</strong> We may retain anonymized, aggregated data that cannot identify you for analytical and service improvement purposes</li>
                 </ul>
@@ -244,7 +245,20 @@ export default function PrivacyPage() {
                   <li>Health snapshots and scheduling history</li>
                   <li>Profile information and preferences</li>
                   <li>Integration connections (e.g., Google Calendar)</li>
+                  <li>Your subscription will be canceled immediately</li>
+                  <li>Your billing information will be removed from Stripe (customer deleted)</li>
                 </ul>
+                <p className="mb-4 leading-relaxed">
+                  <strong>Stripe Data Retention:</strong> When you delete your account, we remove your billing information from Stripe by deleting your customer record. However, Stripe retains certain financial transaction records (invoices, payment intents, charges) for legal and compliance purposes, as required by financial regulations. Personal identifiers in these records may be redacted upon request. For more information about Stripe's data retention practices, please see{' '}
+                  <a 
+                    href="https://stripe.com/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-orange-500 hover:text-orange-400 underline"
+                  >
+                    Stripe's Privacy Policy
+                  </a>.
+                </p>
 
                 <h3 className="text-lg sm:text-xl font-semibold mb-3 mt-6 text-gray-900 dark:text-gray-100">7.4 Right to Data Portability</h3>
                 <p className="mb-4 leading-relaxed">
