@@ -158,12 +158,17 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                         <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
                       </div>
                     )}
-                    <span className="text-3xl font-bold text-[#d7d2cb]">
-                      ${billingCycle === 'monthly' ? '20' : '160'}
-                    </span>
-                    <span className="text-[#d7d2cb]/60 ml-1">
-                      /{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-[#d7d2cb]">
+                        ${billingCycle === 'monthly' ? '0' : '160'}
+                      </span>
+                      <span className="text-[#d7d2cb]/60">
+                        /{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                      </span>
+                      {billingCycle === 'monthly' && (
+                        <span className="text-lg text-[#d7d2cb]/40 line-through ml-2">$20</span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

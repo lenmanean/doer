@@ -304,12 +304,17 @@ export default function PricingPage() {
                           )}
                         </div>
                       )}
-                      <p className="text-3xl sm:text-4xl font-bold text-slate-100">
-                        {plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price}
-                        <span className="text-base font-medium text-slate-400">
-                          {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
-                        </span>
-                      </p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-3xl sm:text-4xl font-bold text-slate-100">
+                          {plan.id === 'pro' && billingCycle === 'monthly' ? '$0' : (plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price)}
+                          <span className="text-base font-medium text-slate-400">
+                            {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
+                          </span>
+                        </p>
+                        {plan.id === 'pro' && billingCycle === 'monthly' && (
+                          <span className="text-lg sm:text-xl text-slate-400 line-through">$20</span>
+                        )}
+                      </div>
                     </div>
                   )}
                   {plan.note && (

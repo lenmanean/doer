@@ -110,8 +110,11 @@ export function PlanSelectionModal({
                       <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
                     </div>
                     <div className="mb-4">
-                      <span className="text-4xl font-bold text-[#d7d2cb]">$20</span>
-                      <span className="text-[#d7d2cb]/60 ml-2">/month</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-bold text-[#d7d2cb]">$0</span>
+                        <span className="text-[#d7d2cb]/60">/month</span>
+                        <span className="text-lg text-[#d7d2cb]/40 line-through ml-2">$20</span>
+                      </div>
                     </div>
                     <ul className="space-y-2 text-sm text-[#d7d2cb]/70">
                       <li className="flex items-center gap-2">
