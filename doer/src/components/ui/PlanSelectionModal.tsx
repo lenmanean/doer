@@ -9,29 +9,24 @@ import { useRouter } from 'next/navigation'
 interface PlanSelectionModalProps {
   isOpen: boolean
   onClose: () => void
-  onContinue: () => void
 }
 
 export function PlanSelectionModal({
   isOpen,
-  onClose,
-  onContinue
+  onClose
 }: PlanSelectionModalProps) {
   const router = useRouter()
   const [canClose, setCanClose] = useState(false)
-  const [showContinue, setShowContinue] = useState(false)
   const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
 
-  // 5-second lock
+  // 5-second lock - X button appears after delay
   useEffect(() => {
     if (!isOpen) return
 
     setCanClose(false)
-    setShowContinue(false)
 
     const timer = setTimeout(() => {
       setCanClose(true)
-      setShowContinue(true)
     }, 5000)
 
     return () => clearTimeout(timer)
@@ -62,11 +57,6 @@ export function PlanSelectionModal({
   const handlePlanSelect = (cycle: 'monthly' | 'annual') => {
     // Redirect to checkout page with plan parameters
     router.push(`/checkout?plan=pro&cycle=${cycle}`)
-    onClose()
-  }
-
-  const handleContinue = () => {
-    onContinue()
     onClose()
   }
 
@@ -210,22 +200,6 @@ export function PlanSelectionModal({
                   </div>
                 </motion.button>
               </div>
-
-            {/* Continue to dashboard - fades in after 5 seconds */}
-            {showContinue && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6 pt-6 border-t border-white/20 text-center"
-              >
-                <button
-                  onClick={handleContinue}
-                  className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors underline"
-                >
-                  Continue to dashboard
-                </button>
-              </motion.div>
-            )}
           </div>
         </motion.div>
       </div>

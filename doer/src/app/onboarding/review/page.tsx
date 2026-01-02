@@ -1709,7 +1709,6 @@ export default function ReviewPage() {
         <PlanSelectionModal
           isOpen={showPlanSelectionModal}
           onClose={() => setShowPlanSelectionModal(false)}
-          onContinue={handleContinueToDashboard}
         />
       )}
 
