@@ -261,10 +261,7 @@ function OnboardingContent() {
                       size="lg"
                     >
                       {isGenerating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Generating Your Plan...
-                        </>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <>
                           Generate My Plan
