@@ -166,7 +166,7 @@ export async function deleteAccountData(
 
   serverLogger.logAccountDeletion('db_cleanup', 'completed', {
     userId,
-    errors: errors.length > 0 ? errors : undefined,
+    metadata: errors.length > 0 ? { errors } : undefined,
   })
 
   return {
