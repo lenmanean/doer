@@ -16,6 +16,7 @@ export default function OnboardingCompletePage() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [showPlanSelection, setShowPlanSelection] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (authLoading || !sessionReady) return
@@ -34,6 +35,28 @@ export default function OnboardingCompletePage() {
 
     return () => clearTimeout(timer)
   }, [])
+
+  // Check trial eligibility
+  useEffect(() => {
+    if (!user?.id || !showPlanSelection) return
+
+    const checkTrialEligibility = async () => {
+      try {
+        const response = await fetch('/api/subscription/trial-eligibility')
+        if (response.ok) {
+          const data = await response.json()
+          setTrialEligible(data.eligible)
+        } else {
+          setTrialEligible(false)
+        }
+      } catch (error) {
+        console.error('[OnboardingComplete] Error checking trial eligibility:', error)
+        setTrialEligible(false)
+      }
+    }
+
+    checkTrialEligibility()
+  }, [user?.id, showPlanSelection])
 
   const handlePlanSelect = async (plan: string) => {
     setSelectedPlan(plan)
@@ -167,13 +190,21 @@ export default function OnboardingCompletePage() {
                         </div>
                         <div className="relative flex items-center justify-center mb-2">
                           <CardTitle className="text-2xl text-[var(--foreground)]">Pro</CardTitle>
-                          <Badge className="absolute left-[calc(50%+1.5rem)] bg-green-500/20 text-green-400 border-green-500/30 pointer-events-none whitespace-nowrap">
-                            14-day trial
-                          </Badge>
+                          {trialEligible !== false && (
+                            <Badge className="absolute left-[calc(50%+1.5rem)] bg-green-500/20 text-green-400 border-green-500/30 pointer-events-none whitespace-nowrap">
+                              14-day trial
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex flex-col items-center gap-1 mb-4">
-                          <span className="text-4xl font-bold text-[var(--foreground)]">FREE</span>
-                          <span className="text-[var(--muted-foreground)] line-through">$20/month</span>
+                          {trialEligible !== false ? (
+                            <>
+                              <span className="text-4xl font-bold text-[var(--foreground)]">FREE</span>
+                              <span className="text-[var(--muted-foreground)] line-through">$20/month</span>
+                            </>
+                          ) : (
+                            <span className="text-4xl font-bold text-[var(--foreground)]">$20</span>
+                          )}
                         </div>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 space-y-4">
@@ -203,7 +234,7 @@ export default function OnboardingCompletePage() {
                           onClick={() => handlePlanSelect('pro')}
                           className="w-full bg-[var(--primary)] hover:opacity-90 text-[var(--primary-foreground)] shadow-none mt-auto"
                         >
-                          Start Free Trial
+                          {trialEligible !== false ? 'Start Free Trial' : 'Subscribe to Pro'}
                         </Button>
                       </CardContent>
                     </Card>

@@ -705,9 +705,9 @@ function CheckoutForm() {
                 <div className="border-t border-white/10 pt-4">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-lg font-semibold text-[#d7d2cb]">
-                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible ? 'Due Today' : 'Total'}
+                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? 'Due Today' : 'Total'}
                     </span>
-                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible ? (
+                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? (
                       <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-bold text-[#ff7f00]">$0</span>
                         <span className="text-lg text-[#d7d2cb]/40 line-through">$20</span>
@@ -719,7 +719,7 @@ function CheckoutForm() {
                       </span>
                     )}
                   </div>
-                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible && (
+                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
                     <p className="text-xs text-[#d7d2cb]/60">
                       14-day free trial, then $20/month
                     </p>
