@@ -1,7 +1,0 @@
-<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" fill="#000000"/>
-  <!-- White D shape with rounded top-left and bottom-left corners -->
-  <path d="M 7 4 Q 4 4 4 7 L 4 25 Q 4 28 7 28 L 18 28 Q 26 28 26 16 Q 26 4 18 4 Z" fill="#FFFFFF"/>
-  <!-- Black circle (O) inside the D, creating negative space -->
-  <circle cx="16" cy="16" r="6" fill="#000000"/>
-</svg>
