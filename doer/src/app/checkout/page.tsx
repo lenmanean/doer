@@ -34,6 +34,12 @@ function CheckoutForm() {
   const [profile, setProfile] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [setupIntentClientSecret, setSetupIntentClientSecret] = useState<string | null>(null)
+  const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
+  
+  // Billing address fields
+  const [fullName, setFullName] = useState('')
+  const [country, setCountry] = useState('United States')
+  const [address, setAddress] = useState('')
 
   const planSlug = searchParams.get('plan')?.toLowerCase()
   const billingCycle = (searchParams.get('cycle')?.toLowerCase() || 'monthly') as BillingCycle
@@ -175,6 +181,27 @@ function CheckoutForm() {
 
         setProfile(userProfile || null)
         console.log('[Checkout] Profile set in state (or skipped due to error)')
+        
+        // Pre-fill billing address from profile if available
+        if (userProfile?.first_name && userProfile?.last_name) {
+          setFullName(`${userProfile.first_name} ${userProfile.last_name}`)
+        }
+        
+        // Check trial eligibility for Pro Monthly
+        if (planSlug === 'pro' && billingCycle === 'monthly') {
+          try {
+            const trialResponse = await fetch('/api/subscription/trial-eligibility')
+            if (trialResponse.ok) {
+              const trialData = await trialResponse.json()
+              setTrialEligible(trialData.eligible)
+            }
+          } catch (trialError) {
+            console.warn('[Checkout] Could not check trial eligibility:', trialError)
+            setTrialEligible(null)
+          }
+        } else {
+          setTrialEligible(false)
+        }
 
         // Fetch plan details
         console.log('[Checkout] Fetching plan details...', { planSlug, billingCycle })
@@ -282,6 +309,10 @@ function CheckoutForm() {
 
     try {
       // Confirm setup intent to collect payment method
+      const billingName = fullName || (profile?.first_name && profile?.last_name
+        ? `${profile.first_name} ${profile.last_name}`
+        : user?.email?.split('@')[0] || undefined)
+      
       const { error: setupError, setupIntent } = await stripe.confirmCardSetup(
         setupIntentClientSecret,
         {
@@ -289,9 +320,11 @@ function CheckoutForm() {
             card: cardElement,
             billing_details: {
               email: user?.email || undefined,
-              name: profile?.first_name && profile?.last_name
-                ? `${profile.first_name} ${profile.last_name}`
-                : user?.email?.split('@')[0] || undefined,
+              name: billingName,
+              address: address ? {
+                line1: address,
+                country: country === 'United States' ? 'US' : country,
+              } : undefined,
             },
           },
         }
@@ -565,6 +598,60 @@ function CheckoutForm() {
                     </div>
                   </div>
 
+                  {/* Billing Address Section */}
+                  <div className="border-t border-white/10 pt-6 space-y-4">
+                    <h3 className="text-sm font-semibold text-[#d7d2cb]">Billing Address</h3>
+                    
+                    {/* Full Name */}
+                    <div>
+                      <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Enter your full name"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Country/Region */}
+                    <div>
+                      <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                        Country or Region
+                      </label>
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                      >
+                        <option value="United States">United States</option>
+                        <option value="Canada">Canada</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Germany">Germany</option>
+                        <option value="France">France</option>
+                        <option value="Japan">Japan</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Address */}
+                    <div>
+                      <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Enter your address"
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
                   {error && (
                     <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
                       {error}
@@ -615,26 +702,103 @@ function CheckoutForm() {
                   </p>
                 </div>
 
+                {/* Trial Information for Pro Monthly */}
+                {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible && (
+                  <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="w-4 h-4 text-blue-400" />
+                      <span className="text-sm font-semibold text-blue-400">14-day free trial</span>
+                    </div>
+                    <p className="text-xs text-[#d7d2cb]/70 mt-1">
+                      Start your free trial today. After 14 days, you'll be charged $20/month.
+                    </p>
+                  </div>
+                )}
+
                 <div className="border-t border-white/10 pt-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-[#d7d2cb]">Plan Price</span>
-                    <span className="text-xl font-bold text-[#d7d2cb]">
-                      {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                    </span>
+                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-[#d7d2cb]">$0</span>
+                        <span className="text-lg text-[#d7d2cb]/40 line-through">$20</span>
+                        <span className="text-sm text-[#d7d2cb]/60">/mo</span>
+                      </div>
+                    ) : (
+                      <span className="text-xl font-bold text-[#d7d2cb]">
+                        {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                      </span>
+                    )}
                   </div>
+                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible && (
+                    <p className="text-xs text-[#d7d2cb]/60">
+                      After trial: $20/month
+                    </p>
+                  )}
                 </div>
 
                 <div className="border-t border-white/10 pt-4">
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-lg font-semibold text-[#d7d2cb]">Total</span>
-                    <span className="text-2xl font-bold text-[#ff7f00]">
-                      {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                    <span className="text-lg font-semibold text-[#d7d2cb]">
+                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible ? 'Due Today' : 'Total'}
                     </span>
+                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-[#ff7f00]">$0</span>
+                        <span className="text-lg text-[#d7d2cb]/40 line-through">$20</span>
+                        <span className="text-sm text-[#d7d2cb]/60">/mo</span>
+                      </div>
+                    ) : (
+                      <span className="text-2xl font-bold text-[#ff7f00]">
+                        {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="border-t border-white/10 pt-4 space-y-3">
                   <h4 className="font-semibold text-[#d7d2cb] mb-2">What's Included</h4>
+                  <ul className="space-y-2 text-sm text-[#d7d2cb]/80">
+                    {planSlug === 'pro' ? (
+                      <>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>Increased limits on plan, goal, and task schedule automations</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>AI scheduling assistant for daily and weekly planning</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>Native integrations with Slack, HubSpot, Notion, Jira, and Google Workspace</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>Portfolio analytics, KPI dashboards, and proactive progress alerts</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>Unlimited API credits and integration actions</span>
+                        </li>
+                      </>
+                    ) : (
+                      <>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>Personal workspace and daily schedule automation</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>AI nudges and recap digest up to 3x each day</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                          <span>Recurring routines with calendar, email, and Discord sync</span>
+                        </li>
+                      </>
+                    )}
+                  </ul>
                 </div>
               </CardContent>
             </Card>
