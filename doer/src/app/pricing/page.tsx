@@ -302,7 +302,7 @@ export default function PricingPage() {
                         Save 33%
                       </span>
                     )}
-                    {plan.id === 'pro' && billingCycle === 'monthly' && plan.trialBadge && (
+                    {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && plan.trialBadge && (
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
                         {plan.trialBadge}
                       </span>
