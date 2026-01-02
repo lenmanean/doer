@@ -481,7 +481,6 @@ export default function Home() {
                   t('pages.pricing.plans.basic.highlights.1'),
                   t('pages.pricing.plans.basic.highlights.2'),
                   t('pages.pricing.plans.basic.highlights.3'),
-                  t('pages.pricing.plans.basic.highlights.4'),
                 ]}
                 buttonText={t('pages.pricing.plans.basic.ctaLabel')}
                 buttonHref={user ? '/checkout?plan=basic&cycle=monthly' : '/auth/signup?plan=free'}
