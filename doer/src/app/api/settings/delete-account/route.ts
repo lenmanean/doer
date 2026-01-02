@@ -203,8 +203,10 @@ export async function POST(request: NextRequest) {
     // Step 2: Schedule account deletion (set scheduled_deletion_at)
     serverLogger.logAccountDeletion('schedule_deletion', 'started', {
       userId: user.id,
-      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
       stripeCustomerId,
+      metadata: {
+        scheduledDeletionAt: scheduledDeletionAt.toISOString(),
+      },
     })
 
     // Set scheduled_deletion_at in user_settings
@@ -241,8 +243,10 @@ export async function POST(request: NextRequest) {
 
     serverLogger.logAccountDeletion('schedule_deletion', 'completed', {
       userId: user.id,
-      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
       stripeCustomerId,
+      metadata: {
+        scheduledDeletionAt: scheduledDeletionAt.toISOString(),
+      },
     })
 
     // Format deletion date for user message
