@@ -10,6 +10,7 @@ import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { useDebounce } from '@/lib/utils/debounce'
 import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 
 function CustomSignupForm() {
   const [email, setEmail] = useState('')
@@ -393,22 +394,58 @@ function CustomSignupForm() {
               <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-              {usernameChecking && (
-                <Loader2 className="h-5 w-5 text-gray-400 dark:text-gray-500 animate-spin" />
-              )}
-              {!usernameChecking && usernameAvailable === true && (
-                <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
-              )}
-              {!usernameChecking && usernameError && (
-                <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
-              )}
+              <AnimatePresence mode="wait">
+                {usernameChecking && (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Loader2 className="h-5 w-5 text-gray-400 dark:text-gray-500 animate-spin" />
+                  </motion.div>
+                )}
+                {!usernameChecking && usernameAvailable === true && (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
+                  </motion.div>
+                )}
+                {!usernameChecking && usernameError && (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
-          {usernameError && (
-            <p id="username-error" className="mt-1 text-sm text-red-500" role="alert">
-              {usernameError}
-            </p>
-          )}
+          <AnimatePresence>
+            {usernameError && (
+              <motion.p
+                id="username-error"
+                className="mt-1 text-sm text-red-500"
+                role="alert"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {usernameError}
+              </motion.p>
+            )}
+          </AnimatePresence>
           <p id="username-help" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Letters, numbers, underscores, and hyphens only
           </p>
@@ -447,22 +484,48 @@ function CustomSignupForm() {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
-            {email && !emailError && (
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
-              </div>
-            )}
-            {emailError && (
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {email && !emailError && (
+                <motion.div
+                  key="email-success"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
+                </motion.div>
+              )}
+              {emailError && (
+                <motion.div
+                  key="email-error"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          {emailError && (
-            <p id="email-error" className="mt-1 text-sm text-red-500" role="alert">
-              {emailError}
-            </p>
-          )}
+          <AnimatePresence>
+            {emailError && (
+              <motion.p
+                id="email-error"
+                className="mt-1 text-sm text-red-500"
+                role="alert"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {emailError}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
 
         <div>
@@ -497,11 +560,20 @@ function CustomSignupForm() {
               )}
             </button>
           </div>
-          {password && (
-            <div id="password-strength" className="mt-2">
-              <PasswordStrengthMeter password={password} />
-            </div>
-          )}
+          <AnimatePresence>
+            {password && (
+              <motion.div
+                id="password-strength"
+                className="mt-2"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <PasswordStrengthMeter password={password} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div>
@@ -525,12 +597,30 @@ function CustomSignupForm() {
               <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
-              {passwordMatch && (
-                <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
-              )}
-              {passwordMismatch && (
-                <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
-              )}
+              <AnimatePresence mode="wait">
+                {passwordMatch && (
+                  <motion.div
+                    key="match"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
+                  </motion.div>
+                )}
+                {passwordMismatch && (
+                  <motion.div
+                    key="mismatch"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <button
                 type="button"
                 className="flex items-center min-h-[44px] min-w-[44px]"
@@ -545,16 +635,35 @@ function CustomSignupForm() {
               </button>
             </div>
           </div>
-          {passwordMismatch && (
-            <p id="password-match-error" className="mt-1 text-sm text-red-500" role="alert">
-              Passwords do not match
-            </p>
-          )}
-          {passwordMatch && (
-            <p id="password-match-success" className="mt-1 text-sm text-green-500">
-              Passwords match
-            </p>
-          )}
+          <AnimatePresence mode="wait">
+            {passwordMismatch && (
+              <motion.p
+                key="mismatch-error"
+                id="password-match-error"
+                className="mt-1 text-sm text-red-500"
+                role="alert"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                Passwords do not match
+              </motion.p>
+            )}
+            {passwordMatch && (
+              <motion.p
+                key="match-success"
+                id="password-match-success"
+                className="mt-1 text-sm text-green-500"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                Passwords match
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
 
         <div>
@@ -593,11 +702,21 @@ function CustomSignupForm() {
               </Link>
             </label>
           </div>
-          {termsError && (
-            <p id="terms-error" className="mt-1 text-sm text-red-500" role="alert">
-              {termsError}
-            </p>
-          )}
+          <AnimatePresence>
+            {termsError && (
+              <motion.p
+                id="terms-error"
+                className="mt-1 text-sm text-red-500"
+                role="alert"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {termsError}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
 
         <div>
