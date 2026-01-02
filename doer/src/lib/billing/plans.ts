@@ -29,7 +29,9 @@ export async function checkIfUserHadProBefore(userId: string): Promise<boolean> 
   }
 
   // Check if any subscription was for a Pro plan
-  const hasHadProBefore = subscriptions?.some(sub => 
+  // Use type assertion to handle Supabase's nested query structure
+  // When using !inner, Supabase returns a single object, not an array
+  const hasHadProBefore = (subscriptions as any)?.some((sub: any) => 
     sub.billing_plan_cycles?.billing_plan?.slug === 'pro'
   ) || false
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkIfUserHadProBefore } from '@/lib/billing/plans'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,35 +26,8 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Query user_plan_subscriptions to check for any historical Pro subscriptions
-    // We need to join with billing_plan_cycles and billing_plans to check the plan slug
-    const { data: subscriptions, error } = await supabase
-      .from('user_plan_subscriptions')
-      .select(`
-        id,
-        billing_plan_cycles!inner (
-          billing_plan:billing_plans!inner (
-            slug
-          )
-        )
-      `)
-      .eq('user_id', user.id)
-
-    if (error) {
-      console.error('[Trial Eligibility] Error querying subscriptions:', error)
-      // On error, assume user is eligible (fail open - allow trial)
-      // This is safer than blocking legitimate users due to query errors
-      return NextResponse.json({
-        eligible: true,
-        hasHadProBefore: false,
-        error: 'Could not verify subscription history, assuming eligible',
-      })
-    }
-
-    // Check if any subscription was for a Pro plan
-    const hasHadProBefore = subscriptions?.some(sub => 
-      sub.billing_plan_cycles?.billing_plan?.slug === 'pro'
-    ) || false
+    // Use the helper function which already handles the query correctly
+    const hasHadProBefore = await checkIfUserHadProBefore(user.id)
 
     return NextResponse.json({
       eligible: !hasHadProBefore,
