@@ -2547,7 +2547,7 @@ export default function SettingsPage() {
                                         {subscription.status}
                                       </span>
                                     </p>
-                                    {subscription.status === 'trialing' && (
+                                    {subscription.status === 'trialing' && !subscription.cancelAtPeriodEnd && (
                                       <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                         <div className="flex items-start gap-2">
                                           <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -2580,8 +2580,12 @@ export default function SettingsPage() {
                                             </p>
                                             <p className="text-xs text-[#d7d2cb]/70 mt-1">
                                               {subscription.status === 'trialing' 
-                                                ? `Your trial will continue until ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
-                                                : `Your subscription will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You will not be charged again, and you'll continue to have access until then.`
+                                                ? subscription.currentPeriodEnd 
+                                                  ? `Your trial will continue until ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
+                                                  : `Your trial has been canceled. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
+                                                : subscription.currentPeriodEnd
+                                                  ? `Your subscription will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You will not be charged again, and you'll continue to have access until then.`
+                                                  : `Your subscription has been canceled. You will not be charged again.`
                                               }
                                             </p>
                                           </div>
