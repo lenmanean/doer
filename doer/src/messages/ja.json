@@ -128,14 +128,12 @@
   "pricing": {
     "title": "すべての目標に柔軟な料金",
     "subtitle": "旅に合ったプランを選び、準備ができたらアップグレードしてください。",
-    "startFree": "無料",
+    "startFree": "Basic",
     "getAccessTo": "始めるために必要なすべて：",
-    "allCoreFeatures": "完全な機能セット",
-    "builtInIntegrations": "ネイティブ統合",
-    "authenticationSystem": "安全な認証",
-    "databaseFunctionality": "完全なデータベースアクセス",
-    "paidPlansFrom": "プレミアムプランは",
-    "upgradeDescription": "必要に応じて追加の容量、高度な機能、優先サポートをアンロックします。",
+    "paidPlansFrom": "Pro",
+    "trialBadge": "14日間の無料トライアル",
+    "trialDescription": "無料トライアルを開始",
+    "afterTrial": "トライアル後：\$20/月",
     "seeAllPlans": "料金の詳細を見る"
   },
   "footer": {

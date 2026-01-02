@@ -128,14 +128,12 @@
   "pricing": {
     "title": "为每个目标提供灵活的定价",
     "subtitle": "选择适合您旅程的计划，随时升级。",
-    "startFree": "免费",
+    "startFree": "Basic",
     "getAccessTo": "开始所需的一切：",
-    "allCoreFeatures": "完整功能集",
-    "builtInIntegrations": "原生集成",
-    "authenticationSystem": "安全认证",
-    "databaseFunctionality": "完整数据库访问",
-    "paidPlansFrom": "高级计划起价",
-    "upgradeDescription": "在需要时解锁额外容量、高级功能和优先支持。",
+    "paidPlansFrom": "Pro",
+    "trialBadge": "14天免费试用",
+    "trialDescription": "开始免费试用",
+    "afterTrial": "试用后：\$20/月",
     "seeAllPlans": "查看定价详情"
   },
   "footer": {

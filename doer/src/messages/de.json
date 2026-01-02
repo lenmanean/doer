@@ -128,14 +128,12 @@
   "pricing": {
     "title": "Flexible Preise für jedes Ziel",
     "subtitle": "Wählen Sie den Plan, der zu Ihrer Reise passt, und upgraden Sie jederzeit.",
-    "startFree": "Kostenlos",
+    "startFree": "Basic",
     "getAccessTo": "Alles, was Sie für den Einstieg benötigen:",
-    "allCoreFeatures": "Vollständiger Funktionsumfang",
-    "builtInIntegrations": "Native Integrationen",
-    "authenticationSystem": "Sichere Authentifizierung",
-    "databaseFunctionality": "Voller Datenbankzugriff",
-    "paidPlansFrom": "Premium-Pläne ab",
-    "upgradeDescription": "Schalten Sie zusätzliche Kapazität, erweiterte Funktionen und vorrangigen Support frei, wenn Sie ihn benötigen.",
+    "paidPlansFrom": "Pro",
+    "trialBadge": "14-tägige kostenlose Testversion",
+    "trialDescription": "Starten Sie Ihre kostenlose Testversion",
+    "afterTrial": "Nach der Testversion: 20 $/Monat",
     "seeAllPlans": "Preisdetails anzeigen"
   },
   "footer": {

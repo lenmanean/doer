@@ -128,14 +128,12 @@
   "pricing": {
     "title": "모든 목표에 대한 유연한 가격",
     "subtitle": "여정에 맞는 플랜을 선택하고 준비가 되면 업그레이드하세요.",
-    "startFree": "무료",
+    "startFree": "Basic",
     "getAccessTo": "시작하는 데 필요한 모든 것:",
-    "allCoreFeatures": "전체 기능 세트",
-    "builtInIntegrations": "네이티브 통합",
-    "authenticationSystem": "안전한 인증",
-    "databaseFunctionality": "전체 데이터베이스 액세스",
-    "paidPlansFrom": "프리미엄 플랜 시작",
-    "upgradeDescription": "필요할 때 추가 용량, 고급 기능 및 우선 지원을 잠금 해제하세요.",
+    "paidPlansFrom": "Pro",
+    "trialBadge": "14일 무료 평가판",
+    "trialDescription": "무료 평가판 시작",
+    "afterTrial": "평가판 후: \$20/월",
     "seeAllPlans": "가격 세부 정보 보기"
   },
   "footer": {

@@ -128,14 +128,12 @@
   "pricing": {
     "title": "Preços flexíveis para cada objetivo",
     "subtitle": "Escolha o plano que se adapta à sua jornada e atualize quando estiver pronto.",
-    "startFree": "Grátis",
+    "startFree": "Basic",
     "getAccessTo": "Tudo o que você precisa para começar:",
-    "allCoreFeatures": "Conjunto completo de recursos",
-    "builtInIntegrations": "Integrações nativas",
-    "authenticationSystem": "Autenticação segura",
-    "databaseFunctionality": "Acesso completo ao banco de dados",
-    "paidPlansFrom": "Planos premium a partir de",
-    "upgradeDescription": "Desbloqueie capacidade adicional, recursos avançados e suporte prioritário quando precisar.",
+    "paidPlansFrom": "Pro",
+    "trialBadge": "Teste gratuito de 14 dias",
+    "trialDescription": "Comece seu teste gratuito",
+    "afterTrial": "Após o teste: \$20/mês",
     "seeAllPlans": "Ver detalhes de preços"
   },
   "footer": {
