@@ -75,18 +75,17 @@
       "Visualizações básicas de calendário"
     ],
     "doerExclusiveFeatures": [
-      "Geração de plano alimentada por IA",
-      "Agendamento automático inteligente",
-      "Quebra de objetivos em tarefas acionáveis",
-      "Acompanhamento de progresso em tempo real",
-      "Resolução inteligente de conflitos",
-      "Gestão de tarefas baseada em prioridades",
+      "Agendamento com precisão por horas",
+      "Quebra de objetivos com IA",
+      "Consciência de pausa para almoço",
+      "Agendamento consciente de fins de semana",
       "Agendamento consciente de energia",
-      "Capacidades de reagendamento automático",
-      "Análise de progresso e pontuações de saúde",
-      "Integrações de calendário e ferramentas de tarefas",
-      "Funcionalidades de colaboração em equipe",
-      "Agendamento consciente do contexto"
+      "Resolução de dependências de tarefas",
+      "Detecção de conflitos",
+      "Reagendamento automático",
+      "Distribuição baseada em prioridades",
+      "Agendamento consciente do contexto",
+      "Horas de trabalho personalizadas"
     ],
     "withoutDoer": {
       "title": "Sem DOER"
@@ -219,7 +218,7 @@
       "plans": {
         "basic": {
           "name": "Básico",
-          "blurb": "Organize suas rotinas, registre tarefas e automatize o essencial com os recursos principais do Doer gratuitamente.",
+          "blurb": "Crie planos impulsionados por IA e gerencie tarefas com os recursos principais do DOER gratuitamente.",
           "price": "$0",
           "suffix": "",
           "note": "Sempre grátis",
@@ -230,17 +229,17 @@
             }
           },
           "highlights": [
-            "Espaço de trabalho pessoal e automação da agenda diária",
-            "Alertas de IA e resumos até 3 vezes ao dia",
-            "Rotinas recorrentes com sincronização de calendário, e-mail e Discord",
-            "Duas automações ativas e modelos de checklist",
-            "Base de conhecimento da comunidade, grupos de responsabilidade e guias de onboarding"
+            "Geração de planos com IA (5 planos/mês)",
+            "Agendamento inteligente por blocos de tempo",
+            "Integrações de calendário (Google, Outlook, Apple)",
+            "Tarefas recorrentes",
+            "Acompanhamento de progresso e pontuações de saúde"
           ],
           "ctaLabel": "Comece gratuitamente"
         },
         "pro": {
           "name": "Pro",
-          "blurb": "Coordene iniciativas complexas com agendamento por IA, automação de tarefas e integrações que mantêm todos alinhados.",
+          "blurb": "Geração ilimitada de planos com IA e sincronização de calendário para usuários avançados que precisam de mais.",
           "price": {
             "monthly": {
               "primary": "$20",
@@ -277,13 +276,13 @@
             }
           },
           "highlights": [
-            "Limites ampliados para automações de planos, metas e tarefas",
-            "Assistente de agendamento com IA para planejamento diário e semanal",
-            "Planejamento de cenários com cronogramas previstos e alertas de risco",
-            "Integrações nativas com Slack, HubSpot, Notion, Jira e Google Workspace",
-            "Análises de portfólio, painéis de KPI e alertas proativos de progresso",
-            "Permissões baseadas em funções, modelos compartilhados e biblioteca de automação",
-            "Briefings executivos enviados por e-mail, Slack e dispositivos móveis"
+            "Geração ilimitada de planos com IA",
+            "Ações ilimitadas de sincronização de calendário",
+            "Agendamento inteligente por blocos de tempo",
+            "Integrações de calendário (Google, Outlook, Apple)",
+            "Tarefas recorrentes",
+            "Acompanhamento de progresso e pontuações de saúde",
+            "Distribuição de tarefas baseada em prioridades"
           ],
           "ctaLabel": "Faça upgrade para Pro"
         },

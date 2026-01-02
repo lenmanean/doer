@@ -75,18 +75,17 @@
       "Grundlegende Kalenderansichten"
     ],
     "doerExclusiveFeatures": [
-      "KI-gestützte Planerstellung",
-      "Intelligente automatische Planung",
-      "Zielaufschlüsselung in umsetzbare Aufgaben",
-      "Echtzeit-Fortschrittsverfolgung",
-      "Intelligente Konfliktlösung",
-      "Prioritätsbasiertes Aufgabenmanagement",
+      "Stundenpräzise Planung",
+      "KI-Zielaufschlüsselung",
+      "Mittagspausen-Berücksichtigung",
+      "Wochenendenbewusste Planung",
       "Energiebewusste Planung",
+      "Aufgabenabhängigkeits-Auflösung",
+      "Konflikterkennung",
       "Automatische Neuplanung",
-      "Fortschrittsanalyse & Gesundheitswerte",
-      "Kalender- & Aufgaben-Tool-Integrationen",
-      "Team-Kollaborationsfunktionen",
-      "Kontextbewusste Planung"
+      "Prioritätsbasierte Verteilung",
+      "Kontextbewusste Planung",
+      "Individuelle Arbeitszeiten"
     ],
     "withoutDoer": {
       "title": "Ohne DOER"
@@ -218,22 +217,22 @@
       "plans": {
         "basic": {
           "name": "Basis",
-          "blurb": "Organisieren Sie Ihre Routinen, erfassen Sie Aufgaben und automatisieren Sie das Wesentliche mit den Kernfunktionen von Doer – kostenlos.",
+          "blurb": "Erstellen Sie KI-gestützte Pläne und verwalten Sie Aufgaben mit den Kernfunktionen von DOER – kostenlos.",
           "price": "$0",
           "suffix": "",
           "note": "Immer kostenlos",
           "highlights": [
-            "Persönlicher Arbeitsbereich und automatische Tagesplanung",
-            "KI-Erinnerungen und Tageszusammenfassungen bis zu 3x täglich",
-            "Wiederkehrende Routinen mit Kalender-, E-Mail- und Discord-Synchronisierung",
-            "Zwei aktive Automatisierungen plus Checklisten-Vorlagen",
-            "Community-Wissensdatenbank, Accountability-Gruppen und Onboarding-Leitfäden"
+            "KI-Planerstellung (5 Pläne/Monat)",
+            "Intelligente Zeitblock-Planung",
+            "Kalender-Integrationen (Google, Outlook, Apple)",
+            "Wiederkehrende Aufgaben",
+            "Fortschrittsverfolgung & Gesundheitswerte"
           ],
           "ctaLabel": "Kostenlos starten"
         },
         "pro": {
           "name": "Pro",
-          "blurb": "Koordinieren Sie komplexe Initiativen mit KI-gestützter Planung, Aufgabenautomatisierung und Integrationen, die alle Stakeholder abstimmen.",
+          "blurb": "Unbegrenzte KI-Planerstellung und Kalender-Synchronisierung für Power-User, die mehr benötigen.",
           "price": {
             "monthly": {
               "primary": "$20",
@@ -254,13 +253,13 @@
             "afterTrial": "Nach der Testversion: 20 $/Monat"
           },
           "highlights": [
-            "Erhöhte Limits für Plan-, Ziel- und Aufgabenautomatisierungen",
-            "KI-Planungsassistent für tägliche und wöchentliche Planung",
-            "Szenarioplanung mit prognostizierten Zeitachsen und Risikoindikatoren",
-            "Native Integrationen mit Slack, HubSpot, Notion, Jira und Google Workspace",
-            "Portfolio-Analysen, KPI-Dashboards und proaktive Fortschrittswarnungen",
-            "Rollenbasierte Berechtigungen, geteilte Vorlagen und Automatisierungsbibliothek",
-            "Executive Briefings per E-Mail, Slack und Mobilgerät"
+            "Unbegrenzte KI-Planerstellung",
+            "Unbegrenzte Kalender-Sync-Aktionen",
+            "Intelligente Zeitblock-Planung",
+            "Kalender-Integrationen (Google, Outlook, Apple)",
+            "Wiederkehrende Aufgaben",
+            "Fortschrittsverfolgung & Gesundheitswerte",
+            "Prioritätsbasierte Aufgabenverteilung"
           ],
           "ctaLabel": "Upgrade auf Pro"
         },

@@ -75,17 +75,17 @@
       "Basic calendar views"
     ],
     "doerExclusiveFeatures": [
-      "Hour-level precision scheduling (not just day-level)",
-      "AI-powered goal breakdown into actionable tasks with time estimates",
-      "Workday constraints with lunch break awareness",
-      "Weekend-aware scheduling with separate capacity limits",
-      "Energy-aware scheduling (respects daily capacity to prevent overload)",
-      "Task dependency resolution (ensures correct execution order)",
-      "Intelligent conflict detection with existing calendar events",
-      "Auto-rescheduling of overdue tasks with smart slot finding",
-      "Priority-weighted distribution across available days",
-      "Context-aware scheduling (respects current time, avoids past scheduling)",
-      "Custom workday hours per user preferences"
+      "Hour-level precision scheduling",
+      "AI goal breakdown",
+      "Lunch break awareness",
+      "Weekend-aware scheduling",
+      "Energy-aware scheduling",
+      "Task dependency resolution",
+      "Conflict detection",
+      "Auto-rescheduling",
+      "Priority-based distribution",
+      "Context-aware scheduling",
+      "Custom workday hours"
     ],
     "seeMore": "See More →",
     "withoutDoer": {
@@ -217,22 +217,22 @@
       "plans": {
         "basic": {
           "name": "Basic",
-          "blurb": "Organize your routines, capture tasks, and automate essentials with Doer’s core features at no cost.",
+          "blurb": "Create AI-powered plans and manage tasks with DOER's core features at no cost.",
           "price": "$0",
           "suffix": "",
           "note": "Always free",
           "highlights": [
-            "Personal workspace and daily schedule automation",
-            "AI nudges and recap digest up to 3x each day",
-            "Recurring routines with calendar, email, and Discord sync",
-            "Two active automations plus checklist templates",
-            "Community knowledge base, accountability pods, and onboarding guides"
+            "AI plan generation (5 plans/month)",
+            "Smart time-block scheduling",
+            "Calendar integrations (Google, Outlook, Apple)",
+            "Recurring tasks",
+            "Progress tracking & health scores"
           ],
           "ctaLabel": "Start for free"
         },
         "pro": {
           "name": "Pro",
-          "blurb": "Coordinate complex initiatives with AI scheduling, task automation, and integrations that keep every stakeholder aligned.",
+          "blurb": "Unlimited AI plan generation and calendar sync for power users who need more.",
           "price": {
             "monthly": {
               "primary": "$20",
@@ -253,13 +253,13 @@
             "afterTrial": "After trial: $20/month"
           },
           "highlights": [
-            "Increased limits on plan, goal, and task schedule automations",
-            "AI scheduling assistant for daily and weekly planning",
-            "Scenario planning with forecasted timelines and risk flags",
-            "Native integrations with Slack, HubSpot, Notion, Jira, and Google Workspace",
-            "Portfolio analytics, KPI dashboards, and proactive progress alerts",
-            "Role-based permissions, shared templates, and automation library",
-            "Executive briefings delivered via email, Slack, and mobile"
+            "Unlimited AI plan generation",
+            "Unlimited calendar sync actions",
+            "Smart time-block scheduling",
+            "Calendar integrations (Google, Outlook, Apple)",
+            "Recurring tasks",
+            "Progress tracking & health scores",
+            "Priority-based task distribution"
           ],
           "ctaLabel": "Upgrade to Pro"
         },

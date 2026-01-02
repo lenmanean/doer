@@ -75,18 +75,17 @@
       "Vues de calendrier de base"
     ],
     "doerExclusiveFeatures": [
-      "Génération de plan alimentée par l'IA",
-      "Planification automatique intelligente",
-      "Décomposition d'objectif en tâches actionnables",
-      "Suivi des progrès en temps réel",
-      "Résolution intelligente des conflits",
-      "Gestion des tâches basée sur les priorités",
+      "Planification précise à l'heure",
+      "Décomposition d'objectifs avec IA",
+      "Conscience de la pause déjeuner",
+      "Planification consciente des week-ends",
       "Planification consciente de l'énergie",
-      "Capacités de replanification automatique",
-      "Analyses de progression et scores de santé",
-      "Intégrations calendrier et outils de tâches",
-      "Fonctionnalités de collaboration d'équipe",
-      "Planification consciente du contexte"
+      "Résolution des dépendances de tâches",
+      "Détection de conflits",
+      "Replanification automatique",
+      "Distribution basée sur les priorités",
+      "Planification consciente du contexte",
+      "Heures de travail personnalisées"
     ],
     "withoutDoer": {
       "title": "Sans DOER"
@@ -219,7 +218,7 @@
       "plans": {
         "basic": {
           "name": "Basique",
-          "blurb": "Organisez vos routines, capturez des tâches et automatisez l’essentiel avec les fonctionnalités principales de Doer, sans frais.",
+          "blurb": "Créez des plans alimentés par l'IA et gérez des tâches avec les fonctionnalités principales de DOER, sans frais.",
           "price": "$0",
           "suffix": "",
           "note": "Toujours gratuit",
@@ -230,17 +229,17 @@
             }
           },
           "highlights": [
-            "Espace de travail personnel et automatisation de l’agenda quotidien",
-            "Notifications IA et synthèse jusqu’à trois fois par jour",
-            "Routines récurrentes avec synchronisation calendrier, e-mail et Discord",
-            "Deux automatisations actives plus des modèles de listes de contrôle",
-            "Base de connaissances communautaire, groupes de responsabilisation et guides d’intégration"
+            "Génération de plans avec IA (5 plans/mois)",
+            "Planification intelligente par blocs horaires",
+            "Intégrations calendrier (Google, Outlook, Apple)",
+            "Tâches récurrentes",
+            "Suivi des progrès et scores de santé"
           ],
           "ctaLabel": "Commencer gratuitement"
         },
         "pro": {
           "name": "Pro",
-          "blurb": "Coordonnez des initiatives complexes grâce à la planification IA, à l’automatisation des tâches et aux intégrations qui maintiennent chaque partie prenante alignée.",
+          "blurb": "Génération de plans avec IA illimitée et synchronisation calendrier pour les utilisateurs avancés qui ont besoin de plus.",
           "price": {
             "monthly": {
               "primary": "$20",
@@ -277,13 +276,13 @@
             }
           },
           "highlights": [
-            "Limites accrues pour les automatisations de plans, d’objectifs et de tâches",
-            "Assistant de planification IA pour la planification quotidienne et hebdomadaire",
-            "Planification de scénarios avec échéanciers prévisionnels et alertes de risque",
-            "Intégrations natives avec Slack, HubSpot, Notion, Jira et Google Workspace",
-            "Analyses de portefeuille, tableaux de bord KPI et alertes proactives",
-            "Permissions basées sur les rôles, modèles partagés et bibliothèque d’automatisation",
-            "Briefs exécutifs envoyés par e-mail, Slack et mobile"
+            "Génération de plans avec IA illimitée",
+            "Actions de synchronisation calendrier illimitées",
+            "Planification intelligente par blocs horaires",
+            "Intégrations calendrier (Google, Outlook, Apple)",
+            "Tâches récurrentes",
+            "Suivi des progrès et scores de santé",
+            "Distribution de tâches basée sur les priorités"
           ],
           "ctaLabel": "Passer à Pro"
         },
