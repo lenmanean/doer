@@ -1,15 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync-calendars",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/waitlist-drip",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/process-scheduled-deletions",
+      "path": "/api/cron/daily-tasks",
       "schedule": "0 0 * * *"
     }
   ]
