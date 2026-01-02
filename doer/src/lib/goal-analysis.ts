@@ -572,6 +572,71 @@ function safeAddDependency(
 }
 
 /**
+ * Extract topic keywords from a task name
+ * Returns an array of topic keywords found in the name
+ * Examples: "variables", "loops", "functions", "classes", "lists", etc.
+ */
+function extractTopicKeywords(taskName: string): string[] {
+  const lowerName = taskName.toLowerCase()
+  const topics: string[] = []
+  
+  // Common programming topics
+  const topicKeywords = [
+    'variable', 'variables',
+    'loop', 'loops', 'iteration', 'iterations',
+    'function', 'functions', 'method', 'methods',
+    'class', 'classes', 'object', 'objects', 'oop',
+    'list', 'lists', 'array', 'arrays',
+    'dictionary', 'dictionaries', 'dict', 'map', 'maps',
+    'string', 'strings',
+    'number', 'numbers', 'integer', 'integers',
+    'boolean', 'booleans', 'bool',
+    'tuple', 'tuples',
+    'set', 'sets',
+    'file', 'files', 'io', 'input', 'output',
+    'exception', 'exceptions', 'error', 'errors',
+    'module', 'modules', 'package', 'packages',
+    'decorator', 'decorators',
+    'generator', 'generators',
+    'async', 'asynchronous', 'await',
+    'thread', 'threads', 'concurrency',
+    'database', 'db', 'sql',
+    'api', 'rest', 'graphql',
+    'test', 'testing', 'unit test', 'integration test',
+    'calculator', 'program', 'application', 'app'
+  ]
+  
+  for (const keyword of topicKeywords) {
+    if (lowerName.includes(keyword)) {
+      // Normalize the keyword (e.g., "variable" and "variables" both map to "variable")
+      const normalized = keyword.replace(/s$/, '') // Remove plural 's'
+      if (!topics.includes(normalized)) {
+        topics.push(normalized)
+      }
+    }
+  }
+  
+  return topics
+}
+
+/**
+ * Check if two tasks share any topic keywords
+ * Returns true if they share at least one topic
+ */
+function shareTopicKeywords(task1Name: string, task2Name: string): boolean {
+  const topics1 = extractTopicKeywords(task1Name)
+  const topics2 = extractTopicKeywords(task2Name)
+  
+  if (topics1.length === 0 || topics2.length === 0) {
+    // If either task has no identifiable topics, allow dependency (fallback to original behavior)
+    return true
+  }
+  
+  // Check if any topics match
+  return topics1.some(topic => topics2.includes(topic))
+}
+
+/**
  * Detect task dependencies based on semantic patterns in task names
  * Returns a map of task idx -> array of dependent task idxs
  * (e.g., if task 3 depends on task 2, map will have: 3 -> [2])
@@ -699,6 +764,7 @@ export function detectTaskDependencies(
     // BUT exclude test/testing tasks - learning comes before testing, not after
     // CRITICAL: Practice should depend on learn, NOT on final review
     // CRITICAL: This is a fundamental ordering - learn ALWAYS comes before practice
+    // CRITICAL: Only create dependencies when topics match (e.g., "Practice using variables" should only depend on "Learn about variables", not "Learn about loops")
     // Override cycle detection for this specific case if needed
     if (task.lowerName.includes('learn') || task.lowerName.includes('study')) {
       for (const otherTask of lowerTaskNames) {
@@ -713,6 +779,8 @@ export function detectTaskDependencies(
           && !otherTask.lowerName.includes('final review')
           && !otherTask.lowerName.includes('final polish')
           && !(otherTask.lowerName.includes('final') && (otherTask.lowerName.includes('review') || otherTask.lowerName.includes('polish')))
+          // CRITICAL: Only create dependency if topics match
+          && shareTopicKeywords(task.name, otherTask.name)
         ) {
           // Make otherTask (practice/apply) depend on task (learn/study)
           // For learn -> practice, always add the dependency even if cycle detection says no
@@ -733,7 +801,7 @@ export function detectTaskDependencies(
               }
             }
           }
-          // Now add the correct dependency: practice -> learn
+          // Now add the correct dependency: practice -> learn (only if topics match)
           addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
         }
       }

@@ -1092,6 +1092,9 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       overloadPass++
       overloadFixed = false
       
+      // Track tasks moved in this pass to prevent infinite loops
+      const movedInThisPass = new Set<number>()
+      
       // Find overloaded days
       const overloadedDays = Array.from(workloadPerDay.entries())
         .filter(([day, workload]) => {
@@ -1123,6 +1126,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         // Try to move tasks to fix the overload
         for (const task of movableTasks) {
           if (excess <= 0) break // Overload fixed
+          
+          // Skip tasks already moved in this pass to prevent infinite loops
+          if (movedInThisPass.has(task.idx || -1)) {
+            continue
+          }
           
           const range = getTargetDayRangeFn(task.priority || 4)
           const taskDuration = task.estimated_duration_minutes || 0
@@ -1177,6 +1185,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
               
               movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+              movedInThisPass.add(task.idx || -1) // Track that this task was moved in this pass
               overloadFixed = true
               
               console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min) to fix overload`)
@@ -1240,6 +1249,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
               workloadPerDay.set(newDay, (workloadPerDay.get(newDay) || 0) + taskDuration)
               
               movedTasks.push({ task, fromDay: oldDay, toDay: newDay })
+              movedInThisPass.add(task.idx || -1) // Track that this task was moved in this pass
               overloadFixed = true
               
               console.log(`  ⚖️ Moved "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min) to fix overload (dependencies respected)`)
@@ -1303,6 +1313,32 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     finalWorkloadPerDay.set(task.targetDay, current + (task.estimated_duration_minutes || 0))
   })
   
+  // Post-balancing validation: Check if balancing actually fixed overloads
+  const stillOverloadedAfterBalancing = Array.from(finalWorkloadPerDay.entries())
+    .filter(([day, workload]) => {
+      const dayConfig = dayConfigs[day]
+      const dayCapacity = dayConfig?.dailyCapacity || 0
+      return workload > dayCapacity
+    })
+  
+  if (stillOverloadedAfterBalancing.length > 0) {
+    const totalExcess = stillOverloadedAfterBalancing.reduce((sum, [day, workload]) => {
+      const dayConfig = dayConfigs[day]
+      const dayCapacity = dayConfig?.dailyCapacity || 0
+      return sum + (workload - dayCapacity)
+    }, 0)
+    
+    console.error(`❌ Pre-scheduling validation FAILED: ${stillOverloadedAfterBalancing.length} day(s) still overloaded after workload balancing:`)
+    for (const [day, workload] of stillOverloadedAfterBalancing) {
+      const dayConfig = dayConfigs[day]
+      const dayCapacity = dayConfig?.dailyCapacity || 0
+      console.error(`  ❌ Day ${day}: ${workload} min > ${dayCapacity} min capacity (excess: ${workload - dayCapacity} min)`)
+    }
+    console.error(`❌ Total excess workload: ${totalExcess} min. Timeline needs to be extended or tasks need to be reduced.`)
+    // Note: We continue anyway to let the scheduler attempt to schedule what it can
+    // The final validation will catch any remaining issues
+  }
+  
   // Check for days that exceed capacity - this should not happen after balancing
   // If any remain, try one more aggressive pass to fix them
   const stillOverloadedDays = Array.from(finalWorkloadPerDay.entries())
@@ -1316,8 +1352,31 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   if (stillOverloadedDays.length > 0) {
     console.log(`⚠️  ${stillOverloadedDays.length} day(s) still overloaded after balancing - attempting final aggressive fix`)
     
+    // Track tasks moved in final aggressive fix to prevent infinite loops
+    const movedInFinalFix = new Set<number>()
+    let finalFixIterations = 0
+    const maxFinalFixIterations = 10 // Prevent infinite loops
+    
     // Final aggressive pass: move tasks from overloaded days to any day with capacity
-    for (const [overloadedDay, overloadedWorkload] of stillOverloadedDays) {
+    while (finalFixIterations < maxFinalFixIterations) {
+      finalFixIterations++
+      
+      // Recalculate overloaded days after each iteration
+      const currentOverloadedDays = Array.from(finalWorkloadPerDay.entries())
+        .filter(([day, workload]) => {
+          const dayConfig = dayConfigs[day]
+          const dayCapacity = dayConfig?.dailyCapacity || 0
+          return workload > dayCapacity
+        })
+        .sort((a, b) => b[1] - a[1]) // Most overloaded first
+      
+      if (currentOverloadedDays.length === 0) {
+        break // All overloads fixed
+      }
+      
+      let madeProgress = false
+      
+      for (const [overloadedDay, overloadedWorkload] of currentOverloadedDays) {
       const dayConfig = dayConfigs[overloadedDay]
       const dayCapacity = dayConfig?.dailyCapacity || 0
       const excess = overloadedWorkload - dayCapacity
@@ -1330,6 +1389,11 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       
       for (const task of movableTasks) {
         if (excess <= 0) break
+        
+        // Skip tasks already moved in final fix to prevent infinite loops
+        if (movedInFinalFix.has(task.idx || -1)) {
+          continue
+        }
         
         const taskDuration = task.estimated_duration_minutes || 0
         const range = getTargetDayRange(task.priority || 4)
@@ -1399,30 +1463,63 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           const [newDay] = candidateDays[0]
           const oldDay = task.targetDay
           
-          // Move the task - we'll fix dependency violations in post-scheduling
-          task.targetDay = newDay
+          // Calculate what the new workload would be after the move
+          const newWorkloadOnOverloadedDay = overloadedWorkload - taskDuration
+          const newWorkloadOnNewDay = (finalWorkloadPerDay.get(newDay) || 0) + taskDuration
           
-          // Update workload tracking
-          finalWorkloadPerDay.set(overloadedDay, overloadedWorkload - taskDuration)
-          finalWorkloadPerDay.set(newDay, (finalWorkloadPerDay.get(newDay) || 0) + taskDuration)
+          // Verify that the move actually reduces overload
+          // The overloaded day should have less workload, and the new day should not exceed capacity
+          const newDayConfig = dayConfigs[newDay]
+          const newDayCapacity = newDayConfig?.dailyCapacity || 0
+          const wouldExceedNewDay = newWorkloadOnNewDay > newDayCapacity
           
-          console.log(`  ⚖️ Final aggressive move: "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min)`)
-          
-          // Recalculate excess
-          const newWorkload = finalWorkloadPerDay.get(overloadedDay) || 0
-          if (newWorkload <= dayCapacity) {
-            break // This day is fixed
+          // Only proceed if move actually helps
+          if (newWorkloadOnOverloadedDay < overloadedWorkload && !wouldExceedNewDay) {
+            // Move the task - we'll fix dependency violations in post-scheduling
+            task.targetDay = newDay
+            
+            // Update workload tracking
+            finalWorkloadPerDay.set(overloadedDay, newWorkloadOnOverloadedDay)
+            finalWorkloadPerDay.set(newDay, newWorkloadOnNewDay)
+            
+            movedInFinalFix.add(task.idx || -1) // Track that this task was moved
+            madeProgress = true
+            
+            console.log(`  ⚖️ Final aggressive move: "${task.name}" from Day ${oldDay} to Day ${newDay} (${taskDuration} min)`)
+            
+            // Recalculate excess
+            const newWorkload = finalWorkloadPerDay.get(overloadedDay) || 0
+            if (newWorkload <= dayCapacity) {
+              break // This day is fixed
+            }
+          } else {
+            console.log(`  ⚖️ Skipped moving "${task.name}" - move would not reduce overload or would exceed capacity on new day`)
           }
         }
       }
+      } // closes: for (const [overloadedDay, overloadedWorkload] of currentOverloadedDays)
+      
+      // If no progress was made in this iteration, stop to prevent infinite loop
+      if (!madeProgress) {
+        console.log(`  ⚠️ No progress made in final aggressive fix iteration ${finalFixIterations} - stopping to prevent infinite loop`)
+        break
+      }
     }
     
-    // Log final state
-    for (const [day, workload] of finalWorkloadPerDay.entries()) {
-      const dayConfig = dayConfigs[day]
-      const dayCapacity = dayConfig?.dailyCapacity || 0
-      if (workload > dayCapacity) {
+    // Check if any days are still overloaded after final fix
+    const stillOverloadedAfterFinalFix = Array.from(finalWorkloadPerDay.entries())
+      .filter(([day, workload]) => {
+        const dayConfig = dayConfigs[day]
+        const dayCapacity = dayConfig?.dailyCapacity || 0
+        return workload > dayCapacity
+      })
+    
+    if (stillOverloadedAfterFinalFix.length > 0) {
+      for (const [day, workload] of stillOverloadedAfterFinalFix) {
+        const dayConfig = dayConfigs[day]
+        const dayCapacity = dayConfig?.dailyCapacity || 0
         console.error(`❌ Day ${day} still overloaded after final fix: ${workload} min scheduled, capacity: ${dayCapacity} min (excess: ${workload - dayCapacity} min)`)
+        console.error(`❌ Timeline may need to be extended to accommodate ${workload - dayCapacity} min of excess workload on Day ${day}`)
       }
     }
   }
@@ -1479,7 +1576,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       console.warn(`⚠️  Workload balancing should redistribute ${excess} min to other days or timeline should be extended.`)
     }
   }
-
+  
   console.log('🔧 Capacity Analysis:', {
     weekdayCapacity,
     weekendCapacity,
@@ -2235,13 +2332,14 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           return bAvailable - aAvailable
         }
         
-        // Then prioritize days closer to target (for priority 1-2)
-        if (task.priority <= 2) {
-          const aDist = Math.abs(a - targetDay)
-          const bDist = Math.abs(b - targetDay)
-          if (Math.abs(aDist - bDist) > 1) {
-            return aDist - bDist
-          }
+        // Always prioritize days closer to target day (not just for priority 1-2)
+        // This ensures tasks are scheduled on target days when possible
+        const aDist = Math.abs(a - targetDay)
+        const bDist = Math.abs(b - targetDay)
+        if (aDist !== bDist) {
+          // Prefer days closer to target, but only if the difference is significant
+          // This allows some flexibility while still respecting target days
+          return aDist - bDist
         }
         
         const aWeekend = aConfig?.isWeekend ?? false
@@ -2258,8 +2356,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             ? (bWeekend ? 0.25 : -0.1)
             : 0
 
-        const aDist = Math.abs(a - targetDay)
-        const bDist = Math.abs(b - targetDay)
+        // Reuse aDist and bDist already calculated above
         const aScore = aDist + aBias
         const bScore = bDist + bBias
 
@@ -2486,7 +2583,13 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
             latestSequentialDay = Math.max(latestSequentialDay, dayIndex)
           }
           
-          console.log(`    ✓ Retry: Scheduled task "${task.name}" (${durationToSchedule} min) on ${dateStr}`)
+          // Log why task was scheduled on this day (target day vs actual day)
+          if (dayIndex === targetDay) {
+            console.log(`    ✓ Retry: Scheduled task "${task.name}" (${durationToSchedule} min) on ${dateStr} (target day ${targetDay})`)
+          } else {
+            const daysFromTarget = dayIndex - targetDay
+            console.log(`    ✓ Retry: Scheduled task "${task.name}" (${durationToSchedule} min) on ${dateStr} (day ${dayIndex}, ${daysFromTarget > 0 ? daysFromTarget + ' days after' : Math.abs(daysFromTarget) + ' days before'} target day ${targetDay})`)
+          }
           // Remove from unscheduledTasks if it was added earlier (shouldn't happen with the fix above, but safety check)
           const unscheduledIndex = unscheduledTasks.indexOf(task.id)
           if (unscheduledIndex !== -1) {
@@ -3354,14 +3457,14 @@ function findBestTimeSlot(
       // Use UTC methods to extract user's local time components
       const earliestHour = currentTime.getUTCHours()
       const earliestMinute = currentTime.getUTCMinutes()
-    const earliestMinutes = earliestHour * 60 + earliestMinute
-    const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
-    
-    // Use the later of workday start or earliest start time
-    if (earliestMinutes > workdayStartMinutes) {
-      effectiveStartHour = earliestHour
-      effectiveStartMinute = earliestMinute
-    }
+      const earliestMinutes = earliestHour * 60 + earliestMinute
+      const workdayStartMinutes = dayConfig.startHour * 60 + dayConfig.startMinute
+      
+      // Use the later of workday start or earliest start time
+      if (earliestMinutes > workdayStartMinutes) {
+        effectiveStartHour = earliestHour
+        effectiveStartMinute = earliestMinute
+      }
     } else {
       // Day 0 is not today - use workday start
       console.log(`    Day 0 is tomorrow - using workday start: ${formatTime(dayConfig.startHour, dayConfig.startMinute)}`)
@@ -3531,18 +3634,18 @@ function findNextAvailableSlot(
     }
     
     // There's an overlap, move to after the overlapping slot
-      candidateStart = overlappingSlot.end
+    candidateStart = overlappingSlot.end
+    candidateEnd = candidateStart + duration
+    
+    // Check if we need to skip lunch
+    if (lunchOverlapStart < lunchOverlapEnd && 
+        candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes) {
+      candidateStart = lunchOverlapEndMinutes
       candidateEnd = candidateStart + duration
-      
-      // Check if we need to skip lunch
-      if (lunchOverlapStart < lunchOverlapEnd && 
-          candidateStart < lunchOverlapEndMinutes && candidateEnd > lunchOverlapStartMinutes) {
-        candidateStart = lunchOverlapEndMinutes
-        candidateEnd = candidateStart + duration
-      }
-      
-      // Check if still within workday
-      if (candidateEnd > workdayEndMinutes) {
+    }
+    
+    // Check if still within workday
+    if (candidateEnd > workdayEndMinutes) {
       // No more room in workday
       console.log(`    ❌ No available gap found - workday full or task too long`)
       return null
