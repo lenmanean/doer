@@ -109,14 +109,52 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'customer.subscription.trial_will_end': {
+        // Trial is about to end - notify user or prepare for transition
+        const subscription = event.data.object as Stripe.Subscription
+        const userId = subscription.metadata?.userId
+        
+        if (userId) {
+          subscriptionCache.invalidateUser(userId)
+          logger.info('Trial will end soon', {
+            subscriptionId: subscription.id,
+            userId,
+            trialEnd: (subscription as any).trial_end,
+          })
+          
+          // Sync subscription to ensure database is up to date
+          try {
+            await syncSubscriptionSnapshot(subscription, { userId })
+          } catch (syncError) {
+            logger.error('Failed to sync subscription on trial_will_end', {
+              error: syncError instanceof Error ? syncError.message : String(syncError),
+              subscriptionId: subscription.id,
+              userId,
+            })
+          }
+        }
+        break
+      }
+
       case 'customer.subscription.updated':
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription
         
         // Skip processing if subscription is canceled - we handle deletions separately
         // This prevents race conditions where a canceled subscription gets re-synced as active
-        if (subscription.status === 'canceled' || subscription.cancel_at_period_end) {
+        // However, we should still process trialing subscriptions even if they're set to cancel at period end
+        if (subscription.status === 'canceled') {
           logger.info('Skipping sync for canceled subscription', {
+            subscriptionId: subscription.id,
+            status: subscription.status,
+          })
+          break
+        }
+        
+        // For subscriptions that are set to cancel at period end but are still active/trialing,
+        // we still want to sync them (they're still active until the period ends)
+        if (subscription.cancel_at_period_end && subscription.status !== 'trialing' && subscription.status !== 'active') {
+          logger.info('Skipping sync for subscription set to cancel (not active/trialing)', {
             subscriptionId: subscription.id,
             status: subscription.status,
             cancelAtPeriodEnd: subscription.cancel_at_period_end,

@@ -64,7 +64,9 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                 Choose Your Plan
               </h2>
               <p className="text-[#d7d2cb]/60">
-                Select a plan to unlock the full potential of DOER
+                {billingCycle === 'annual' 
+                  ? 'Select a plan to unlock the full potential of DOER (Annual plan recommended - save 33%)'
+                  : 'Select a plan to unlock the full potential of DOER'}
               </p>
             </div>
 
@@ -136,6 +138,11 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                     Save 33%
                   </div>
                 )}
+                {billingCycle === 'monthly' && (
+                  <div className="absolute top-4 left-4 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold px-2 py-1 rounded">
+                    14-day trial
+                  </div>
+                )}
                 <CardHeader>
                   <CardTitle className="text-xl">Pro</CardTitle>
                   <div className="mt-2">
@@ -143,6 +150,12 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                       <div className="mb-1">
                         <span className="text-sm text-[#d7d2cb]/60 line-through mr-2">$240/yr</span>
                         <span className="text-xs text-green-400 font-semibold">33% off</span>
+                      </div>
+                    )}
+                    {billingCycle === 'monthly' && (
+                      <div className="mb-1">
+                        <span className="text-sm font-semibold text-blue-400">Start your free trial</span>
+                        <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
                       </div>
                     )}
                     <span className="text-3xl font-bold text-[#d7d2cb]">

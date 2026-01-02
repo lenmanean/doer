@@ -254,8 +254,13 @@
             }
           },
           "note": {
-            "monthly": "Facturation mensuelle — annulez à tout moment",
+            "monthly": "Essai gratuit de 14 jours, puis 20 $/mois — annulez à tout moment",
             "annual": "Facturation annuelle — 192 $ / an (économisez 20 %)"
+          },
+          "trial": {
+            "badge": "Essai gratuit de 14 jours",
+            "description": "Commencez votre essai gratuit",
+            "afterTrial": "Après l'essai : 20 $/mois"
           },
           "credits": {
             "api": {

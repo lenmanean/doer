@@ -75,7 +75,7 @@ export function PlanSelectionModal({
             <div>
               <h2 className="text-2xl font-bold text-[#d7d2cb]">Upgrade to Pro</h2>
               <p className="text-sm text-[#d7d2cb]/60 mt-1">
-                Unlock unlimited potential with Pro features
+                Integrations require a Pro plan subscription. Choose your preferred billing cycle.
               </p>
             </div>
             {canClose && (
@@ -99,8 +99,16 @@ export function PlanSelectionModal({
                   whileTap={{ scale: 0.98 }}
                   className="group relative overflow-hidden bg-white/5 hover:bg-white/10 border border-white/20 hover:border-white/30 rounded-xl p-6 text-left transition-all duration-150"
                 >
+                  {/* Trial Badge */}
+                  <div className="absolute top-4 right-4 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold px-2 py-1 rounded">
+                    14-day trial
+                  </div>
                   <div className="relative z-10">
                     <h3 className="text-xl font-bold text-[#d7d2cb] mb-2">Pro Monthly</h3>
+                    <div className="mb-2">
+                      <p className="text-sm font-semibold text-blue-400">Start your free trial</p>
+                      <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
+                    </div>
                     <div className="mb-4">
                       <span className="text-4xl font-bold text-[#d7d2cb]">$20</span>
                       <span className="text-[#d7d2cb]/60 ml-2">/month</span>

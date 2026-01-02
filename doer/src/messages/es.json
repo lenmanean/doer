@@ -254,8 +254,13 @@
             }
           },
           "note": {
-            "monthly": "Facturación mensual — cancela cuando quieras",
+            "monthly": "Prueba gratuita de 14 días, luego $20/mes — cancela cuando quieras",
             "annual": "Facturación anual — $192 al año (ahorra un 20 %)"
+          },
+          "trial": {
+            "badge": "Prueba gratuita de 14 días",
+            "description": "Comienza tu prueba gratuita",
+            "afterTrial": "Después de la prueba: $20/mes"
           },
           "credits": {
             "api": {

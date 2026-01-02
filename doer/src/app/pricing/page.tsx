@@ -74,7 +74,22 @@ export default function PricingPage() {
   }, [billingCycle])
 
   const plans = useMemo(() => {
-    const basicPlan = {
+    const basicPlan: {
+      id: string
+      name: string
+      blurb: string
+      price: string
+      suffix: string
+      note: string
+      credits: string[]
+      highlights: string[]
+      ctaLabel: string
+      href: string
+      emphasis: boolean
+      trialBadge?: string
+      trialDescription?: string
+      afterTrial?: string
+    } = {
       id: 'basic',
       name: t('pages.pricing.plans.basic.name'),
       blurb: t('pages.pricing.plans.basic.blurb'),
@@ -94,13 +109,31 @@ export default function PricingPage() {
       emphasis: false,
     }
 
-    const proPlan = {
+    const proPlan: {
+      id: string
+      name: string
+      blurb: string
+      price: string
+      suffix: string
+      note: string
+      credits: string[]
+      highlights: string[]
+      ctaLabel: string
+      href: string
+      emphasis: boolean
+      trialBadge?: string
+      trialDescription?: string
+      afterTrial?: string
+    } = {
       id: 'pro',
       name: t('pages.pricing.plans.pro.name'),
       blurb: t('pages.pricing.plans.pro.blurb'),
       price: t(`pages.pricing.plans.pro.price.${billingCycle}.primary`),
       suffix: t(`pages.pricing.plans.pro.price.${billingCycle}.suffix`),
       note: t(`pages.pricing.plans.pro.note.${billingCycle}`),
+      trialBadge: billingCycle === 'monthly' ? t('pages.pricing.plans.pro.trial.badge') : undefined,
+      trialDescription: billingCycle === 'monthly' ? t('pages.pricing.plans.pro.trial.description') : undefined,
+      afterTrial: billingCycle === 'monthly' ? t('pages.pricing.plans.pro.trial.afterTrial') : undefined,
       credits: [],
       highlights: [
         t('pages.pricing.plans.pro.highlights.0'),
@@ -241,6 +274,11 @@ export default function PricingPage() {
                         Save 33%
                       </span>
                     )}
+                    {plan.id === 'pro' && billingCycle === 'monthly' && plan.trialBadge && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
+                        {plan.trialBadge}
+                      </span>
+                    )}
                   </div>
                   {plan.price && (
                     <div className="mt-4">
@@ -252,6 +290,18 @@ export default function PricingPage() {
                           <span className="text-xs font-semibold text-green-400">
                             33% off
                           </span>
+                        </div>
+                      )}
+                      {plan.id === 'pro' && billingCycle === 'monthly' && plan.trialDescription && (
+                        <div className="mb-2">
+                          <p className="text-sm font-semibold text-blue-400">
+                            {plan.trialDescription}
+                          </p>
+                          {plan.afterTrial && (
+                            <p className="text-xs text-slate-400 mt-1">
+                              {plan.afterTrial}
+                            </p>
+                          )}
                         </div>
                       )}
                       <p className="text-3xl sm:text-4xl font-bold text-slate-100">

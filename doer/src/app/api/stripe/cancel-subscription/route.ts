@@ -48,21 +48,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find active subscription
-    const subscriptions = await stripe.subscriptions.list({
+    // Find active or trialing subscription
+    // Check for both active and trialing subscriptions
+    const activeSubscriptions = await stripe.subscriptions.list({
       customer: userSettings.stripe_customer_id,
       status: 'active',
       limit: 1,
     })
 
-    if (subscriptions.data.length === 0) {
+    const trialingSubscriptions = await stripe.subscriptions.list({
+      customer: userSettings.stripe_customer_id,
+      status: 'trialing',
+      limit: 1,
+    })
+
+    const subscription = activeSubscriptions.data[0] || trialingSubscriptions.data[0]
+
+    if (!subscription) {
       return NextResponse.json(
-        { error: 'No active subscription found' },
+        { error: 'No active or trialing subscription found' },
         { status: 404 }
       )
     }
-
-    const subscription = subscriptions.data[0]
 
     // Verify subscription belongs to user (check metadata)
     if (subscription.metadata?.userId !== user.id) {
@@ -72,7 +79,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const isTrialing = subscription.status === 'trialing'
+
     // Cancel subscription at period end
+    // For trial subscriptions, this ensures users keep access until trial ends
     const updatedSubscription = await stripe.subscriptions.update(subscription.id, {
       cancel_at_period_end: true,
     })
@@ -80,28 +90,40 @@ export async function POST(request: NextRequest) {
     // Update database subscription status
     const serviceRoleClient = getServiceRoleClient()
     const periodEnd = (updatedSubscription as any).current_period_end as number | undefined
+    const trialEnd = (updatedSubscription as any).trial_end as number | undefined
+    
+    // For trial subscriptions, use trial_end if available, otherwise use current_period_end
+    const cancelAt = trialEnd || periodEnd
+
+    // Update subscription - include both active and trialing statuses
     const { error: dbError } = await serviceRoleClient
       .from('user_plan_subscriptions')
       .update({
-        status: 'canceled',
         cancel_at_period_end: true,
-        cancel_at: periodEnd 
-          ? new Date(periodEnd * 1000).toISOString()
+        cancel_at: cancelAt 
+          ? new Date(cancelAt * 1000).toISOString()
           : null,
+        updated_at: new Date().toISOString(),
       })
       .eq('user_id', user.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'trialing'])
+      .eq('external_subscription_id', subscription.id)
 
     if (dbError) {
       console.error('Error updating subscription in database:', dbError)
       // Don't fail the request - Stripe cancellation succeeded
     }
 
+      const message = isTrialing
+        ? 'Your trial will continue until it ends, then your subscription will be canceled and you will be downgraded to the Basic plan.'
+        : 'Subscription will be canceled at the end of the billing period'
+
       return NextResponse.json(
         {
           success: true,
-          message: 'Subscription will be canceled at the end of the billing period',
-          cancelAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          message,
+          cancelAt: cancelAt ? new Date(cancelAt * 1000).toISOString() : null,
+          isTrialing,
         },
         { status: 200 }
       )

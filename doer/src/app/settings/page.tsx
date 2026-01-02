@@ -2547,16 +2547,16 @@ export default function SettingsPage() {
                                         {subscription.status}
                                       </span>
                                     </p>
-                                    {subscription.cancelAtPeriodEnd && (
-                                      <div className="mt-2 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                    {subscription.status === 'trialing' && (
+                                      <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                         <div className="flex items-start gap-2">
-                                          <AlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                                          <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
-                                            <p className="text-sm font-medium text-orange-400">
-                                              Subscription Canceled
+                                            <p className="text-sm font-medium text-blue-400">
+                                              Free Trial Active
                                             </p>
                                             <p className="text-xs text-[#d7d2cb]/70 mt-1">
-                                              Your subscription will end on{' '}
+                                              Your 14-day free trial ends on{' '}
                                               <span className="font-semibold text-[#d7d2cb]">
                                                 {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                                                   month: 'long',
@@ -2564,7 +2564,25 @@ export default function SettingsPage() {
                                                   year: 'numeric'
                                                 })}
                                               </span>
-                                              . You will not be charged again, and you'll continue to have access until then.
+                                              . After the trial ends, you'll be charged $20/month and your billing cycle will begin.
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {subscription.cancelAtPeriodEnd && (
+                                      <div className="mt-2 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                        <div className="flex items-start gap-2">
+                                          <AlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <p className="text-sm font-medium text-orange-400">
+                                              {subscription.status === 'trialing' ? 'Trial Canceled' : 'Subscription Canceled'}
+                                            </p>
+                                            <p className="text-xs text-[#d7d2cb]/70 mt-1">
+                                              {subscription.status === 'trialing' 
+                                                ? `Your trial will continue until ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
+                                                : `Your subscription will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You will not be charged again, and you'll continue to have access until then.`
+                                              }
                                             </p>
                                           </div>
                                         </div>

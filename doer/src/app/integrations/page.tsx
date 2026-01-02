@@ -13,6 +13,7 @@ import { CheckCircle, XCircle, Settings, ArrowRight, Zap } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { integrations, type IntegrationDefinition } from '@/data/integrations'
+import { PlanSelectionOverlay } from '@/components/ui/PlanSelectionOverlay'
 import { 
   SiGooglecalendar, 
   SiApple, 
@@ -158,6 +159,9 @@ export default function IntegrationsPage() {
   const [emailConfirmed, setEmailConfirmed] = useState(true)
   const [providers, setProviders] = useState<ProviderStatus[]>([])
   const [loadingProviders, setLoadingProviders] = useState(true)
+  const [showPlanOverlay, setShowPlanOverlay] = useState(false)
+  const [subscription, setSubscription] = useState<any>(null)
+  const [loadingSubscription, setLoadingSubscription] = useState(true)
 
   useEffect(() => {
     if (!user) {
@@ -165,6 +169,32 @@ export default function IntegrationsPage() {
       return
     }
     setEmailConfirmed(isEmailConfirmed(user))
+  }, [user?.id])
+
+  // Load subscription status
+  useEffect(() => {
+    if (!user?.id) {
+      setLoadingSubscription(false)
+      return
+    }
+
+    const loadSubscription = async () => {
+      try {
+        setLoadingSubscription(true)
+        const response = await fetch('/api/subscription')
+
+        if (response.ok) {
+          const data = await response.json()
+          setSubscription(data.subscription)
+        }
+      } catch (error) {
+        console.error('Error loading subscription:', error)
+      } finally {
+        setLoadingSubscription(false)
+      }
+    }
+
+    loadSubscription()
   }, [user?.id])
 
   // Load provider statuses
@@ -198,7 +228,18 @@ export default function IntegrationsPage() {
     loadProviders()
   }, [user?.id, addToast])
 
-  const handleProviderClick = (provider: string) => {
+  const handleProviderClick = async (provider: string) => {
+    // Check if user has Pro plan (active or trialing)
+    const hasPro = subscription?.planSlug === 'pro' && 
+                   (subscription?.status === 'active' || subscription?.status === 'trialing')
+    
+    if (!hasPro) {
+      // Show upgrade overlay
+      setShowPlanOverlay(true)
+      return
+    }
+    
+    // Proceed to integration
     router.push(`/integrations/${provider}`)
   }
 
@@ -326,6 +367,13 @@ export default function IntegrationsPage() {
           )}
         </div>
       </main>
+
+      {/* Plan Selection Overlay for non-Pro users */}
+      <PlanSelectionOverlay
+        isOpen={showPlanOverlay}
+        onClose={() => setShowPlanOverlay(false)}
+        userEmail={user?.email || null}
+      />
     </div>
   )
 }

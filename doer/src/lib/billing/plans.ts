@@ -1,6 +1,41 @@
 import { getServiceRoleClient } from '@/lib/supabase/service-role'
 import { formatDateForDB } from '@/lib/date-utils'
 
+/**
+ * Checks if a user has ever had a Pro subscription before
+ * Used to determine trial eligibility - users who have had Pro before are not eligible for trial
+ */
+export async function checkIfUserHadProBefore(userId: string): Promise<boolean> {
+  const supabase = getServiceRoleClient()
+  
+  // Query user_plan_subscriptions to check for any historical Pro subscriptions
+  const { data: subscriptions, error } = await supabase
+    .from('user_plan_subscriptions')
+    .select(`
+      id,
+      billing_plan_cycles!inner (
+        billing_plan:billing_plans!inner (
+          slug
+        )
+      )
+    `)
+    .eq('user_id', userId)
+
+  if (error) {
+    console.error('[checkIfUserHadProBefore] Error querying subscriptions:', error)
+    // On error, assume user has NOT had Pro before (fail open - allow trial)
+    // This is safer than blocking legitimate users due to query errors
+    return false
+  }
+
+  // Check if any subscription was for a Pro plan
+  const hasHadProBefore = subscriptions?.some(sub => 
+    sub.billing_plan_cycles?.billing_plan?.slug === 'pro'
+  ) || false
+
+  return hasHadProBefore
+}
+
 export type BillingCycle = 'monthly' | 'annual'
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled'
 export type UsageMetric = 'api_credits' | 'integration_actions'

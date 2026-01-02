@@ -246,8 +246,13 @@
             }
           },
           "note": {
-            "monthly": "Billed monthly — cancel anytime",
+            "monthly": "14-day free trial, then $20/mo — cancel anytime",
             "annual": "Billed annually — $160 / yr (save 33%)"
+          },
+          "trial": {
+            "badge": "14-day free trial",
+            "description": "Start your free trial",
+            "afterTrial": "After trial: $20/month"
           },
           "highlights": [
             "Increased limits on plan, goal, and task schedule automations",

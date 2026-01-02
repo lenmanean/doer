@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
+import { type SubscriptionStatus, type BillingCycle, checkIfUserHadProBefore } from '@/lib/billing/plans'
 import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 import { getActiveSubscriptionFromStripe, type StripeSubscription } from '@/lib/stripe/subscriptions'
 
@@ -88,6 +88,27 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       )
+    }
+
+    // Check trial eligibility for Pro Monthly subscriptions
+    // Trial only applies to first-time Pro users (users who have never had Pro before)
+    let shouldApplyTrial = false
+    if (planSlug === 'pro' && billingCycle === 'monthly') {
+      try {
+        const hasHadProBefore = await checkIfUserHadProBefore(user.id)
+        shouldApplyTrial = !hasHadProBefore
+        console.log('[Create Subscription] Trial eligibility check:', {
+          userId: user.id,
+          planSlug,
+          billingCycle,
+          hasHadProBefore,
+          shouldApplyTrial,
+        })
+      } catch (trialCheckError) {
+        console.error('[Create Subscription] Error checking trial eligibility:', trialCheckError)
+        // On error, don't apply trial (fail closed for security)
+        shouldApplyTrial = false
+      }
     }
 
     // Validate price ID exists in Stripe (optional check - Stripe will also validate)
@@ -183,23 +204,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingStripeSubscription && existingStripeSubscription.id) {
-      // User has existing subscription - UPDATE it instead of canceling and creating new
-      // This is Stripe's recommended approach and avoids race conditions
-      console.log('[Create Subscription] Upgrading existing subscription:', {
-        existingSubscriptionId: existingStripeSubscription.id,
-        existingStatus: existingStripeSubscription.status,
-        newPlanSlug: planSlug,
-        newBillingCycle: billingCycle,
-        newPriceId: priceId,
-      })
-
-      // Get the current subscription item ID to update
-      const currentItemId = existingStripeSubscription.items.data[0]?.id
+      // Check if we need to apply trial for Pro Monthly upgrade
+      // Stripe doesn't allow adding trials to existing subscriptions, so we need to cancel and recreate
+      const needsTrialForUpgrade = shouldApplyTrial && 
+                                    planSlug === 'pro' && 
+                                    billingCycle === 'monthly' &&
+                                    existingSubscription?.planSlug !== 'pro'
       
-      if (!currentItemId) {
-        throw new Error('Cannot find subscription item to update')
-      }
-
       // If subscription is incomplete or incomplete_expired, cancel it first
       // Then create a new one (can't update incomplete subscriptions)
       if (existingStripeSubscription.status === 'incomplete' || existingStripeSubscription.status === 'incomplete_expired') {
@@ -228,7 +239,51 @@ export async function POST(request: NextRequest) {
         }
         // Clear reference so we create new subscription below
         existingStripeSubscription = null
+      } else if (needsTrialForUpgrade) {
+        // Upgrading from Basic (or other plan) to Pro Monthly with trial eligibility
+        // Stripe doesn't allow adding trials to existing subscriptions, so cancel and create new
+        console.log('[Create Subscription] Upgrading to Pro Monthly with trial - canceling existing subscription and creating new one with trial')
+        try {
+          await stripe.subscriptions.cancel(existingStripeSubscription.id)
+          // Mark as canceled in database immediately
+          try {
+            const { getServiceRoleClient } = await import('@/lib/supabase/service-role')
+            const serviceSupabase = getServiceRoleClient()
+            await serviceSupabase
+              .from('user_plan_subscriptions')
+              .update({
+                status: 'canceled',
+                cancel_at: new Date().toISOString().split('T')[0],
+                cancel_at_period_end: false,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('external_subscription_id', existingStripeSubscription.id)
+              .eq('user_id', user.id)
+          } catch (dbError) {
+            console.warn('[Create Subscription] Error marking subscription as canceled:', dbError)
+          }
+        } catch (cancelError) {
+          console.warn('[Create Subscription] Error canceling subscription for trial upgrade:', cancelError)
+        }
+        // Clear reference so we create new subscription with trial below
+        existingStripeSubscription = null
       } else {
+        // User has existing subscription - UPDATE it instead of canceling and creating new
+        // This is Stripe's recommended approach and avoids race conditions
+        console.log('[Create Subscription] Upgrading existing subscription:', {
+          existingSubscriptionId: existingStripeSubscription.id,
+          existingStatus: existingStripeSubscription.status,
+          newPlanSlug: planSlug,
+          newBillingCycle: billingCycle,
+          newPriceId: priceId,
+        })
+
+        // Get the current subscription item ID to update
+        const currentItemId = existingStripeSubscription.items.data[0]?.id
+        
+        if (!currentItemId) {
+          throw new Error('Cannot find subscription item to update')
+        }
         // Update the existing subscription - Stripe's recommended approach
         // This maintains the same subscription ID and avoids race conditions
         console.log('[Create Subscription] Updating existing subscription to new plan')
@@ -320,26 +375,35 @@ export async function POST(request: NextRequest) {
     // Create new subscription if we don't have one yet (either no existing subscription or we canceled an incomplete one)
     if (!subscription) {
       // No existing subscription - create new one
-    subscription = await stripe.subscriptions.create({
-      customer: stripeCustomerId,
-      items: [
-        {
-          price: priceId,
-          quantity: 1,
+      // Apply 14-day trial for eligible Pro Monthly subscriptions
+      const subscriptionParams: Stripe.SubscriptionCreateParams = {
+        customer: stripeCustomerId,
+        items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        payment_behavior: 'default_incomplete',
+        payment_settings: {
+          payment_method_types: ['card'],
+          save_default_payment_method: 'on_subscription',
         },
-      ],
-      payment_behavior: 'default_incomplete',
-      payment_settings: {
-        payment_method_types: ['card'],
-        save_default_payment_method: 'on_subscription',
-      },
-      metadata: {
-        userId: user.id,
-        planSlug,
-        billingCycle,
-      },
-      expand: ['latest_invoice', 'latest_invoice.payment_intent'],
-    })
+        metadata: {
+          userId: user.id,
+          planSlug,
+          billingCycle,
+        },
+        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+      }
+
+      // Add trial period for eligible Pro Monthly subscriptions
+      if (shouldApplyTrial) {
+        subscriptionParams.trial_period_days = 14
+        console.log('[Create Subscription] Applying 14-day trial to Pro Monthly subscription')
+      }
+
+      subscription = await stripe.subscriptions.create(subscriptionParams)
 
       console.log('[Create Subscription] New subscription created:', {
       subscriptionId: subscription.id,

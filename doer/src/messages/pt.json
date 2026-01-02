@@ -254,8 +254,13 @@
             }
           },
           "note": {
-            "monthly": "Cobrança mensal — cancele a qualquer momento",
+            "monthly": "Teste gratuito de 14 dias, depois US$ 20/mês — cancele a qualquer momento",
             "annual": "Cobrança anual — US$ 192 por ano (economize 20%)"
+          },
+          "trial": {
+            "badge": "Teste gratuito de 14 dias",
+            "description": "Inicie seu teste gratuito",
+            "afterTrial": "Após o teste: US$ 20/mês"
           },
           "credits": {
             "api": {

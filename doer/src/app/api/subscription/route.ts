@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       subscription,
+      isTrialing: subscription?.status === 'trialing' || false,
     }, { status: 200 })
     
   } catch (err) {

@@ -247,8 +247,13 @@
             }
           },
           "note": {
-            "monthly": "Monatliche Abrechnung — jederzeit kündbar",
+            "monthly": "14-tägige kostenlose Testversion, dann 20 $/Monat — jederzeit kündbar",
             "annual": "Jährliche Abrechnung — 192 $ / Jahr (20 % sparen)"
+          },
+          "trial": {
+            "badge": "14-tägige kostenlose Testversion",
+            "description": "Starten Sie Ihre kostenlose Testversion",
+            "afterTrial": "Nach der Testversion: 20 $/Monat"
           },
           "highlights": [
             "Erhöhte Limits für Plan-, Ziel- und Aufgabenautomatisierungen",
