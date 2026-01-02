@@ -2,11 +2,14 @@
 
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, Suspense } from 'react'
-import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { Mail, Lock, Eye, EyeOff, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { validatePassword } from '@/lib/password-security'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
+import { useDebounce } from '@/lib/utils/debounce'
+import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter'
+import Link from 'next/link'
 
 function CustomSignupForm() {
   const [email, setEmail] = useState('')
@@ -17,9 +20,18 @@ function CustomSignupForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [usernameError, setUsernameError] = useState('')
+  const [usernameChecking, setUsernameChecking] = useState(false)
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
+  const [emailError, setEmailError] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [termsError, setTermsError] = useState('')
+  const abortControllerRef = useRef<AbortController | null>(null)
   const router = useRouter()
 
   const { addToast } = useToast()
+  
+  // Debounce username for availability check
+  const debouncedUsername = useDebounce(username, 500)
 
   // Redirect to waitlist during pre-launch
   useEffect(() => {
@@ -82,9 +94,98 @@ function CustomSignupForm() {
     return true
   }
 
+  // Real-time username availability check
+  useEffect(() => {
+    // Cancel previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Reset availability state when username changes
+    setUsernameAvailable(null)
+    setUsernameError('')
+
+    // Only check if username is valid format
+    if (!debouncedUsername || debouncedUsername.length < 3) {
+      return
+    }
+
+    if (!validateUsername(debouncedUsername)) {
+      return
+    }
+
+    // Check availability
+    const checkAvailability = async () => {
+      setUsernameChecking(true)
+      abortControllerRef.current = new AbortController()
+
+      try {
+        const response = await fetch('/api/auth/check-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: debouncedUsername }),
+          signal: abortControllerRef.current.signal
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setUsernameAvailable(data.available)
+          if (!data.available) {
+            setUsernameError('Username is already taken')
+          }
+        } else {
+          // Don't show error for network issues during typing
+          setUsernameAvailable(null)
+        }
+      } catch (error: any) {
+        // Ignore abort errors
+        if (error.name !== 'AbortError') {
+          setUsernameAvailable(null)
+        }
+      } finally {
+        setUsernameChecking(false)
+      }
+    }
+
+    checkAvailability()
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [debouncedUsername])
+
+  // Real-time email validation
+  const validateEmail = (email: string): boolean => {
+    if (!email) {
+      setEmailError('')
+      return false
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address')
+      return false
+    }
+    
+    setEmailError('')
+    return true
+  }
+
+  // Real-time password match check
+  const passwordMatch = password && confirmPassword && password === confirmPassword
+  const passwordMismatch = confirmPassword && password !== confirmPassword
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
+    // Validate email
+    if (!validateEmail(email)) {
+      setIsLoading(false)
+      return
+    }
 
     // Validate username
     if (!validateUsername(username)) {
@@ -92,28 +193,55 @@ function CustomSignupForm() {
       return
     }
 
-    // Check if username is available
-    try {
-      const checkResponse = await fetch('/api/auth/check-username', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
+    // Check if username is available (final check)
+    if (usernameChecking) {
+      addToast({
+        type: 'error',
+        title: 'Please wait',
+        description: 'Checking username availability...',
+        duration: 3000
       })
-      
-      const checkData = await checkResponse.json()
-      
-      if (!checkData.available) {
-        setUsernameError('Username is already taken')
+      setIsLoading(false)
+      return
+    }
+
+    if (usernameAvailable === false) {
+      setUsernameError('Username is already taken')
+      setIsLoading(false)
+      return
+    }
+
+    // Final availability check if not already checked
+    if (usernameAvailable === null) {
+      try {
+        const checkResponse = await fetch('/api/auth/check-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        })
+        
+        const checkData = await checkResponse.json()
+        
+        if (!checkData.available) {
+          setUsernameError('Username is already taken')
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        addToast({
+          type: 'error',
+          title: 'Error',
+          description: 'Failed to check username availability',
+          duration: 5000
+        })
         setIsLoading(false)
         return
       }
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Error',
-        description: 'Failed to check username availability',
-        duration: 5000
-      })
+    }
+
+    // Check terms acceptance
+    if (!acceptedTerms) {
+      setTermsError('You must accept the Terms of Service and Privacy Policy')
       setIsLoading(false)
       return
     }
@@ -254,18 +382,41 @@ function CustomSignupForm() {
               onChange={(e) => {
                 setUsername(e.target.value)
                 setUsernameError('')
+                setUsernameAvailable(null)
               }}
-              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 min-h-[44px] border ${usernameError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
+              aria-invalid={usernameError ? 'true' : 'false'}
+              aria-describedby={usernameError ? 'username-error' : 'username-help'}
+              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border ${usernameError ? 'border-red-500' : usernameAvailable === true ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
               placeholder="Choose a username (3-20 characters)"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              {usernameChecking && (
+                <Loader2 className="h-5 w-5 text-gray-400 dark:text-gray-500 animate-spin" />
+              )}
+              {!usernameChecking && usernameAvailable === true && (
+                <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
+              )}
+              {!usernameChecking && usernameError && (
+                <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {usernameError && (
-            <p className="mt-1 text-sm text-red-500">{usernameError}</p>
+            <p id="username-error" className="mt-1 text-sm text-red-500" role="alert">
+              {usernameError}
+            </p>
           )}
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Letters, numbers, underscores, and hyphens only</p>
+          <p id="username-help" className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Letters, numbers, underscores, and hyphens only
+          </p>
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {usernameChecking && 'Checking username availability'}
+            {usernameAvailable === true && 'Username is available'}
+            {usernameAvailable === false && 'Username is not available'}
+          </div>
         </div>
 
         <div>
@@ -279,14 +430,39 @@ function CustomSignupForm() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (e.target.value) {
+                  validateEmail(e.target.value)
+                } else {
+                  setEmailError('')
+                }
+              }}
+              onBlur={() => validateEmail(email)}
+              aria-invalid={emailError ? 'true' : 'false'}
+              aria-describedby={emailError ? 'email-error' : undefined}
+              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border ${emailError ? 'border-red-500' : email && !emailError ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
               placeholder="Enter your email"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
+            {email && !emailError && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
+              </div>
+            )}
+            {emailError && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+              </div>
+            )}
           </div>
+          {emailError && (
+            <p id="email-error" className="mt-1 text-sm text-red-500" role="alert">
+              {emailError}
+            </p>
+          )}
         </div>
 
         <div>
@@ -301,6 +477,7 @@ function CustomSignupForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-describedby="password-strength"
               className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
               placeholder="Create a password"
             />
@@ -311,6 +488,7 @@ function CustomSignupForm() {
               type="button"
               className="absolute inset-y-0 right-0 pr-3 flex items-center min-h-[44px] min-w-[44px]"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -319,6 +497,11 @@ function CustomSignupForm() {
               )}
             </button>
           </div>
+          {password && (
+            <div id="password-strength" className="mt-2">
+              <PasswordStrengthMeter password={password} />
+            </div>
+          )}
         </div>
 
         <div>
@@ -333,24 +516,88 @@ function CustomSignupForm() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300"
+              aria-invalid={passwordMismatch ? 'true' : 'false'}
+              aria-describedby={passwordMismatch ? 'password-match-error' : passwordMatch ? 'password-match-success' : undefined}
+              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border ${passwordMismatch ? 'border-red-500' : passwordMatch ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
               placeholder="Confirm your password"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
-            <button
-              type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center min-h-[44px] min-w-[44px]"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              ) : (
-                <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
+              {passwordMatch && (
+                <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
               )}
-            </button>
+              {passwordMismatch && (
+                <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+              )}
+              <button
+                type="button"
+                className="flex items-center min-h-[44px] min-w-[44px]"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                ) : (
+                  <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                )}
+              </button>
+            </div>
           </div>
+          {passwordMismatch && (
+            <p id="password-match-error" className="mt-1 text-sm text-red-500" role="alert">
+              Passwords do not match
+            </p>
+          )}
+          {passwordMatch && (
+            <p id="password-match-success" className="mt-1 text-sm text-green-500">
+              Passwords match
+            </p>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-start gap-2">
+            <input
+              id="terms"
+              name="terms"
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => {
+                setAcceptedTerms(e.target.checked)
+                setTermsError('')
+              }}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+              aria-invalid={termsError ? 'true' : 'false'}
+              aria-describedby={termsError ? 'terms-error' : undefined}
+            />
+            <label htmlFor="terms" className="text-sm text-gray-700 dark:text-gray-300">
+              I agree to the{' '}
+              <Link 
+                href="/terms" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 underline"
+              >
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link 
+                href="/privacy" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 underline"
+              >
+                Privacy Policy
+              </Link>
+            </label>
+          </div>
+          {termsError && (
+            <p id="terms-error" className="mt-1 text-sm text-red-500" role="alert">
+              {termsError}
+            </p>
+          )}
         </div>
 
         <div>
