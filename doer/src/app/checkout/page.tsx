@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { StripeProvider } from '@/components/providers/stripe-provider'
@@ -35,6 +35,7 @@ function CheckoutForm() {
   const [error, setError] = useState<string | null>(null)
   const [setupIntentClientSecret, setSetupIntentClientSecret] = useState<string | null>(null)
   const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
+  const alreadySubscribedNotificationShown = useRef(false)
   
   // Billing address fields
   const [fullName, setFullName] = useState('')
@@ -219,12 +220,16 @@ function CheckoutForm() {
             
             // If user already has this plan, redirect to settings
             if (errorData.alreadySubscribed) {
-              addToast({
-                type: 'info',
-                title: 'Already Subscribed',
-                description: errorData.error || 'You already have this plan active.',
-                duration: 5000,
-              })
+              // Only show notification once to prevent duplicates
+              if (!alreadySubscribedNotificationShown.current) {
+                alreadySubscribedNotificationShown.current = true
+                addToast({
+                  type: 'info',
+                  title: 'Already Subscribed',
+                  description: errorData.error || 'You already have this plan active.',
+                  duration: 5000,
+                })
+              }
               router.push('/settings?section=subscription')
               return
             }
@@ -288,6 +293,11 @@ function CheckoutForm() {
     }
 
     fetchUserData()
+    
+    // Reset notification flag when plan or cycle changes
+    return () => {
+      alreadySubscribedNotificationShown.current = false
+    }
   }, [planSlug, billingCycle, router, addToast])
 
   const handleSubmit = async (e: React.FormEvent) => {
