@@ -128,7 +128,7 @@ async function cancelAllSubscriptions(
           subscriptionId: subscription.id,
           customerId,
           status: subscription.status,
-          periodEnd: subscription.current_period_end,
+          periodEnd: (subscription as any).current_period_end,
         })
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
