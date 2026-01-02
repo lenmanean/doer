@@ -162,7 +162,10 @@ export async function syncSubscriptionSnapshot(
     // In this case, we should treat it as active, not canceled
     let status = mapStripeStatus(subscription.status)
     let currentPeriodStart = formatStripeDate((subscription as any).current_period_start)
-    let currentPeriodEnd = formatStripeDate((subscription as any).current_period_end)
+    // For trialing subscriptions, use trial_end; otherwise use current_period_end
+    let currentPeriodEnd = status === 'trialing' && (subscription as any).trial_end
+      ? formatStripeDate((subscription as any).trial_end)
+      : formatStripeDate((subscription as any).current_period_end)
     
     // If subscription is incomplete, check if payment succeeded
     if (subscription.status === 'incomplete') {
