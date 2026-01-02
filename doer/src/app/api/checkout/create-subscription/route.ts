@@ -4,7 +4,8 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { type SubscriptionStatus, type BillingCycle, checkIfUserHadProBefore } from '@/lib/billing/plans'
+import { type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
+import { checkTrialEligibility } from '@/lib/billing/trial-eligibility'
 import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
 import { getActiveSubscriptionFromStripe, type StripeSubscription } from '@/lib/stripe/subscriptions'
 
@@ -92,18 +93,32 @@ export async function POST(request: NextRequest) {
 
     // Check trial eligibility for Pro Monthly subscriptions
     // Trial only applies to first-time Pro users (users who have never had Pro before)
+    // This check prevents abuse via account deletion and recreation
     let shouldApplyTrial = false
     if (planSlug === 'pro' && billingCycle === 'monthly') {
       try {
-        const hasHadProBefore = await checkIfUserHadProBefore(user.id)
-        shouldApplyTrial = !hasHadProBefore
+        const eligibilityResult = await checkTrialEligibility(
+          user.id,
+          user.email,
+          stripe
+        )
+        shouldApplyTrial = eligibilityResult.eligible
         console.log('[Create Subscription] Trial eligibility check:', {
           userId: user.id,
+          email: user.email,
           planSlug,
           billingCycle,
-          hasHadProBefore,
+          eligible: eligibilityResult.eligible,
+          reason: eligibilityResult.reason,
           shouldApplyTrial,
         })
+        
+        if (!eligibilityResult.eligible && eligibilityResult.reason) {
+          console.log('[Create Subscription] Trial blocked:', {
+            userId: user.id,
+            reason: eligibilityResult.reason,
+          })
+        }
       } catch (trialCheckError) {
         console.error('[Create Subscription] Error checking trial eligibility:', trialCheckError)
         // On error, don't apply trial (fail closed for security)

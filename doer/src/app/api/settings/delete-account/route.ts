@@ -57,6 +57,9 @@ export async function POST(request: NextRequest) {
 
     const stripeCustomerId = userSettings?.stripe_customer_id || null
 
+    // Get user email for audit log (for trial abuse prevention)
+    const userEmail = user.email || null
+
     // Get IP address and user agent for audit log
     const ipAddress = request.headers.get('x-forwarded-for') || 
                      request.headers.get('x-real-ip') || 
@@ -69,6 +72,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         stripe_customer_id: stripeCustomerId,
+        email: userEmail,
         status: 'in_progress',
         stripe_cleanup_status: stripeCustomerId && stripeDeletionEnabled ? 'pending' : 'skipped',
         ip_address: ipAddress,
