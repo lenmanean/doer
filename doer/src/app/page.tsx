@@ -147,9 +147,6 @@ export default function Home() {
   const comparisonTitleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
   const comparisonDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
   const comparisonCardsAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
-  const testimonialsTitleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
-  const testimonialsDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
-  const testimonialsCarouselAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
   const faqTitleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
   const faqDescAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
   const faqItemsAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
@@ -451,130 +448,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gray-900">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto text-center mb-16">
-            <h2 
-              ref={testimonialsTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
-              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 scroll-animate-fade-up ${testimonialsTitleAnim.isVisible ? 'visible' : ''}`}
-            >
-              {t('testimonials.title')}
-            </h2>
-            <p 
-              ref={testimonialsDescAnim.ref as React.RefObject<HTMLParagraphElement>}
-              className={`text-lg sm:text-xl md:text-2xl text-gray-300 scroll-animate-fade-up ${testimonialsDescAnim.isVisible ? 'visible' : ''}`}
-            >
-              {t('testimonials.description')}
-            </p>
-          </div>
-        </div>
-
-        {/* Testimonials Carousel */}
-        <div 
-          ref={testimonialsCarouselAnim.ref as React.RefObject<HTMLDivElement>}
-          className={`mt-12 overflow-hidden scroll-animate-fade-up ${testimonialsCarouselAnim.isVisible ? 'visible' : ''}`}
-        >
-          <div className="flex animate-scroll-reverse gap-8 px-4 sm:px-6 lg:px-8">
-              {[
-                {
-                  name: 'Sarah C',
-                  text: 'DOER completely changed how I approach my goals. The AI-generated plans are incredibly detailed and actually achievable!',
-                  date: '2 days ago'
-                },
-                {
-                  name: 'Marcus J',
-                  text: 'Finally, a productivity tool that understands context. The smart scheduling alone is worth it. Highly recommend!',
-                  date: '1 week ago'
-                },
-                {
-                  name: 'Elena R',
-                  text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
-                  date: '3 days ago'
-                },
-                {
-                  name: 'David K',
-                  text: 'The integrations with my existing tools made the transition seamless. DOER fits perfectly into my workflow.',
-                  date: '5 days ago'
-                },
-                {
-                  name: 'Priya P',
-                  text: 'As an educator, I use DOER to help students break down complex projects. The clarity it provides is invaluable.',
-                  date: '1 week ago'
-                },
-                {
-                  name: 'Alex T',
-                  text: 'Best goal-tracking app I\'ve used. The AI suggestions are spot-on and the interface is clean and intuitive.',
-                  date: '4 days ago'
-                },
-              ].map((testimonial, index) => (
-                <div
-                  key={`testimonial-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 rounded-xl border-2 border-gray-700 p-6 flex flex-col gap-4 max-w-full"
-                >
-                      <div className="font-semibold text-white">
-                        {testimonial.name}
-                  </div>
-                  <p className="text-gray-300 leading-relaxed">
-                    "{testimonial.text}"
-                  </p>
-                  <div className="text-xs text-gray-500">
-                    {testimonial.date}
-                  </div>
-                </div>
-              ))}
-              {/* Duplicate 1 for seamless infinite loop */}
-              {[
-                {
-                  name: 'Sarah C',
-                  text: 'DOER completely changed how I approach my goals. The AI-generated plans are incredibly detailed and actually achievable!',
-                  date: '2 days ago'
-                },
-                {
-                  name: 'Marcus J',
-                  text: 'Finally, a productivity tool that understands context. The smart scheduling alone is worth it. Highly recommend!',
-                  date: '1 week ago'
-                },
-                {
-                  name: 'Elena R',
-                  text: 'I went from feeling overwhelmed to actually completing my certification course. The progress tracking kept me motivated throughout.',
-                  date: '3 days ago'
-                },
-                {
-                  name: 'David K',
-                  text: 'The integrations with my existing tools made the transition seamless. DOER fits perfectly into my workflow.',
-                  date: '5 days ago'
-                },
-                {
-                  name: 'Priya P',
-                  text: 'As an educator, I use DOER to help students break down complex projects. The clarity it provides is invaluable.',
-                  date: '1 week ago'
-                },
-                {
-                  name: 'Alex T',
-                  text: 'Best goal-tracking app I\'ve used. The AI suggestions are spot-on and the interface is clean and intuitive.',
-                  date: '4 days ago'
-                },
-              ].map((testimonial, index) => (
-                <div
-                  key={`duplicate-1-${index}`}
-                  className="flex-shrink-0 w-[280px] sm:w-80 bg-gray-800 rounded-xl border-2 border-gray-700 p-6 flex flex-col gap-4 max-w-full"
-                >
-                      <div className="font-semibold text-white">
-                        {testimonial.name}
-                  </div>
-                  <p className="text-gray-300 leading-relaxed">
-                    "{testimonial.text}"
-                  </p>
-                  <div className="text-xs text-gray-500">
-                    {testimonial.date}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-      </section>
-
       {/* Pricing Preview Section - Hidden until launch */}
       {!IS_PRE_LAUNCH && (
         <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
@@ -597,7 +470,7 @@ export default function Home() {
             {/* Pricing Cards - Centered */}
             <div className="flex justify-center">
               <div className="max-w-5xl w-full grid sm:grid-cols-2 gap-8">
-              {/* Free Plan Card */}
+              {/* Basic Plan Card */}
               <PricingCard
                 title={t('pricing.startFree')}
                 description={t('pricing.getAccessTo')}
@@ -607,18 +480,14 @@ export default function Home() {
                   t('pricing.authenticationSystem'),
                   t('pricing.databaseFunctionality'),
                 ]}
-                buttonText="Join Waitlist"
-                buttonHref="#waitlist"
+                buttonText="Start for free"
+                buttonHref={user ? '/checkout?plan=basic&cycle=monthly' : '/auth/signup?plan=free'}
                 delay={0}
-                onWaitlistClick={() => {
-                  setWaitlistInitialGoal('')
-                  setWaitlistModalOpen(true)
-                }}
               />
-              {/* Paid Plans Card */}
+              {/* Pro Plan Card */}
               <PricingCard
                 title={t('pricing.paidPlansFrom')}
-                price="$16"
+                price="$20"
                 priceUnit="/mo"
                 description={t('pricing.upgradeDescription')}
                 buttonText={t('pricing.seeAllPlans')}

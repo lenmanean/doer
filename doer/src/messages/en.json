@@ -75,17 +75,17 @@
       "Basic calendar views"
     ],
     "doerExclusiveFeatures": [
-      "AI-powered plan generation",
-      "Smart auto-scheduling",
-      "Goal breakdown into actionable tasks",
-      "Real-time progress tracking",
-      "Intelligent conflict resolution",
-      "Priority-based task management",
-      "Energy-aware scheduling",
-      "Auto-rescheduling capabilities",
-      "Progress analytics & health scores",
-      "Calendar integrations (Google, Outlook, Apple)",
-      "Context-aware scheduling"
+      "Hour-level precision scheduling (not just day-level)",
+      "AI-powered goal breakdown into actionable tasks with time estimates",
+      "Workday constraints with lunch break awareness",
+      "Weekend-aware scheduling with separate capacity limits",
+      "Energy-aware scheduling (respects daily capacity to prevent overload)",
+      "Task dependency resolution (ensures correct execution order)",
+      "Intelligent conflict detection with existing calendar events",
+      "Auto-rescheduling of overdue tasks with smart slot finding",
+      "Priority-weighted distribution across available days",
+      "Context-aware scheduling (respects current time, avoids past scheduling)",
+      "Custom workday hours per user preferences"
     ],
     "seeMore": "See More →",
     "withoutDoer": {
@@ -120,14 +120,15 @@
   "pricing": {
     "title": "Flexible pricing for every goal",
     "subtitle": "Choose the plan that fits your journey and upgrade whenever you're ready.",
-    "startFree": "Free",
+    "startFree": "Basic",
     "getAccessTo": "Everything you need to get started:",
-    "allCoreFeatures": "Complete feature set",
-    "builtInIntegrations": "Native integrations",
-    "authenticationSystem": "Secure authentication",
-    "databaseFunctionality": "Full database access",
-    "paidPlansFrom": "Premium plans starting at",
-    "upgradeDescription": "Unlock additional capacity, advanced features, and priority support when you need it.",
+    "allCoreFeatures": "Personal workspace and daily schedule automation",
+    "builtInIntegrations": "AI nudges and recap digest up to 3x each day",
+    "authenticationSystem": "Recurring routines with calendar sync",
+    "databaseFunctionality": "Two active automations plus checklist templates",
+    "paidPlansFrom": "Pro",
+    "upgradeDescription": "14-day free trial, then $20/month. Coordinate complex initiatives with AI scheduling, task automation, and integrations.",
+    "trialBadge": "14-day free trial",
     "seeAllPlans": "View pricing details"
   },
   "cta": {
