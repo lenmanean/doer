@@ -702,41 +702,6 @@ function CheckoutForm() {
                   </p>
                 </div>
 
-                {/* Trial Information for Pro Monthly */}
-                {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible && (
-                  <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle className="w-4 h-4 text-blue-400" />
-                      <span className="text-sm font-semibold text-blue-400">14-day free trial</span>
-                    </div>
-                    <p className="text-xs text-[#d7d2cb]/70 mt-1">
-                      Start your free trial today. After 14 days, you'll be charged $20/month.
-                    </p>
-                  </div>
-                )}
-
-                <div className="border-t border-white/10 pt-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#d7d2cb]">Plan Price</span>
-                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible ? (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xl font-bold text-[#d7d2cb]">$0</span>
-                        <span className="text-lg text-[#d7d2cb]/40 line-through">$20</span>
-                        <span className="text-sm text-[#d7d2cb]/60">/mo</span>
-                      </div>
-                    ) : (
-                      <span className="text-xl font-bold text-[#d7d2cb]">
-                        {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                      </span>
-                    )}
-                  </div>
-                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible && (
-                    <p className="text-xs text-[#d7d2cb]/60">
-                      After trial: $20/month
-                    </p>
-                  )}
-                </div>
-
                 <div className="border-t border-white/10 pt-4">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-lg font-semibold text-[#d7d2cb]">
@@ -754,6 +719,11 @@ function CheckoutForm() {
                       </span>
                     )}
                   </div>
+                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible && (
+                    <p className="text-xs text-[#d7d2cb]/60">
+                      14-day free trial, then $20/month
+                    </p>
+                  )}
                 </div>
 
                 <div className="border-t border-white/10 pt-4 space-y-3">
@@ -763,38 +733,34 @@ function CheckoutForm() {
                       <>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Increased limits on plan, goal, and task schedule automations</span>
+                          <span>Unlimited API credits & integrations</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>AI scheduling assistant for daily and weekly planning</span>
+                          <span>AI scheduling assistant</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Native integrations with Slack, HubSpot, Notion, Jira, and Google Workspace</span>
+                          <span>Native integrations (Slack, HubSpot, Notion, Jira, Google Workspace)</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Portfolio analytics, KPI dashboards, and proactive progress alerts</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Unlimited API credits and integration actions</span>
+                          <span>Portfolio analytics & KPI dashboards</span>
                         </li>
                       </>
                     ) : (
                       <>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Personal workspace and daily schedule automation</span>
+                          <span>Personal workspace & automation</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>AI nudges and recap digest up to 3x each day</span>
+                          <span>AI nudges & daily recaps</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Recurring routines with calendar, email, and Discord sync</span>
+                          <span>Recurring routines with calendar sync</span>
                         </li>
                       </>
                     )}
