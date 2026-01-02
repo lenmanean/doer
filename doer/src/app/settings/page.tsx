@@ -148,6 +148,8 @@ export default function SettingsPage() {
   const [cancelingSubscription, setCancelingSubscription] = useState(false)
   const [openingPortal, setOpeningPortal] = useState(false)
   const [reactivatingBasic, setReactivatingBasic] = useState(false)
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [loadingInvoices, setLoadingInvoices] = useState(false)
   const [usernameInput, setUsernameInput] = useState('')
   const [usernameSaving, setUsernameSaving] = useState(false)
   const [usernameMessage, setUsernameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -297,10 +299,13 @@ export default function SettingsPage() {
 
   // Email confirmation state is derived from current user/profile; no extra auth listener needed
 
-  // Load subscription when subscription section is active
+  // Load subscription and invoices when subscription section is active
   useEffect(() => {
     if (activeSection === 'subscription' && user?.id && !loadingSubscription) {
       loadSubscription()
+    }
+    if (activeSection === 'subscription' && user?.id && !loadingInvoices) {
+      loadInvoices()
     }
   }, [activeSection, user?.id])
 
@@ -363,6 +368,36 @@ export default function SettingsPage() {
       })
     } finally {
       setLoadingSubscription(false)
+    }
+  }
+
+  const loadInvoices = async () => {
+    if (!user?.id) return
+    setLoadingInvoices(true)
+    try {
+      const response = await fetch('/api/subscription/invoices', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to load invoices')
+      }
+
+      const data = await response.json()
+      setInvoices(data.invoices || [])
+    } catch (error) {
+      console.error('Error loading invoices:', error)
+      addToast({
+        type: 'error',
+        title: 'Load Failed',
+        description: 'Failed to load billing history.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingInvoices(false)
     }
   }
 
@@ -2612,25 +2647,154 @@ export default function SettingsPage() {
                             </div>
 
                             {hasPaidBillingPeriod && (
-                              <div className="grid grid-cols-2 gap-4">
+                              <>
                                 <div>
                                   <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                                    Current Period Start
+                                    Next Charge Date
                                   </label>
                                   <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
-                                    {currentPeriodStartLabel}
+                                    {subscription.currentPeriodEnd
+                                      ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                          month: 'long',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })
+                                      : 'N/A'}
                                   </div>
                                 </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                                    Current Period End
-                                  </label>
-                                  <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
-                                    {currentPeriodEndLabel}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                      Current Period Start
+                                    </label>
+                                    <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
+                                      {currentPeriodStartLabel}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                                      Current Period End
+                                    </label>
+                                    <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb]">
+                                      {currentPeriodEndLabel}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
+                              </>
                             )}
+
+                            <div>
+                              <label className="block text-sm font-medium text-[var(--foreground)] mb-4">
+                                Billing History
+                              </label>
+                              {loadingInvoices ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <Loader2 className="w-6 h-6 animate-spin text-[#ff7f00]" />
+                                </div>
+                              ) : invoices.length === 0 ? (
+                                <div className="px-4 py-8 bg-white/5 border border-white/10 rounded-lg text-center">
+                                  <FileText className="w-8 h-8 text-[#d7d2cb]/40 mx-auto mb-2" />
+                                  <p className="text-[#d7d2cb]/70">No invoices found</p>
+                                </div>
+                              ) : (
+                                <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                      <thead className="bg-white/5 border-b border-white/10">
+                                        <tr>
+                                          <th className="px-4 py-3 text-left text-xs font-medium text-[#d7d2cb]/70 uppercase tracking-wider">
+                                            Date
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-xs font-medium text-[#d7d2cb]/70 uppercase tracking-wider">
+                                            Amount
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-xs font-medium text-[#d7d2cb]/70 uppercase tracking-wider">
+                                            Invoice #
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-xs font-medium text-[#d7d2cb]/70 uppercase tracking-wider">
+                                            Status
+                                          </th>
+                                          <th className="px-4 py-3 text-right text-xs font-medium text-[#d7d2cb]/70 uppercase tracking-wider">
+                                            Action
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-white/10">
+                                        {invoices.map((invoice) => {
+                                          const statusColor =
+                                            invoice.status === 'paid'
+                                              ? 'text-green-400'
+                                              : invoice.status === 'open'
+                                                ? 'text-yellow-400'
+                                                : invoice.status === 'void'
+                                                  ? 'text-gray-400'
+                                                  : 'text-red-400'
+                                          
+                                          const statusLabel =
+                                            invoice.status === 'paid'
+                                              ? 'Paid'
+                                              : invoice.status === 'open'
+                                                ? 'Open'
+                                                : invoice.status === 'void'
+                                                  ? 'Void'
+                                                  : 'Failed'
+
+                                          const formattedDate = invoice.date
+                                            ? new Date(invoice.date).toLocaleDateString('en-US', {
+                                                month: 'long',
+                                                day: 'numeric',
+                                                year: 'numeric'
+                                              })
+                                            : 'N/A'
+
+                                          const formattedAmount = invoice.amount
+                                            ? invoice.amount.toLocaleString('en-US', {
+                                                style: 'currency',
+                                                currency: invoice.currency || 'USD'
+                                              })
+                                            : '$0.00'
+
+                                          return (
+                                            <tr key={invoice.id} className="hover:bg-white/5">
+                                              <td className="px-4 py-3 text-sm text-[#d7d2cb]">
+                                                {formattedDate}
+                                              </td>
+                                              <td className="px-4 py-3 text-sm text-[#d7d2cb]">
+                                                {formattedAmount}
+                                              </td>
+                                              <td className="px-4 py-3 text-sm text-[#d7d2cb]">
+                                                {invoice.number || 'N/A'}
+                                              </td>
+                                              <td className="px-4 py-3 text-sm">
+                                                <span className={statusColor}>
+                                                  {statusLabel}
+                                                </span>
+                                              </td>
+                                              <td className="px-4 py-3 text-sm text-right">
+                                                {invoice.invoicePdf ? (
+                                                  <a
+                                                    href={invoice.invoicePdf}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-[#ff7f00] hover:text-[#ff9f40] transition-colors"
+                                                  >
+                                                    <Download className="w-4 h-4" />
+                                                    Download
+                                                  </a>
+                                                ) : (
+                                                  <span className="text-[#d7d2cb]/40">N/A</span>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          )
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
 
                           </div>
                         ) : (

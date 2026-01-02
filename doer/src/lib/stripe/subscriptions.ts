@@ -29,6 +29,16 @@ export interface StripeSubscription {
   }
 }
 
+export interface StripeInvoice {
+  id: string
+  number: string | null
+  status: 'paid' | 'open' | 'void' | 'uncollectible'
+  amount: number // in dollars (converted from cents)
+  currency: string
+  date: string // ISO date string
+  invoicePdf: string | null // URL to download PDF
+}
+
 /**
  * Get Stripe customer ID for a user
  */
@@ -389,6 +399,68 @@ export async function getAllSubscriptionsFromStripe(
 
   return results.sort((a, b) => 
     new Date(b.currentPeriodEnd).getTime() - new Date(a.currentPeriodEnd).getTime()
+  )
+}
+
+/**
+ * Get invoices from Stripe for a user
+ * Returns array of invoices sorted by date (newest first)
+ */
+export async function getInvoicesFromStripe(
+  userId: string
+): Promise<StripeInvoice[]> {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
+
+  const stripeCustomerId = await getStripeCustomerId(userId)
+  if (!stripeCustomerId) {
+    return []
+  }
+
+  // Fetch invoices from Stripe (with retry logic)
+  const invoices = await stripeWithRetry(() =>
+    stripe.invoices.list({
+      customer: stripeCustomerId,
+      limit: 100,
+    })
+  )
+
+  const results: StripeInvoice[] = []
+
+  for (const invoice of invoices.data) {
+    // Convert amount from cents to dollars
+    const amountDollars = invoice.total ? invoice.total / 100 : 0
+    
+    // Format date as ISO string
+    const date = invoice.created 
+      ? new Date(invoice.created * 1000).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0]
+
+    // Map Stripe invoice status to our status type
+    let status: 'paid' | 'open' | 'void' | 'uncollectible' = 'open'
+    if (invoice.status === 'paid') {
+      status = 'paid'
+    } else if (invoice.status === 'void') {
+      status = 'void'
+    } else if (invoice.status === 'uncollectible') {
+      status = 'uncollectible'
+    }
+
+    results.push({
+      id: invoice.id,
+      number: invoice.number,
+      status,
+      amount: amountDollars,
+      currency: invoice.currency?.toUpperCase() || 'USD',
+      date,
+      invoicePdf: invoice.invoice_pdf || null,
+    })
+  }
+
+  // Sort by date (newest first)
+  return results.sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
   )
 }
 
