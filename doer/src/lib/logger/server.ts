@@ -86,7 +86,7 @@ class ServerLogger {
    * Log account deletion event with structured format
    */
   logAccountDeletion(
-    step: 'subscription_cancel' | 'payment_method_detach' | 'customer_delete' | 'db_cleanup' | 'auth_delete',
+    step: 'subscription_cancel' | 'payment_method_detach' | 'customer_delete' | 'db_cleanup' | 'auth_delete' | 'account_restore' | 'schedule_deletion' | 'stripe_cleanup_cron' | 'auth_delete_cron',
     status: 'started' | 'completed' | 'failed',
     data: {
       userId: string
