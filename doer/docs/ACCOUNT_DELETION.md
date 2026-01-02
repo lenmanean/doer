@@ -13,9 +13,9 @@ This document describes the implementation of Stripe customer data cleanup and a
 The account deletion process follows this order:
 
 1. **Stripe Cleanup** (if enabled and customer exists):
-   - Cancel all active subscriptions
-   - Detach all payment methods
-   - Delete/tombstone customer
+   - Schedule all active subscriptions to cancel at period end (allows access until paid period expires)
+   - Detach all payment methods (prevents new charges)
+   - Delete/tombstone customer only if no active subscriptions remain (otherwise deferred until subscriptions end)
 
 2. **DOER Database Cleanup**:
    - Delete all user data (plans, tasks, schedules, etc.)
@@ -31,9 +31,10 @@ The account deletion process follows this order:
 **File:** `doer/src/lib/stripe/account-deletion.ts`
 
 The `cleanupStripeBillingData` function is idempotent and handles:
-- Multiple subscriptions cancellation
-- Payment method detachment
-- Customer deletion (tombstone)
+- Scheduling subscriptions to cancel at period end (not immediate cancellation)
+- Payment method detachment (prevents new charges)
+- Customer deletion (tombstone) - deferred if subscriptions are still active
+- Automatic customer cleanup via webhook when subscriptions end
 - Error handling and retry logic
 - Safe re-entry (can be run multiple times)
 
@@ -53,6 +54,7 @@ Updated to:
 - Check if customers are deleted before processing webhooks
 - Ignore webhooks for deleted customers
 - Handle `customer.deleted` events
+- Handle `customer.subscription.deleted` events to clean up customers after subscriptions end
 
 #### 4. Audit Logging
 **Table:** `account_deletion_audit`
@@ -64,13 +66,47 @@ Tracks:
 - Error details
 - IP address and user agent
 
+## Subscription Cancellation Behavior
+
+### Period-End Cancellation
+
+When a user deletes their account with an active subscription:
+
+1. **Subscriptions are scheduled to cancel at period end** (not immediately)
+   - User retains access until their paid period expires
+   - This is more user-friendly and aligns with standard SaaS practices
+   - Prevents users from losing access they've already paid for
+
+2. **Payment methods are detached immediately**
+   - Prevents any new charges from occurring
+   - User cannot be charged for future periods
+
+3. **Customer deletion is deferred**
+   - Stripe doesn't allow deleting customers with active subscriptions
+   - Customer is automatically deleted via webhook when subscription ends
+   - Webhook handler checks for remaining subscriptions before deletion
+
+4. **DOER account is deleted immediately**
+   - User cannot log in after deletion
+   - Stripe subscription continues until period end (invisible to user)
+
+### Webhook-Based Cleanup
+
+The `customer.subscription.deleted` webhook event triggers automatic customer cleanup:
+- When a subscription ends (canceled or expired)
+- Checks if customer has any other active subscriptions
+- If no active subscriptions remain, deletes the customer
+- Updates audit log to reflect completion
+
 ## Stripe Constraints
 
 ### What Can Be Deleted
 
 - **Customer** (tombstone): `stripe.customers.del()` marks customer as deleted
-- **Subscriptions**: Can be canceled immediately
-- **Payment Methods**: Can be detached from customer
+  - **Note**: Cannot delete customer if they have active subscriptions
+  - Customer deletion is deferred until subscriptions end, then handled automatically via webhook
+- **Subscriptions**: Can be scheduled to cancel at period end (allows access until period expires)
+- **Payment Methods**: Can be detached from customer (prevents new charges)
 
 ### What Cannot Be Deleted
 

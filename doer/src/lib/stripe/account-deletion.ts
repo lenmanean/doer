@@ -11,8 +11,10 @@ import { serverLogger } from '@/lib/logger/server'
 export interface StripeCleanupResult {
   success: boolean
   subscriptionsCanceled: number
+  subscriptionsScheduledForCancellation: number
   paymentMethodsDetached: number
   customerDeleted: boolean
+  customerDeletionDeferred: boolean
   errors: Array<{ step: string; error: string }>
 }
 
@@ -60,15 +62,23 @@ function isAlreadyInDesiredStateError(error: unknown): boolean {
 }
 
 /**
- * Cancel all subscriptions for a Stripe customer
- * Idempotent: skips already canceled subscriptions
+ * Cancel all subscriptions for a Stripe customer at period end
+ * Idempotent: skips already canceled subscriptions and subscriptions already set to cancel at period end
+ * This allows users to retain access until their paid period expires
  */
 async function cancelAllSubscriptions(
   stripe: Stripe,
   customerId: string
-): Promise<{ canceled: number; errors: Array<{ subscriptionId: string; error: string }> }> {
+): Promise<{ 
+  canceled: number
+  scheduledForCancellation: number
+  hasActiveSubscriptions: boolean
+  errors: Array<{ subscriptionId: string; error: string }> 
+}> {
   const errors: Array<{ subscriptionId: string; error: string }> = []
   let canceled = 0
+  let scheduledForCancellation = 0
+  let hasActiveSubscriptions = false
 
   try {
     // List all subscriptions for the customer
@@ -89,13 +99,36 @@ async function cancelAllSubscriptions(
         continue
       }
 
-      try {
-        // Cancel subscription immediately
-        await stripeWithRetry(() => stripe.subscriptions.cancel(subscription.id))
-        canceled++
-        serverLogger.info('Subscription canceled', {
+      // Check if already scheduled to cancel at period end
+      if (subscription.cancel_at_period_end) {
+        serverLogger.debug('Subscription already scheduled to cancel at period end, skipping', {
           subscriptionId: subscription.id,
           customerId,
+        })
+        scheduledForCancellation++
+        hasActiveSubscriptions = true
+        continue
+      }
+
+      // Check if subscription is active or trialing (not already canceled)
+      if (subscription.status === 'active' || subscription.status === 'trialing') {
+        hasActiveSubscriptions = true
+      }
+
+      try {
+        // Schedule subscription to cancel at period end (not immediately)
+        // This allows users to retain access until their paid period expires
+        await stripeWithRetry(() => 
+          stripe.subscriptions.update(subscription.id, {
+            cancel_at_period_end: true,
+          })
+        )
+        scheduledForCancellation++
+        serverLogger.info('Subscription scheduled to cancel at period end', {
+          subscriptionId: subscription.id,
+          customerId,
+          status: subscription.status,
+          periodEnd: subscription.current_period_end,
         })
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -110,7 +143,7 @@ async function cancelAllSubscriptions(
           })
         } else {
           errors.push({ subscriptionId: subscription.id, error: errorMessage })
-          serverLogger.error('Failed to cancel subscription', {
+          serverLogger.error('Failed to schedule subscription cancellation', {
             subscriptionId: subscription.id,
             customerId,
             error: errorMessage,
@@ -127,7 +160,7 @@ async function cancelAllSubscriptions(
     // Don't throw - return partial results
   }
 
-  return { canceled, errors }
+  return { canceled, scheduledForCancellation, hasActiveSubscriptions, errors }
 }
 
 /**
@@ -241,9 +274,9 @@ async function deleteCustomer(
  * This function is idempotent and can be safely re-run
  * 
  * Order of operations:
- * 1. Cancel all subscriptions (prevents new charges)
- * 2. Detach all payment methods (removes payment capability)
- * 3. Delete customer (tombstone, auto-detaches remaining payment methods)
+ * 1. Schedule all subscriptions to cancel at period end (allows access until period expires)
+ * 2. Detach all payment methods (removes payment capability, prevents new charges)
+ * 3. Delete customer only if no active subscriptions remain (otherwise defer until subscriptions end)
  * 
  * @param stripe - Stripe client instance
  * @param customerId - Stripe customer ID to clean up
@@ -256,22 +289,25 @@ export async function cleanupStripeBillingData(
   const result: StripeCleanupResult = {
     success: false,
     subscriptionsCanceled: 0,
+    subscriptionsScheduledForCancellation: 0,
     paymentMethodsDetached: 0,
     customerDeleted: false,
+    customerDeletionDeferred: false,
     errors: [],
   }
 
   serverLogger.info('Starting Stripe billing data cleanup', { customerId })
 
-  // Step 1: Cancel all subscriptions
-  serverLogger.info('Canceling subscriptions', { customerId })
+  // Step 1: Schedule all subscriptions to cancel at period end
+  serverLogger.info('Scheduling subscriptions to cancel at period end', { customerId })
   const subscriptionResult = await cancelAllSubscriptions(stripe, customerId)
   result.subscriptionsCanceled = subscriptionResult.canceled
+  result.subscriptionsScheduledForCancellation = subscriptionResult.scheduledForCancellation
   subscriptionResult.errors.forEach(err => {
     result.errors.push({ step: 'subscription_cancel', error: `${err.subscriptionId}: ${err.error}` })
   })
 
-  // Step 2: Detach all payment methods
+  // Step 2: Detach all payment methods (prevents new charges)
   serverLogger.info('Detaching payment methods', { customerId })
   const paymentMethodResult = await detachAllPaymentMethods(stripe, customerId)
   result.paymentMethodsDetached = paymentMethodResult.detached
@@ -279,24 +315,38 @@ export async function cleanupStripeBillingData(
     result.errors.push({ step: 'payment_method_detach', error: `${err.paymentMethodId}: ${err.error}` })
   })
 
-  // Step 3: Delete customer (this also auto-detaches any remaining payment methods)
-  serverLogger.info('Deleting customer', { customerId })
-  const customerResult = await deleteCustomer(stripe, customerId)
-  result.customerDeleted = customerResult.deleted
-  if (customerResult.error) {
-    result.errors.push({ step: 'customer_delete', error: customerResult.error })
+  // Step 3: Delete customer only if no active subscriptions remain
+  // Stripe doesn't allow deleting customers with active subscriptions
+  // If subscriptions are scheduled to cancel at period end, we defer customer deletion
+  // The customer will be cleaned up automatically when subscriptions end via webhook
+  if (subscriptionResult.hasActiveSubscriptions) {
+    serverLogger.info('Deferring customer deletion - active subscriptions remain', {
+      customerId,
+      scheduledForCancellation: subscriptionResult.scheduledForCancellation,
+      note: 'Customer will be cleaned up automatically when subscriptions end via webhook',
+    })
+    result.customerDeletionDeferred = true
+    // Still consider cleanup successful - subscriptions are scheduled and payment methods detached
+    result.success = true
+  } else {
+    // No active subscriptions - safe to delete customer immediately
+    serverLogger.info('Deleting customer - no active subscriptions', { customerId })
+    const customerResult = await deleteCustomer(stripe, customerId)
+    result.customerDeleted = customerResult.deleted
+    if (customerResult.error) {
+      result.errors.push({ step: 'customer_delete', error: customerResult.error })
+    }
+    result.success = result.customerDeleted
   }
-
-  // Consider cleanup successful if customer is deleted, even if some subscriptions/payment methods had errors
-  // (they may have been cleaned up by customer deletion)
-  result.success = result.customerDeleted
 
   serverLogger.info('Stripe billing data cleanup completed', {
     customerId,
     success: result.success,
     subscriptionsCanceled: result.subscriptionsCanceled,
+    subscriptionsScheduledForCancellation: result.subscriptionsScheduledForCancellation,
     paymentMethodsDetached: result.paymentMethodsDetached,
     customerDeleted: result.customerDeleted,
+    customerDeletionDeferred: result.customerDeletionDeferred,
     errorCount: result.errors.length,
   })
 

@@ -441,6 +441,108 @@ export async function POST(req: NextRequest) {
         break
       }
 
+      case 'customer.subscription.deleted': {
+        // Subscription deleted event - clean up customer if no other subscriptions remain
+        // This handles cleanup for customers whose subscriptions ended after account deletion
+        const subscription = event.data.object as Stripe.Subscription
+        const stripeCustomerId = extractCustomerId(subscription)
+        
+        logger.info('Subscription deleted event received', {
+          subscriptionId: subscription.id,
+          stripeCustomerId,
+        })
+        
+        if (!stripeCustomerId || !stripe) {
+          logger.warn('Subscription deleted event missing customer ID or Stripe client', {
+            subscriptionId: subscription.id,
+          })
+          break
+        }
+        
+        try {
+          // Check if customer has any other active subscriptions
+          const remainingSubscriptions = await stripe.subscriptions.list({
+            customer: stripeCustomerId,
+            status: 'all',
+            limit: 100,
+          })
+          
+          // Filter out the subscription that just ended
+          const activeSubscriptions = remainingSubscriptions.data.filter(
+            sub => sub.id !== subscription.id && 
+                   (sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due')
+          )
+          
+          if (activeSubscriptions.length === 0) {
+            // No active subscriptions remaining - safe to delete customer
+            // This cleans up customers after account deletion when their subscriptions end
+            logger.info('No active subscriptions remaining, cleaning up customer', {
+              stripeCustomerId,
+              subscriptionId: subscription.id,
+            })
+            
+            try {
+              // Check if customer is already deleted
+              const customer = await stripe.customers.retrieve(stripeCustomerId)
+              if (typeof customer === 'object' && 'deleted' in customer && customer.deleted) {
+                logger.info('Customer already deleted', { stripeCustomerId })
+              } else {
+                // Delete the customer
+                await stripe.customers.del(stripeCustomerId)
+                logger.info('Customer deleted after subscription ended', {
+                  stripeCustomerId,
+                  subscriptionId: subscription.id,
+                })
+                
+                // Update audit log if record exists
+                const supabase = getServiceRoleClient()
+                const { data: userSettings } = await supabase
+                  .from('user_settings')
+                  .select('user_id')
+                  .eq('stripe_customer_id', stripeCustomerId)
+                  .maybeSingle()
+                
+                if (userSettings?.user_id) {
+                  await supabase
+                    .from('account_deletion_audit')
+                    .update({
+                      stripe_cleanup_status: 'completed',
+                      customer_deleted: true,
+                    })
+                    .eq('user_id', userSettings.user_id)
+                    .eq('stripe_customer_id', stripeCustomerId)
+                  
+                  logger.info('Updated audit log for customer deletion after subscription end', {
+                    userId: userSettings.user_id,
+                    stripeCustomerId,
+                  })
+                }
+              }
+            } catch (deleteError) {
+              logger.error('Failed to delete customer after subscription end', {
+                error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+                stripeCustomerId,
+                subscriptionId: subscription.id,
+              })
+              // Don't throw - this is cleanup, not critical
+            }
+          } else {
+            logger.info('Customer has other active subscriptions, skipping cleanup', {
+              stripeCustomerId,
+              activeSubscriptionCount: activeSubscriptions.length,
+            })
+          }
+        } catch (error) {
+          logger.error('Error checking subscriptions for customer cleanup', {
+            error: error instanceof Error ? error.message : String(error),
+            stripeCustomerId,
+            subscriptionId: subscription.id,
+          })
+          // Don't throw - this is cleanup, not critical
+        }
+        break
+      }
+
       case 'customer.deleted': {
         // Customer deleted event - update audit log if record exists
         const customer = event.data.object as Stripe.Customer

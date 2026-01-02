@@ -104,16 +104,35 @@ export async function POST(request: NextRequest) {
         
         // Update audit log with Stripe cleanup results
         if (auditRecordId) {
+          // Determine cleanup status
+          let cleanupStatus: 'completed' | 'failed' | 'partial' | 'deferred' = 'completed'
+          if (!stripeCleanupResult.success && stripeCleanupResult.errors.length > 0) {
+            cleanupStatus = 'failed'
+          } else if (stripeCleanupResult.customerDeletionDeferred) {
+            cleanupStatus = 'deferred'
+          } else if (stripeCleanupResult.errors.length > 0) {
+            cleanupStatus = 'partial'
+          }
+
+          // Build error details with additional context
+          const errorDetails: Record<string, any> = {}
+          if (stripeCleanupResult.errors.length > 0) {
+            errorDetails.stripe_errors = stripeCleanupResult.errors
+          }
+          if (stripeCleanupResult.customerDeletionDeferred) {
+            errorDetails.customer_deletion_deferred = true
+            errorDetails.deferred_reason = 'Active subscriptions scheduled to cancel at period end'
+            errorDetails.subscriptions_scheduled = stripeCleanupResult.subscriptionsScheduledForCancellation
+          }
+
           await supabaseService
             .from('account_deletion_audit')
             .update({
-              stripe_cleanup_status: stripeCleanupResult.success ? 'completed' : 'failed',
+              stripe_cleanup_status: cleanupStatus,
               subscriptions_canceled: stripeCleanupResult.subscriptionsCanceled,
               payment_methods_detached: stripeCleanupResult.paymentMethodsDetached,
               customer_deleted: stripeCleanupResult.customerDeleted,
-              error_details: stripeCleanupResult.errors.length > 0 
-                ? { stripe_errors: stripeCleanupResult.errors }
-                : {},
+              error_details: Object.keys(errorDetails).length > 0 ? errorDetails : {},
             })
             .eq('id', auditRecordId)
         }

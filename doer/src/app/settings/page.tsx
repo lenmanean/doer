@@ -2503,8 +2503,9 @@ export default function SettingsPage() {
                               <ul className="text-xs text-[#d7d2cb]/80 space-y-1 mb-3 list-disc list-inside">
                                 <li>All plans, tasks, and progress</li>
                                 <li>All settings and preferences</li>
-                                <li>Your subscription will be canceled immediately</li>
-                                <li>Your billing information will be removed from Stripe</li>
+                                <li>Your subscription will be canceled at the end of your current billing period</li>
+                                <li>You'll retain access until your paid period expires, but your account will be deleted immediately</li>
+                                <li>Your billing information will be removed from Stripe after your subscription ends</li>
                                 <li>Financial transaction records are retained by Stripe for legal compliance</li>
                               </ul>
                               <p className="text-xs text-[#d7d2cb]/60">
