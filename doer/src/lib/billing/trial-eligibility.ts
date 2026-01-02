@@ -124,35 +124,21 @@ export async function checkTrialEligibility(
       }
 
       // If we found deletion records but couldn't verify Pro subscription via Stripe,
-      // check if deletion was recent (within 30 days) - if so, block trial to prevent abuse
-      // If deletion was older, allow trial (might be legitimate re-signup after long time)
-      const mostRecentDeletion = deletionRecords[0]?.deletion_initiated_at
-      if (mostRecentDeletion) {
-        const deletionDate = new Date(mostRecentDeletion)
-        const daysSinceDeletion = (Date.now() - deletionDate.getTime()) / (1000 * 60 * 60 * 24)
-        
-        if (daysSinceDeletion <= 30) {
-          // Recent deletion - block trial to prevent abuse
-          logger.info('[checkTrialEligibility] Found recent account deletion for email, blocking trial', {
-            userId,
-            email: userEmail,
-            deletionCount: deletionRecords.length,
-            daysSinceDeletion: Math.round(daysSinceDeletion),
-            mostRecentDeletion,
-          })
-          return { 
-            eligible: false, 
-            reason: 'Recent account deletion detected (within 30 days)' 
-          }
-        } else {
-          // Old deletion - might be legitimate re-signup, allow trial but log it
-          logger.info('[checkTrialEligibility] Found old account deletion for email, allowing trial', {
-            userId,
-            email: userEmail,
-            deletionCount: deletionRecords.length,
-            daysSinceDeletion: Math.round(daysSinceDeletion),
-            mostRecentDeletion,
-          })
+      // we should still block the trial because we can't be certain they didn't have Pro
+      // This prevents abuse: users who delete accounts and recreate them to get multiple trials
+      // The only way to get a trial again is to use a different email address
+      if (deletionRecords && deletionRecords.length > 0) {
+        const mostRecentDeletion = deletionRecords[0]?.deletion_initiated_at
+        logger.info('[checkTrialEligibility] Found account deletion for email, blocking trial', {
+          userId,
+          email: userEmail,
+          deletionCount: deletionRecords.length,
+          mostRecentDeletion,
+          note: 'Blocking trial to prevent abuse via account deletion/recreation',
+        })
+        return { 
+          eligible: false, 
+          reason: 'Previous account with this email was deleted' 
         }
       }
     }

@@ -30,10 +30,10 @@ The trial eligibility check uses multiple layers to detect and prevent abuse:
 - Checks for previous account deletions with the same email
 - If a previous deletion is found:
   - Attempts to verify if that account had Pro via Stripe
-  - If Pro subscription confirmed → Block trial
-  - If Pro subscription cannot be verified:
-    - Recent deletion (≤30 days) → Block trial (prevent abuse)
-    - Old deletion (>30 days) → Allow trial (legitimate re-signup)
+  - If Pro subscription confirmed → Block trial (no time limit)
+  - If Pro subscription cannot be verified → Block trial anyway (prevent abuse)
+  - **Rationale**: We can't be certain they didn't have Pro, so we block to prevent abuse
+  - **Result**: Users who delete accounts cannot get another trial with the same email
 - **Status**: ✅ Implemented
 
 #### Layer 3: Stripe Customer History
@@ -71,10 +71,9 @@ The trial eligibility check uses multiple layers to detect and prevent abuse:
 2. Check account_deletion_audit for same email
    └─> If deletion found:
        ├─> Check Stripe for Pro subscription
-       │   └─> If Pro found → Block trial
-       └─> If Pro not found:
-           ├─> Deletion ≤30 days ago → Block trial (prevent abuse)
-           └─> Deletion >30 days ago → Allow trial (legitimate)
+       │   └─> If Pro found → Block trial (no time limit)
+       └─> If Pro not found → Block trial anyway (prevent abuse)
+           └─> Rationale: Can't be certain they didn't have Pro
    
 3. Check Stripe for deleted customers with same email
    └─> If deleted customer with Pro found → Block trial
@@ -99,8 +98,10 @@ The trial eligibility check uses multiple layers to detect and prevent abuse:
 
 ### Legitimate Re-signups
 - **Scenario**: User deleted account months/years ago, wants to try again
-- **Handling**: 30-day grace period - if deletion was >30 days ago, allow trial
-- **Rationale**: Prevents abuse while allowing legitimate long-term re-signups
+- **Handling**: Trial is blocked if any deletion record exists for the email
+- **Rationale**: We can't verify they didn't have Pro, so we block to prevent abuse
+- **Workaround**: Users can contact support for manual override if legitimate
+- **Alternative**: Users can sign up with a different email address
 
 ## Security Considerations
 
