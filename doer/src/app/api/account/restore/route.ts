@@ -87,7 +87,9 @@ export async function POST(request: NextRequest) {
 
     serverLogger.logAccountDeletion('account_restore', 'completed', {
       userId: user.id,
-      scheduledDeletionAt: userSettings.scheduled_deletion_at,
+      metadata: {
+        scheduledDeletionAt: userSettings.scheduled_deletion_at,
+      },
     })
 
     return NextResponse.json({ 
