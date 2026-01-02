@@ -2539,20 +2539,20 @@ export default function SettingsPage() {
                                     </p>
                                     <p className="text-sm text-[#d7d2cb]/60 mt-1">
                                       Status: <span className={`${
-                                        subscription.cancelAtPeriodEnd && subscription.status === 'trialing' 
-                                          ? 'text-orange-400' 
-                                          : subscription.status === 'active' 
-                                            ? 'text-green-400' 
-                                            : subscription.status === 'trialing' 
-                                              ? 'text-blue-400' 
+                                        subscription.status === 'active' 
+                                          ? 'text-green-400' 
+                                          : (subscription.status === 'trialing' && !subscription.cancelAtPeriodEnd)
+                                            ? 'text-blue-400' 
+                                            : (subscription.status === 'trialing' && subscription.cancelAtPeriodEnd)
+                                              ? 'text-orange-400'
                                               : subscription.status === 'past_due' 
                                                 ? 'text-orange-400' 
                                                 : 'text-red-400'
                                       }`}>
-                                        {subscription.cancelAtPeriodEnd && subscription.status === 'trialing' 
-                                          ? 'Trial Canceled' 
-                                          : subscription.status === 'active' 
-                                            ? 'Active' 
+                                        {subscription.status === 'active' 
+                                          ? 'Active' 
+                                          : (subscription.status === 'trialing' && subscription.cancelAtPeriodEnd)
+                                            ? 'Trial Canceled'
                                             : subscription.status === 'trialing' 
                                               ? 'Trialing' 
                                               : subscription.status === 'past_due' 
@@ -2564,22 +2564,17 @@ export default function SettingsPage() {
                                       <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                                         <div className="flex items-start gap-2">
                                           <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                                          <div className="flex-1">
-                                            <p className="text-sm font-medium text-blue-400">
-                                              Free Trial Active
-                                            </p>
-                                            <p className="text-xs text-[#d7d2cb]/70 mt-1">
-                                              Your 14-day free trial ends on{' '}
-                                              <span className="font-semibold text-[#d7d2cb]">
-                                                {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
-                                                  month: 'long',
-                                                  day: 'numeric',
-                                                  year: 'numeric'
-                                                }) : 'Invalid Date'}
-                                              </span>
-                                              . After the trial ends, you'll be charged $20/month and your billing cycle will begin.
-                                            </p>
-                                          </div>
+                                          <p className="text-xs text-[#d7d2cb]/70 flex-1">
+                                            Your 14-day free trial ends on{' '}
+                                            <span className="font-semibold text-[#d7d2cb]">
+                                              {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                                month: 'long',
+                                                day: 'numeric',
+                                                year: 'numeric'
+                                              }) : 'Invalid Date'}
+                                            </span>
+                                            . After the trial ends, you'll be charged $20/month and your billing cycle will begin.
+                                          </p>
                                         </div>
                                       </div>
                                     )}
