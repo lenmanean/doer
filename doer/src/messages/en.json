@@ -122,12 +122,10 @@
     "subtitle": "Choose the plan that fits your journey and upgrade whenever you're ready.",
     "startFree": "Basic",
     "getAccessTo": "Everything you need to get started:",
-    "allCoreFeatures": "Personal workspace and daily schedule automation",
-    "builtInIntegrations": "AI nudges and recap digest up to 3x each day",
-    "authenticationSystem": "Recurring routines with calendar sync",
-    "databaseFunctionality": "Two active automations plus checklist templates",
     "paidPlansFrom": "Pro",
-    "upgradeDescription": "14-day free trial, then $20/month. Coordinate complex initiatives with AI scheduling, task automation, and integrations.",
+    "trialBadge": "14-day free trial",
+    "trialDescription": "Start your free trial",
+    "afterTrial": "After trial: $20/month",
     "seeAllPlans": "View pricing details"
   },
   "cta": {

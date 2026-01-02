@@ -473,26 +473,32 @@ export default function Home() {
               {/* Basic Plan Card */}
               <PricingCard
                 title={t('pricing.startFree')}
-                description={t('pricing.getAccessTo')}
+                price="$0"
+                priceUnit=""
+                description={t('pages.pricing.plans.basic.blurb')}
                 features={[
-                  t('pricing.allCoreFeatures'),
-                  t('pricing.builtInIntegrations'),
-                  t('pricing.authenticationSystem'),
-                  t('pricing.databaseFunctionality'),
+                  t('pages.pricing.plans.basic.highlights.0'),
+                  t('pages.pricing.plans.basic.highlights.1'),
+                  t('pages.pricing.plans.basic.highlights.2'),
+                  t('pages.pricing.plans.basic.highlights.3'),
+                  t('pages.pricing.plans.basic.highlights.4'),
                 ]}
-                buttonText="Start for free"
+                buttonText={t('pages.pricing.plans.basic.ctaLabel')}
                 buttonHref={user ? '/checkout?plan=basic&cycle=monthly' : '/auth/signup?plan=free'}
                 delay={0}
+                note={t('pages.pricing.plans.basic.note')}
               />
               {/* Pro Plan Card */}
               <PricingCard
                 title={t('pricing.paidPlansFrom')}
                 price="$20"
                 priceUnit="/mo"
-                description={t('pricing.upgradeDescription')}
+                description={t('pages.pricing.plans.pro.blurb')}
                 buttonText={t('pricing.seeAllPlans')}
                 buttonHref="/pricing"
                 delay={150}
+                trialBadge={t('pricing.trialBadge')}
+                showTrialPrice={true}
               />
               </div>
             </div>
@@ -1007,7 +1013,10 @@ function PricingCard({
   buttonText,
   buttonHref,
   delay = 0,
-  onWaitlistClick
+  onWaitlistClick,
+  trialBadge,
+  showTrialPrice,
+  note
 }: {
   title: string
   price?: string
@@ -1018,6 +1027,9 @@ function PricingCard({
   buttonHref: string
   delay?: number
   onWaitlistClick?: () => void
+  trialBadge?: string
+  showTrialPrice?: boolean
+  note?: string
 }) {
   const { ref, isVisible } = useScrollAnimation({ delay, triggerOnce: true })
   return (
@@ -1025,13 +1037,42 @@ function PricingCard({
       ref={ref as React.RefObject<HTMLDivElement>}
       className={`bg-gray-800 rounded-xl border-2 border-gray-700 p-10 flex flex-col hover:border-orange-500 transition-all duration-300 scroll-animate-fade-up ${isVisible ? 'visible' : ''}`}
     >
-      <h3 className="text-4xl font-bold text-white mb-6">
-        {title}
-      </h3>
-      {price && (
+      <div className="mb-6">
+        {trialBadge && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
+              {trialBadge}
+            </span>
+          </div>
+        )}
+        <h3 className="text-4xl font-bold text-white">
+          {title}
+        </h3>
+      </div>
+      {price !== undefined && (
         <div className="mb-6">
-          <span className="text-6xl font-bold text-white">{price}</span>
-          {priceUnit && <span className="text-2xl text-gray-400">{priceUnit}</span>}
+          {showTrialPrice && (
+            <div className="mb-2">
+              <p className="text-sm font-semibold text-blue-400">
+                Start your free trial
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                After trial: $20/month
+              </p>
+            </div>
+          )}
+          <div className="flex items-baseline gap-2">
+            <span className="text-6xl font-bold text-white">{showTrialPrice ? '$0' : price}</span>
+            {priceUnit && !showTrialPrice && <span className="text-2xl text-gray-400">{priceUnit}</span>}
+            {showTrialPrice && (
+              <span className="text-2xl text-gray-400 line-through ml-2">$20/mo</span>
+            )}
+          </div>
+          {note && (
+            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+              {note}
+            </p>
+          )}
         </div>
       )}
       {description && (
