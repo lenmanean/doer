@@ -494,6 +494,15 @@ export default function Home() {
                 price="$20"
                 priceUnit="/mo"
                 description={t('pages.pricing.plans.pro.blurb')}
+                features={[
+                  t('pages.pricing.plans.pro.highlights.0'),
+                  t('pages.pricing.plans.pro.highlights.1'),
+                  t('pages.pricing.plans.pro.highlights.2'),
+                  t('pages.pricing.plans.pro.highlights.3'),
+                  t('pages.pricing.plans.pro.highlights.4'),
+                  t('pages.pricing.plans.pro.highlights.5'),
+                  t('pages.pricing.plans.pro.highlights.6'),
+                ]}
                 buttonText={t('pricing.seeAllPlans')}
                 buttonHref="/pricing"
                 delay={150}
