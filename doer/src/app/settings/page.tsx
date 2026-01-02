@@ -2587,21 +2587,16 @@ export default function SettingsPage() {
                                       <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
                                         <div className="flex items-start gap-2">
                                           <AlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
-                                          <div className="flex-1">
-                                            <p className="text-sm font-medium text-orange-400">
-                                              {subscription.status === 'trialing' ? 'Trial Canceled' : 'Subscription Canceled'}
-                                            </p>
-                                            <p className="text-xs text-[#d7d2cb]/70 mt-1">
-                                              {subscription.status === 'trialing' 
-                                                ? subscription.currentPeriodEnd 
-                                                  ? `Your trial will continue until ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
-                                                  : `Your trial has been canceled. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
-                                                : subscription.currentPeriodEnd
-                                                  ? `Your subscription will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You will not be charged again, and you'll continue to have access until then.`
-                                                  : `Your subscription has been canceled. You will not be charged again.`
-                                              }
-                                            </p>
-                                          </div>
+                                          <p className="text-xs text-[#d7d2cb]/70 flex-1">
+                                            {subscription.status === 'trialing' 
+                                              ? subscription.currentPeriodEnd 
+                                                ? `Your trial will continue until ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
+                                                : `Your trial has been canceled. After the trial ends, you'll be downgraded to the Basic plan and will not be charged.`
+                                              : subscription.currentPeriodEnd
+                                                ? `Your subscription will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You will not be charged again, and you'll continue to have access until then.`
+                                                : `Your subscription has been canceled. You will not be charged again.`
+                                            }
+                                          </p>
                                         </div>
                                       </div>
                                     )}
