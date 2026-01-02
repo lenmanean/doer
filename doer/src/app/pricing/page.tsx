@@ -34,6 +34,7 @@ export default function PricingPage() {
   const { user } = useSupabase()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [proAnimating, setProAnimating] = useState(false)
+  const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
   const isFirstRender = useRef(true)
 
   // Log translation availability on mount
@@ -72,6 +73,33 @@ export default function PricingPage() {
 
     return () => clearTimeout(timeout)
   }, [billingCycle])
+
+  // Check trial eligibility for Pro Monthly
+  useEffect(() => {
+    if (!user?.id) {
+      setTrialEligible(null)
+      return
+    }
+
+    const checkTrialEligibility = async () => {
+      try {
+        const response = await fetch('/api/subscription/trial-eligibility')
+        if (response.ok) {
+          const data = await response.json()
+          setTrialEligible(data.eligible)
+        } else {
+          // On error, assume not eligible (fail closed for security)
+          setTrialEligible(false)
+        }
+      } catch (error) {
+        console.error('[Pricing] Error checking trial eligibility:', error)
+        // On error, assume not eligible (fail closed for security)
+        setTrialEligible(false)
+      }
+    }
+
+    checkTrialEligibility()
+  }, [user?.id])
 
   const plans = useMemo(() => {
     const basicPlan: {
@@ -150,7 +178,7 @@ export default function PricingPage() {
     }
 
     return [basicPlan, proPlan]
-  }, [billingCycle, t, user])
+  }, [billingCycle, t, user, trialEligible])
 
   const customPlan = useMemo(
     () => ({
@@ -292,7 +320,7 @@ export default function PricingPage() {
                           </span>
                         </div>
                       )}
-                      {plan.id === 'pro' && billingCycle === 'monthly' && plan.trialDescription && (
+                      {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && plan.trialDescription && (
                         <div className="mb-2">
                           <p className="text-sm font-semibold text-blue-400">
                             {plan.trialDescription}
@@ -306,12 +334,12 @@ export default function PricingPage() {
                       )}
                       <div className="flex items-baseline gap-2">
                         <p className="text-3xl sm:text-4xl font-bold text-slate-100">
-                          {plan.id === 'pro' && billingCycle === 'monthly' ? '$0' : (plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price)}
+                          {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? '$0' : (plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price)}
                           <span className="text-base font-medium text-slate-400">
                             {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
                           </span>
                         </p>
-                        {plan.id === 'pro' && billingCycle === 'monthly' && (
+                        {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
                           <span className="text-lg sm:text-xl text-slate-400 line-through">$20</span>
                         )}
                       </div>

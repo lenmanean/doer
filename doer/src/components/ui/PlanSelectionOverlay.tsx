@@ -18,6 +18,7 @@ const PLAN_STORAGE_KEY = 'plan_selection_dismissed'
 export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelectionOverlayProps) {
   const router = useRouter()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
+  const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
 
   const handleSelectPlan = (planSlug: 'basic' | 'pro') => {
     router.push(`/checkout?plan=${planSlug}&cycle=${billingCycle}`)
@@ -27,6 +28,28 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
     localStorage.setItem(PLAN_STORAGE_KEY, 'true')
     onClose()
   }
+
+  // Check trial eligibility
+  useEffect(() => {
+    if (!isOpen) return
+
+    const checkTrialEligibility = async () => {
+      try {
+        const response = await fetch('/api/subscription/trial-eligibility')
+        if (response.ok) {
+          const data = await response.json()
+          setTrialEligible(data.eligible)
+        } else {
+          setTrialEligible(false)
+        }
+      } catch (error) {
+        console.error('[PlanSelectionOverlay] Error checking trial eligibility:', error)
+        setTrialEligible(false)
+      }
+    }
+
+    checkTrialEligibility()
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -138,7 +161,7 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                     Save 33%
                   </div>
                 )}
-                {billingCycle === 'monthly' && (
+                {billingCycle === 'monthly' && trialEligible !== false && (
                   <div className="absolute top-4 left-4 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold px-2 py-1 rounded">
                     14-day trial
                   </div>
@@ -152,7 +175,7 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                         <span className="text-xs text-green-400 font-semibold">33% off</span>
                       </div>
                     )}
-                    {billingCycle === 'monthly' && (
+                    {billingCycle === 'monthly' && trialEligible !== false && (
                       <div className="mb-1">
                         <span className="text-sm font-semibold text-blue-400">Start your free trial</span>
                         <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
@@ -160,12 +183,12 @@ export function PlanSelectionOverlay({ isOpen, onClose, userEmail }: PlanSelecti
                     )}
                     <div className="flex items-baseline gap-2">
                       <span className="text-3xl font-bold text-[#d7d2cb]">
-                        ${billingCycle === 'monthly' ? '0' : '160'}
+                        ${billingCycle === 'monthly' && trialEligible !== false ? '0' : billingCycle === 'monthly' ? '20' : '160'}
                       </span>
                       <span className="text-[#d7d2cb]/60">
                         /{billingCycle === 'monthly' ? 'mo' : 'yr'}
                       </span>
-                      {billingCycle === 'monthly' && (
+                      {billingCycle === 'monthly' && trialEligible !== false && (
                         <span className="text-lg text-[#d7d2cb]/40 line-through ml-2">$20</span>
                       )}
                     </div>

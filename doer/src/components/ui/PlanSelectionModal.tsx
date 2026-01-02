@@ -20,6 +20,7 @@ export function PlanSelectionModal({
   const router = useRouter()
   const [canClose, setCanClose] = useState(false)
   const [showContinue, setShowContinue] = useState(false)
+  const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
 
   // 5-second lock
   useEffect(() => {
@@ -34,6 +35,28 @@ export function PlanSelectionModal({
     }, 5000)
 
     return () => clearTimeout(timer)
+  }, [isOpen])
+
+  // Check trial eligibility
+  useEffect(() => {
+    if (!isOpen) return
+
+    const checkTrialEligibility = async () => {
+      try {
+        const response = await fetch('/api/subscription/trial-eligibility')
+        if (response.ok) {
+          const data = await response.json()
+          setTrialEligible(data.eligible)
+        } else {
+          setTrialEligible(false)
+        }
+      } catch (error) {
+        console.error('[PlanSelectionModal] Error checking trial eligibility:', error)
+        setTrialEligible(false)
+      }
+    }
+
+    checkTrialEligibility()
   }, [isOpen])
 
   const handlePlanSelect = (cycle: 'monthly' | 'annual') => {
@@ -99,23 +122,36 @@ export function PlanSelectionModal({
                   whileTap={{ scale: 0.98 }}
                   className="group relative overflow-hidden bg-white/5 hover:bg-white/10 border border-white/20 hover:border-white/30 rounded-xl p-6 text-left transition-all duration-150"
                 >
-                  {/* Trial Badge */}
-                  <div className="absolute top-4 right-4 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold px-2 py-1 rounded">
-                    14-day trial
-                  </div>
+                  {/* Trial Badge - only show if eligible */}
+                  {trialEligible !== false && (
+                    <div className="absolute top-4 right-4 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold px-2 py-1 rounded">
+                      14-day trial
+                    </div>
+                  )}
                   <div className="relative z-10">
                     <h3 className="text-xl font-bold text-[#d7d2cb] mb-2">Pro Monthly</h3>
-                    <div className="mb-2">
-                      <p className="text-sm font-semibold text-blue-400">Start your free trial</p>
-                      <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
-                    </div>
-                    <div className="mb-4">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold text-[#d7d2cb]">$0</span>
-                        <span className="text-[#d7d2cb]/60">/month</span>
-                        <span className="text-lg text-[#d7d2cb]/40 line-through ml-2">$20</span>
+                    {trialEligible !== false ? (
+                      <>
+                        <div className="mb-2">
+                          <p className="text-sm font-semibold text-blue-400">Start your free trial</p>
+                          <p className="text-xs text-[#d7d2cb]/60 mt-0.5">After trial: $20/month</p>
+                        </div>
+                        <div className="mb-4">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-bold text-[#d7d2cb]">$0</span>
+                            <span className="text-[#d7d2cb]/60">/month</span>
+                            <span className="text-lg text-[#d7d2cb]/40 line-through ml-2">$20</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mb-4">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-bold text-[#d7d2cb]">$20</span>
+                          <span className="text-[#d7d2cb]/60">/month</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <ul className="space-y-2 text-sm text-[#d7d2cb]/70">
                       <li className="flex items-center gap-2">
                         <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
