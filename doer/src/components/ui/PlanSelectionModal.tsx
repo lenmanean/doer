@@ -91,15 +91,21 @@ export function PlanSelectionModal({
                 Integrations require a Pro plan subscription. Choose your preferred billing cycle.
               </p>
             </div>
-            {canClose && (
-              <button
-                onClick={onClose}
-                className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-2 rounded-lg hover:bg-white/5"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+            <AnimatePresence>
+              {canClose && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  onClick={onClose}
+                  className="text-[#d7d2cb]/60 hover:text-[#d7d2cb] transition-colors p-2 rounded-lg hover:bg-white/5"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5" />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Content */}
