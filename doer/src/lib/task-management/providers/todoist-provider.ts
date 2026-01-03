@@ -91,9 +91,10 @@ export class TodoistProvider implements TaskManagementProvider {
       client_id: clientId,
       scope: 'data:read_write,data:delete',
       state: state || '',
+      redirect_uri: redirectUri,
     })
 
-    return `https://todoist.com/oauth/authorize?${params.toString()}&redirect_uri=${encodeURIComponent(redirectUri)}`
+    return `https://app.todoist.com/oauth/authorize?${params.toString()}`
   }
 
   async exchangeCodeForTokens(code: string, redirectUri: string): Promise<Tokens> {
@@ -101,7 +102,7 @@ export class TodoistProvider implements TaskManagementProvider {
     const clientId = process.env.TODOIST_CLIENT_ID!
     const clientSecret = process.env.TODOIST_CLIENT_SECRET!
 
-    const response = await fetch('https://todoist.com/oauth/access_token', {
+    const response = await fetch('https://app.todoist.com/oauth/access_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
