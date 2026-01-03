@@ -3,6 +3,7 @@ import { timeBlockScheduler } from '@/lib/time-block-scheduler'
 import { formatDateForDB, toLocalMidnight, applyTimeBuffer } from '@/lib/date-utils'
 import { getBusySlotsForUser } from '@/lib/calendar/busy-slots'
 import { getProvider } from '@/lib/calendar/providers/provider-factory'
+import { getProvider as getTaskManagementProvider } from '@/lib/task-management/providers/provider-factory'
 import { detectTaskDependencies } from '@/lib/goal-analysis'
 
 /**
@@ -341,6 +342,125 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
         
         if (totalPushedCount > 0) {
           console.log(`[generateTaskSchedule] Auto-pushed ${totalPushedCount} task(s) to calendar(s)`)
+        }
+        
+        if (pushErrors.length > 0) {
+          console.warn(`[generateTaskSchedule] Auto-push errors: ${pushErrors.join('; ')}`)
+        }
+      }
+    }
+
+    // Auto-push to task management providers if enabled
+    if (insertedSchedules && insertedSchedules.length > 0) {
+      // Fetch all task management connections with auto-push enabled
+      const { data: taskConnections } = await supabase
+        .from('task_management_connections')
+        .select('id, provider, auto_push_enabled, default_project_id')
+        .eq('user_id', userId)
+        .eq('auto_push_enabled', true)
+      
+      if (taskConnections && taskConnections.length > 0) {
+        // Fetch plan details for metadata
+        const { data: planDetails } = await supabase
+          .from('plans')
+          .select('goal_text, summary_data')
+          .eq('id', planId)
+          .single()
+        
+        const planName = planDetails?.summary_data?.goal_title || planDetails?.goal_text || null
+        
+        // Fetch task details
+        const taskIds = [...new Set(insertedSchedules.map(s => s.task_id))]
+        const { data: taskDetails } = await supabase
+          .from('tasks')
+          .select('id, name, details, estimated_duration_minutes, priority')
+          .in('id', taskIds)
+        
+        const taskMap = new Map((taskDetails || []).map(t => [t.id, t]))
+        
+        // Push to each enabled connection
+        let totalPushedCount = 0
+        const pushErrors: string[] = []
+        
+        for (const connection of taskConnections) {
+          try {
+            // Get provider instance (only Todoist for now)
+            if (connection.provider !== 'todoist') {
+              continue
+            }
+            
+            const taskProvider = getTaskManagementProvider('todoist')
+            
+            // Push each schedule to the task management tool
+            for (const schedule of insertedSchedules) {
+              const task = taskMap.get(schedule.task_id)
+              if (!task) {
+                continue
+              }
+              
+              // Calculate duration from schedule if available
+              let durationMinutes = task.estimated_duration_minutes || null
+              if (schedule.start_time && schedule.end_time) {
+                const start = new Date(`${schedule.date}T${schedule.start_time}`)
+                const end = new Date(`${schedule.date}T${schedule.end_time}`)
+                durationMinutes = Math.round((end.getTime() - start.getTime()) / 1000 / 60)
+              }
+              
+              try {
+                const result = await taskProvider.pushTask(
+                  connection.id,
+                  {
+                    taskScheduleId: schedule.id,
+                    taskId: task.id,
+                    planId: planId,
+                    taskName: task.name,
+                    taskDetails: task.details || undefined,
+                    planName,
+                    priority: task.priority || 3,
+                    dueDate: schedule.date,
+                    durationMinutes: durationMinutes || undefined,
+                    projectId: connection.default_project_id || undefined,
+                  }
+                )
+                
+                if (result.success) {
+                  totalPushedCount++
+                  
+                  // Create link record
+                  const { error: linkError } = await supabase
+                    .from('task_management_links')
+                    .insert({
+                      user_id: userId,
+                      connection_id: connection.id,
+                      task_id: task.id,
+                      plan_id: planId,
+                      task_schedule_id: schedule.id,
+                      external_task_id: result.external_task_id,
+                      external_project_id: connection.default_project_id || null,
+                      sync_status: 'synced',
+                      last_synced_at: new Date().toISOString(),
+                    })
+                  
+                  if (linkError) {
+                    console.warn(`[generateTaskSchedule] Failed to create task management link for task ${task.name}:`, linkError)
+                  }
+                } else {
+                  pushErrors.push(`Task ${task.name} (${connection.provider}): ${result.error || 'Unknown error'}`)
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                pushErrors.push(`Task ${task.name} (${connection.provider}): ${errorMessage}`)
+                console.warn(`[generateTaskSchedule] Failed to auto-push task ${task.name} to ${connection.provider}:`, errorMessage)
+              }
+            }
+          } catch (providerError) {
+            console.error(`[generateTaskSchedule] Failed to get provider for ${connection.provider}:`, providerError)
+            pushErrors.push(`${connection.provider}: Provider error`)
+          }
+        }
+        
+        if (totalPushedCount > 0) {
+          console.log(`[generateTaskSchedule] Auto-pushed ${totalPushedCount} task(s) to task management tool(s)`)
         }
         
         if (pushErrors.length > 0) {

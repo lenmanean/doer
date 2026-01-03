@@ -91,6 +91,9 @@ export default function ProviderIntegrationsPage() {
   // Check if this is a calendar integration (has API routes)
   const isCalendarIntegration = ['google', 'outlook', 'apple'].includes(provider)
   
+  // Check if this is a task management integration
+  const isTaskManagementIntegration = provider === 'todoist'
+  
   // Reset connection handled ref when provider changes
   useEffect(() => {
     if (lastProviderRef.current !== provider) {
@@ -118,6 +121,12 @@ export default function ProviderIntegrationsPage() {
   const [calendars, setCalendars] = useState<Array<{ id: string; summary: string; primary?: boolean }>>([])
   const [loadingCalendars, setLoadingCalendars] = useState(false)
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([])
+  
+  // Task management state
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; is_inbox_project?: boolean }>>([])
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [defaultProjectId, setDefaultProjectId] = useState<string | null>(null)
+  const [autoCompletionSyncEnabled, setAutoCompletionSyncEnabled] = useState(false)
   
   // Sync state
   const [syncing, setSyncing] = useState(false)
@@ -294,61 +303,139 @@ export default function ProviderIntegrationsPage() {
     }
   }, [provider, isCalendarIntegration, addToast])
   
+  // Load available projects (only for task management integrations)
+  const loadProjects = useCallback(async () => {
+    if (!isTaskManagementIntegration) {
+      setProjects([])
+      return
+    }
+    
+    try {
+      setLoadingProjects(true)
+      const response = await fetch(`/api/integrations/${provider}/projects`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load projects')
+      }
+      
+      const data = await response.json()
+      setProjects(data.projects || [])
+    } catch (error) {
+      console.error('Error loading projects:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to load projects',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingProjects(false)
+    }
+  }, [provider, isTaskManagementIntegration, addToast])
+  
   // Load connection status function
   const loadConnection = useCallback(async (retryCount = 0) => {
     if (!user?.id) return
     
-    // Only calendar integrations have connection status endpoints
-    if (!isCalendarIntegration) {
-      setLoadingConnection(false)
-      setConnection(null)
-      return false
+    // Handle task management integrations
+    if (isTaskManagementIntegration) {
+      try {
+        setLoadingConnection(true)
+        const response = await fetch(`/api/integrations/${provider}/status`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to load connection status')
+        }
+        
+        const data = await response.json()
+        
+        // If not connected and this is a retry after OAuth, wait a bit and retry
+        if (!data.connected && retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return loadConnection(retryCount + 1)
+        }
+        
+        setConnection(data.connected ? data.connection : null)
+        setAutoPushEnabled(data.connection?.auto_push_enabled || false)
+        setAutoCompletionSyncEnabled(data.connection?.auto_completion_sync || false)
+        setDefaultProjectId(data.connection?.default_project_id || null)
+        setSyncLogs(data.recent_syncs || [])
+        
+        // Load projects if connected
+        if (data.connected) {
+          loadProjects()
+        }
+        
+        // Load active plan for push functionality
+        loadActivePlan()
+        
+        return data.connected
+      } catch (error) {
+        console.error('Error loading connection:', error)
+        addToast({
+          type: 'error',
+          title: 'Failed to load connection',
+          description: 'Please try again later.',
+          duration: 5000,
+        })
+        return false
+      } finally {
+        setLoadingConnection(false)
+      }
     }
     
-    try {
-      setLoadingConnection(true)
-      const response = await fetch(`/api/integrations/${provider}/status`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to load connection status')
+    // Handle calendar integrations
+    if (isCalendarIntegration) {
+      try {
+        setLoadingConnection(true)
+        const response = await fetch(`/api/integrations/${provider}/status`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to load connection status')
+        }
+        
+        const data = await response.json()
+        
+        // If not connected and this is a retry after OAuth, wait a bit and retry
+        if (!data.connected && retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return loadConnection(retryCount + 1)
+        }
+        
+        setConnection(data.connected ? data.connection : null)
+        setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
+        setAutoPushEnabled(data.connection?.auto_push_enabled || false)
+        setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
+        setSyncLogs(data.recent_syncs || [])
+        
+        // Load calendars if connected
+        if (data.connected) {
+          loadCalendars()
+        }
+        
+        // Load active plan for push functionality
+        loadActivePlan()
+        
+        return data.connected
+      } catch (error) {
+        console.error('Error loading connection:', error)
+        addToast({
+          type: 'error',
+          title: 'Failed to load connection',
+          description: 'Please try again later.',
+          duration: 5000,
+        })
+        return false
+      } finally {
+        setLoadingConnection(false)
       }
-      
-      const data = await response.json()
-      
-      // If not connected and this is a retry after OAuth, wait a bit and retry
-      if (!data.connected && retryCount < 2) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        return loadConnection(retryCount + 1)
-      }
-      
-      setConnection(data.connected ? data.connection : null)
-      setAutoSyncEnabled(data.connection?.auto_sync_enabled || false)
-      setAutoPushEnabled(data.connection?.auto_push_enabled || false)
-      setSelectedCalendarIds(data.connection?.selected_calendar_ids || [])
-      setSyncLogs(data.recent_syncs || [])
-      
-      // Load calendars if connected
-      if (data.connected) {
-        loadCalendars()
-      }
-      
-      // Load active plan for push functionality
-      loadActivePlan()
-      
-      return data.connected
-    } catch (error) {
-      console.error('Error loading connection:', error)
-      addToast({
-        type: 'error',
-        title: 'Failed to load connection',
-        description: 'Please try again later.',
-        duration: 5000,
-      })
-      return false
-    } finally {
-      setLoadingConnection(false)
     }
-  }, [user?.id, provider, isCalendarIntegration, loadCalendars, loadActivePlan, addToast])
+    
+    // Unknown integration type
+    setLoadingConnection(false)
+    setConnection(null)
+    return false
+  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, loadCalendars, loadProjects, loadActivePlan, addToast])
   
   // Handle OAuth callback query parameters
   useEffect(() => {
@@ -380,10 +467,13 @@ export default function ProviderIntegrationsPage() {
         await new Promise(resolve => setTimeout(resolve, 200))
         
         if (isConnected) {
+          const connectionMessage = isCalendarIntegration
+            ? 'Please select calendars to sync.'
+            : 'Configure your settings below.'
           addToast({
             type: 'success',
             title: 'Successfully connected!',
-            description: `${providerInfo[provider]?.name || 'Calendar'} has been connected. Please select calendars to sync.`,
+            description: `${providerInfo[provider]?.name || 'Integration'} has been connected. ${connectionMessage}`,
             duration: 5000,
           })
         } else {
@@ -432,22 +522,10 @@ export default function ProviderIntegrationsPage() {
     }
   }, [user?.id, provider, searchParams])
   
-  // Connect Calendar
+  // Connect Integration
   const handleConnect = async () => {
-    // Only Google and Outlook are implemented; show unavailable message for all others
-    if (provider !== 'google' && provider !== 'outlook') {
-      const integrationName = integration?.name || providerInfo[provider]?.name || 'This integration'
-      addToast({
-        type: 'info',
-        title: `${integrationName} Integration`,
-        description: `${integrationName} is currently unavailable, please try again later.`,
-        duration: 7000,
-      })
-      return
-    }
-
-    // Only calendar integrations have API routes
-    if (!isCalendarIntegration) {
+    // Only calendar and task management integrations are implemented
+    if (!isCalendarIntegration && !isTaskManagementIntegration) {
       const integrationName = integration?.name || providerInfo[provider]?.name || 'This integration'
       addToast({
         type: 'info',
@@ -468,7 +546,7 @@ export default function ProviderIntegrationsPage() {
       const data = await response.json()
       window.location.href = data.auth_url
     } catch (error) {
-      console.error('Error connecting calendar:', error)
+      console.error('Error connecting integration:', error)
       addToast({
         type: 'error',
         title: 'Failed to connect',
@@ -478,9 +556,9 @@ export default function ProviderIntegrationsPage() {
     }
   }
   
-  // Disconnect Calendar
+  // Disconnect Integration
   const handleDisconnect = async () => {
-    if (!confirm(`Are you sure you want to disconnect ${providerInfo[provider]?.name || 'this calendar'}? This will remove all sync settings and stop syncing.`)) {
+    if (!confirm(`Are you sure you want to disconnect ${providerInfo[provider]?.name || 'this integration'}? This will remove all sync settings and stop syncing.`)) {
       return
     }
     
@@ -494,14 +572,25 @@ export default function ProviderIntegrationsPage() {
       }
       
       setConnection(null)
-      setCalendars([])
-      setSelectedCalendarIds([])
       setSyncLogs([])
+      
+      // Clear calendar-specific state
+      if (isCalendarIntegration) {
+        setCalendars([])
+        setSelectedCalendarIds([])
+      }
+      
+      // Clear task management specific state
+      if (isTaskManagementIntegration) {
+        setProjects([])
+        setDefaultProjectId(null)
+        setAutoCompletionSyncEnabled(false)
+      }
       
       addToast({
         type: 'success',
         title: 'Disconnected successfully',
-        description: `${providerInfo[provider]?.name || 'Calendar'} has been disconnected.`,
+        description: `${providerInfo[provider]?.name || 'Integration'} has been disconnected.`,
         duration: 5000,
       })
     } catch (error) {
@@ -734,6 +823,206 @@ export default function ProviderIntegrationsPage() {
     }, 0)
   }
   
+  // Push tasks to Todoist
+  const handlePushTasks = async () => {
+    if (!activePlan?.id) {
+      addToast({
+        type: 'error',
+        title: 'No active plan',
+        description: 'Please create or activate a plan first to push tasks to Todoist.',
+        duration: 5000,
+      })
+      return
+    }
+    
+    // Mark push as starting immediately for UI feedback
+    startTransition(() => {
+      setPushing(true)
+    })
+    
+    // Defer heavy work to allow browser to paint first
+    setTimeout(async () => {
+      try {
+        const today = new Date()
+        const startDate = new Date(today)
+        startDate.setDate(startDate.getDate() - 30)
+        const endDate = new Date(today)
+        endDate.setDate(endDate.getDate() + 90)
+        
+        const startDateStr = startDate.toISOString().split('T')[0]
+        const endDateStr = endDate.toISOString().split('T')[0]
+        
+        const tasksResponse = await fetch(`/api/tasks/time-schedule?plan_id=${activePlan.id}&start_date=${startDateStr}&end_date=${endDateStr}`)
+        if (!tasksResponse.ok) {
+          throw new Error('Failed to load tasks')
+        }
+        
+        const tasksData = await tasksResponse.json()
+        
+        const scheduledTasks: any[] = []
+        if (tasksData.tasksByDate) {
+          Object.keys(tasksData.tasksByDate).forEach(date => {
+            const tasksForDate = tasksData.tasksByDate[date] || []
+            scheduledTasks.push(...tasksForDate.filter((t: any) => t.schedule_id && !t.schedule_id.startsWith('synthetic-')))
+          })
+        }
+        
+        if (scheduledTasks.length === 0) {
+          addToast({
+            type: 'warning',
+            title: 'No scheduled tasks',
+            description: 'There are no scheduled tasks to push to Todoist.',
+            duration: 5000,
+          })
+          startTransition(() => {
+            setPushing(false)
+          })
+          return
+        }
+        
+        const taskScheduleIds = scheduledTasks
+          .filter((task: any) => task.schedule_id && !task.schedule_id.startsWith('synthetic-'))
+          .map((task: any) => task.schedule_id)
+        
+        if (taskScheduleIds.length === 0) {
+          addToast({
+            type: 'warning',
+            title: 'No valid schedules',
+            description: 'No valid task schedules found to push.',
+            duration: 5000,
+          })
+          startTransition(() => {
+            setPushing(false)
+          })
+          return
+        }
+        
+        const pushResponse = await fetch(`/api/integrations/${provider}/push`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            task_schedule_ids: taskScheduleIds,
+            project_id: defaultProjectId || undefined,
+          }),
+        })
+        
+        if (!pushResponse.ok) {
+          const errorData = await pushResponse.json()
+          throw new Error(errorData.error || 'Failed to push tasks')
+        }
+        
+        const pushData = await pushResponse.json()
+        
+        addToast({
+          type: 'success',
+          title: 'Push completed',
+          description: `Pushed ${pushData.tasks_pushed || pushData.tasks_pushed || 0} task(s) to ${providerInfo[provider]?.name || 'Todoist'}.`,
+          duration: 7000,
+        })
+        
+        // Reload connection status
+        const statusResponse = await fetch(`/api/integrations/${provider}/status`)
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json()
+          startTransition(() => {
+            setSyncLogs(statusData.recent_syncs || [])
+            if (statusData.connection) {
+              setConnection(statusData.connection)
+              setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+              setAutoCompletionSyncEnabled(statusData.connection.auto_completion_sync || false)
+              setDefaultProjectId(statusData.connection.default_project_id || null)
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error pushing tasks:', error)
+        addToast({
+          type: 'error',
+          title: 'Push failed',
+          description: error instanceof Error ? error.message : 'Please try again later.',
+          duration: 5000,
+        })
+      } finally {
+        startTransition(() => {
+          setPushing(false)
+        })
+      }
+    }, 0)
+  }
+  
+  // Sync plan to Todoist
+  const handleSyncPlan = async () => {
+    if (!activePlan?.id) {
+      addToast({
+        type: 'error',
+        title: 'No active plan',
+        description: 'Please create or activate a plan first to sync to Todoist.',
+        duration: 5000,
+      })
+      return
+    }
+    
+    // Mark sync as starting immediately for UI feedback
+    startTransition(() => {
+      setSyncing(true)
+    })
+    
+    // Defer API calls to allow UI to update first
+    setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/integrations/${provider}/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan_id: activePlan.id,
+            project_id: defaultProjectId || undefined,
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to sync')
+        }
+        
+        const data = await response.json()
+        
+        addToast({
+          type: 'success',
+          title: 'Sync completed',
+          description: `Synced ${data.tasks_pushed || 0} task(s) to ${providerInfo[provider]?.name || 'Todoist'}.`,
+          duration: 7000,
+        })
+        
+        // Reload connection status
+        const statusResponse = await fetch(`/api/integrations/${provider}/status`)
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json()
+          startTransition(() => {
+            setSyncLogs(statusData.recent_syncs || [])
+            if (statusData.connection) {
+              setConnection(statusData.connection)
+              setAutoPushEnabled(statusData.connection.auto_push_enabled || false)
+              setAutoCompletionSyncEnabled(statusData.connection.auto_completion_sync || false)
+              setDefaultProjectId(statusData.connection.default_project_id || null)
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error syncing plan:', error)
+        addToast({
+          type: 'error',
+          title: 'Sync failed',
+          description: error instanceof Error ? error.message : 'Please try again later.',
+          duration: 5000,
+        })
+      } finally {
+        startTransition(() => {
+          setSyncing(false)
+        })
+      }
+    }, 0)
+  }
+  
   // Toggle calendar selection
   const toggleCalendarSelection = (calendarId: string) => {
     setSelectedCalendarIds(prev => {
@@ -788,6 +1077,35 @@ export default function ProviderIntegrationsPage() {
     }
   }
   
+  // Save task management settings
+  const saveTaskManagementSettings = async (projectId: string | null, autoPush: boolean, autoCompletionSync: boolean) => {
+    try {
+      setUpdatingSettings(true)
+      // Note: API currently uses POST, but should be updated to PATCH for consistency
+      const response = await fetch(`/api/integrations/${provider}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          default_project_id: projectId,
+          auto_push_enabled: autoPush,
+          auto_completion_sync: autoCompletionSync,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update settings')
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error)
+      // Revert state on error
+      setDefaultProjectId(defaultProjectId)
+      setAutoPushEnabled(!autoPush)
+      setAutoCompletionSyncEnabled(!autoCompletionSync)
+    } finally {
+      setUpdatingSettings(false)
+    }
+  }
+  
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
@@ -822,10 +1140,10 @@ export default function ProviderIntegrationsPage() {
             </Button>
             <div className="flex-1">
               <h1 className="text-4xl font-bold text-[var(--foreground)] mb-2">
-                {currentProviderInfo?.name || 'Calendar Integration'}
+                {currentProviderInfo?.name || 'Integration'}
               </h1>
               <p className="text-[var(--foreground)]/70">
-                Connect and manage your {currentProviderInfo?.name || 'calendar'} integration
+                Connect and manage your {currentProviderInfo?.name || 'integration'}
               </p>
             </div>
           </div>
@@ -850,7 +1168,7 @@ export default function ProviderIntegrationsPage() {
                       Connected
                     </Badge>
                   )}
-                  {connection && (
+                  {connection && isCalendarIntegration && (
                     <div className="flex gap-2">
                       <Button
                         ref={syncButtonRef}
@@ -873,6 +1191,30 @@ export default function ProviderIntegrationsPage() {
                         <ExternalLink className="w-4 h-4" />
                         Push
                         <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                  {connection && isTaskManagementIntegration && (
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSyncPlan}
+                        disabled={syncing || !activePlan?.id}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                        {syncing ? 'Syncing...' : 'Sync Plan'}
+                      </Button>
+                      <Button
+                        onClick={handlePushTasks}
+                        disabled={pushing || !activePlan?.id}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        {pushing ? 'Pushing...' : 'Push Tasks'}
                       </Button>
                     </div>
                   )}
@@ -922,116 +1264,222 @@ export default function ProviderIntegrationsPage() {
                   </div>
                   
                   {/* Calendar Selection */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-[var(--foreground)]">
-                        Select Calendars to Sync
-                      </h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={loadCalendars}
-                        disabled={loadingCalendars}
-                      >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${loadingCalendars ? 'animate-spin' : ''}`} />
-                        Refresh
-                      </Button>
-                    </div>
-                    
-                    {loadingCalendars ? (
-                      <div className="space-y-2">
-                        <Skeleton className="h-12 w-full bg-white/5" />
-                        <Skeleton className="h-12 w-full bg-white/5" />
+                  {isCalendarIntegration && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                          Select Calendars to Sync
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={loadCalendars}
+                          disabled={loadingCalendars}
+                        >
+                          <RefreshCw className={`w-4 h-4 mr-2 ${loadingCalendars ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
                       </div>
-                    ) : calendars.length === 0 ? (
-                      <p className="text-sm text-[var(--foreground)]/60">
-                        No calendars found. Please check your connection.
-                      </p>
-                    ) : (
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {calendars.map((calendar) => (
-                          <label
-                            key={calendar.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedCalendarIds.includes(calendar.id)}
-                              onChange={() => toggleCalendarSelection(calendar.id)}
-                              className="w-4 h-4 rounded border-white/20"
-                            />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-[var(--foreground)]">
-                                {calendar.summary}
-                                {calendar.primary && (
-                                  <Badge variant="outline" className="ml-2 text-xs">
-                                    Primary
-                                  </Badge>
-                                )}
-                              </p>
-                              <p className="text-xs text-[var(--foreground)]/60">
-                                {calendar.id}
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {selectedCalendarIds.length === 0 && calendars.length > 0 && (
-                      <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                        <AlertCircle className="w-4 h-4 text-yellow-400" />
-                        <p className="text-sm text-yellow-400">
-                          Please select at least one calendar to sync
+                      
+                      {loadingCalendars ? (
+                        <div className="space-y-2">
+                          <Skeleton className="h-12 w-full bg-white/5" />
+                          <Skeleton className="h-12 w-full bg-white/5" />
+                        </div>
+                      ) : calendars.length === 0 ? (
+                        <p className="text-sm text-[var(--foreground)]/60">
+                          No calendars found. Please check your connection.
                         </p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {calendars.map((calendar) => (
+                            <label
+                              key={calendar.id}
+                              className="flex items-center gap-3 p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCalendarIds.includes(calendar.id)}
+                                onChange={() => toggleCalendarSelection(calendar.id)}
+                                className="w-4 h-4 rounded border-white/20"
+                              />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-[var(--foreground)]">
+                                  {calendar.summary}
+                                  {calendar.primary && (
+                                    <Badge variant="outline" className="ml-2 text-xs">
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-[var(--foreground)]/60">
+                                  {calendar.id}
+                                </p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {selectedCalendarIds.length === 0 && calendars.length > 0 && (
+                        <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                          <AlertCircle className="w-4 h-4 text-yellow-400" />
+                          <p className="text-sm text-yellow-400">
+                            Please select at least one calendar to sync
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Project Selection */}
+                  {isTaskManagementIntegration && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                          Default Project
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={loadProjects}
+                          disabled={loadingProjects}
+                        >
+                          <RefreshCw className={`w-4 h-4 mr-2 ${loadingProjects ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
                       </div>
-                    )}
-                  </div>
+                      
+                      {loadingProjects ? (
+                        <div className="space-y-2">
+                          <Skeleton className="h-10 w-full bg-white/5" />
+                        </div>
+                      ) : projects.length === 0 ? (
+                        <p className="text-sm text-[var(--foreground)]/60">
+                          No projects found. Please check your connection.
+                        </p>
+                      ) : (
+                        <select
+                          value={defaultProjectId || ''}
+                          onChange={(e) => {
+                            const newProjectId = e.target.value || null
+                            setDefaultProjectId(newProjectId)
+                            saveTaskManagementSettings(newProjectId, autoPushEnabled, autoCompletionSyncEnabled)
+                          }}
+                          className="flex h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">No default project (use inbox)</option>
+                          {projects.map((project) => (
+                            <option key={project.id} value={project.id}>
+                              {project.name} {project.is_inbox_project ? '(Inbox)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Auto-sync Toggles */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div>
-                        <p className="text-sm font-medium text-[var(--foreground)]">
-                          Auto-pull from {currentProviderInfo?.name}
-                        </p>
-                        <p className="text-xs text-[var(--foreground)]/60">
-                          Automatically pull calendar events every hour to detect busy slots
-                        </p>
+                  {isCalendarIntegration && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Auto-pull from {currentProviderInfo?.name}
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Automatically pull calendar events every hour to detect busy slots
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoSyncEnabled}
+                            onChange={handleToggleAutoSync}
+                            disabled={updatingSettings || selectedCalendarIds.length === 0}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                        </label>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={autoSyncEnabled}
-                          onChange={handleToggleAutoSync}
-                          disabled={updatingSettings || selectedCalendarIds.length === 0}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
-                      </label>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div>
-                        <p className="text-sm font-medium text-[var(--foreground)]">
-                          Auto-push to {currentProviderInfo?.name}
-                        </p>
-                        <p className="text-xs text-[var(--foreground)]/60">
-                          Automatically push DOER tasks to {currentProviderInfo?.name} when scheduled
-                        </p>
+                      
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Auto-push to {currentProviderInfo?.name}
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Automatically push DOER tasks to {currentProviderInfo?.name} when scheduled
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoPushEnabled}
+                            onChange={handleToggleAutoPush}
+                            disabled={updatingSettings || selectedCalendarIds.length === 0}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                        </label>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={autoPushEnabled}
-                          onChange={handleToggleAutoPush}
-                          disabled={updatingSettings || selectedCalendarIds.length === 0}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
-                      </label>
                     </div>
-                  </div>
+                  )}
+                  
+                  {/* Task Management Toggles */}
+                  {isTaskManagementIntegration && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Auto-push to {currentProviderInfo?.name}
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Automatically push DOER tasks to {currentProviderInfo?.name} when scheduled
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoPushEnabled}
+                            onChange={() => {
+                              const newValue = !autoPushEnabled
+                              setAutoPushEnabled(newValue)
+                              saveTaskManagementSettings(defaultProjectId, newValue, autoCompletionSyncEnabled)
+                            }}
+                            disabled={updatingSettings}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Auto-completion sync
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Automatically sync task completion status from DOER to {currentProviderInfo?.name}
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoCompletionSyncEnabled}
+                            onChange={() => {
+                              const newValue = !autoCompletionSyncEnabled
+                              setAutoCompletionSyncEnabled(newValue)
+                              saveTaskManagementSettings(defaultProjectId, autoPushEnabled, newValue)
+                            }}
+                            disabled={updatingSettings}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -1043,13 +1491,13 @@ export default function ProviderIntegrationsPage() {
               <CardHeader>
                 <CardTitle>Recent Sync Activity</CardTitle>
                 <CardDescription>
-                  View your recent calendar sync operations
+                  View your recent {isTaskManagementIntegration ? 'task management' : 'calendar'} sync operations
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {syncLogs.length === 0 ? (
                   <p className="text-sm text-[var(--foreground)]/60 text-center py-8">
-                    No sync activity yet. Click "Sync Now" to start syncing.
+                    No sync activity yet. {isCalendarIntegration ? 'Click "Sync Now" to start syncing.' : 'Click "Sync Plan" or "Push Tasks" to start syncing.'}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -1070,7 +1518,9 @@ export default function ProviderIntegrationsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <p className="text-sm font-medium text-[var(--foreground)]">
-                              {log.sync_type === 'pull' ? 'Pulled' : log.sync_type === 'push' ? 'Pushed' : 'Full Sync'}
+                              {isTaskManagementIntegration
+                                ? log.sync_type === 'push' ? 'Pushed' : log.sync_type === 'full_sync' ? 'Full Sync' : log.sync_type === 'completion_sync' ? 'Completion Sync' : 'Synced'
+                                : log.sync_type === 'pull' ? 'Pulled' : log.sync_type === 'push' ? 'Pushed' : 'Full Sync'}
                             </p>
                             <Badge
                               variant="outline"
@@ -1086,40 +1536,56 @@ export default function ProviderIntegrationsPage() {
                             </Badge>
                           </div>
                           <div className="text-xs text-[var(--foreground)]/60 space-y-1">
-                            {log.events_pulled > 0 && (
-                              <div>
-                                <p className="font-medium mb-1">Pulled: {log.events_pulled} event{log.events_pulled !== 1 ? 's' : ''}</p>
-                                {log.changes_summary?.pulled_events && Array.isArray(log.changes_summary.pulled_events) && log.changes_summary.pulled_events.length > 0 && (
-                                  <div className="ml-2 mt-1 space-y-1">
-                                    {log.changes_summary.pulled_events.map((event: any, idx: number) => (
-                                      <div key={idx} className="text-[var(--foreground)]/70">
-                                        <span className="font-medium">{event.title || 'Untitled Event'}</span>
-                                        {event.date && (
-                                          <span className="ml-2">
-                                            {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            {event.startTime && event.endTime && (
-                                              <span className="ml-1 opacity-80">
-                                                • {event.startTime} - {event.endTime}
+                            {isTaskManagementIntegration ? (
+                              <>
+                                {log.tasks_pushed > 0 && (
+                                  <p>Pushed: {log.tasks_pushed} task{log.tasks_pushed !== 1 ? 's' : ''}</p>
+                                )}
+                                {log.tasks_updated > 0 && (
+                                  <p>Updated: {log.tasks_updated} task{log.tasks_updated !== 1 ? 's' : ''}</p>
+                                )}
+                                {log.tasks_completed > 0 && (
+                                  <p>Completed: {log.tasks_completed} task{log.tasks_completed !== 1 ? 's' : ''}</p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {log.events_pulled > 0 && (
+                                  <div>
+                                    <p className="font-medium mb-1">Pulled: {log.events_pulled} event{log.events_pulled !== 1 ? 's' : ''}</p>
+                                    {log.changes_summary?.pulled_events && Array.isArray(log.changes_summary.pulled_events) && log.changes_summary.pulled_events.length > 0 && (
+                                      <div className="ml-2 mt-1 space-y-1">
+                                        {log.changes_summary.pulled_events.map((event: any, idx: number) => (
+                                          <div key={idx} className="text-[var(--foreground)]/70">
+                                            <span className="font-medium">{event.title || 'Untitled Event'}</span>
+                                            {event.date && (
+                                              <span className="ml-2">
+                                                {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                {event.startTime && event.endTime && (
+                                                  <span className="ml-1 opacity-80">
+                                                    • {event.startTime} - {event.endTime}
+                                                  </span>
+                                                )}
                                               </span>
                                             )}
-                                          </span>
-                                        )}
+                                          </div>
+                                        ))}
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
                                 )}
-                              </div>
-                            )}
-                            {log.events_pushed > 0 && (
-                              <p>Pushed: {log.events_pushed} events</p>
-                            )}
-                            {log.changes_summary?.events_pushed > 0 && !log.events_pushed && (
-                              <p>Pushed: {log.changes_summary.events_pushed} events</p>
-                            )}
-                            {log.conflicts_detected > 0 && (
-                              <p className="text-yellow-400">
-                                Conflicts: {log.conflicts_detected} detected
-                              </p>
+                                {log.events_pushed > 0 && (
+                                  <p>Pushed: {log.events_pushed} events</p>
+                                )}
+                                {log.changes_summary?.events_pushed > 0 && !log.events_pushed && (
+                                  <p>Pushed: {log.changes_summary.events_pushed} events</p>
+                                )}
+                                {log.conflicts_detected > 0 && (
+                                  <p className="text-yellow-400">
+                                    Conflicts: {log.conflicts_detected} detected
+                                  </p>
+                                )}
+                              </>
                             )}
                             {log.error_message && (
                               <p className="text-red-400">{log.error_message}</p>

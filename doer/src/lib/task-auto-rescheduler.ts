@@ -1219,6 +1219,21 @@ export async function applyRescheduleProposal(
         })
     }
 
+    // Sync reschedule to Todoist if linked
+    try {
+      const { syncTaskRescheduleToTodoist } = await import('@/lib/task-management/sync-hooks')
+      await syncTaskRescheduleToTodoist(
+        userId,
+        proposal.task_schedule_id,
+        proposal.proposed_date,
+        proposal.proposed_start_time,
+        proposal.proposed_end_time
+      )
+    } catch (syncError) {
+      // Log but don't fail the reschedule operation
+      console.warn('Failed to sync reschedule to Todoist:', syncError)
+    }
+
     return { success: true }
   } catch (error) {
     console.error('Error applying reschedule proposal:', error)
