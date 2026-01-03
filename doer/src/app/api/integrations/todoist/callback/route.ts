@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getProvider } from '@/lib/task-management/providers/provider-factory'
-import { encryptTokens, verifyOAuthState } from '@/lib/calendar/providers/shared'
+import { verifyOAuthState } from '@/lib/calendar/providers/shared'
+import { encryptToken } from '@/lib/calendar/encryption'
 import { logger } from '@/lib/logger'
 
 // Force dynamic rendering since we use cookies for authentication
@@ -61,11 +62,10 @@ export async function GET(request: NextRequest) {
     const tokens = await provider.exchangeCodeForTokens(code, redirectUri)
 
     // Encrypt tokens
-    const { accessTokenEncrypted, refreshTokenEncrypted, expiresAt } = encryptTokens({
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token || '',
-      expiry_date: tokens.expiry_date,
-    })
+    // Todoist doesn't provide refresh tokens, so handle it conditionally
+    const accessTokenEncrypted = encryptToken(tokens.access_token)
+    const refreshTokenEncrypted = tokens.refresh_token ? encryptToken(tokens.refresh_token) : ''
+    const expiresAt = new Date(tokens.expiry_date).toISOString()
 
     // Check if connection already exists
     const { data: existingConnection } = await supabase

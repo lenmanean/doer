@@ -268,7 +268,8 @@ export class TodoistProvider implements TaskManagementProvider {
 
       // Map DOER priority (1-4) to Todoist priority (1-4)
       // DOER: 1=Critical, 2=High, 3=Medium, 4=Low
-      // Todoist: 1=Normal, 2=High, 3=Medium, 4=Low (inverse, but we'll use direct mapping)
+      // Todoist: 1=Normal, 2=High, 3=Medium, 4=Low
+      // Using direct mapping: DOER Critical (1) -> Todoist Normal (1), DOER High (2) -> Todoist High (2), etc.
       const todoistPriority = task.priority
 
       // Build task description with details and duration
@@ -349,11 +350,17 @@ export class TodoistProvider implements TaskManagementProvider {
       }
       if (updates.dueDate !== undefined || updates.dueDateTime !== undefined) {
         const dueDate = updates.dueDateTime || updates.dueDate
-        taskData.due = dueDate ? {
-          date: updates.dueDate || updates.dueDateTime!,
-          datetime: updates.dueDateTime || undefined,
-          string: dueDate,
-        } : undefined
+        if (dueDate) {
+          // Extract date portion from datetime if dueDate is not provided
+          const dateValue = updates.dueDate || (updates.dueDateTime ? updates.dueDateTime.split('T')[0] : undefined)
+          taskData.due = {
+            date: dateValue,
+            datetime: updates.dueDateTime || undefined,
+            string: dueDate,
+          }
+        } else {
+          taskData.due = undefined
+        }
       }
       if (updates.projectId !== undefined) {
         taskData.project_id = updates.projectId
