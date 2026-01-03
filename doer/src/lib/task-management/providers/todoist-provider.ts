@@ -353,10 +353,14 @@ export class TodoistProvider implements TaskManagementProvider {
         if (dueDate) {
           // Extract date portion from datetime if dueDate is not provided
           const dateValue = updates.dueDate || (updates.dueDateTime ? updates.dueDateTime.split('T')[0] : undefined)
-          taskData.due = {
-            date: dateValue,
-            datetime: updates.dueDateTime || undefined,
-            string: dueDate,
+          if (dateValue) {
+            taskData.due = {
+              date: dateValue,
+              datetime: updates.dueDateTime || undefined,
+              string: dueDate,
+            }
+          } else {
+            taskData.due = undefined
           }
         } else {
           taskData.due = undefined
