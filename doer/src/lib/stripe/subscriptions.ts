@@ -419,10 +419,12 @@ export async function getInvoicesFromStripe(
   }
 
   // Fetch invoices from Stripe (with retry logic)
+  // Expand subscription to check plan type
   const invoices = await stripeWithRetry(() =>
     stripe.invoices.list({
       customer: stripeCustomerId,
       limit: 100,
+      expand: ['data.subscription'],
     })
   )
 
@@ -433,25 +435,16 @@ export async function getInvoicesFromStripe(
     const amountDollars = invoice.total ? invoice.total / 100 : 0
     
     // Check if invoice is associated with a basic plan subscription
-    // We check the invoice line items for the price ID to determine the plan
     let isBasicPlanInvoice = false
     
-    // Check invoice line items for basic plan price ID
-    if (invoice.lines?.data && invoice.lines.data.length > 0) {
-      const priceId = invoice.lines.data[0]?.price?.id
-      if (priceId === process.env.STRIPE_PRICE_BASIC) {
-        isBasicPlanInvoice = true
-      }
-    }
-    
-    // Also check subscription if available (fallback)
-    if (!isBasicPlanInvoice && invoice.subscription) {
+    // Check subscription if available
+    if (invoice.subscription) {
       const subscription = typeof invoice.subscription === 'string' 
         ? null 
         : invoice.subscription
       
       if (subscription) {
-        // Check subscription metadata
+        // Check subscription metadata first (most reliable)
         const metadata = subscription.metadata || {}
         if (metadata.planSlug === 'basic') {
           isBasicPlanInvoice = true
