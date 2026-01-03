@@ -1708,7 +1708,12 @@ export default function ReviewPage() {
       {hasBasicPlan && (
         <PlanSelectionModal
           isOpen={showPlanSelectionModal}
-          onClose={() => setShowPlanSelectionModal(false)}
+          onClose={() => {
+            setShowPlanSelectionModal(false)
+            // Navigate to dashboard when user closes modal via X button
+            sessionStorage.removeItem('generatedPlan')
+            router.push('/dashboard')
+          }}
         />
       )}
 
