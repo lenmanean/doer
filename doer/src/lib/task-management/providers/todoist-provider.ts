@@ -78,8 +78,37 @@ export class TodoistProvider implements TaskManagementProvider {
   }
 
   getRedirectUri(): string {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    return `${baseUrl}/api/integrations/todoist/callback`
+    // First priority: explicit URL from environment
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL.trim()
+      const baseUrl = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl
+      return `${baseUrl}/api/integrations/todoist/callback`
+    }
+    
+    // Second priority: production domain (usedoer.com) - always use https
+    // Check VERCEL_ENV first (more reliable for Vercel deployments)
+    const nodeEnv = process.env.NODE_ENV as string | undefined
+    const vercelEnv = process.env.VERCEL_ENV as string | undefined
+    const isProduction = vercelEnv === 'production' || 
+                        nodeEnv === 'production' ||
+                        (!nodeEnv && process.env.VERCEL)
+    
+    if (isProduction) {
+      return `https://usedoer.com/api/integrations/todoist/callback`
+    }
+    
+    // Third priority: Vercel preview/deployment URL
+    // Use VERCEL_URL for preview deployments, but skip if we're in production
+    if (process.env.VERCEL_URL && vercelEnv !== 'production') {
+      const vercelUrl = process.env.VERCEL_URL.trim()
+      const baseUrl = vercelUrl.startsWith('https://') 
+        ? vercelUrl 
+        : `https://${vercelUrl}`
+      return `${baseUrl}/api/integrations/todoist/callback`
+    }
+    
+    // Last resort: localhost (development only)
+    return `http://localhost:3000/api/integrations/todoist/callback`
   }
 
   async generateAuthUrl(state?: string): Promise<string> {
