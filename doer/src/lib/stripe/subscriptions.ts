@@ -437,11 +437,12 @@ export async function getInvoicesFromStripe(
     // Check if invoice is associated with a basic plan subscription
     let isBasicPlanInvoice = false
     
-    // Check subscription if available
-    if (invoice.subscription) {
-      const subscription = typeof invoice.subscription === 'string' 
+    // Check subscription if available (expanded property)
+    const invoiceSubscription = (invoice as any).subscription
+    if (invoiceSubscription) {
+      const subscription = typeof invoiceSubscription === 'string' 
         ? null 
-        : invoice.subscription
+        : invoiceSubscription
       
       if (subscription) {
         // Check subscription metadata first (most reliable)
