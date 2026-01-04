@@ -145,6 +145,14 @@ export class AsanaProvider implements TaskManagementProvider {
     const clientId = process.env.ASANA_CLIENT_ID!
     const clientSecret = process.env.ASANA_CLIENT_SECRET!
 
+    logger.info('Exchanging Asana OAuth code for tokens', {
+      hasCode: !!code,
+      codeLength: code?.length,
+      redirectUri,
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+    })
+
     const response = await fetch('https://app.asana.com/-/oauth_token', {
       method: 'POST',
       headers: {
@@ -161,6 +169,13 @@ export class AsanaProvider implements TaskManagementProvider {
 
     if (!response.ok) {
       const errorText = await response.text()
+      logger.error('Asana token exchange failed - HTTP error', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        redirectUri,
+        hasCode: !!code,
+      })
       let errorMessage = 'Unknown error'
       try {
         const errorData: AsanaError = JSON.parse(errorText)
@@ -177,6 +192,14 @@ export class AsanaProvider implements TaskManagementProvider {
 
     const data: AsanaTokenResponse = await response.json()
 
+    // Log the raw response for debugging
+    logger.info('Asana token exchange response', {
+      hasData: !!data,
+      dataKeys: data ? Object.keys(data) : [],
+      dataType: typeof data,
+      responsePreview: JSON.stringify(data).substring(0, 500),
+    })
+
     // Asana may wrap the response in a data object or return directly
     const tokenData = data.data || data
     const accessToken = tokenData.access_token
@@ -184,6 +207,12 @@ export class AsanaProvider implements TaskManagementProvider {
     const expiresIn = tokenData.expires_in || 3600 // Default to 1 hour if not provided
 
     if (!accessToken) {
+      logger.error('Asana token exchange failed - no access token in response', {
+        responseData: data,
+        tokenData,
+        hasTokenData: !!tokenData,
+        tokenDataKeys: tokenData ? Object.keys(tokenData) : [],
+      })
       throw new Error('Failed to obtain access token from Asana')
     }
 
