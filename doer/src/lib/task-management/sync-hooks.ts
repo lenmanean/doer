@@ -453,8 +453,9 @@ export async function syncTaskRescheduleToTrello(
       return
     }
 
-    const connection = link.task_management_connections as any
-    if (!connection || connection.provider !== 'trello') {
+    const connectionData = link.task_management_connections
+    const connection = Array.isArray(connectionData) ? connectionData[0] : connectionData
+    if (!connection || (connection as { provider?: string }).provider !== 'trello') {
       return
     }
 
@@ -564,8 +565,10 @@ export async function syncTaskCompletionToTrello(
       return
     }
 
-    const connection = link.task_management_connections as any
-    if (!connection || connection.provider !== 'trello' || !connection.auto_completion_sync) {
+    // Type-safe connection access (Supabase nested relation can be array or single object)
+    const connectionData = link.task_management_connections
+    const connection = Array.isArray(connectionData) ? connectionData[0] : connectionData
+    if (!connection || (connection as { provider?: string; auto_completion_sync?: boolean }).provider !== 'trello' || !(connection as { auto_completion_sync?: boolean }).auto_completion_sync) {
       return
     }
 
@@ -588,31 +591,21 @@ export async function syncTaskCompletionToTrello(
         return
       }
     } else {
-      // Task uncompleted: attempt to reopen in Trello if the provider supports it
-      const trelloProvider = provider as Partial<TrelloProvider>
+      // Task uncompleted: reopen in Trello (TrelloProvider implements reopenTask)
+      const trelloProvider = provider as import('./providers/trello-provider').TrelloProvider
 
-      if (typeof trelloProvider.reopenTask === 'function') {
-        // Get original list ID from metadata if stored (future enhancement)
-        // For now, just reopen to first list
-        const result = await trelloProvider.reopenTask(
-          connection.id,
-          link.external_task_id
-        )
+      const result = await trelloProvider.reopenTask(
+        connection.id,
+        link.external_task_id
+      )
 
-        if (!result.success) {
-          logger.error('Failed to reopen task in Trello', {
-            error: result.error,
-            taskId,
-            externalTaskId: link.external_task_id,
-          })
-          return
-        }
-      } else {
-        // Provider does not support reopen in this build, avoid throwing
-        logger.info('Task uncompleted in DOER, but Trello provider does not support reopenTask', {
+      if (!result.success) {
+        logger.error('Failed to reopen task in Trello', {
+          error: result.error,
           taskId,
           externalTaskId: link.external_task_id,
         })
+        return
       }
     }
 

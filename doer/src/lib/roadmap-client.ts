@@ -523,6 +523,20 @@ export async function updateTaskCompletionUnified(params: TaskCompletionParams):
     } catch (syncError) {
       // Ignore - sync is best effort
     }
+
+    // Sync completion status to Trello if linked and auto_completion_sync is enabled
+    // Call API route to handle sync (since this function can be called from client)
+    try {
+      await fetch('/api/integrations/trello/sync-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, isCompleted }),
+      }).catch(() => {
+        // Ignore errors - sync is best effort
+      })
+    } catch (syncError) {
+      // Ignore - sync is best effort
+    }
   } catch (error) {
     logger.error('Error in updateTaskCompletionUnified', {
       error: error instanceof Error ? error.message : String(error),

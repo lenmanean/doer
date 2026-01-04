@@ -1249,6 +1249,21 @@ export async function applyRescheduleProposal(
       console.warn('Failed to sync reschedule to Asana:', syncError)
     }
 
+    // Sync reschedule to Trello if linked
+    try {
+      const { syncTaskRescheduleToTrello } = await import('@/lib/task-management/sync-hooks')
+      await syncTaskRescheduleToTrello(
+        userId,
+        proposal.task_schedule_id,
+        proposal.proposed_date,
+        proposal.proposed_start_time,
+        proposal.proposed_end_time
+      )
+    } catch (syncError) {
+      // Log but don't fail the reschedule operation
+      console.warn('Failed to sync reschedule to Trello:', syncError)
+    }
+
     return { success: true }
   } catch (error) {
     console.error('Error applying reschedule proposal:', error)

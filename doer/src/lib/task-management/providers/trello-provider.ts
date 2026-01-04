@@ -293,46 +293,61 @@ export class TrelloProvider implements TaskManagementProvider {
     url.searchParams.set('key', apiKey)
     url.searchParams.set('token', accessToken)
 
-    const response = await fetch(url.toString(), {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    })
+    // Add timeout using AbortController
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30-second timeout
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      let errorMessage = 'Unknown error'
-      
-      try {
-        const errorData: TrelloError = JSON.parse(errorText)
-        errorMessage = errorData.error || errorData.message || errorText
-      } catch {
-        errorMessage = errorText || response.statusText
+    try {
+      const response = await fetch(url.toString(), {
+        ...options,
+        signal: controller.signal, // Pass the signal to the fetch request
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      })
+
+      clearTimeout(timeoutId) // Clear timeout if request completes
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage = 'Unknown error'
+        
+        try {
+          const errorData: TrelloError = JSON.parse(errorText)
+          errorMessage = errorData.error || errorData.message || errorText
+        } catch {
+          errorMessage = errorText || response.statusText
+        }
+
+        // Handle specific error codes
+        if (response.status === 401) {
+          throw new Error(`Trello API authentication failed: ${errorMessage}`)
+        } else if (response.status === 403) {
+          throw new Error(`Trello API access forbidden: ${errorMessage}`)
+        } else if (response.status === 404) {
+          throw new Error(`Trello API resource not found: ${errorMessage}`)
+        } else if (response.status === 429) {
+          // Rate limit exceeded - wait and retry once
+          logger.warn('Trello rate limit exceeded, waiting before retry')
+          await new Promise(resolve => setTimeout(resolve, 11000)) // Wait 11 seconds
+          // Retry once
+          return this.makeApiRequest<T>(accessToken, endpoint, options)
+        } else if (response.status >= 500) {
+          throw new Error(`Trello API server error: ${errorMessage}`)
+        }
+        
+        throw new Error(`Trello API error: ${errorMessage}`)
       }
 
-      // Handle specific error codes
-      if (response.status === 401) {
-        throw new Error(`Trello API authentication failed: ${errorMessage}`)
-      } else if (response.status === 403) {
-        throw new Error(`Trello API access forbidden: ${errorMessage}`)
-      } else if (response.status === 404) {
-        throw new Error(`Trello API resource not found: ${errorMessage}`)
-      } else if (response.status === 429) {
-        // Rate limit exceeded - wait and retry once
-        logger.warn('Trello rate limit exceeded, waiting before retry')
-        await new Promise(resolve => setTimeout(resolve, 11000)) // Wait 11 seconds
-        // Retry once
-        return this.makeApiRequest<T>(accessToken, endpoint, options)
-      } else if (response.status >= 500) {
-        throw new Error(`Trello API server error: ${errorMessage}`)
+      return response.json()
+    } catch (error) {
+      clearTimeout(timeoutId) // Clear timeout on error as well
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Trello API request timeout')
       }
-      
-      throw new Error(`Trello API error: ${errorMessage}`)
+      throw error
     }
-
-    return response.json()
   }
 
   async getProjects(connectionId: string): Promise<Project[]> {
@@ -496,8 +511,17 @@ export class TrelloProvider implements TaskManagementProvider {
         description += `Plan: ${task.planName}`
       }
 
-      // Format due date (Trello accepts ISO format)
-      const dueDate = task.dueDateTime || task.dueDate
+      // Format due date (Trello accepts ISO 8601 format)
+      // If dueDateTime exists, use as-is (should already be ISO 8601)
+      // If only dueDate exists (YYYY-MM-DD), convert to ISO 8601 datetime
+      let dueDate: string | undefined = undefined
+      if (task.dueDateTime) {
+        dueDate = task.dueDateTime
+      } else if (task.dueDate) {
+        // Convert YYYY-MM-DD to ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss.sssZ)
+        // Use midnight UTC for date-only values
+        dueDate = new Date(`${task.dueDate}T00:00:00.000Z`).toISOString()
+      }
 
       // Create card
       const cardData: Partial<TrelloCard> = {
@@ -568,8 +592,18 @@ export class TrelloProvider implements TaskManagementProvider {
         cardData.idLabels = labelIds
       }
       if (updates.dueDate !== undefined || updates.dueDateTime !== undefined) {
-        const dueDate = updates.dueDateTime || updates.dueDate
-        cardData.due = dueDate || null
+        // Format due date (Trello accepts ISO 8601 format)
+        // If dueDateTime exists, use as-is (should already be ISO 8601)
+        // If only dueDate exists (YYYY-MM-DD), convert to ISO 8601 datetime
+        let dueDate: string | null = null
+        if (updates.dueDateTime) {
+          dueDate = updates.dueDateTime
+        } else if (updates.dueDate) {
+          // Convert YYYY-MM-DD to ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss.sssZ)
+          // Use midnight UTC for date-only values
+          dueDate = new Date(`${updates.dueDate}T00:00:00.000Z`).toISOString()
+        }
+        cardData.due = dueDate
       }
       if (updates.projectId !== undefined) {
         // Moving card to different board requires special handling
