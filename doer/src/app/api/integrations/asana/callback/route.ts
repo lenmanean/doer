@@ -48,14 +48,24 @@ export async function GET(request: NextRequest) {
 
     // Get provider instance
     // Validate provider first to ensure it's supported (defensive check)
-    const providerString = 'asana'
-    const providerType = validateProvider(providerString)
-    logger.info('Getting Asana provider instance in callback', {
-      providerString,
-      providerType,
-      typeOf: typeof providerType,
-    })
-    const provider = getProvider(providerType)
+    let provider
+    try {
+      const providerString = 'asana'
+      const providerType = validateProvider(providerString)
+      logger.info('Getting Asana provider instance in callback', {
+        providerString,
+        providerType,
+        typeOf: typeof providerType,
+      })
+      provider = getProvider(providerType)
+    } catch (providerError) {
+      logger.error('Failed to get Asana provider instance', {
+        error: providerError instanceof Error ? providerError.message : String(providerError),
+        errorStack: providerError instanceof Error ? providerError.stack : undefined,
+        errorName: providerError instanceof Error ? providerError.name : undefined,
+      })
+      throw providerError
+    }
     const redirectUri = provider.getRedirectUri()
 
     // Log redirect URI for debugging
@@ -98,12 +108,22 @@ export async function GET(request: NextRequest) {
     const expiresAt = new Date(tokens.expiry_date).toISOString()
 
     // Check if connection already exists
-    const { data: existingConnection } = await supabase
+    const { data: existingConnection, error: checkError } = await supabase
       .from('task_management_connections')
       .select('id')
       .eq('user_id', user.id)
       .eq('provider', 'asana')
-      .single()
+      .maybeSingle()
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 is "not found" which is expected when no connection exists
+      logger.error('Error checking for existing Asana connection', {
+        error: checkError,
+        errorMessage: checkError.message,
+        errorCode: checkError.code,
+      })
+      throw checkError
+    }
 
     if (existingConnection) {
       // Update existing connection (reconnection)
