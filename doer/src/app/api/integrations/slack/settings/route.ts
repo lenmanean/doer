@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Get Slack connection settings
- * GET /api/integrations/slack/settings
+ * GET /api/integrations/slack/settings?team_id=xxx (optional)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,14 +22,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's Slack connection (most recent if multiple)
-    const { data: connection, error: connectionError } = await supabase
+    // Get optional team_id from query params
+    const searchParams = request.nextUrl.searchParams
+    const teamId = searchParams.get('team_id')
+
+    // If team_id is provided, get specific workspace
+    let connectionQuery = supabase
       .from('slack_connections')
       .select('id, team_id, default_channel_id, notification_preferences')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+
+    if (teamId) {
+      connectionQuery = connectionQuery.eq('team_id', teamId)
+    } else {
+      // Otherwise get most recent
+      connectionQuery = connectionQuery.order('created_at', { ascending: false }).limit(1)
+    }
+
+    const { data: connection, error: connectionError } = await connectionQuery.single()
 
     if (connectionError || !connection) {
       return NextResponse.json(
@@ -69,7 +79,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * Update Slack connection settings
- * POST /api/integrations/slack/settings
+ * POST /api/integrations/slack/settings?team_id=xxx (optional)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -84,16 +94,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { default_channel_id, notification_preferences } = body
+    const { default_channel_id, notification_preferences, team_id } = body
 
-    // Get user's Slack connection (most recent if multiple)
-    const { data: connection, error: connectionError } = await supabase
+    // Get optional team_id from body or query params
+    const searchParams = request.nextUrl.searchParams
+    const teamId = team_id || searchParams.get('team_id')
+
+    // If team_id is provided, get specific workspace
+    let connectionQuery = supabase
       .from('slack_connections')
       .select('id')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+
+    if (teamId) {
+      connectionQuery = connectionQuery.eq('team_id', teamId)
+    } else {
+      // Otherwise get most recent
+      connectionQuery = connectionQuery.order('created_at', { ascending: false }).limit(1)
+    }
+
+    const { data: connection, error: connectionError } = await connectionQuery.single()
 
     if (connectionError || !connection) {
       return NextResponse.json(
@@ -147,4 +167,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

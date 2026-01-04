@@ -67,6 +67,9 @@ interface SlackChannelsResponse {
   ok: boolean
   channels?: SlackChannel[]
   error?: string
+  response_metadata?: {
+    next_cursor?: string
+  }
 }
 
 /**
@@ -162,6 +165,7 @@ export class SlackProvider implements NotificationProvider {
       'commands',
       'users:read',
       'channels:read',
+      'groups:read',
       'chat:write.public',
     ].join(',')
 
@@ -421,37 +425,93 @@ export class SlackProvider implements NotificationProvider {
       .single()
 
     if (error || !connection) {
+      logger.error('Slack connection not found for getChannels', {
+        connectionId,
+        error: error instanceof Error ? error.message : String(error),
+      })
       throw new Error(`Connection not found: ${connectionId}`)
     }
 
     const botToken = decryptToken(connection.bot_token_encrypted)
+    const tokenPreview = botToken.length > 4 ? `...${botToken.slice(-4)}` : '***'
 
-    // Fetch public channels
-    const channelsResponse = await fetch(`${SLACK_API_BASE}/conversations.list?types=public_channel,private_channel,im`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${botToken}`,
-        'Content-Type': 'application/json',
-      },
-    })
+    try {
+      // Fetch channels with pagination support
+      const allChannels: SlackChannel[] = []
+      let cursor: string | undefined = undefined
+      let hasMore = true
 
-    if (!channelsResponse.ok) {
-      const errorData: SlackChannelsResponse = await channelsResponse.json().catch(() => ({ ok: false }))
-      throw new Error(`Failed to fetch channels: ${errorData.error || 'Unknown error'}`)
+      while (hasMore) {
+        const params = new URLSearchParams({
+          types: 'public_channel,private_channel',
+          exclude_archived: 'true',
+          limit: '200',
+        })
+        if (cursor) {
+          params.append('cursor', cursor)
+        }
+
+        const channelsResponse = await fetch(`${SLACK_API_BASE}/conversations.list?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${botToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!channelsResponse.ok) {
+          const errorText = await channelsResponse.text()
+          logger.error('Failed to fetch Slack channels - HTTP error', {
+            connectionId,
+            status: channelsResponse.status,
+            statusText: channelsResponse.statusText,
+            errorText,
+            tokenPreview,
+          })
+          throw new Error(`Failed to fetch channels: HTTP ${channelsResponse.status}`)
+        }
+
+        const channelsData: SlackChannelsResponse = await channelsResponse.json()
+
+        if (!channelsData.ok) {
+          logger.error('Slack API error in conversations.list', {
+            connectionId,
+            error: channelsData.error || 'Unknown error',
+            tokenPreview,
+          })
+          throw new Error(`Slack API error: ${channelsData.error || 'Unknown error'}`)
+        }
+
+        if (channelsData.channels) {
+          allChannels.push(...channelsData.channels)
+        }
+
+        // Check for pagination
+        cursor = channelsData.response_metadata?.next_cursor
+        hasMore = !!cursor && cursor.length > 0
+      }
+
+      logger.info('Successfully fetched Slack channels', {
+        connectionId,
+        channelCount: allChannels.length,
+        tokenPreview,
+      })
+
+      return allChannels.map(channel => ({
+        id: channel.id,
+        name: channel.name || channel.id,
+        is_private: channel.is_private || false,
+        is_im: channel.is_im || false,
+      }))
+    } catch (error) {
+      logger.error('Error in getChannels', {
+        connectionId,
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        tokenPreview,
+      })
+      throw error
     }
-
-    const channelsData: SlackChannelsResponse = await channelsResponse.json()
-
-    if (!channelsData.ok || !channelsData.channels) {
-      throw new Error(`Slack API error: ${channelsData.error || 'Unknown error'}`)
-    }
-
-    return channelsData.channels.map(channel => ({
-      id: channel.id,
-      name: channel.name || channel.id,
-      is_private: channel.is_private || false,
-      is_im: channel.is_im || false,
-    }))
   }
 
   async getUserInfo(connectionId: string, userId: string): Promise<any> {

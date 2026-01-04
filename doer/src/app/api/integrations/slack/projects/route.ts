@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Get Slack channels (for UI compatibility, called "projects")
- * GET /api/integrations/slack/projects
+ * GET /api/integrations/slack/projects?team_id=xxx (optional)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,14 +22,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's Slack connection (most recent if multiple)
-    const { data: connection, error: connectionError } = await supabase
+    // Get optional team_id from query params
+    const searchParams = request.nextUrl.searchParams
+    const teamId = searchParams.get('team_id')
+
+    // If team_id is provided, get specific workspace
+    let query = supabase
       .from('slack_connections')
       .select('id')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+
+    if (teamId) {
+      query = query.eq('team_id', teamId)
+    } else {
+      // Otherwise get most recent
+      query = query.order('created_at', { ascending: false }).limit(1)
+    }
+
+    const { data: connection, error: connectionError } = await query.single()
 
     if (connectionError || !connection) {
       return NextResponse.json(

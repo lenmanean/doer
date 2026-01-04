@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
         throw updateError
       }
 
-      return NextResponse.redirect(new URL(`/integrations/slack?connected=slack`, request.url))
+      return NextResponse.redirect(new URL(`/integrations/slack?connected=slack&team_id=${tokensWithMetadata.team_id}`, request.url))
     }
 
     // Create new connection
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
       teamId: tokensWithMetadata.team_id,
     })
 
-    return NextResponse.redirect(new URL(`/integrations/slack?connected=slack`, request.url))
+    return NextResponse.redirect(new URL(`/integrations/slack?connected=slack&team_id=${tokensWithMetadata.team_id}`, request.url))
   } catch (error) {
     logger.error('Slack OAuth callback error', error as Error)
     return NextResponse.redirect(new URL(`/integrations/slack?error=callback_failed`, request.url))

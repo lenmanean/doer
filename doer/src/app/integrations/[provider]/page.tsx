@@ -149,6 +149,8 @@ export default function ProviderIntegrationsPage() {
   const [notificationPreferences, setNotificationPreferences] = useState<SlackNotificationPreferences>({})
   const [teamName, setTeamName] = useState<string | null>(null)
   const [teamId, setTeamId] = useState<string | null>(null)
+  const [workspaces, setWorkspaces] = useState<Array<{ id: string; team_id: string; team_name: string; installed_at: string }>>([])
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
   
   // Sync state
   const [syncing, setSyncing] = useState(false)
@@ -322,7 +324,7 @@ export default function ProviderIntegrationsPage() {
   }, [provider, isCalendarIntegration, addToast])
   
   // Load available channels (only for Slack integration)
-  const loadChannels = useCallback(async () => {
+  const loadChannels = useCallback(async (workspaceTeamId?: string | null) => {
     if (!isSlackIntegration) {
       setChannels([])
       return
@@ -330,7 +332,9 @@ export default function ProviderIntegrationsPage() {
     
     try {
       setLoadingChannels(true)
-      const response = await fetch(`/api/integrations/${provider}/projects`)
+      const teamId = workspaceTeamId || currentWorkspaceId
+      const url = teamId ? `/api/integrations/${provider}/projects?team_id=${teamId}` : `/api/integrations/${provider}/projects`
+      const response = await fetch(url)
       
       if (!response.ok) {
         throw new Error('Failed to load channels')
@@ -349,7 +353,7 @@ export default function ProviderIntegrationsPage() {
     } finally {
       setLoadingChannels(false)
     }
-  }, [provider, isSlackIntegration, addToast])
+  }, [provider, isSlackIntegration, currentWorkspaceId, addToast])
   
   // Load available projects (only for task management integrations)
   const loadProjects = useCallback(async () => {
@@ -389,7 +393,14 @@ export default function ProviderIntegrationsPage() {
     if (isSlackIntegration) {
       try {
         setLoadingConnection(true)
-        const response = await fetch(`/api/integrations/${provider}/status`)
+        
+        // Get current workspace ID from localStorage or URL params
+        const storedWorkspaceId = typeof window !== 'undefined' ? localStorage.getItem(`slack_current_workspace_${user.id}`) : null
+        const urlTeamId = searchParams.get('team_id')
+        const workspaceTeamId = urlTeamId || storedWorkspaceId
+        
+        const url = workspaceTeamId ? `/api/integrations/${provider}/status?team_id=${workspaceTeamId}` : `/api/integrations/${provider}/status`
+        const response = await fetch(url)
         
         if (!response.ok) {
           throw new Error('Failed to load connection status')
@@ -403,15 +414,53 @@ export default function ProviderIntegrationsPage() {
           return loadConnection(retryCount + 1)
         }
         
-        setConnection(data.connected ? data.connection : null)
-        setDefaultChannelId(data.connection?.default_channel_id || null)
-        setNotificationPreferences(data.connection?.notification_preferences || {})
-        setTeamName(data.team_name || null)
-        setTeamId(data.team_id || null)
-        
-        // Load channels if connected
-        if (data.connected) {
-          loadChannels()
+        // Handle multiple workspaces response
+        if (data.workspaces && Array.isArray(data.workspaces)) {
+          setWorkspaces(data.workspaces)
+          const currentWorkspace = data.current_workspace || data.workspaces[0]
+          
+          if (currentWorkspace) {
+            setConnection(currentWorkspace)
+            setDefaultChannelId(currentWorkspace.default_channel_id || null)
+            setNotificationPreferences(currentWorkspace.notification_preferences || {})
+            setTeamName(currentWorkspace.team_name || null)
+            setTeamId(currentWorkspace.team_id || null)
+            setCurrentWorkspaceId(currentWorkspace.team_id || null)
+            
+            // Store current workspace in localStorage
+            if (typeof window !== 'undefined' && currentWorkspace.team_id) {
+              localStorage.setItem(`slack_current_workspace_${user.id}`, currentWorkspace.team_id)
+            }
+            
+            // Load channels for current workspace
+            loadChannels(currentWorkspace.team_id)
+          } else {
+            setConnection(null)
+            setDefaultChannelId(null)
+            setNotificationPreferences({})
+            setTeamName(null)
+            setTeamId(null)
+            setCurrentWorkspaceId(null)
+            setChannels([])
+          }
+        } else {
+          // Single workspace response (backward compatibility)
+          setConnection(data.connected ? data.connection : null)
+          setDefaultChannelId(data.connection?.default_channel_id || null)
+          setNotificationPreferences(data.connection?.notification_preferences || {})
+          setTeamName(data.team_name || null)
+          setTeamId(data.team_id || null)
+          setCurrentWorkspaceId(data.team_id || null)
+          
+          // Store current workspace in localStorage
+          if (typeof window !== 'undefined' && data.team_id) {
+            localStorage.setItem(`slack_current_workspace_${user.id}`, data.team_id)
+          }
+          
+          // Load channels if connected
+          if (data.connected) {
+            loadChannels(data.team_id)
+          }
         }
         
         return data.connected
@@ -527,7 +576,7 @@ export default function ProviderIntegrationsPage() {
     setLoadingConnection(false)
     setConnection(null)
     return false
-  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, isSlackIntegration, loadCalendars, loadProjects, loadChannels, loadActivePlan, addToast])
+  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, isSlackIntegration, loadCalendars, loadProjects, loadChannels, loadActivePlan, addToast, searchParams])
   
   // Handle OAuth callback query parameters
   useEffect(() => {
@@ -692,13 +741,22 @@ export default function ProviderIntegrationsPage() {
   }
   
   // Disconnect Integration
-  const handleDisconnect = async () => {
-    if (!confirm(`Are you sure you want to disconnect ${providerInfo[provider]?.name || 'this integration'}? This will remove all sync settings and stop syncing.`)) {
+  const handleDisconnect = async (disconnectTeamId?: string) => {
+    const isDisconnectingWorkspace = isSlackIntegration && disconnectTeamId
+    const confirmMessage = isDisconnectingWorkspace
+      ? `Are you sure you want to disconnect this workspace? This will remove all sync settings for this workspace.`
+      : `Are you sure you want to disconnect ${providerInfo[provider]?.name || 'this integration'}? This will remove all sync settings and stop syncing.`
+    
+    if (!confirm(confirmMessage)) {
       return
     }
     
     try {
-      const response = await fetch(`/api/integrations/${provider}/disconnect`, {
+      const url = isDisconnectingWorkspace
+        ? `/api/integrations/${provider}/disconnect?team_id=${disconnectTeamId}`
+        : `/api/integrations/${provider}/disconnect`
+      
+      const response = await fetch(url, {
         method: 'DELETE',
       })
       
@@ -706,35 +764,66 @@ export default function ProviderIntegrationsPage() {
         throw new Error('Failed to disconnect')
       }
       
-      setConnection(null)
-      setSyncLogs([])
-      
-      // Clear calendar-specific state
-      if (isCalendarIntegration) {
-        setCalendars([])
-        setSelectedCalendarIds([])
-      }
-      
-      // Clear task management specific state
-      if (isTaskManagementIntegration) {
-        setProjects([])
-        setDefaultProjectId(null)
-        setAutoCompletionSyncEnabled(false)
-      }
-      
-      // Clear Slack-specific state
-      if (isSlackIntegration) {
-        setChannels([])
-        setDefaultChannelId(null)
-        setNotificationPreferences({})
-        setTeamName(null)
-        setTeamId(null)
+      // If disconnecting a workspace, remove it from the list and switch to another
+      if (isDisconnectingWorkspace) {
+        const remainingWorkspaces = workspaces.filter(w => w.team_id !== disconnectTeamId)
+        setWorkspaces(remainingWorkspaces)
+        
+        if (remainingWorkspaces.length > 0) {
+          // Switch to the first remaining workspace
+          await switchWorkspace(remainingWorkspaces[0].team_id)
+        } else {
+          // No workspaces left, clear all state
+          setConnection(null)
+          setChannels([])
+          setDefaultChannelId(null)
+          setNotificationPreferences({})
+          setTeamName(null)
+          setTeamId(null)
+          setCurrentWorkspaceId(null)
+          if (typeof window !== 'undefined' && user?.id) {
+            localStorage.removeItem(`slack_current_workspace_${user.id}`)
+          }
+        }
+      } else {
+        // Disconnect all (non-workspace-specific)
+        setConnection(null)
+        setSyncLogs([])
+        
+        // Clear calendar-specific state
+        if (isCalendarIntegration) {
+          setCalendars([])
+          setSelectedCalendarIds([])
+        }
+        
+        // Clear task management specific state
+        if (isTaskManagementIntegration) {
+          setProjects([])
+          setDefaultProjectId(null)
+          setAutoCompletionSyncEnabled(false)
+        }
+        
+        // Clear Slack-specific state
+        if (isSlackIntegration) {
+          setWorkspaces([])
+          setChannels([])
+          setDefaultChannelId(null)
+          setNotificationPreferences({})
+          setTeamName(null)
+          setTeamId(null)
+          setCurrentWorkspaceId(null)
+          if (typeof window !== 'undefined' && user?.id) {
+            localStorage.removeItem(`slack_current_workspace_${user.id}`)
+          }
+        }
       }
       
       addToast({
         type: 'success',
         title: 'Disconnected successfully',
-        description: `${providerInfo[provider]?.name || 'Integration'} has been disconnected.`,
+        description: isDisconnectingWorkspace
+          ? 'Workspace has been disconnected.'
+          : `${providerInfo[provider]?.name || 'Integration'} has been disconnected.`,
         duration: 5000,
       })
     } catch (error) {
@@ -1221,16 +1310,51 @@ export default function ProviderIntegrationsPage() {
     }
   }
   
+  // Switch workspace
+  const switchWorkspace = useCallback(async (teamId: string) => {
+    if (!user?.id) return
+    
+    try {
+      setCurrentWorkspaceId(teamId)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`slack_current_workspace_${user.id}`, teamId)
+      }
+      
+      // Reload connection for the new workspace
+      await loadConnection(0)
+    } catch (error) {
+      console.error('Error switching workspace:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to switch workspace',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    }
+  }, [user?.id, loadConnection, addToast])
+
   // Save Slack settings
   const saveSlackSettings = useCallback(async (channelId: string | null, preferences: any) => {
+    if (!currentWorkspaceId && !teamId) {
+      addToast({
+        type: 'error',
+        title: 'No workspace selected',
+        description: 'Please select a workspace first.',
+        duration: 5000,
+      })
+      return
+    }
+    
     try {
       setUpdatingSettings(true)
-      const response = await fetch(`/api/integrations/${provider}/settings`, {
+      const workspaceTeamId = currentWorkspaceId || teamId
+      const response = await fetch(`/api/integrations/${provider}/settings?team_id=${workspaceTeamId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           default_channel_id: channelId,
           notification_preferences: preferences,
+          team_id: workspaceTeamId,
         }),
       })
       
@@ -1248,7 +1372,7 @@ export default function ProviderIntegrationsPage() {
     } finally {
       setUpdatingSettings(false)
     }
-  }, [provider, addToast])
+  }, [provider, currentWorkspaceId, teamId, addToast])
   
   // Save task management settings
   const saveTaskManagementSettings = async (projectId: string | null, autoPush: boolean, autoCompletionSync: boolean) => {
@@ -1509,21 +1633,52 @@ export default function ProviderIntegrationsPage() {
                             : 'Never'}
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDisconnect}
-                        className="flex items-center gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Disconnect
-                      </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDisconnect()}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Disconnect
+                        </Button>
                     </div>
                   )}
                   
                   {/* Slack Integration UI */}
                   {isSlackIntegration && connection && (
                     <div className="space-y-6">
+                      {/* Workspace Selection */}
+                      {workspaces.length > 1 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                              Workspace Selection
+                            </h3>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleConnect}
+                              className="flex items-center gap-2"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Add Workspace
+                            </Button>
+                          </div>
+                          <select
+                            value={currentWorkspaceId || teamId || ''}
+                            onChange={(e) => switchWorkspace(e.target.value)}
+                            className="flex h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2"
+                          >
+                            {workspaces.map((workspace) => (
+                              <option key={workspace.team_id} value={workspace.team_id}>
+                                {workspace.team_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      
                       {/* Workspace Information */}
                       <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                         <div>
@@ -1538,15 +1693,26 @@ export default function ProviderIntegrationsPage() {
                               ? new Date(connection.installed_at).toLocaleDateString()
                               : 'Unknown'}
                           </p>
+                          {workspaces.length === 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleConnect}
+                              className="flex items-center gap-2 mt-2 text-xs"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                              Add Workspace
+                            </Button>
+                          )}
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={handleDisconnect}
+                          onClick={() => handleDisconnect(currentWorkspaceId || teamId || undefined)}
                           className="flex items-center gap-2"
                         >
                           <Trash2 className="w-4 h-4" />
-                          Disconnect
+                          {workspaces.length > 1 ? 'Disconnect Workspace' : 'Disconnect'}
                         </Button>
                       </div>
                       
@@ -1564,7 +1730,7 @@ export default function ProviderIntegrationsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={loadChannels}
+                            onClick={() => loadChannels(currentWorkspaceId || teamId)}
                             disabled={loadingChannels}
                           >
                             <RefreshCw className={`w-4 h-4 mr-2 ${loadingChannels ? 'animate-spin' : ''}`} />
