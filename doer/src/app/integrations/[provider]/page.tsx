@@ -540,18 +540,34 @@ export default function ProviderIntegrationsPage() {
       const response = await fetch(`/api/integrations/${provider}/authorize`)
       
       if (!response.ok) {
-        throw new Error('Failed to generate authorization URL')
+        // Try to get error message from response
+        let errorMessage = 'Failed to generate authorization URL'
+        try {
+          const errorData = await response.json()
+          if (errorData.error) {
+            errorMessage = errorData.error
+          }
+        } catch {
+          // If response isn't JSON, use default message
+        }
+        throw new Error(errorMessage)
       }
       
       const data = await response.json()
+      
+      if (!data.auth_url) {
+        throw new Error('No authorization URL received')
+      }
+      
       window.location.href = data.auth_url
     } catch (error) {
       console.error('Error connecting integration:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Please try again later.'
       addToast({
         type: 'error',
         title: 'Failed to connect',
-        description: 'Please try again later.',
-        duration: 5000,
+        description: errorMessage,
+        duration: 7000,
       })
     }
   }

@@ -47,9 +47,25 @@ export async function GET(request: NextRequest) {
       redirect_uri: redirectUri,
     })
   } catch (error) {
-    logger.error('Failed to generate Asana OAuth URL', error as Error)
+    logger.error('Failed to generate Asana OAuth URL', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    })
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to generate authorization URL'
+    if (error instanceof Error) {
+      if (error.message.includes('ASANA_CLIENT_ID') || error.message.includes('ASANA_CLIENT_SECRET')) {
+        errorMessage = 'Asana integration is not properly configured. Please contact support.'
+      } else if (error.message.includes('environment variable')) {
+        errorMessage = 'Asana integration configuration is missing. Please contact support.'
+      } else {
+        errorMessage = error.message
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to generate authorization URL' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
