@@ -47,7 +47,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider instance
-    // Get provider instance
     let provider
     try {
       const providerType = validateProvider('asana')

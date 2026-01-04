@@ -129,7 +129,8 @@ export async function POST(request: NextRequest) {
     const errors: string[] = []
 
     for (const schedule of schedules) {
-      const task = schedule.tasks as any
+      // Handle Supabase nested relation types (can be array or single object)
+      const task = Array.isArray(schedule.tasks) ? schedule.tasks[0] : schedule.tasks
       if (!task) {
         errors.push(`Task not found for schedule ${schedule.id}`)
         results.push({
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      const plan = schedule.plans as any
+      const plan = Array.isArray(schedule.plans) ? schedule.plans[0] : schedule.plans
       const planName = plan?.summary_data?.goal_title || plan?.goal_text || null
 
       // Calculate duration in minutes

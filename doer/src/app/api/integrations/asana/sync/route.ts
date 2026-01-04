@@ -130,8 +130,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get plan details
-    const plan = schedules[0]?.plans as any
+    // Get plan details (handle Supabase nested relation types)
+    const firstSchedule = schedules[0]
+    const plan = firstSchedule ? (Array.isArray(firstSchedule.plans) ? firstSchedule.plans[0] : firstSchedule.plans) : null
     const planName = plan?.summary_data?.goal_title || plan?.goal_text || null
 
     // Push all tasks
@@ -139,7 +140,8 @@ export async function POST(request: NextRequest) {
     const errors: string[] = []
 
     for (const schedule of schedules) {
-      const task = schedule.tasks as any
+      // Handle Supabase nested relation types (can be array or single object)
+      const task = Array.isArray(schedule.tasks) ? schedule.tasks[0] : schedule.tasks
       if (!task) {
         errors.push(`Task not found for schedule ${schedule.id}`)
         continue

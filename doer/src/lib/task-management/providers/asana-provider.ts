@@ -392,50 +392,65 @@ export class AsanaProvider implements TaskManagementProvider {
   ): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${ASANA_API_BASE}${endpoint}`
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    })
+    // Add timeout configuration (30 seconds default)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      })
+      
+      clearTimeout(timeoutId)
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      let errorMessage = 'Unknown error'
-      try {
-        const errorData: AsanaError = JSON.parse(errorText)
-        if (errorData.errors && errorData.errors.length > 0) {
-          errorMessage = errorData.errors[0].message
-          if (errorData.errors[0].help) {
-            errorMessage += ` (${errorData.errors[0].help})`
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage = 'Unknown error'
+        try {
+          const errorData: AsanaError = JSON.parse(errorText)
+          if (errorData.errors && errorData.errors.length > 0) {
+            errorMessage = errorData.errors[0].message
+            if (errorData.errors[0].help) {
+              errorMessage += ` (${errorData.errors[0].help})`
+            }
+          } else if (errorData.error) {
+            errorMessage = errorData.error
           }
-        } else if (errorData.error) {
-          errorMessage = errorData.error
+        } catch {
+          errorMessage = errorText || response.statusText
         }
-      } catch {
-        errorMessage = errorText || response.statusText
+        
+        // Handle rate limiting
+        if (response.status === 429) {
+          throw new Error(`Asana API rate limit exceeded: ${errorMessage}`)
+        }
+        
+        throw new Error(`Asana API error: ${errorMessage}`)
       }
-      
-      // Handle rate limiting
-      if (response.status === 429) {
-        throw new Error(`Asana API rate limit exceeded: ${errorMessage}`)
-      }
-      
-      throw new Error(`Asana API error: ${errorMessage}`)
-    }
 
-    const responseData = await response.json()
-    
-    // Asana wraps all responses in { data: ... }
-    // But handle both wrapped and direct formats for safety
-    if (responseData && typeof responseData === 'object' && 'data' in responseData) {
-      return (responseData as AsanaResponse<T>).data
+      const responseData = await response.json()
+      
+      // Asana wraps all responses in { data: ... }
+      // But handle both wrapped and direct formats for safety
+      if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        return (responseData as AsanaResponse<T>).data
+      }
+      
+      // If not wrapped, return directly (shouldn't happen with Asana, but be defensive)
+      return responseData as T
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Asana API request timeout')
+      }
+      throw error
     }
-    
-    // If not wrapped, return directly (shouldn't happen with Asana, but be defensive)
-    return responseData as T
   }
 
   async getProjects(connectionId: string): Promise<Project[]> {
@@ -454,29 +469,47 @@ export class AsanaProvider implements TaskManagementProvider {
         return []
       }
       
-      // Fetch projects from all workspaces
+      // Fetch projects from all workspaces in parallel for better performance
       // Asana API: GET /workspaces/{workspace_gid}/projects
-      const allProjects: AsanaProject[] = []
-      
-      for (const workspace of workspaces) {
+      const workspaceProjectPromises = workspaces.map(async (workspace) => {
         try {
-          const workspaceProjects = await this.makeApiRequest<AsanaProject[]>(
-            accessToken,
-            `/workspaces/${workspace.gid}/projects?opt_fields=name,color,archived&limit=100`
-          )
+          const workspaceProjects: AsanaProject[] = []
+          let offset = 0
+          const limit = 100
+          let hasMore = true
           
-          if (Array.isArray(workspaceProjects)) {
-            allProjects.push(...workspaceProjects)
+          // Handle pagination for workspaces with >100 projects
+          while (hasMore) {
+            const projects = await this.makeApiRequest<AsanaProject[]>(
+              accessToken,
+              `/workspaces/${workspace.gid}/projects?opt_fields=name,color,archived&limit=${limit}&offset=${offset}`
+            )
+            
+            if (Array.isArray(projects) && projects.length > 0) {
+              workspaceProjects.push(...projects)
+              // If we got fewer than limit, we've reached the end
+              hasMore = projects.length === limit
+              offset += limit
+            } else {
+              hasMore = false
+            }
           }
+          
+          return workspaceProjects
         } catch (workspaceError) {
           logger.warn('Failed to fetch projects for workspace', {
             workspaceId: workspace.gid,
             workspaceName: workspace.name,
             error: workspaceError instanceof Error ? workspaceError.message : String(workspaceError),
           })
-          // Continue with other workspaces
+          // Return empty array on error, continue with other workspaces
+          return []
         }
-      }
+      })
+      
+      // Wait for all workspace project fetches to complete in parallel
+      const workspaceProjectsArrays = await Promise.all(workspaceProjectPromises)
+      const allProjects: AsanaProject[] = workspaceProjectsArrays.flat()
 
       return allProjects
         .filter(project => !project.archived) // Filter out archived projects
