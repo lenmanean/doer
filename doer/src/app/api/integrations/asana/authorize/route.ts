@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
+import { getProvider, validateProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
 import { generateOAuthState } from '@/lib/calendar/providers/shared'
 import { logger } from '@/lib/logger'
 
@@ -24,7 +24,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider instance
-    const provider = getProvider('asana' as TaskManagementProviderType)
+    // Validate provider first to ensure it's supported (defensive check)
+    const providerString = 'asana'
+    const providerType = validateProvider(providerString)
+    logger.info('Getting Asana provider instance', {
+      providerString,
+      providerType,
+      typeOf: typeof providerType,
+    })
+    const provider = getProvider(providerType)
 
     // Get redirect URI for logging
     const redirectUri = provider.getRedirectUri()
