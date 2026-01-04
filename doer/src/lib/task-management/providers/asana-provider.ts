@@ -228,21 +228,52 @@ export class AsanaProvider implements TaskManagementProvider {
       throw new Error(`Failed to exchange code for tokens: ${errorMessage}`)
     }
 
-    // Asana may wrap the response in a data object or return directly
-    const tokenData = (data as any).data || data
-    const accessToken = tokenData?.access_token
-    const refreshToken = tokenData?.refresh_token
-    const expiresIn = tokenData?.expires_in || 3600 // Default to 1 hour if not provided
+    // Asana OAuth token response format (standard OAuth 2.0):
+    // Direct format: { access_token, refresh_token, expires_in, token_type }
+    // Or wrapped: { data: { access_token, ... } }
+    // Try both formats
+    let accessToken: string | undefined
+    let refreshToken: string | undefined
+    let expiresIn: number = 3600 // Default to 1 hour
+
+    // First, try direct format (standard OAuth 2.0)
+    if ((data as any).access_token) {
+      accessToken = (data as any).access_token
+      refreshToken = (data as any).refresh_token
+      expiresIn = (data as any).expires_in || 3600
+    }
+    // Then try wrapped format (Asana sometimes wraps responses)
+    else if ((data as any).data) {
+      const wrappedData = (data as any).data
+      if (wrappedData.access_token) {
+        accessToken = wrappedData.access_token
+        refreshToken = wrappedData.refresh_token
+        expiresIn = wrappedData.expires_in || 3600
+      }
+    }
 
     if (!accessToken) {
+      // Include response details in error for debugging (truncated for security)
+      const responseKeys = data ? Object.keys(data) : []
+      const wrappedKeys = (data as any).data ? Object.keys((data as any).data) : []
+      const responseStructure = {
+        hasDirectAccessToken: !!(data as any).access_token,
+        hasWrappedData: !!(data as any).data,
+        topLevelKeys: responseKeys,
+        wrappedKeys: wrappedKeys,
+        responseType: Array.isArray(data) ? 'array' : typeof data,
+      }
+      
       logger.error('Asana token exchange failed - no access token in response', {
         responseData: data,
-        tokenData,
-        hasTokenData: !!tokenData,
-        tokenDataKeys: tokenData ? Object.keys(tokenData) : [],
-        responseText: responseText.substring(0, 500),
+        responseStructure,
+        responsePreview: responseText.substring(0, 300),
+        fullResponseLength: responseText.length,
       })
-      throw new Error('Failed to obtain access token from Asana')
+      
+      // Create a detailed error message that will be visible in the client
+      const errorDetails = `Response keys: ${responseKeys.join(', ') || 'none'}${wrappedKeys.length > 0 ? ` | Wrapped keys: ${wrappedKeys.join(', ')}` : ''}`
+      throw new Error(`Failed to obtain access token from Asana. ${errorDetails}`)
     }
 
     // Calculate expiry date (current time + expires_in seconds)
