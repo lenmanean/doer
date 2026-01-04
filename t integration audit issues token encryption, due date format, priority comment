@@ -1,0 +1,67 @@
+[1mdiff --git a/doer/src/app/api/integrations/todoist/callback/route.ts b/doer/src/app/api/integrations/todoist/callback/route.ts[m
+[1mindex a4a6445..0bc0b40 100644[m
+[1m--- a/doer/src/app/api/integrations/todoist/callback/route.ts[m
+[1m+++ b/doer/src/app/api/integrations/todoist/callback/route.ts[m
+[36m@@ -1,7 +1,8 @@[m
+ import { NextRequest, NextResponse } from 'next/server'[m
+ import { createClient } from '@/lib/supabase/server'[m
+ import { getProvider } from '@/lib/task-management/providers/provider-factory'[m
+[31m-import { encryptTokens, verifyOAuthState } from '@/lib/calendar/providers/shared'[m
+[32m+[m[32mimport { verifyOAuthState } from '@/lib/calendar/providers/shared'[m
+[32m+[m[32mimport { encryptToken } from '@/lib/calendar/encryption'[m
+ import { logger } from '@/lib/logger'[m
+ [m
+ // Force dynamic rendering since we use cookies for authentication[m
+[36m@@ -61,11 +62,10 @@[m [mexport async function GET(request: NextRequest) {[m
+     const tokens = await provider.exchangeCodeForTokens(code, redirectUri)[m
+ [m
+     // Encrypt tokens[m
+[31m-    const { accessTokenEncrypted, refreshTokenEncrypted, expiresAt } = encryptTokens({[m
+[31m-      access_token: tokens.access_token,[m
+[31m-      refresh_token: tokens.refresh_token || '',[m
+[31m-      expiry_date: tokens.expiry_date,[m
+[31m-    })[m
+[32m+[m[32m    // Todoist doesn't provide refresh tokens, so handle it conditionally[m
+[32m+[m[32m    const accessTokenEncrypted = encryptToken(tokens.access_token)[m
+[32m+[m[32m    const refreshTokenEncrypted = tokens.refresh_token ? encryptToken(tokens.refresh_token) : ''[m
+[32m+[m[32m    const expiresAt = new Date(tokens.expiry_date).toISOString()[m
+ [m
+     // Check if connection already exists[m
+     const { data: existingConnection } = await supabase[m
+[1mdiff --git a/doer/src/lib/task-management/providers/todoist-provider.ts b/doer/src/lib/task-management/providers/todoist-provider.ts[m
+[1mindex 8bb4924..e7e028e 100644[m
+[1m--- a/doer/src/lib/task-management/providers/todoist-provider.ts[m
+[1m+++ b/doer/src/lib/task-management/providers/todoist-provider.ts[m
+[36m@@ -268,7 +268,8 @@[m [mexport class TodoistProvider implements TaskManagementProvider {[m
+ [m
+       // Map DOER priority (1-4) to Todoist priority (1-4)[m
+       // DOER: 1=Critical, 2=High, 3=Medium, 4=Low[m
+[31m-      // Todoist: 1=Normal, 2=High, 3=Medium, 4=Low (inverse, but we'll use direct mapping)[m
+[32m+[m[32m      // Todoist: 1=Normal, 2=High, 3=Medium, 4=Low[m
+[32m+[m[32m      // Using direct mapping: DOER Critical (1) -> Todoist Normal (1), DOER High (2) -> Todoist High (2), etc.[m
+       const todoistPriority = task.priority[m
+ [m
+       // Build task description with details and duration[m
+[36m@@ -349,11 +350,17 @@[m [mexport class TodoistProvider implements TaskManagementProvider {[m
+       }[m
+       if (updates.dueDate !== undefined || updates.dueDateTime !== undefined) {[m
+         const dueDate = updates.dueDateTime || updates.dueDate[m
+[31m-        taskData.due = dueDate ? {[m
+[31m-          date: updates.dueDate || updates.dueDateTime!,[m
+[31m-          datetime: updates.dueDateTime || undefined,[m
+[31m-          string: dueDate,[m
+[31m-        } : undefined[m
+[32m+[m[32m        if (dueDate) {[m
+[32m+[m[32m          // Extract date portion from datetime if dueDate is not provided[m
+[32m+[m[32m          const dateValue = updates.dueDate || (updates.dueDateTime ? updates.dueDateTime.split('T')[0] : undefined)[m
+[32m+[m[32m          taskData.due = {[m
+[32m+[m[32m            date: dateValue,[m
+[32m+[m[32m            datetime: updates.dueDateTime || undefined,[m
+[32m+[m[32m            string: dueDate,[m
+[32m+[m[32m          }[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          taskData.due = undefined[m
+[32m+[m[32m        }[m
+       }[m
+       if (updates.projectId !== undefined) {[m
+         taskData.project_id = updates.projectId[m

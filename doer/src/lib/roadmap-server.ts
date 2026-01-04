@@ -384,12 +384,8 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
         
         for (const connection of taskConnections) {
           try {
-            // Get provider instance (only Todoist for now)
-            if (connection.provider !== 'todoist') {
-              continue
-            }
-            
-            const taskProvider = getTaskManagementProvider('todoist')
+            // Get provider instance using factory
+            const taskProvider = getTaskManagementProvider(connection.provider as 'todoist' | 'asana')
             
             // Push each schedule to the task management tool
             for (const schedule of insertedSchedules) {

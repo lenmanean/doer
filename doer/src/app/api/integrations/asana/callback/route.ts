@@ -216,7 +216,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.redirect(new URL(`/integrations/asana?error=${errorParam}`, request.url))
+    // Include error details in URL for debugging (will be visible in console)
+    const errorUrl = new URL(`/integrations/asana?error=${errorParam}`, request.url)
+    
+    // Add error details as URL params for client-side debugging (only in development or if error is specific)
+    if (error instanceof Error) {
+      // Encode error message for URL (truncate if too long)
+      const errorMsg = encodeURIComponent(error.message.substring(0, 200))
+      errorUrl.searchParams.set('errorMsg', errorMsg)
+      
+      // Add database error code if present
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbCode = String((error as any).code)
+        errorUrl.searchParams.set('dbCode', dbCode)
+      }
+    }
+    
+    return NextResponse.redirect(errorUrl)
   }
 }
 

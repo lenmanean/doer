@@ -509,9 +509,14 @@ export default function ProviderIntegrationsPage() {
     if (error && !connectionHandledRef.current) {
       connectionHandledRef.current = true
       
+      const errorMsg = searchParams.get('errorMsg')
+      const dbCode = searchParams.get('dbCode')
+      
       console.error('🔴 [ASANA DEBUG] OAuth callback error detected', { 
         provider, 
         error, 
+        errorMsg,
+        dbCode,
         searchParams: Object.fromEntries(searchParams.entries()),
         url: window.location.href 
       })
@@ -521,19 +526,33 @@ export default function ProviderIntegrationsPage() {
         errorMessage = 'OAuth authorization was cancelled or failed'
       } else if (error === 'connection_failed') {
         errorMessage = 'Failed to save connection. Please try again.'
+        // Include server error message if available
+        if (errorMsg) {
+          console.error('🔴 [ASANA DEBUG] Server error message', { errorMsg: decodeURIComponent(errorMsg) })
+          errorMessage += ` (${decodeURIComponent(errorMsg)})`
+        }
+        if (dbCode) {
+          console.error('🔴 [ASANA DEBUG] Database error code', { dbCode })
+        }
       } else if (error === 'provider_error') {
         errorMessage = 'Integration provider error. Please contact support.'
       } else if (error === 'config_error') {
         errorMessage = 'Integration configuration error. Please contact support.'
       } else if (error === 'database_error') {
         errorMessage = 'Database error occurred. Please contact support.'
+        if (errorMsg) {
+          errorMessage += ` (${decodeURIComponent(errorMsg)})`
+        }
+        if (dbCode) {
+          errorMessage += ` [Code: ${dbCode}]`
+        }
       } else if (error === 'invalid_state') {
         errorMessage = 'Security verification failed. Please try again.'
       } else if (error === 'missing_code') {
         errorMessage = 'Authorization code missing. Please try connecting again.'
       }
       
-      console.error('🔴 [ASANA DEBUG] Displaying error to user', { provider, error, errorMessage })
+      console.error('🔴 [ASANA DEBUG] Displaying error to user', { provider, error, errorMessage, errorMsg, dbCode })
       
       addToast({
         type: 'error',
