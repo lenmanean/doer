@@ -49,11 +49,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       connected: true,
+      connection: {
+        id: connection.id,
+        team_id: connection.team_id,
+        team_name: connection.team_name,
+        default_channel_id: connection.default_channel_id,
+        notification_preferences: connection.notification_preferences,
+        installed_at: connection.installed_at,
+        created_at: connection.created_at,
+      },
       team_name: connection.team_name,
       team_id: connection.team_id,
-      default_channel_id: connection.default_channel_id,
-      notification_preferences: connection.notification_preferences,
-      installed_at: connection.installed_at,
     })
   } catch (error) {
     logger.error('Unexpected error in Slack status route', {

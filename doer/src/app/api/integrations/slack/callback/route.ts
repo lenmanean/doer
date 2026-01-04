@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
         throw updateError
       }
 
-      return NextResponse.redirect(new URL(`/integrations/slack?connected=true`, request.url))
+      return NextResponse.redirect(new URL(`/integrations/slack?connected=slack`, request.url))
     }
 
     // Create new connection
