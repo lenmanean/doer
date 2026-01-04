@@ -6,8 +6,9 @@
 import type { TaskManagementProvider } from './base-provider'
 import { TodoistProvider } from './todoist-provider'
 import { AsanaProvider } from './asana-provider'
+import { TrelloProvider } from './trello-provider'
 
-export type TaskManagementProviderType = 'todoist' | 'asana'
+export type TaskManagementProviderType = 'todoist' | 'asana' | 'trello'
 
 /**
  * Get a task management provider instance for the specified provider type
@@ -18,6 +19,8 @@ export function getProvider(provider: TaskManagementProviderType): TaskManagemen
       return new TodoistProvider()
     case 'asana':
       return new AsanaProvider()
+    case 'trello':
+      return new TrelloProvider()
     
     default:
       // Log the actual value for debugging
@@ -28,6 +31,7 @@ export function getProvider(provider: TaskManagementProviderType): TaskManagemen
         charCodes: Array.from(String(provider)).map(c => c.charCodeAt(0)),
         isTodoist: provider === 'todoist',
         isAsana: provider === 'asana',
+        isTrello: provider === 'trello',
       })
       throw new Error(`Unsupported task management provider: ${provider}`)
   }
@@ -37,7 +41,7 @@ export function getProvider(provider: TaskManagementProviderType): TaskManagemen
  * Check if a provider is supported
  */
 export function isProviderSupported(provider: string): provider is TaskManagementProviderType {
-  return provider === 'todoist' || provider === 'asana'
+  return provider === 'todoist' || provider === 'asana' || provider === 'trello'
 }
 
 /**
@@ -45,7 +49,7 @@ export function isProviderSupported(provider: string): provider is TaskManagemen
  */
 export function validateProvider(provider: string): TaskManagementProviderType {
   if (!isProviderSupported(provider)) {
-    throw new Error(`Invalid provider: ${provider}. Supported providers: todoist, asana`)
+    throw new Error(`Invalid provider: ${provider}. Supported providers: todoist, asana, trello`)
   }
   return provider
 }

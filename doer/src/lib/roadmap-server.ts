@@ -385,7 +385,7 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
         for (const connection of taskConnections) {
           try {
             // Get provider instance using factory
-            const taskProvider = getTaskManagementProvider(connection.provider as 'todoist' | 'asana')
+            const taskProvider = getTaskManagementProvider(connection.provider as 'todoist' | 'asana' | 'trello')
             
             // Push each schedule to the task management tool
             for (const schedule of insertedSchedules) {
