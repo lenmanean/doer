@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, jest } from '@jest/globals'
+import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals'
 
 import type { BillingPlanCycle, UserPlanSubscription } from '../src/lib/billing/plans'
 import * as billing from '../src/lib/billing/plans'
