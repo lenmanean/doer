@@ -7,9 +7,10 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Disconnect Asana integration
- * POST /api/integrations/asana/disconnect
+ * DELETE /api/integrations/asana/disconnect
+ * POST /api/integrations/asana/disconnect (for backwards compatibility)
  */
-export async function POST(request: NextRequest) {
+async function disconnectAsana(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -64,5 +65,13 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(request: NextRequest) {
+  return disconnectAsana(request)
+}
+
+export async function POST(request: NextRequest) {
+  return disconnectAsana(request)
 }
 

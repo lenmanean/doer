@@ -7,9 +7,10 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Disconnect Todoist integration
- * POST /api/integrations/todoist/disconnect
+ * DELETE /api/integrations/todoist/disconnect
+ * POST /api/integrations/todoist/disconnect (for backwards compatibility)
  */
-export async function POST(request: NextRequest) {
+async function disconnectTodoist(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -64,5 +65,13 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(request: NextRequest) {
+  return disconnectTodoist(request)
+}
+
+export async function POST(request: NextRequest) {
+  return disconnectTodoist(request)
 }
 
