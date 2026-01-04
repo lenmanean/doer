@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getProvider } from '@/lib/task-management/providers/provider-factory'
+import { getProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
 import { logger } from '@/lib/logger'
 
 // Force dynamic rendering since we use cookies for authentication
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider and fetch projects
-    const provider = getProvider('asana')
+    const provider = getProvider('asana' as TaskManagementProviderType)
     const projects = await provider.getProjects(connection.id)
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getProvider } from '@/lib/task-management/providers/provider-factory'
+import { getProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
 import { generateOAuthState } from '@/lib/calendar/providers/shared'
 import { logger } from '@/lib/logger'
 
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider instance
-    const provider = getProvider('asana')
+    const provider = getProvider('asana' as TaskManagementProviderType)
 
     // Get redirect URI for logging
     const redirectUri = provider.getRedirectUri()
