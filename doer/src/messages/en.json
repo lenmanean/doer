@@ -58,7 +58,6 @@
       "trello": "Every task DOER generates becomes a Trello card with the estimated effort and scheduled day attached, keeping the Kanban board honest while the planner reorders work as priorities shift.",
       "notion": "Notion pages become the single source of truth for plan context—DOER uses embedded notes as prompts for new task generations and references them whenever it re-optimizes the AI schedule.",
         "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a checkpoint.",
-      "microsoftTeams": "Meetings, rooms, and notes from Teams feed the AI scheduler, so DOER balances focus blocks with calls and posts summary cards to the right channels when plans evolve.",
       "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update."
     }
   },
@@ -164,7 +163,6 @@
         "trello": "Every task DOER generates becomes a Trello card with the estimated effort and scheduled day attached, keeping the Kanban board honest while the planner reorders work as priorities shift.",
         "notion": "Notion pages become the single source of truth for plan context—DOER uses embedded notes as prompts for new task generations and references them whenever it re-optimizes the AI schedule.",
         "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a checkpoint.",
-        "microsoftTeams": "Meetings, rooms, and notes from Teams feed the AI scheduler, so DOER balances focus blocks with calls and posts summary cards to the right channels when plans evolve.",
         "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update."
       }
     },

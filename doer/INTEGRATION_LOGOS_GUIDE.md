@@ -51,7 +51,6 @@
 - Trello
 - Notion
 - Slack
-- Microsoft Teams
 - Strava
 
 ### Implementation Steps:

@@ -254,7 +254,7 @@ Connect Notion to:
 
 ## Communication Tools
 
-### Slack & Microsoft Teams
+### Slack
 
 Get updates in your team channels:
 - Plan summaries

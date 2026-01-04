@@ -22,7 +22,6 @@ const integrations: IntegrationDefinition[] = [
   { key: 'trello', name: 'Trello' },
   { key: 'notion', name: 'Notion' },
   { key: 'slack', name: 'Slack' },
-  { key: 'microsoftTeams', name: 'Microsoft Teams' },
   { key: 'strava', name: 'Strava' },
 ]
 

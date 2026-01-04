@@ -25,7 +25,6 @@ import {
   SiSlack, 
   SiStrava
 } from 'react-icons/si'
-import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
 
 export default function Home() {
@@ -272,7 +271,6 @@ export default function Home() {
               { name: 'Trello', Icon: SiTrello },
               { name: 'Notion', Icon: SiNotion },
               { name: 'Slack', Icon: SiSlack },
-              { name: 'Microsoft Teams', Icon: FaMicrosoft },
               { name: 'Strava', Icon: SiStrava },
             ].map((integration, index) => (
               <div
@@ -297,7 +295,6 @@ export default function Home() {
               { name: 'Trello', Icon: SiTrello },
               { name: 'Notion', Icon: SiNotion },
               { name: 'Slack', Icon: SiSlack },
-              { name: 'Microsoft Teams', Icon: FaMicrosoft },
               { name: 'Strava', Icon: SiStrava },
             ].map((integration, index) => (
               <div
@@ -322,7 +319,6 @@ export default function Home() {
               { name: 'Trello', Icon: SiTrello },
               { name: 'Notion', Icon: SiNotion },
               { name: 'Slack', Icon: SiSlack },
-              { name: 'Microsoft Teams', Icon: FaMicrosoft },
               { name: 'Strava', Icon: SiStrava },
             ].map((integration, index) => (
               <div

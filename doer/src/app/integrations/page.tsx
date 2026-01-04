@@ -24,7 +24,6 @@ import {
   SiSlack, 
   SiStrava
 } from 'react-icons/si'
-import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
 import type { ComponentType } from 'react'
 
@@ -60,7 +59,6 @@ const integrationIconMap: Record<string, ComponentType<{ className?: string }>> 
   trello: SiTrello,
   notion: SiNotion,
   slack: SiSlack,
-  microsoftTeams: FaMicrosoft,
   strava: SiStrava,
 }
 
@@ -84,7 +82,6 @@ const integrationImageMap: Record<string, string> = {
   asana: 'asana.png',
   trello: 'trello.png',
   slack: 'slack.png',
-  microsoftTeams: 'microsoft-teams.png',
   strava: 'strava.png',
 }
 
