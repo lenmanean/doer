@@ -437,22 +437,59 @@ export class AsanaProvider implements TaskManagementProvider {
       throw new Error(`Asana API error: ${errorMessage}`)
     }
 
-    const data: AsanaResponse<T> = await response.json()
-    return data.data
+    const responseData = await response.json()
+    
+    // Asana wraps all responses in { data: ... }
+    // But handle both wrapped and direct formats for safety
+    if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+      return (responseData as AsanaResponse<T>).data
+    }
+    
+    // If not wrapped, return directly (shouldn't happen with Asana, but be defensive)
+    return responseData as T
   }
 
   async getProjects(connectionId: string): Promise<Project[]> {
     try {
       const accessToken = await this.getAccessToken(connectionId)
       
-      // First, get user's workspaces to fetch projects
-      // For now, we'll fetch all projects (workspace filtering can be added later)
-      const projects = await this.makeApiRequest<AsanaProject[]>(
+      // Asana requires workspace context for projects
+      // First, get user's workspaces
+      const workspaces = await this.makeApiRequest<Array<{ gid: string; name: string }>>(
         accessToken,
-        '/projects?opt_fields=name,color,archived&limit=100'
+        '/workspaces?opt_fields=name'
       )
+      
+      if (!workspaces || workspaces.length === 0) {
+        logger.warn('No workspaces found for Asana user', { connectionId })
+        return []
+      }
+      
+      // Fetch projects from all workspaces
+      // Asana API: GET /workspaces/{workspace_gid}/projects
+      const allProjects: AsanaProject[] = []
+      
+      for (const workspace of workspaces) {
+        try {
+          const workspaceProjects = await this.makeApiRequest<AsanaProject[]>(
+            accessToken,
+            `/workspaces/${workspace.gid}/projects?opt_fields=name,color,archived&limit=100`
+          )
+          
+          if (Array.isArray(workspaceProjects)) {
+            allProjects.push(...workspaceProjects)
+          }
+        } catch (workspaceError) {
+          logger.warn('Failed to fetch projects for workspace', {
+            workspaceId: workspace.gid,
+            workspaceName: workspace.name,
+            error: workspaceError instanceof Error ? workspaceError.message : String(workspaceError),
+          })
+          // Continue with other workspaces
+        }
+      }
 
-      return projects
+      return allProjects
         .filter(project => !project.archived) // Filter out archived projects
         .map(project => ({
           id: project.gid,
