@@ -59,45 +59,84 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all calendar connections for the user (only calendar integrations use this table)
-    const { data: connections, error: connectionsError } = await supabase
+    // Fetch all calendar connections for the user
+    const { data: calendarConnections, error: calendarConnectionsError } = await supabase
       .from('calendar_connections')
       .select('id, provider, selected_calendar_ids, auto_sync_enabled, auto_push_enabled, last_sync_at, created_at')
       .eq('user_id', user.id)
 
-    if (connectionsError) {
+    if (calendarConnectionsError) {
       logger.error('Error fetching calendar connections', {
-        error: connectionsError instanceof Error ? connectionsError.message : String(connectionsError),
-        errorStack: connectionsError instanceof Error ? connectionsError.stack : undefined,
+        error: calendarConnectionsError instanceof Error ? calendarConnectionsError.message : String(calendarConnectionsError),
+        errorStack: calendarConnectionsError instanceof Error ? calendarConnectionsError.stack : undefined,
         userId: user.id,
       })
       return NextResponse.json(
-        { error: 'Failed to get connection status', details: connectionsError.message },
+        { error: 'Failed to get connection status', details: calendarConnectionsError.message },
         { status: 500 }
       )
     }
 
-    // Create a map of provider URL identifier -> connection for quick lookup
-    const connectionsMap = new Map(
-      (connections || []).map(conn => [conn.provider, conn])
+    // Fetch all task management connections for the user
+    const { data: taskManagementConnections, error: taskManagementConnectionsError } = await supabase
+      .from('task_management_connections')
+      .select('id, provider, default_project_id, auto_push_enabled, auto_completion_sync, last_sync_at, created_at')
+      .eq('user_id', user.id)
+
+    if (taskManagementConnectionsError) {
+      logger.error('Error fetching task management connections', {
+        error: taskManagementConnectionsError instanceof Error ? taskManagementConnectionsError.message : String(taskManagementConnectionsError),
+        errorStack: taskManagementConnectionsError instanceof Error ? taskManagementConnectionsError.stack : undefined,
+        userId: user.id,
+      })
+      return NextResponse.json(
+        { error: 'Failed to get connection status', details: taskManagementConnectionsError.message },
+        { status: 500 }
+      )
+    }
+
+    // Create maps of provider URL identifier -> connection for quick lookup
+    const calendarConnectionsMap = new Map(
+      (calendarConnections || []).map(conn => [conn.provider, conn])
+    )
+    
+    const taskManagementConnectionsMap = new Map(
+      (taskManagementConnections || []).map(conn => [conn.provider, conn])
     )
 
     // Return status for all integrations
     const providerStatuses = integrations.map(integration => {
       const providerUrl = integrationKeyToUrl(integration.key)
-      const connection = connectionsMap.get(providerUrl)
-      
-      // Only calendar integrations have connections in the calendar_connections table
       const isCalendarIntegration = ['googleCalendar', 'outlook', 'appleCalendar'].includes(integration.key)
+      const isTaskManagementIntegration = ['todoist', 'asana', 'trello'].includes(integration.key)
+      
+      let connection = null
+      let connected = false
+      
+      if (isCalendarIntegration) {
+        connection = calendarConnectionsMap.get(providerUrl)
+        connected = !!connection
+      } else if (isTaskManagementIntegration) {
+        // For task management, providerUrl matches the database provider value (e.g., 'todoist')
+        connection = taskManagementConnectionsMap.get(providerUrl)
+        connected = !!connection
+      }
       
       return {
         provider: providerUrl,
-        connected: !!connection && isCalendarIntegration,
-        connection: connection && isCalendarIntegration ? {
+        connected,
+        connection: connected && connection ? {
           id: connection.id,
-          selected_calendar_ids: connection.selected_calendar_ids,
-          auto_sync_enabled: connection.auto_sync_enabled,
-          auto_push_enabled: connection.auto_push_enabled,
+          ...(isCalendarIntegration ? {
+            selected_calendar_ids: connection.selected_calendar_ids,
+            auto_sync_enabled: connection.auto_sync_enabled,
+            auto_push_enabled: connection.auto_push_enabled,
+          } : {}),
+          ...(isTaskManagementIntegration ? {
+            default_project_id: connection.default_project_id,
+            auto_push_enabled: connection.auto_push_enabled,
+            auto_completion_sync: connection.auto_completion_sync,
+          } : {}),
           last_sync_at: connection.last_sync_at,
           created_at: connection.created_at,
         } : null,
