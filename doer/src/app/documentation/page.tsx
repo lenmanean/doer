@@ -60,9 +60,9 @@ export default function DocumentationPage() {
       { id: 'integrations-overview', title: 'Integrations Overview', section: 'Integrations', content: 'DOER integrates with tools to keep your data synchronized and workflow seamless. Each connector keeps the AI scheduler aware of calendars, tasks, and energy' },
       { id: 'calendar-integrations', title: 'Calendar Integrations', section: 'Integrations', content: 'Connect your calendar so DOER can schedule tasks around existing commitments. Google Calendar, Outlook, and Apple Calendar integrations' },
       { id: 'task-integrations', title: 'Task Management', section: 'Integrations', content: 'Sync tasks with task management tools for a unified workflow. Todoist, Asana, and Trello integrations' },
-      { id: 'knowledge-integrations', title: 'Knowledge Tools', section: 'Integrations', content: 'Integrate with note-taking and knowledge management tools. Notion and Evernote integrations' },
+      { id: 'knowledge-integrations', title: 'Knowledge Tools', section: 'Integrations', content: 'Integrate with note-taking and knowledge management tools. Notion integration' },
       { id: 'communication-integrations', title: 'Communication', section: 'Integrations', content: 'Get notifications and updates in team communication tools. Slack and Microsoft Teams integrations' },
-      { id: 'wellness-integrations', title: 'Wellness & Health', section: 'Integrations', content: 'Connect fitness and health tracking apps to help DOER schedule tasks around energy levels. Strava and Apple Health integrations' },
+      { id: 'wellness-integrations', title: 'Wellness & Health', section: 'Integrations', content: 'Connect fitness and health tracking apps to help DOER schedule tasks around energy levels. Strava integration' },
       
       // API Reference
       { id: 'api-reference', title: 'API Reference', section: 'API Reference', content: 'Integrate DOER with your applications using our REST API. All endpoints are authenticated and rate-limited based on subscription plan' },

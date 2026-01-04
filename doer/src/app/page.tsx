@@ -22,13 +22,10 @@ import {
   SiAsana, 
   SiTrello, 
   SiNotion, 
-  SiEvernote, 
   SiSlack, 
-  SiStrava,
-  SiCoursera,
-  SiUdemy
+  SiStrava
 } from 'react-icons/si'
-import { FaHeartbeat, FaMicrosoft } from 'react-icons/fa'
+import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
 
 export default function Home() {
@@ -274,13 +271,9 @@ export default function Home() {
               { name: 'Asana', Icon: SiAsana },
               { name: 'Trello', Icon: SiTrello },
               { name: 'Notion', Icon: SiNotion },
-              { name: 'Evernote', Icon: SiEvernote },
               { name: 'Slack', Icon: SiSlack },
               { name: 'Microsoft Teams', Icon: FaMicrosoft },
               { name: 'Strava', Icon: SiStrava },
-              { name: 'Apple Health', Icon: FaHeartbeat },
-              { name: 'Coursera', Icon: SiCoursera },
-              { name: 'Udemy', Icon: SiUdemy },
             ].map((integration, index) => (
               <div
                 key={`${integration.name}-${index}`}
@@ -303,13 +296,9 @@ export default function Home() {
               { name: 'Asana', Icon: SiAsana },
               { name: 'Trello', Icon: SiTrello },
               { name: 'Notion', Icon: SiNotion },
-              { name: 'Evernote', Icon: SiEvernote },
               { name: 'Slack', Icon: SiSlack },
               { name: 'Microsoft Teams', Icon: FaMicrosoft },
               { name: 'Strava', Icon: SiStrava },
-              { name: 'Apple Health', Icon: FaHeartbeat },
-              { name: 'Coursera', Icon: SiCoursera },
-              { name: 'Udemy', Icon: SiUdemy },
             ].map((integration, index) => (
               <div
                 key={`duplicate-1-${integration.name}-${index}`}
@@ -332,13 +321,9 @@ export default function Home() {
               { name: 'Asana', Icon: SiAsana },
               { name: 'Trello', Icon: SiTrello },
               { name: 'Notion', Icon: SiNotion },
-              { name: 'Evernote', Icon: SiEvernote },
               { name: 'Slack', Icon: SiSlack },
               { name: 'Microsoft Teams', Icon: FaMicrosoft },
               { name: 'Strava', Icon: SiStrava },
-              { name: 'Apple Health', Icon: FaHeartbeat },
-              { name: 'Coursera', Icon: SiCoursera },
-              { name: 'Udemy', Icon: SiUdemy },
             ].map((integration, index) => (
               <div
                 key={`duplicate-2-${integration.name}-${index}`}

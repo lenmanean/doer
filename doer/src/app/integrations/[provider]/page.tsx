@@ -23,13 +23,10 @@ import {
   SiAsana, 
   SiTrello, 
   SiNotion, 
-  SiEvernote, 
   SiSlack, 
-  SiStrava,
-  SiCoursera,
-  SiUdemy
+  SiStrava
 } from 'react-icons/si'
-import { FaHeartbeat, FaMicrosoft } from 'react-icons/fa'
+import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
 import type { ComponentType } from 'react'
 
@@ -42,13 +39,9 @@ const integrationIconMap: Record<string, ComponentType<{ className?: string }>> 
   asana: SiAsana,
   trello: SiTrello,
   notion: SiNotion,
-  evernote: SiEvernote,
   slack: SiSlack,
   microsoftTeams: FaMicrosoft,
   strava: SiStrava,
-  appleHealth: FaHeartbeat,
-  coursera: SiCoursera,
-  udemy: SiUdemy,
 }
 
 // Convert URL identifier back to integration key
@@ -192,13 +185,9 @@ export default function ProviderIntegrationsPage() {
     todoist: 'todoist.png',
     asana: 'asana.png',
     trello: 'trello.png',
-    evernote: 'evernote.png',
     slack: 'slack.png',
     microsoftTeams: 'microsoft-teams.png',
     strava: 'strava.png',
-    appleHealth: 'apple-health.png',
-    coursera: 'coursera.png',
-    udemy: 'udemy.png',
   }
 
   // Provider display info - create for all integrations

@@ -167,7 +167,7 @@ export default function MotionGraphicsBriefPage() {
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-2">Calendar & Task Integrations</h3>
                   <p className="text-lg leading-relaxed mb-3">
-                    Seamless bidirectional integration with 14+ tools including Google Calendar, Outlook, Apple Calendar, Todoist, Asana, Trello, Notion, Evernote, Slack, Microsoft Teams, Strava, Apple Health, Coursera, and Udemy.
+                    Seamless bidirectional integration with 10+ tools including Google Calendar, Outlook, Apple Calendar, Todoist, Asana, Trello, Notion, Slack, Microsoft Teams, and Strava.
                   </p>
                   <p className="text-lg leading-relaxed mb-3">
                     <strong className="text-white">How Integrations Work:</strong> Each connector keeps the AI scheduler aware of calendars, tasks, and energy levels. The system reads existing commitments to avoid conflicts, sends AI-generated events back to connected calendars, and updates task lists when the scheduler reshuffles work. For example:
@@ -176,8 +176,7 @@ export default function MotionGraphicsBriefPage() {
                     <li>Calendar integrations (Google, Outlook, Apple) sync checkpoints as events and respect existing meetings when scheduling</li>
                     <li>Task managers (Todoist, Asana, Trello) receive DOER tasks with priorities and due dates, updating automatically when AI reschedules</li>
                     <li>Communication tools (Slack, Teams) deliver plan digests and notifications when schedules change</li>
-                    <li>Health apps (Strava, Apple Health) inform the scheduler about recovery windows and energy levels</li>
-                    <li>Learning platforms (Coursera, Udemy) track progress and auto-schedule study sessions</li>
+                    <li>Health apps (Strava) inform the scheduler about recovery windows and energy levels</li>
                   </ul>
                 </div>
                 <div>

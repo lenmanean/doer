@@ -205,7 +205,7 @@ Effective goal setting combines psychological principles with practical tools. D
     id: '3',
     title: 'Integrating DOER with Your Favorite Tools',
     slug: 'integrating-doer-with-your-favorite-tools',
-    excerpt: 'Learn how to connect DOER with Google Calendar, Todoist, Notion, and other productivity tools to create a seamless workflow.',
+    excerpt: 'Learn how to connect DOER with Google Calendar, Todoist, and other productivity tools to create a seamless workflow.',
     content: `# Integrating DOER with Your Favorite Tools
 
 DOER works best when it's part of your existing workflow. Here's how to integrate it with the tools you already use.
@@ -252,13 +252,6 @@ Connect Notion to:
 - Create comprehensive project pages
 - Maintain a single source of truth
 
-### Evernote
-
-Evernote integration allows:
-- Reminders to become DOER tasks
-- Notes to inform planning
-- Seamless information flow
-
 ## Communication Tools
 
 ### Slack & Microsoft Teams
@@ -271,23 +264,13 @@ Get updates in your team channels:
 
 ## Health & Fitness
 
-### Strava & Apple Health
+### Strava
 
 Fitness data informs scheduling:
 - Recovery windows
 - Energy levels
 - Workout scheduling
 - Health-conscious planning
-
-## Learning Platforms
-
-### Coursera & Udemy
-
-Educational goals integrate with:
-- Course progress tracking
-- Study session scheduling
-- Lesson reminders
-- Learning milestones
 
 ## Setting Up Integrations
 
@@ -312,7 +295,7 @@ Integrations make DOER more powerful by connecting it to your existing tools. St
     category: 'integrations',
     tags: ['integrations', 'productivity', 'workflow', 'tools'],
     readingTime: 7,
-    metaDescription: 'Learn how to connect DOER with Google Calendar, Todoist, Notion, and other productivity tools to create a seamless workflow.',
+    metaDescription: 'Learn how to connect DOER with Google Calendar, Todoist, and other productivity tools to create a seamless workflow.',
     featured: true,
   },
   {

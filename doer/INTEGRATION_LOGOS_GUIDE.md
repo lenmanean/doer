@@ -50,13 +50,9 @@
 - Asana
 - Trello
 - Notion
-- Evernote
 - Slack
 - Microsoft Teams
 - Strava
-- Apple Health
-- Coursera
-- Udemy
 
 ### Implementation Steps:
 1. Create folder: `doer/public/integrations/`

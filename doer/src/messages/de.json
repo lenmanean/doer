@@ -57,13 +57,9 @@
       "asana": "DOER-Meilensteine erscheinen in Asana, damit der Scheduler Ihre Projektzeitpläne mit den Teams dort abstimmt.",
       "trello": "Jede DOER-Aufgabe wird zur Trello-Karte mit Fälligkeitsdatum, sodass der Scheduler die Zeit übernimmt und Ihr Board echten Fortschritt zeigt.",
       "notion": "Speichern Sie Plan-Infos in Notion, DOER bezieht diese Notizen bei Aktualisierungen des KI-Zeitplans oder den nächsten Aufgaben mit ein.",
-      "evernote": "Evernote-Erinnerungen werden zu auf den Zeitplan abgestimmten Aufgaben, sodass DOER sie bei Prioritätenverschiebungen berücksichtigt.",
       "slack": "Erhalten Sie Planzusammenfassungen in Slack, lösen Sie Neuplanungen per Slash-Befehl aus und lassen Sie den Scheduler Teams benachrichtigen.",
       "microsoftTeams": "Teams-Kalender und Meeting-Notizen speisen DOER, damit der Scheduler Fokuszeit und Meetings ausbalanciert und Updates teilt.",
-      "strava": "Strava-Workouts geben DOER Hinweise auf Erholungszeiten, sodass der Scheduler intensive Sessions nicht auf erschöpften Tagen plant.",
-      "appleHealth": "Apple Health-Daten (Schlaf, Herzfrequenz, Aktivität) helfen dem Scheduler, Ihre Energie beim Buchen anspruchsvoller Aufgaben zu respektieren.",
-      "coursera": "DOER beobachtet Coursera-Fortschritt, blockiert Lern-Sessions und markiert abgeschlossene Module im KI-Zeitplan.",
-      "udemy": "Udemy-Lektionen werden zu Zeitplanaufgaben, sodass der Scheduler Lernzeit reserviert, ohne Meetings zu stören."
+      "strava": "Strava-Workouts geben DOER Hinweise auf Erholungszeiten, sodass der Scheduler intensive Sessions nicht auf erschöpften Tagen plant."
     }
   },
   "comparison": {
@@ -167,13 +163,9 @@
         "asana": "DOER-Meilensteine erscheinen in Asana, damit der Scheduler Ihre Projektzeitpläne mit den Teams dort abstimmt.",
         "trello": "Jede DOER-Aufgabe wird zur Trello-Karte mit Fälligkeitsdatum, sodass der Scheduler die Zeit übernimmt und Ihr Board echten Fortschritt zeigt.",
         "notion": "Speichern Sie Plan-Infos in Notion, DOER bezieht diese Notizen bei Aktualisierungen des KI-Zeitplans oder den nächsten Aufgaben mit ein.",
-        "evernote": "Evernote-Erinnerungen werden zu auf den Zeitplan abgestimmten Aufgaben, sodass DOER sie bei Prioritätenverschiebungen berücksichtigt.",
         "slack": "Erhalten Sie Planzusammenfassungen in Slack, lösen Sie Neuplanungen per Slash-Befehl aus und lassen Sie den Scheduler Teams benachrichtigen.",
         "microsoftTeams": "Teams-Kalender und Meeting-Notizen speisen DOER, damit der Scheduler Fokuszeit und Meetings ausbalanciert und Updates teilt.",
-        "strava": "Strava-Workouts geben DOER Hinweise auf Erholungszeiten, sodass der Scheduler intensive Sessions nicht auf erschöpften Tagen plant.",
-        "appleHealth": "Apple Health-Daten (Schlaf, Herzfrequenz, Aktivität) helfen dem Scheduler, Ihre Energie beim Buchen anspruchsvoller Aufgaben zu respektieren.",
-        "coursera": "DOER beobachtet Coursera-Fortschritt, blockiert Lern-Sessions und markiert abgeschlossene Module im KI-Zeitplan.",
-        "udemy": "Udemy-Lektionen werden zu Zeitplanaufgaben, sodass der Scheduler Lernzeit reserviert, ohne Meetings zu stören."
+        "strava": "Strava-Workouts geben DOER Hinweise auf Erholungszeiten, sodass der Scheduler intensive Sessions nicht auf erschöpften Tagen plant."
       }
     },
     "features": {

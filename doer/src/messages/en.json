@@ -57,13 +57,9 @@
         "asana": "Map AI plan checkpoints into Asana projects so DOER can align its auto-scheduler with project timelines and let collaborators see which AI-scheduled task unlocks the next sprint.",
       "trello": "Every task DOER generates becomes a Trello card with the estimated effort and scheduled day attached, keeping the Kanban board honest while the planner reorders work as priorities shift.",
       "notion": "Notion pages become the single source of truth for plan context—DOER uses embedded notes as prompts for new task generations and references them whenever it re-optimizes the AI schedule.",
-      "evernote": "Evernote reminders turn into DOER tasks that respect your personal rhythm; the AI scheduler uses those reminders as guardrails when moving work around your day.",
         "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a checkpoint.",
       "microsoftTeams": "Meetings, rooms, and notes from Teams feed the AI scheduler, so DOER balances focus blocks with calls and posts summary cards to the right channels when plans evolve.",
-      "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update.",
-      "appleHealth": "Apple Health signals (sleep, heart rate, activity) teach the scheduler when to back off demanding tasks or when to drop in extra stretch goals, keeping DOER’s rhythm in sync with your energy.",
-      "coursera": "DOER watches Coursera progress and spins up pre-filled plan prompts for the next lesson, blocking study sessions with precise durations so AI scheduling never forgets your learning goals.",
-      "udemy": "Udemy course outlines become task stacks—DOER Auto-Schedules review time, pushes progress markers to your plan, and reminds you via the scheduler when the next module is due."
+      "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update."
     }
   },
   "comparison": {
@@ -167,13 +163,9 @@
         "asana": "Map AI plan checkpoints into Asana projects so DOER can align its auto-scheduler with project timelines and let collaborators see which AI-scheduled task unlocks the next sprint.",
         "trello": "Every task DOER generates becomes a Trello card with the estimated effort and scheduled day attached, keeping the Kanban board honest while the planner reorders work as priorities shift.",
         "notion": "Notion pages become the single source of truth for plan context—DOER uses embedded notes as prompts for new task generations and references them whenever it re-optimizes the AI schedule.",
-        "evernote": "Evernote reminders turn into DOER tasks that respect your personal rhythm; the AI scheduler uses those reminders as guardrails when moving work around your day.",
         "slack": "Slack delivers rich plan digests, lets you ask DOER for a quick auto-reschedule via slash commands, and broadcasts notifications whenever the AI scheduler shifts a checkpoint.",
         "microsoftTeams": "Meetings, rooms, and notes from Teams feed the AI scheduler, so DOER balances focus blocks with calls and posts summary cards to the right channels when plans evolve.",
-        "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update.",
-        "appleHealth": "Apple Health signals (sleep, heart rate, activity) teach the scheduler when to back off demanding tasks or when to drop in extra stretch goals, keeping DOER’s rhythm in sync with your energy.",
-        "coursera": "DOER watches Coursera progress and spins up pre-filled plan prompts for the next lesson, blocking study sessions with precise durations so AI scheduling never forgets your learning goals.",
-        "udemy": "Udemy course outlines become task stacks—DOER Auto-Schedules review time, pushes progress markers to your plan, and reminds you via the scheduler when the next module is due."
+        "strava": "Strava workouts inform DOER about recovery windows; the AI scheduler keeps high-intensity fitness days from colliding with heavy cognitive work and celebrates completion with a plan update."
       }
     },
     "features": {

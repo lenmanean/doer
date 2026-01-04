@@ -21,13 +21,9 @@ const integrations: IntegrationDefinition[] = [
   { key: 'asana', name: 'Asana' },
   { key: 'trello', name: 'Trello' },
   { key: 'notion', name: 'Notion' },
-  { key: 'evernote', name: 'Evernote' },
   { key: 'slack', name: 'Slack' },
   { key: 'microsoftTeams', name: 'Microsoft Teams' },
   { key: 'strava', name: 'Strava' },
-  { key: 'appleHealth', name: 'Apple Health' },
-  { key: 'coursera', name: 'Coursera' },
-  { key: 'udemy', name: 'Udemy' },
 ]
 
 /**
