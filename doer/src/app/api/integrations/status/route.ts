@@ -110,36 +110,42 @@ export async function GET(request: NextRequest) {
       const isCalendarIntegration = ['googleCalendar', 'outlook', 'appleCalendar'].includes(integration.key)
       const isTaskManagementIntegration = ['todoist', 'asana', 'trello'].includes(integration.key)
       
-      let connection = null
-      let connected = false
-      
       if (isCalendarIntegration) {
-        connection = calendarConnectionsMap.get(providerUrl)
-        connected = !!connection
-      } else if (isTaskManagementIntegration) {
-        // For task management, providerUrl matches the database provider value (e.g., 'todoist')
-        connection = taskManagementConnectionsMap.get(providerUrl)
-        connected = !!connection
-      }
-      
-      return {
-        provider: providerUrl,
-        connected,
-        connection: connected && connection ? {
-          id: connection.id,
-          ...(isCalendarIntegration ? {
+        const connection = calendarConnectionsMap.get(providerUrl)
+        return {
+          provider: providerUrl,
+          connected: !!connection,
+          connection: connection ? {
+            id: connection.id,
             selected_calendar_ids: connection.selected_calendar_ids,
             auto_sync_enabled: connection.auto_sync_enabled,
             auto_push_enabled: connection.auto_push_enabled,
-          } : {}),
-          ...(isTaskManagementIntegration ? {
+            last_sync_at: connection.last_sync_at,
+            created_at: connection.created_at,
+          } : null,
+        }
+      } else if (isTaskManagementIntegration) {
+        // For task management, providerUrl matches the database provider value (e.g., 'todoist')
+        const connection = taskManagementConnectionsMap.get(providerUrl)
+        return {
+          provider: providerUrl,
+          connected: !!connection,
+          connection: connection ? {
+            id: connection.id,
             default_project_id: connection.default_project_id,
             auto_push_enabled: connection.auto_push_enabled,
             auto_completion_sync: connection.auto_completion_sync,
-          } : {}),
-          last_sync_at: connection.last_sync_at,
-          created_at: connection.created_at,
-        } : null,
+            last_sync_at: connection.last_sync_at,
+            created_at: connection.created_at,
+          } : null,
+        }
+      }
+      
+      // Not a calendar or task management integration
+      return {
+        provider: providerUrl,
+        connected: false,
+        connection: null,
       }
     })
 
