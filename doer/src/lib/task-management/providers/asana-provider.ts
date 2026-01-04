@@ -148,15 +148,12 @@ export class AsanaProvider implements TaskManagementProvider {
     // Get the expected redirect URI to compare
     const expectedRedirectUri = this.getRedirectUri()
 
-    logger.info('Exchanging Asana OAuth code for tokens', {
-      hasCode: !!code,
-      codeLength: code?.length,
-      redirectUri,
-      expectedRedirectUri,
-      redirectUriMatches: redirectUri === expectedRedirectUri,
-      hasClientId: !!clientId,
-      hasClientSecret: !!clientSecret,
-    })
+    if (redirectUri !== expectedRedirectUri) {
+      logger.warn('Asana redirect URI mismatch', {
+        redirectUri,
+        expectedRedirectUri,
+      })
+    }
 
     const response = await fetch('https://app.asana.com/-/oauth_token', {
       method: 'POST',
@@ -208,14 +205,6 @@ export class AsanaProvider implements TaskManagementProvider {
       throw new Error('Invalid response format from Asana token endpoint')
     }
 
-    // Log the raw response for debugging
-    logger.info('Asana token exchange response', {
-      hasData: !!data,
-      dataKeys: data ? Object.keys(data) : [],
-      dataType: typeof data,
-      responsePreview: JSON.stringify(data).substring(0, 500),
-      fullResponse: responseText.substring(0, 1000),
-    })
 
     // Check for error in response (some APIs return errors with HTTP 200)
     if ((data as any).errors || (data as any).error) {

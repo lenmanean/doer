@@ -47,34 +47,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider instance
-    // Validate provider first to ensure it's supported (defensive check)
+    // Get provider instance
     let provider
     try {
-      const providerString = 'asana'
-      const providerType = validateProvider(providerString)
-      logger.info('Getting Asana provider instance in callback', {
-        providerString,
-        providerType,
-        typeOf: typeof providerType,
-      })
+      const providerType = validateProvider('asana')
       provider = getProvider(providerType)
     } catch (providerError) {
       logger.error('Failed to get Asana provider instance', {
         error: providerError instanceof Error ? providerError.message : String(providerError),
-        errorStack: providerError instanceof Error ? providerError.stack : undefined,
-        errorName: providerError instanceof Error ? providerError.name : undefined,
       })
       throw providerError
     }
     const redirectUri = provider.getRedirectUri()
-
-    // Log redirect URI for debugging
-    logger.info('OAuth callback for Asana', {
-      redirectUri,
-      hasCode: !!code,
-      hasState: !!state,
-      nodeEnv: process.env.NODE_ENV,
-    })
 
     // Exchange code for tokens
     let tokens
@@ -202,7 +186,7 @@ export async function GET(request: NextRequest) {
       rawError: error,
     }
     
-    logger.error('🚨 FAILED TO CONNECT ASANA - DETAILED ERROR', errorDetails)
+    logger.error('Failed to connect Asana', errorDetails)
 
     // Provide more specific error message in redirect if possible
     let errorParam = 'connection_failed'

@@ -24,24 +24,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider instance
-    // Validate provider first to ensure it's supported (defensive check)
-    const providerString = 'asana'
-    const providerType = validateProvider(providerString)
-    logger.info('Getting Asana provider instance', {
-      providerString,
-      providerType,
-      typeOf: typeof providerType,
-    })
+    const providerType = validateProvider('asana')
     const provider = getProvider(providerType)
-
-    // Get redirect URI for logging
     const redirectUri = provider.getRedirectUri()
-    
-    // Log redirect URI for debugging
-    logger.info('Generating OAuth URL for Asana', {
-      redirectUri,
-      nodeEnv: process.env.NODE_ENV,
-    })
 
     // Generate state parameter with user ID for security
     const state = generateOAuthState(user.id)
