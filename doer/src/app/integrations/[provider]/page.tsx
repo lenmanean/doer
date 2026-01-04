@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
-import { CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLink, AlertCircle, ArrowLeft, ChevronDown } from 'lucide-react'
+import { CheckCircle, XCircle, RefreshCw, Settings, Trash2, ExternalLink, AlertCircle, ArrowLeft, ChevronDown, Clock, Send } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { PushToCalendarPanel } from '@/components/integrations/PushToCalendarPanel'
@@ -29,6 +29,24 @@ import {
 import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
 import type { ComponentType } from 'react'
+
+// Slack-specific type definitions
+interface SlackChannel {
+  id: string
+  name: string
+  is_private?: boolean
+  is_im?: boolean
+}
+
+interface SlackNotificationPreferences {
+  plan_generation?: { enabled: boolean; channel: string | null }
+  schedule_generation?: { enabled: boolean; channel: string | null }
+  reschedule?: { enabled: boolean; channel: string | null }
+  task_completion?: { enabled: boolean; channel: string | null }
+  plan_completion?: { enabled: boolean; channel: string | null }
+  daily_digest?: { enabled: boolean; time: string; channel: string | null }
+  weekly_digest?: { enabled: boolean; day: string; time: string; channel: string | null }
+}
 
 // Mapping integration keys to icon components
 const integrationIconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -84,8 +102,11 @@ export default function ProviderIntegrationsPage() {
   // Check if this is a calendar integration (has API routes)
   const isCalendarIntegration = ['google', 'outlook', 'apple'].includes(provider)
   
-  // Check if this is a task management integration
-  const isTaskManagementIntegration = provider === 'todoist' || provider === 'asana' || provider === 'trello' || provider === 'slack'
+  // Check if this is a Slack integration (notification-focused, not task management)
+  const isSlackIntegration = provider === 'slack'
+  
+  // Check if this is a task management integration (excludes Slack)
+  const isTaskManagementIntegration = provider === 'todoist' || provider === 'asana' || provider === 'trello'
   
   // Reset connection handled ref when provider changes
   useEffect(() => {
@@ -120,6 +141,14 @@ export default function ProviderIntegrationsPage() {
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [defaultProjectId, setDefaultProjectId] = useState<string | null>(null)
   const [autoCompletionSyncEnabled, setAutoCompletionSyncEnabled] = useState(false)
+  
+  // Slack-specific state
+  const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null)
+  const [channels, setChannels] = useState<SlackChannel[]>([])
+  const [loadingChannels, setLoadingChannels] = useState(false)
+  const [notificationPreferences, setNotificationPreferences] = useState<SlackNotificationPreferences>({})
+  const [teamName, setTeamName] = useState<string | null>(null)
+  const [teamId, setTeamId] = useState<string | null>(null)
   
   // Sync state
   const [syncing, setSyncing] = useState(false)
@@ -292,6 +321,36 @@ export default function ProviderIntegrationsPage() {
     }
   }, [provider, isCalendarIntegration, addToast])
   
+  // Load available channels (only for Slack integration)
+  const loadChannels = useCallback(async () => {
+    if (!isSlackIntegration) {
+      setChannels([])
+      return
+    }
+    
+    try {
+      setLoadingChannels(true)
+      const response = await fetch(`/api/integrations/${provider}/projects`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load channels')
+      }
+      
+      const data = await response.json()
+      setChannels(data.projects || [])
+    } catch (error) {
+      console.error('Error loading channels:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to load channels',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingChannels(false)
+    }
+  }, [provider, isSlackIntegration, addToast])
+  
   // Load available projects (only for task management integrations)
   const loadProjects = useCallback(async () => {
     if (!isTaskManagementIntegration) {
@@ -325,6 +384,50 @@ export default function ProviderIntegrationsPage() {
   // Load connection status function
   const loadConnection = useCallback(async (retryCount = 0) => {
     if (!user?.id) return
+    
+    // Handle Slack integration
+    if (isSlackIntegration) {
+      try {
+        setLoadingConnection(true)
+        const response = await fetch(`/api/integrations/${provider}/status`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to load connection status')
+        }
+        
+        const data = await response.json()
+        
+        // If not connected and this is a retry after OAuth, wait a bit and retry
+        if (!data.connected && retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return loadConnection(retryCount + 1)
+        }
+        
+        setConnection(data.connected ? data.connection : null)
+        setDefaultChannelId(data.connection?.default_channel_id || null)
+        setNotificationPreferences(data.connection?.notification_preferences || {})
+        setTeamName(data.team_name || null)
+        setTeamId(data.team_id || null)
+        
+        // Load channels if connected
+        if (data.connected) {
+          loadChannels()
+        }
+        
+        return data.connected
+      } catch (error) {
+        console.error('Error loading connection:', error)
+        addToast({
+          type: 'error',
+          title: 'Failed to load connection',
+          description: 'Please try again later.',
+          duration: 5000,
+        })
+        return false
+      } finally {
+        setLoadingConnection(false)
+      }
+    }
     
     // Handle task management integrations
     if (isTaskManagementIntegration) {
@@ -424,7 +527,7 @@ export default function ProviderIntegrationsPage() {
     setLoadingConnection(false)
     setConnection(null)
     return false
-  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, loadCalendars, loadProjects, loadActivePlan, addToast])
+  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, isSlackIntegration, loadCalendars, loadProjects, loadChannels, loadActivePlan, addToast])
   
   // Handle OAuth callback query parameters
   useEffect(() => {
@@ -434,7 +537,9 @@ export default function ProviderIntegrationsPage() {
     const error = searchParams.get('error')
     
     // Handle successful connection
-    if (connected === provider && !connectionHandledRef.current) {
+    // For Slack, accept both 'slack' and 'true' for backwards compatibility
+    const isConnectedCallback = connected === provider || (isSlackIntegration && connected === 'true')
+    if (isConnectedCallback && !connectionHandledRef.current) {
       connectionHandledRef.current = true
       
       const handleConnection = async () => {
@@ -535,12 +640,12 @@ export default function ProviderIntegrationsPage() {
     if (!connected && !error && !connectionHandledRef.current) {
       loadConnection()
     }
-  }, [user?.id, provider, searchParams])
+  }, [user?.id, provider, searchParams, loadConnection])
   
   // Connect Integration
   const handleConnect = async () => {
-    // Only calendar and task management integrations are implemented
-    if (!isCalendarIntegration && !isTaskManagementIntegration) {
+    // Only calendar, task management, and Slack integrations are implemented
+    if (!isCalendarIntegration && !isTaskManagementIntegration && !isSlackIntegration) {
       const integrationName = integration?.name || providerInfo[provider]?.name || 'This integration'
       addToast({
         type: 'info',
@@ -615,6 +720,15 @@ export default function ProviderIntegrationsPage() {
         setProjects([])
         setDefaultProjectId(null)
         setAutoCompletionSyncEnabled(false)
+      }
+      
+      // Clear Slack-specific state
+      if (isSlackIntegration) {
+        setChannels([])
+        setDefaultChannelId(null)
+        setNotificationPreferences({})
+        setTeamName(null)
+        setTeamId(null)
       }
       
       addToast({
@@ -1107,6 +1221,35 @@ export default function ProviderIntegrationsPage() {
     }
   }
   
+  // Save Slack settings
+  const saveSlackSettings = useCallback(async (channelId: string | null, preferences: any) => {
+    try {
+      setUpdatingSettings(true)
+      const response = await fetch(`/api/integrations/${provider}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          default_channel_id: channelId,
+          notification_preferences: preferences,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update settings')
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to update settings',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setUpdatingSettings(false)
+    }
+  }, [provider, addToast])
+  
   // Save task management settings
   const saveTaskManagementSettings = async (projectId: string | null, autoPush: boolean, autoCompletionSync: boolean) => {
     try {
@@ -1135,6 +1278,89 @@ export default function ProviderIntegrationsPage() {
       setUpdatingSettings(false)
     }
   }
+  
+  // Notification preference handlers for Slack
+  const handleNotificationToggle = useCallback(async (notificationType: string, enabled: boolean) => {
+    const updatedPreferences: SlackNotificationPreferences = {
+      ...notificationPreferences,
+      [notificationType]: {
+        ...(notificationPreferences as any)[notificationType],
+        enabled,
+      },
+    }
+    setNotificationPreferences(updatedPreferences)
+    await saveSlackSettings(defaultChannelId, updatedPreferences)
+  }, [notificationPreferences, defaultChannelId, saveSlackSettings])
+  
+  const handleNotificationChannelChange = useCallback(async (notificationType: string, channelId: string | null) => {
+    const updatedPreferences: SlackNotificationPreferences = {
+      ...notificationPreferences,
+      [notificationType]: {
+        ...(notificationPreferences as any)[notificationType],
+        channel: channelId,
+      },
+    }
+    setNotificationPreferences(updatedPreferences)
+    await saveSlackSettings(defaultChannelId, updatedPreferences)
+  }, [notificationPreferences, defaultChannelId, saveSlackSettings])
+  
+  const handleDefaultChannelChange = useCallback(async (channelId: string | null) => {
+    setDefaultChannelId(channelId)
+    await saveSlackSettings(channelId, notificationPreferences)
+  }, [notificationPreferences, saveSlackSettings])
+  
+  const handleDigestTimeChange = useCallback(async (type: 'daily_digest' | 'weekly_digest', field: 'time' | 'day', value: string) => {
+    const updatedPreferences: SlackNotificationPreferences = {
+      ...notificationPreferences,
+      [type]: {
+        ...(notificationPreferences[type] || {}),
+        [field]: value,
+      },
+    }
+    setNotificationPreferences(updatedPreferences)
+    await saveSlackSettings(defaultChannelId, updatedPreferences)
+  }, [notificationPreferences, defaultChannelId, saveSlackSettings])
+  
+  // Test notification handler
+  const handleSendTestNotification = useCallback(async () => {
+    if (!defaultChannelId) {
+      addToast({
+        type: 'error',
+        title: 'No channel selected',
+        description: 'Please select a default channel first.',
+        duration: 5000,
+      })
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/integrations/${provider}/test-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel_id: defaultChannelId }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to send test notification')
+      }
+      
+      addToast({
+        type: 'success',
+        title: 'Test notification sent',
+        description: 'Check your Slack workspace for the test message.',
+        duration: 5000,
+      })
+    } catch (error) {
+      console.error('Error sending test notification:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to send test notification',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+        duration: 5000,
+      })
+    }
+  }, [defaultChannelId, provider, addToast])
   
   if (loading || !user) {
     return (
@@ -1271,27 +1497,325 @@ export default function ProviderIntegrationsPage() {
               ) : (
                 <div className="space-y-6">
                   {/* Connection Info */}
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                    <div>
-                      <p className="text-sm font-medium text-[var(--foreground)]">
-                        Connected Account
-                      </p>
-                      <p className="text-xs text-[var(--foreground)]/60">
-                        Last sync: {connection.last_sync_at 
-                          ? new Date(connection.last_sync_at).toLocaleString()
-                          : 'Never'}
-                      </p>
+                  {!isSlackIntegration && (
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--foreground)]">
+                          Connected Account
+                        </p>
+                        <p className="text-xs text-[var(--foreground)]/60">
+                          Last sync: {connection.last_sync_at 
+                            ? new Date(connection.last_sync_at).toLocaleString()
+                            : 'Never'}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDisconnect}
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Disconnect
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDisconnect}
-                      className="flex items-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Disconnect
-                    </Button>
-                  </div>
+                  )}
+                  
+                  {/* Slack Integration UI */}
+                  {isSlackIntegration && connection && (
+                    <div className="space-y-6">
+                      {/* Workspace Information */}
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Workspace
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            {teamName || connection.team_name || 'Unknown workspace'}
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/40 mt-1">
+                            Connected: {connection.installed_at 
+                              ? new Date(connection.installed_at).toLocaleDateString()
+                              : 'Unknown'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDisconnect}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Disconnect
+                        </Button>
+                      </div>
+                      
+                      {/* Default Notification Channel */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                              Default Notification Channel
+                            </h3>
+                            <p className="text-xs text-[var(--foreground)]/60 mt-1">
+                              Choose the default channel for notifications
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={loadChannels}
+                            disabled={loadingChannels}
+                          >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${loadingChannels ? 'animate-spin' : ''}`} />
+                            Refresh
+                          </Button>
+                        </div>
+                        
+                        {loadingChannels ? (
+                          <Skeleton className="h-10 w-full bg-white/5" />
+                        ) : channels.length === 0 ? (
+                          <p className="text-sm text-[var(--foreground)]/60">
+                            No channels found. Please check your connection.
+                          </p>
+                        ) : (
+                          <select
+                            value={defaultChannelId || ''}
+                            onChange={(e) => handleDefaultChannelChange(e.target.value || null)}
+                            className="flex h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="">No default channel</option>
+                            {channels.map((channel) => (
+                              <option key={channel.id} value={channel.id}>
+                                {channel.is_private ? '🔒 ' : '# '}{channel.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      
+                      {/* Notification Preferences */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">
+                            Notification Settings
+                          </h3>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Configure when and where you receive notifications
+                          </p>
+                        </div>
+                        
+                        {/* Real-time Notifications */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-medium text-[var(--foreground)]/80 uppercase tracking-wide">
+                            Real-time Notifications
+                          </h4>
+                          
+                          {[
+                            { key: 'plan_generation', label: 'Plan Generation', desc: 'Notify when a new plan is created' },
+                            { key: 'schedule_generation', label: 'Schedule Generation', desc: 'Notify when a schedule is generated' },
+                            { key: 'reschedule', label: 'Task Reschedule', desc: 'Notify when tasks are rescheduled' },
+                            { key: 'task_completion', label: 'Task Completion', desc: 'Notify when tasks are completed' },
+                            { key: 'plan_completion', label: 'Plan Completion', desc: 'Notify when a plan is completed' },
+                          ].map(({ key, label, desc }) => {
+                            const pref = (notificationPreferences as any)[key] || { enabled: false, channel: null }
+                            return (
+                              <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={pref.enabled || false}
+                                        onChange={(e) => handleNotificationToggle(key, e.target.checked)}
+                                        disabled={updatingSettings}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                                    </label>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-[var(--foreground)]">
+                                        {label}
+                                      </p>
+                                      <p className="text-xs text-[var(--foreground)]/60">
+                                        {desc}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {pref.enabled && (
+                                    <div className="mt-2 ml-14">
+                                      <select
+                                        value={pref.channel || defaultChannelId || ''}
+                                        onChange={(e) => handleNotificationChannelChange(key, e.target.value || null)}
+                                        disabled={updatingSettings || channels.length === 0}
+                                        className="flex h-8 w-full rounded-lg border border-white/20 bg-white/5 px-2 py-1 text-xs text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        <option value={defaultChannelId || ''}>Use default channel</option>
+                                        {channels.map((channel) => (
+                                          <option key={channel.id} value={channel.id}>
+                                            {channel.is_private ? '🔒 ' : '# '}{channel.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        
+                        {/* Digest Notifications */}
+                        <div className="space-y-3 pt-2 border-t border-white/10">
+                          <h4 className="text-xs font-medium text-[var(--foreground)]/80 uppercase tracking-wide">
+                            Digest Notifications
+                          </h4>
+                          
+                          {/* Daily Digest */}
+                          {(() => {
+                            const pref = notificationPreferences.daily_digest || { enabled: false, time: '09:00', channel: null }
+                            return (
+                              <div className="p-4 bg-white/5 rounded-lg border border-white/10 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={pref.enabled || false}
+                                        onChange={(e) => handleNotificationToggle('daily_digest', e.target.checked)}
+                                        disabled={updatingSettings}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                                    </label>
+                                    <div>
+                                      <p className="text-sm font-medium text-[var(--foreground)]">
+                                        Daily Digest
+                                      </p>
+                                      <p className="text-xs text-[var(--foreground)]/60">
+                                        Receive a daily summary of your tasks
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                {pref.enabled && (
+                                  <div className="ml-14 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="w-4 h-4 text-[var(--foreground)]/60" />
+                                      <input
+                                        type="time"
+                                        value={pref.time || '09:00'}
+                                        onChange={(e) => handleDigestTimeChange('daily_digest', 'time', e.target.value)}
+                                        disabled={updatingSettings}
+                                        className="flex h-8 rounded-lg border border-white/20 bg-white/5 px-2 py-1 text-xs text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                      />
+                                    </div>
+                                    <select
+                                      value={pref.channel || defaultChannelId || ''}
+                                      onChange={(e) => handleNotificationChannelChange('daily_digest', e.target.value || null)}
+                                      disabled={updatingSettings || channels.length === 0}
+                                      className="flex h-8 w-full rounded-lg border border-white/20 bg-white/5 px-2 py-1 text-xs text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <option value={defaultChannelId || ''}>Use default channel</option>
+                                      {channels.map((channel) => (
+                                        <option key={channel.id} value={channel.id}>
+                                          {channel.is_private ? '🔒 ' : '# '}{channel.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+                          
+                          {/* Weekly Digest */}
+                          {(() => {
+                            const pref = notificationPreferences.weekly_digest || { enabled: false, day: 'monday', time: '09:00', channel: null }
+                            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+                            return (
+                              <div className="p-4 bg-white/5 rounded-lg border border-white/10 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={pref.enabled || false}
+                                        onChange={(e) => handleNotificationToggle('weekly_digest', e.target.checked)}
+                                        disabled={updatingSettings}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                                    </label>
+                                    <div>
+                                      <p className="text-sm font-medium text-[var(--foreground)]">
+                                        Weekly Digest
+                                      </p>
+                                      <p className="text-xs text-[var(--foreground)]/60">
+                                        Receive a weekly summary of your plans
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                {pref.enabled && (
+                                  <div className="ml-14 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={pref.day || 'monday'}
+                                        onChange={(e) => handleDigestTimeChange('weekly_digest', 'day', e.target.value)}
+                                        disabled={updatingSettings}
+                                        className="flex h-8 rounded-lg border border-white/20 bg-white/5 px-2 py-1 text-xs text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {days.map((day) => (
+                                          <option key={day} value={day}>
+                                            {day.charAt(0).toUpperCase() + day.slice(1)}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <Clock className="w-4 h-4 text-[var(--foreground)]/60" />
+                                      <input
+                                        type="time"
+                                        value={pref.time || '09:00'}
+                                        onChange={(e) => handleDigestTimeChange('weekly_digest', 'time', e.target.value)}
+                                        disabled={updatingSettings}
+                                        className="flex h-8 rounded-lg border border-white/20 bg-white/5 px-2 py-1 text-xs text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                      />
+                                    </div>
+                                    <select
+                                      value={pref.channel || defaultChannelId || ''}
+                                      onChange={(e) => handleNotificationChannelChange('weekly_digest', e.target.value || null)}
+                                      disabled={updatingSettings || channels.length === 0}
+                                      className="flex h-8 w-full rounded-lg border border-white/20 bg-white/5 px-2 py-1 text-xs text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <option value={defaultChannelId || ''}>Use default channel</option>
+                                      {channels.map((channel) => (
+                                        <option key={channel.id} value={channel.id}>
+                                          {channel.is_private ? '🔒 ' : '# '}{channel.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                      
+                      {/* Test Notification Button */}
+                      <div>
+                        <Button
+                          onClick={handleSendTestNotification}
+                          disabled={!defaultChannelId || updatingSettings}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <Send className="w-4 h-4" />
+                          Send Test Notification
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Calendar Selection */}
                   {isCalendarIntegration && (
@@ -1516,7 +2040,7 @@ export default function ProviderIntegrationsPage() {
           </Card>
           
           {/* Sync Logs */}
-          {connection && (
+          {connection && !isSlackIntegration && (
             <Card>
               <CardHeader>
                 <CardTitle>Recent Sync Activity</CardTitle>
