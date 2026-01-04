@@ -13,10 +13,7 @@ export type TaskManagementProviderType = 'todoist' | 'asana'
  * Get a task management provider instance for the specified provider type
  */
 export function getProvider(provider: TaskManagementProviderType): TaskManagementProvider {
-  // Normalize provider string to ensure exact match
-  const normalizedProvider = String(provider).toLowerCase().trim() as TaskManagementProviderType
-  
-  switch (normalizedProvider) {
+  switch (provider) {
     case 'todoist':
       return new TodoistProvider()
     case 'asana':
@@ -26,10 +23,11 @@ export function getProvider(provider: TaskManagementProviderType): TaskManagemen
       // Log the actual value for debugging
       console.error('Provider factory received unexpected value:', {
         provider,
-        normalizedProvider,
         type: typeof provider,
         length: String(provider).length,
         charCodes: Array.from(String(provider)).map(c => c.charCodeAt(0)),
+        isTodoist: provider === 'todoist',
+        isAsana: provider === 'asana',
       })
       throw new Error(`Unsupported task management provider: ${provider}`)
   }
