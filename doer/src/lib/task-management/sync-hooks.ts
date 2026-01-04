@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
-import { getProvider } from '@/lib/task-management/providers/provider-factory'
+import { getProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
 import { logger } from '@/lib/logger'
 import type { AsanaProvider } from '@/lib/task-management/providers/asana-provider'
 
@@ -244,7 +244,7 @@ export async function syncTaskRescheduleToAsana(
     }
 
     // Get provider and update task
-    const provider = getProvider('asana')
+    const provider = getProvider('asana' as TaskManagementProviderType)
 
     // Format due date (YYYY-MM-DD)
     const dueDate = newDate
@@ -355,7 +355,7 @@ export async function syncTaskCompletionToAsana(
     }
 
     // Get provider
-    const provider = getProvider('asana')
+    const provider = getProvider('asana' as TaskManagementProviderType)
 
     if (isCompleted) {
       // Mark task as complete in Asana
