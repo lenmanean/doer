@@ -498,6 +498,14 @@ export default function ProviderIntegrationsPage() {
         errorMessage = 'OAuth authorization was cancelled or failed'
       } else if (error === 'connection_failed') {
         errorMessage = 'Failed to save connection. Please try again.'
+      } else if (error === 'provider_error') {
+        errorMessage = 'Integration provider error. Please contact support.'
+      } else if (error === 'config_error') {
+        errorMessage = 'Integration configuration error. Please contact support.'
+      } else if (error === 'invalid_state') {
+        errorMessage = 'Security verification failed. Please try again.'
+      } else if (error === 'missing_code') {
+        errorMessage = 'Authorization code missing. Please try connecting again.'
       }
       addToast({
         type: 'error',

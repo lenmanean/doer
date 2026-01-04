@@ -67,11 +67,34 @@ export async function GET(request: NextRequest) {
     })
 
     // Exchange code for tokens
-    const tokens = await provider.exchangeCodeForTokens(code, redirectUri)
+    let tokens
+    try {
+      tokens = await provider.exchangeCodeForTokens(code, redirectUri)
+    } catch (tokenError) {
+      logger.error('Failed to exchange Asana OAuth code for tokens', {
+        error: tokenError instanceof Error ? tokenError.message : String(tokenError),
+        errorStack: tokenError instanceof Error ? tokenError.stack : undefined,
+        hasCode: !!code,
+        redirectUri,
+      })
+      throw tokenError
+    }
 
     // Encrypt tokens
-    const accessTokenEncrypted = encryptToken(tokens.access_token)
-    const refreshTokenEncrypted = tokens.refresh_token ? encryptToken(tokens.refresh_token) : ''
+    let accessTokenEncrypted: string
+    let refreshTokenEncrypted: string = ''
+    try {
+      accessTokenEncrypted = encryptToken(tokens.access_token)
+      refreshTokenEncrypted = tokens.refresh_token ? encryptToken(tokens.refresh_token) : ''
+    } catch (encryptError) {
+      logger.error('Failed to encrypt Asana tokens', {
+        error: encryptError instanceof Error ? encryptError.message : String(encryptError),
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+      })
+      throw new Error('Failed to encrypt tokens for storage')
+    }
+    
     const expiresAt = new Date(tokens.expiry_date).toISOString()
 
     // Check if connection already exists
@@ -140,12 +163,31 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(new URL(`/integrations/asana?connected=asana`, request.url))
   } catch (error) {
-    logger.error('Failed to connect Asana', {
+    // Log comprehensive error information
+    const errorDetails = {
       error: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : undefined,
-    })
+      errorName: error instanceof Error ? error.name : undefined,
+      // Check for specific error types
+      isProviderError: error instanceof Error && error.message.includes('provider'),
+      isValidationError: error instanceof Error && error.message.includes('Invalid provider'),
+      isDatabaseError: error && typeof error === 'object' && 'code' in error,
+      rawError: error,
+    }
+    
+    logger.error('Failed to connect Asana', errorDetails)
 
-    return NextResponse.redirect(new URL(`/integrations/asana?error=connection_failed`, request.url))
+    // Provide more specific error message in redirect if possible
+    let errorParam = 'connection_failed'
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid provider') || error.message.includes('Unsupported')) {
+        errorParam = 'provider_error'
+      } else if (error.message.includes('ASANA_CLIENT_ID') || error.message.includes('ASANA_CLIENT_SECRET')) {
+        errorParam = 'config_error'
+      }
+    }
+
+    return NextResponse.redirect(new URL(`/integrations/asana?error=${errorParam}`, request.url))
   }
 }
 
