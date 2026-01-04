@@ -192,10 +192,17 @@ export async function GET(request: NextRequest) {
       isProviderError: error instanceof Error && error.message.includes('provider'),
       isValidationError: error instanceof Error && error.message.includes('Invalid provider'),
       isDatabaseError: error && typeof error === 'object' && 'code' in error,
+      // Include database error details if present
+      dbErrorCode: error && typeof error === 'object' && 'code' in error ? (error as any).code : undefined,
+      dbErrorMessage: error && typeof error === 'object' && 'message' in error ? (error as any).message : undefined,
+      dbErrorDetails: error && typeof error === 'object' && 'details' in error ? (error as any).details : undefined,
+      // Include request context
+      hasCode: !!code,
+      hasState: !!state,
       rawError: error,
     }
     
-    logger.error('Failed to connect Asana', errorDetails)
+    logger.error('🚨 FAILED TO CONNECT ASANA - DETAILED ERROR', errorDetails)
 
     // Provide more specific error message in redirect if possible
     let errorParam = 'connection_failed'
@@ -204,6 +211,8 @@ export async function GET(request: NextRequest) {
         errorParam = 'provider_error'
       } else if (error.message.includes('ASANA_CLIENT_ID') || error.message.includes('ASANA_CLIENT_SECRET')) {
         errorParam = 'config_error'
+      } else if (error.message.includes('database') || error.message.includes('connection') || (error && typeof error === 'object' && 'code' in error)) {
+        errorParam = 'database_error'
       }
     }
 
