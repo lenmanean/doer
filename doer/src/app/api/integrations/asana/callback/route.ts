@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
+import { getProvider, validateProvider, type TaskManagementProviderType } from '@/lib/task-management/providers/provider-factory'
 import { verifyOAuthState } from '@/lib/calendar/providers/shared'
 import { encryptToken } from '@/lib/calendar/encryption'
 import { logger } from '@/lib/logger'
@@ -47,7 +47,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Get provider instance
-    const provider = getProvider('asana' as TaskManagementProviderType)
+    // Validate provider first to ensure it's supported (defensive check)
+    const providerString = 'asana'
+    const providerType = validateProvider(providerString)
+    logger.info('Getting Asana provider instance in callback', {
+      providerString,
+      providerType,
+      typeOf: typeof providerType,
+    })
+    const provider = getProvider(providerType)
     const redirectUri = provider.getRedirectUri()
 
     // Log redirect URI for debugging
@@ -91,7 +99,13 @@ export async function GET(request: NextRequest) {
         .eq('id', existingConnection.id)
 
       if (updateError) {
-        logger.error('Failed to update Asana connection', updateError as Error)
+        logger.error('Failed to update Asana connection', {
+          error: updateError,
+          errorMessage: updateError.message,
+          errorCode: updateError.code,
+          errorDetails: updateError.details,
+          connectionId: existingConnection.id,
+        })
         throw updateError
       }
 
@@ -114,7 +128,13 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (insertError || !connection) {
-      logger.error('Failed to create Asana connection', insertError as Error)
+      logger.error('Failed to create Asana connection', {
+        error: insertError,
+        errorMessage: insertError?.message,
+        errorCode: insertError?.code,
+        errorDetails: insertError?.details,
+        hasConnection: !!connection,
+      })
       throw insertError || new Error('Failed to create connection')
     }
 
