@@ -145,10 +145,15 @@ export class AsanaProvider implements TaskManagementProvider {
     const clientId = process.env.ASANA_CLIENT_ID!
     const clientSecret = process.env.ASANA_CLIENT_SECRET!
 
+    // Get the expected redirect URI to compare
+    const expectedRedirectUri = this.getRedirectUri()
+
     logger.info('Exchanging Asana OAuth code for tokens', {
       hasCode: !!code,
       codeLength: code?.length,
       redirectUri,
+      expectedRedirectUri,
+      redirectUriMatches: redirectUri === expectedRedirectUri,
       hasClientId: !!clientId,
       hasClientSecret: !!clientSecret,
     })
@@ -190,7 +195,18 @@ export class AsanaProvider implements TaskManagementProvider {
       throw new Error(`Failed to exchange code for tokens: ${errorMessage}`)
     }
 
-    const data: AsanaTokenResponse = await response.json()
+    const responseText = await response.text()
+    let data: AsanaTokenResponse
+    
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      logger.error('Asana token exchange failed - invalid JSON response', {
+        responseText: responseText.substring(0, 500),
+        parseError: parseError instanceof Error ? parseError.message : String(parseError),
+      })
+      throw new Error('Invalid response format from Asana token endpoint')
+    }
 
     // Log the raw response for debugging
     logger.info('Asana token exchange response', {
@@ -198,13 +214,25 @@ export class AsanaProvider implements TaskManagementProvider {
       dataKeys: data ? Object.keys(data) : [],
       dataType: typeof data,
       responsePreview: JSON.stringify(data).substring(0, 500),
+      fullResponse: responseText.substring(0, 1000),
     })
 
+    // Check for error in response (some APIs return errors with HTTP 200)
+    if ((data as any).errors || (data as any).error) {
+      const errorData = data as AsanaError
+      const errorMessage = errorData.errors?.[0]?.message || errorData.error || 'Unknown error'
+      logger.error('Asana token exchange failed - error in response body', {
+        errorData,
+        errorMessage,
+      })
+      throw new Error(`Failed to exchange code for tokens: ${errorMessage}`)
+    }
+
     // Asana may wrap the response in a data object or return directly
-    const tokenData = data.data || data
-    const accessToken = tokenData.access_token
-    const refreshToken = tokenData.refresh_token
-    const expiresIn = tokenData.expires_in || 3600 // Default to 1 hour if not provided
+    const tokenData = (data as any).data || data
+    const accessToken = tokenData?.access_token
+    const refreshToken = tokenData?.refresh_token
+    const expiresIn = tokenData?.expires_in || 3600 // Default to 1 hour if not provided
 
     if (!accessToken) {
       logger.error('Asana token exchange failed - no access token in response', {
@@ -212,6 +240,7 @@ export class AsanaProvider implements TaskManagementProvider {
         tokenData,
         hasTokenData: !!tokenData,
         tokenDataKeys: tokenData ? Object.keys(tokenData) : [],
+        responseText: responseText.substring(0, 500),
       })
       throw new Error('Failed to obtain access token from Asana')
     }
