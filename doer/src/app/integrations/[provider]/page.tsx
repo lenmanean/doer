@@ -444,9 +444,19 @@ export default function ProviderIntegrationsPage() {
     const connected = searchParams.get('connected')
     const error = searchParams.get('error')
     
+    console.log('🔵 [ASANA DEBUG] OAuth callback handler', { 
+      provider, 
+      connected, 
+      error, 
+      connectionHandled: connectionHandledRef.current,
+      searchParams: Object.fromEntries(searchParams.entries()),
+      url: window.location.href
+    })
+    
     // Handle successful connection
     if (connected === provider && !connectionHandledRef.current) {
       connectionHandledRef.current = true
+      console.log('🟢 [ASANA DEBUG] OAuth callback success detected', { provider })
       
       const handleConnection = async () => {
         // Clean up query parameter immediately to prevent re-triggering
@@ -456,8 +466,12 @@ export default function ProviderIntegrationsPage() {
         
         let isConnected = false
         for (let attempt = 0; attempt < 3; attempt++) {
+          console.log('🔵 [ASANA DEBUG] Loading connection status', { provider, attempt })
           isConnected = await loadConnection(attempt)
-          if (isConnected) break
+          if (isConnected) {
+            console.log('🟢 [ASANA DEBUG] Connection confirmed', { provider, attempt })
+            break
+          }
           
           if (attempt < 2) {
             await new Promise(resolve => setTimeout(resolve, 1000))
@@ -470,6 +484,7 @@ export default function ProviderIntegrationsPage() {
           const connectionMessage = isCalendarIntegration
             ? 'Please select calendars to sync.'
             : 'Configure your settings below.'
+          console.log('🟢 [ASANA DEBUG] Connection successful, showing success toast', { provider })
           addToast({
             type: 'success',
             title: 'Successfully connected!',
@@ -477,6 +492,7 @@ export default function ProviderIntegrationsPage() {
             duration: 5000,
           })
         } else {
+          console.warn('🟡 [ASANA DEBUG] Connection not found after retries', { provider })
           addToast({
             type: 'warning',
             title: 'Connection may be in progress',
@@ -493,6 +509,13 @@ export default function ProviderIntegrationsPage() {
     if (error && !connectionHandledRef.current) {
       connectionHandledRef.current = true
       
+      console.error('🔴 [ASANA DEBUG] OAuth callback error detected', { 
+        provider, 
+        error, 
+        searchParams: Object.fromEntries(searchParams.entries()),
+        url: window.location.href 
+      })
+      
       let errorMessage = `Failed to connect ${providerInfo[provider]?.name || 'Calendar'}`
       if (error === 'oauth_failed') {
         errorMessage = 'OAuth authorization was cancelled or failed'
@@ -502,11 +525,16 @@ export default function ProviderIntegrationsPage() {
         errorMessage = 'Integration provider error. Please contact support.'
       } else if (error === 'config_error') {
         errorMessage = 'Integration configuration error. Please contact support.'
+      } else if (error === 'database_error') {
+        errorMessage = 'Database error occurred. Please contact support.'
       } else if (error === 'invalid_state') {
         errorMessage = 'Security verification failed. Please try again.'
       } else if (error === 'missing_code') {
         errorMessage = 'Authorization code missing. Please try connecting again.'
       }
+      
+      console.error('🔴 [ASANA DEBUG] Displaying error to user', { provider, error, errorMessage })
+      
       addToast({
         type: 'error',
         title: 'Connection failed',
@@ -532,9 +560,12 @@ export default function ProviderIntegrationsPage() {
   
   // Connect Integration
   const handleConnect = async () => {
+    console.log('🔵 [ASANA DEBUG] handleConnect called', { provider, isCalendarIntegration, isTaskManagementIntegration })
+    
     // Only calendar and task management integrations are implemented
     if (!isCalendarIntegration && !isTaskManagementIntegration) {
       const integrationName = integration?.name || providerInfo[provider]?.name || 'This integration'
+      console.warn('🔵 [ASANA DEBUG] Integration not supported', { provider, integrationName })
       addToast({
         type: 'info',
         title: `${integrationName} Integration`,
@@ -545,31 +576,54 @@ export default function ProviderIntegrationsPage() {
     }
 
     try {
+      console.log('🔵 [ASANA DEBUG] Requesting authorization URL', { provider, url: `/api/integrations/${provider}/authorize` })
       const response = await fetch(`/api/integrations/${provider}/authorize`)
+      
+      console.log('🔵 [ASANA DEBUG] Authorization response received', { 
+        provider, 
+        ok: response.ok, 
+        status: response.status, 
+        statusText: response.statusText 
+      })
       
       if (!response.ok) {
         // Try to get error message from response
         let errorMessage = 'Failed to generate authorization URL'
         try {
           const errorData = await response.json()
+          console.error('🔴 [ASANA DEBUG] Authorization error response', { provider, errorData })
           if (errorData.error) {
             errorMessage = errorData.error
           }
         } catch {
           // If response isn't JSON, use default message
+          console.error('🔴 [ASANA DEBUG] Authorization response is not JSON', { provider, status: response.status })
         }
         throw new Error(errorMessage)
       }
       
       const data = await response.json()
+      console.log('🔵 [ASANA DEBUG] Authorization data received', { 
+        provider, 
+        hasAuthUrl: !!data.auth_url, 
+        hasState: !!data.state,
+        redirectUri: data.redirect_uri 
+      })
       
       if (!data.auth_url) {
+        console.error('🔴 [ASANA DEBUG] No auth_url in response', { provider, data })
         throw new Error('No authorization URL received')
       }
       
+      console.log('🔵 [ASANA DEBUG] Redirecting to OAuth provider', { provider, authUrl: data.auth_url })
       window.location.href = data.auth_url
     } catch (error) {
-      console.error('Error connecting integration:', error)
+      console.error('🔴 [ASANA DEBUG] Error connecting integration', { 
+        provider, 
+        error, 
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined
+      })
       const errorMessage = error instanceof Error ? error.message : 'Please try again later.'
       addToast({
         type: 'error',
