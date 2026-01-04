@@ -381,18 +381,18 @@ export async function syncTaskCompletionToAsana(
       // Task uncompleted: reopen in Asana (AsanaProvider implements reopenTask)
       const asanaProvider = provider as import('./providers/asana-provider').AsanaProvider
 
-      const result = await asanaProvider.reopenTask(
-        connection.id,
-        link.external_task_id
-      )
+        const result = await asanaProvider.reopenTask(
+          connection.id,
+          link.external_task_id
+        )
 
-      if (!result.success) {
-        logger.error('Failed to reopen task in Asana', {
-          error: result.error,
-          taskId,
-          externalTaskId: link.external_task_id,
-        })
-        return
+        if (!result.success) {
+          logger.error('Failed to reopen task in Asana', {
+            error: result.error,
+            taskId,
+            externalTaskId: link.external_task_id,
+          })
+          return
       }
     }
 

@@ -2462,6 +2462,33 @@ function ScheduleContent() {
                       scheduledDate,
                       planId
                     })
+
+                    // Notify Slack about task completion
+                    try {
+                      // Get task name for notification
+                      const { data: taskData } = await supabase
+                        .from('tasks')
+                        .select('name')
+                        .eq('id', proposal.task_id)
+                        .single()
+
+                      if (taskData?.name) {
+                        // Call API route to send notification (server-side)
+                        await fetch('/api/notifications/task-completed', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            taskId: proposal.task_id,
+                            taskName: taskData.name,
+                          }),
+                        }).catch(() => {
+                          // Ignore errors - notifications are best effort
+                        })
+                      }
+                    } catch (notifyError) {
+                      // Log but don't fail - notifications are best effort
+                      console.warn('Failed to send Slack task completion notification:', notifyError)
+                    }
                   }
 
                   // Reject the reschedule proposals since tasks are complete

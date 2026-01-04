@@ -309,3 +309,4 @@ All core functionality works correctly:
 5. Test error scenarios (disconnected account, invalid tokens, etc.)
 6. Verify refresh token encryption fix stores NULL correctly
 
+

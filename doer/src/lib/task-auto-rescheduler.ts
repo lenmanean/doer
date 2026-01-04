@@ -1264,6 +1264,24 @@ export async function applyRescheduleProposal(
       console.warn('Failed to sync reschedule to Trello:', syncError)
     }
 
+    // Notify Slack about reschedule
+    try {
+      const { notifyTaskRescheduled } = await import('@/lib/notifications/notification-hooks')
+      await notifyTaskRescheduled(
+        userId,
+        proposal.task_schedule_id,
+        proposal.original_date,
+        proposal.original_start_time,
+        proposal.original_end_time,
+        proposal.proposed_date,
+        proposal.proposed_start_time,
+        proposal.proposed_end_time
+      )
+    } catch (notifyError) {
+      // Log but don't fail - notifications are best effort
+      console.warn('Failed to send Slack reschedule notification:', notifyError)
+    }
+
     return { success: true }
   } catch (error) {
     console.error('Error applying reschedule proposal:', error)

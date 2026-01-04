@@ -1435,6 +1435,16 @@ export async function POST(req: NextRequest) {
       // Pass evening workday hours if availability patterns detected
       await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate, eveningWorkdayStartHour, eveningWorkdayEndHour)
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
+      
+      // Notify Slack about plan and schedule generation
+      try {
+        const { notifyPlanGenerated, notifyScheduleGenerated } = await import('@/lib/notifications/notification-hooks')
+        await notifyPlanGenerated(user.id, plan.id)
+        await notifyScheduleGenerated(user.id, plan.id)
+      } catch (notifyError) {
+        // Log but don't fail - notifications are best effort
+        console.warn('Failed to send Slack notifications:', notifyError)
+      }
     } catch (scheduleError) {
       console.error('Error generating task schedule:', scheduleError)
     }

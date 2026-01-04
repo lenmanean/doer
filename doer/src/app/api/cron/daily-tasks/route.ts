@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'
  * 1. Calendar sync
  * 2. Waitlist email drip
  * 3. Process scheduled account deletions
+ * 4. Slack digest notifications (daily and weekly)
  * 
  * Security: Verifies cron secret from Vercel
  * Uses service role client to bypass RLS for cron operations
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
     calendarSync: { success: false, error: null as string | null },
     waitlistDrip: { success: false, error: null as string | null },
     scheduledDeletions: { success: false, error: null as string | null },
+    slackDigests: { success: false, error: null as string | null },
   }
 
   // Task 1: Calendar Sync
@@ -106,7 +108,20 @@ export async function GET(request: NextRequest) {
     logger.error('Scheduled deletions error in daily-tasks cron', { error: errorMessage })
   }
 
-  const allSuccessful = results.calendarSync.success && results.waitlistDrip.success && results.scheduledDeletions.success
+  // Task 4: Slack Digest Notifications
+  try {
+    const { scheduleDailyDigests, scheduleWeeklyDigests } = await import('@/lib/notifications/digest-scheduler')
+    await scheduleDailyDigests()
+    await scheduleWeeklyDigests()
+    results.slackDigests.success = true
+    logger.info('Slack digests completed via daily-tasks cron')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    results.slackDigests.error = errorMessage
+    logger.error('Slack digests error in daily-tasks cron', { error: errorMessage })
+  }
+
+  const allSuccessful = results.calendarSync.success && results.waitlistDrip.success && results.scheduledDeletions.success && results.slackDigests.success
 
   return NextResponse.json({
     success: allSuccessful,
