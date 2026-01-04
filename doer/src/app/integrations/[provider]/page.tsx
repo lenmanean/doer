@@ -85,7 +85,7 @@ export default function ProviderIntegrationsPage() {
   const isCalendarIntegration = ['google', 'outlook', 'apple'].includes(provider)
   
   // Check if this is a task management integration
-  const isTaskManagementIntegration = provider === 'todoist' || provider === 'asana'
+  const isTaskManagementIntegration = provider === 'todoist' || provider === 'asana' || provider === 'trello'
   
   // Reset connection handled ref when provider changes
   useEffect(() => {
