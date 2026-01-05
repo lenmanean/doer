@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
-import { CheckCircle, XCircle, Settings, ArrowRight, Zap } from 'lucide-react'
+import { CheckCircle, XCircle, Settings, ArrowRight, Zap, Clock } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { integrations, type IntegrationDefinition } from '@/data/integrations'
@@ -24,6 +25,7 @@ import {
   SiSlack, 
   SiStrava
 } from 'react-icons/si'
+import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
 import type { ComponentType } from 'react'
 
@@ -59,6 +61,7 @@ const integrationIconMap: Record<string, ComponentType<{ className?: string }>> 
   trello: SiTrello,
   notion: SiNotion,
   slack: SiSlack,
+  microsoftTeams: FaMicrosoft,
   strava: SiStrava,
 }
 
@@ -82,6 +85,7 @@ const integrationImageMap: Record<string, string> = {
   asana: 'asana.png',
   trello: 'trello.png',
   slack: 'slack.png',
+  microsoftTeams: 'microsoft-teams.png',
   strava: 'strava.png',
 }
 
@@ -134,6 +138,13 @@ function createProviderInfo(integration: IntegrationDefinition): ProviderInfo {
 
 const PROVIDER_INFO: ProviderInfo[] = integrations.map(createProviderInfo)
 
+// Define which integrations are implemented (have backend API routes)
+const IMPLEMENTED_INTEGRATION_KEYS = ['googleCalendar', 'outlook', 'appleCalendar', 'todoist', 'asana', 'trello', 'slack']
+
+// Separate implemented and unimplemented providers
+const IMPLEMENTED_PROVIDERS = PROVIDER_INFO.filter(p => IMPLEMENTED_INTEGRATION_KEYS.includes(p.key))
+const UNIMPLEMENTED_PROVIDERS = PROVIDER_INFO.filter(p => !IMPLEMENTED_INTEGRATION_KEYS.includes(p.key))
+
 /**
  * Integrations Hub Page
  * Shows all available calendar providers and their connection status
@@ -148,6 +159,7 @@ export default function IntegrationsPage() {
   const [showPlanOverlay, setShowPlanOverlay] = useState(false)
   const [subscription, setSubscription] = useState<any>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
+  const [showUnimplemented, setShowUnimplemented] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -273,8 +285,9 @@ export default function IntegrationsPage() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {PROVIDER_INFO.map((providerInfo) => {
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {IMPLEMENTED_PROVIDERS.map((providerInfo) => {
                 const status = providers.find(p => p.provider === providerInfo.provider)
                 const isConnected = status?.connected || false
 
@@ -349,7 +362,85 @@ export default function IntegrationsPage() {
                   </Card>
                 )
               })}
-            </div>
+              </div>
+
+              {/* See More Button */}
+              {UNIMPLEMENTED_PROVIDERS.length > 0 && (
+                <div className="flex items-center justify-center py-6">
+                  <button
+                    onClick={() => setShowUnimplemented(!showUnimplemented)}
+                    className="flex items-center gap-4 text-[var(--foreground)] hover:text-[var(--primary)] transition-colors cursor-pointer group"
+                    aria-label={showUnimplemented ? 'See less integrations' : 'See more integrations'}
+                  >
+                    <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      {showUnimplemented ? 'See less' : 'See more'}
+                    </span>
+                    <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
+                  </button>
+                </div>
+              )}
+
+              {/* Unimplemented Integrations Section */}
+              <AnimatePresence>
+                {showUnimplemented && UNIMPLEMENTED_PROVIDERS.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {UNIMPLEMENTED_PROVIDERS.map((providerInfo, index) => (
+                        <motion.div
+                          key={providerInfo.key}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            duration: 0.6,
+                            delay: index * 0.1,
+                            ease: [0.4, 0, 0.2, 1]
+                          }}
+                        >
+                          <Card className="border-gray-700/50 opacity-90">
+                            <CardHeader>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-shrink-0">
+                                    {providerInfo.icon}
+                                  </div>
+                                  <div>
+                                    <CardTitle>{providerInfo.name}</CardTitle>
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Coming Soon
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <CardDescription className="text-[#d7d2cb]/70">
+                                {providerInfo.description}
+                              </CardDescription>
+                              <Button
+                                variant="outline"
+                                className="w-full flex items-center justify-center gap-2"
+                                disabled
+                              >
+                                <Clock className="w-4 h-4" />
+                                Coming Soon
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
           )}
         </div>
       </main>
