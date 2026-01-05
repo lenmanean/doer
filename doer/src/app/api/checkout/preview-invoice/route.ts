@@ -96,26 +96,8 @@ export async function POST(request: NextRequest) {
       email: user.email,
     })
 
-    // Update customer address if country is provided
-    if (countryName) {
-      const countryCode = getCountryCode(countryName)
-      if (countryCode) {
-        try {
-          await stripe.customers.update(stripeCustomerId, {
-            address: {
-              country: countryCode,
-              line1: address || undefined,
-              city: city || undefined,
-              state: state || undefined,
-              postal_code: zip || undefined,
-            },
-          })
-        } catch (updateError) {
-          console.error('[Preview Invoice] Error updating customer address:', updateError)
-          // Non-fatal - continue with tax calculation
-        }
-      }
-    }
+    // Get country code for tax calculation
+    const countryCode = countryName ? getCountryCode(countryName) : null
 
     // Preview invoice using Create Preview Invoice API (new API, replaces deprecated upcoming endpoint)
     // Stripe automatically calculates tax based on customer address if Stripe Tax is enabled
@@ -127,10 +109,21 @@ export async function POST(request: NextRequest) {
       }
 
       // Use form data format for POST request
+      // create_preview uses 'invoice_items' parameter, not 'subscription_items'
       const formData = new URLSearchParams()
       formData.append('customer', stripeCustomerId)
-      formData.append('subscription_items[0][price]', priceId)
-      formData.append('subscription_items[0][quantity]', '1')
+      formData.append('invoice_items[0][price]', priceId)
+      formData.append('invoice_items[0][quantity]', '1')
+      formData.append('automatic_tax[enabled]', 'true')
+      
+      // Include customer address for accurate tax calculation
+      if (countryCode) {
+        if (address) formData.append('customer_details[address][line1]', address)
+        if (city) formData.append('customer_details[address][city]', city)
+        if (state) formData.append('customer_details[address][state]', state)
+        if (zip) formData.append('customer_details[address][postal_code]', zip)
+        formData.append('customer_details[address][country]', countryCode)
+      }
 
       const response = await fetch('https://api.stripe.com/v1/invoices/create_preview', {
         method: 'POST',
