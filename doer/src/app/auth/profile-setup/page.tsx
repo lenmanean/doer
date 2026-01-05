@@ -216,7 +216,12 @@ export default function ProfileSetupPage() {
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-2xl">
         {/* Progress Indicator */}
-        <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mb-8"
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-[#d7d2cb]/70">
               Step {currentStep + 1} of {STEPS.length}
@@ -233,9 +238,14 @@ export default function ProfileSetupPage() {
               transition={{ duration: 0.3 }}
             />
           </div>
-        </div>
+        </motion.div>
 
-        <Card className="bg-white/5 border-white/10 relative overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+        >
+          <Card className="bg-white/5 border-white/10 relative overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
@@ -392,6 +402,7 @@ export default function ProfileSetupPage() {
             </motion.div>
           </AnimatePresence>
         </Card>
+        </motion.div>
       </div>
     </div>
   )

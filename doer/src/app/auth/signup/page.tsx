@@ -1,9 +1,9 @@
 'use client'
 
 import { supabase } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
-import { Mail, Lock, Eye, EyeOff, User, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, User, CheckCircle, XCircle, Loader2, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { validatePassword } from '@/lib/password-security'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
@@ -26,8 +26,10 @@ function CustomSignupForm() {
   const [emailError, setEmailError] = useState('')
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [termsError, setTermsError] = useState('')
+  const [hasSavedGoal, setHasSavedGoal] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const { addToast } = useToast()
   
@@ -47,12 +49,12 @@ function CustomSignupForm() {
 
     // Check URL parameter first
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search)
-      const goalFromUrl = urlParams.get('goal')
+      const goalFromUrl = searchParams?.get('goal')
       if (goalFromUrl) {
         // Save to localStorage for onboarding
         localStorage.setItem('pendingGoal', decodeURIComponent(goalFromUrl))
         sessionStorage.setItem('pendingGoal', decodeURIComponent(goalFromUrl))
+        setHasSavedGoal(true)
         return
       }
 
@@ -61,9 +63,10 @@ function CustomSignupForm() {
       if (pendingGoal) {
         // Already saved, ensure sessionStorage also has it
         sessionStorage.setItem('pendingGoal', pendingGoal)
+        setHasSavedGoal(true)
       }
     }
-  }, [])
+  }, [searchParams])
 
   // Don't render signup form during pre-launch
   if (IS_PRE_LAUNCH) {
@@ -366,9 +369,40 @@ function CustomSignupForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-6"
+    >
+      {/* Goal Saved Message */}
+      <AnimatePresence>
+        {hasSavedGoal && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-500 dark:text-green-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-green-800 dark:text-green-200">
+                Your goal has been saved. Sign up to continue.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Email/Password Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <motion.form
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
         <div>
           <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Username
@@ -728,10 +762,15 @@ function CustomSignupForm() {
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
-      </form>
+      </motion.form>
 
       {/* Sign In Link */}
-      <div className="text-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+        className="text-center"
+      >
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
           <a
@@ -741,20 +780,29 @@ function CustomSignupForm() {
             Sign in here
           </a>
         </div>
-      </div>
+      </motion.div>
 
       {/* Divider */}
-      <div className="relative">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.35 }}
+        className="relative"
+      >
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-white/20" />
         </div>
         <div className="relative flex justify-center text-sm">
           <span className="px-2 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400">Or continue with</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Google Sign Up */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
+      >
         <button
           onClick={handleGoogleSignUp}
           className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 min-h-[44px]"
@@ -767,8 +815,8 @@ function CustomSignupForm() {
           </svg>
           Continue with Google
         </button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -776,17 +824,26 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
       <div className="max-w-md w-full space-y-8">
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        >
           <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-gray-100">
             Create Your Account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Join DOER and start your journey
           </p>
-        </div>
-        <div className="mt-8 space-y-6">
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+          className="mt-8 space-y-6"
+        >
           <CustomSignupForm />
-        </div>
+        </motion.div>
       </div>
     </div>
   )

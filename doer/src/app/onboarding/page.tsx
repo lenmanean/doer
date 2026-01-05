@@ -191,19 +191,30 @@ function OnboardingContent() {
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-2xl">
         <motion.div
-          initial={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-              <div className="text-center mb-8">
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+                className="text-center mb-8"
+              >
                 <h1 className="text-4xl font-bold text-[#d7d2cb] mb-4">
                   Let's Create Your Plan
                 </h1>
                 <p className="text-xl text-[#d7d2cb]/70">
                   Tell us your goal and we'll generate a personalized action plan
                 </p>
-              </div>
+              </motion.div>
 
-              <Card className="bg-white/5 border-white/10 relative overflow-hidden">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
+              >
+                <Card className="bg-white/5 border-white/10 relative overflow-hidden">
                 <CardHeader>
                   {errorMessage && (
                     <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-left text-sm text-red-200">
@@ -272,8 +283,14 @@ function OnboardingContent() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
 
-              <div className="mt-6 flex justify-center">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.4, ease: 'easeOut' }}
+                className="mt-6 flex justify-center"
+              >
                 <Button
                   onClick={() => router.push('/dashboard')}
                   variant="outline"
@@ -283,7 +300,7 @@ function OnboardingContent() {
                   <ArrowLeft className="w-4 h-4" />
                   Return to Dashboard
                 </Button>
-              </div>
+              </motion.div>
             </motion.div>
       </div>
     </div>

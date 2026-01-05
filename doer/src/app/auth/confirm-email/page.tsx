@@ -232,14 +232,22 @@ export default function ConfirmEmailPage() {
           className="mt-8 space-y-6"
         >
           {/* OTP Input */}
-          <div className="space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="space-y-4"
+          >
             <label className="block text-sm font-medium text-[#d7d2cb] text-center">
               Enter Confirmation Code
             </label>
             <div className="flex justify-center gap-3">
               {otp.map((digit, index) => (
-                <input
+                <motion.input
                   key={index}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.3 + index * 0.05 }}
                   ref={(el) => { inputRefs.current[index] = el }}
                   type="text"
                   inputMode="numeric"
@@ -252,10 +260,13 @@ export default function ConfirmEmailPage() {
                 />
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* Verify Button */}
-          <button
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
             onClick={() => handleVerify()}
             disabled={isLoading || otp.join('').length !== 6}
             className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-[#ff7f00] hover:bg-[#e67300] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff7f00] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-[#ff7f00]/25"
@@ -268,10 +279,15 @@ export default function ConfirmEmailPage() {
             ) : (
               'Verify Email'
             )}
-          </button>
+          </motion.button>
 
           {/* Resend Code */}
-          <div className="text-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
+            className="text-center"
+          >
             <p className="text-sm text-[#d7d2cb]/70 mb-2">
               Didn't receive the code?
             </p>
@@ -291,10 +307,15 @@ export default function ConfirmEmailPage() {
                 'Resend Code'
               )}
             </button>
-          </div>
+          </motion.div>
 
           {/* Back to Signup */}
-          <div className="text-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.7 }}
+            className="text-center"
+          >
             <button
               onClick={() => router.push('/auth/signup')}
               className="inline-flex items-center text-sm text-[#d7d2cb]/70 hover:text-[#d7d2cb] transition-colors duration-300"
@@ -302,7 +323,7 @@ export default function ConfirmEmailPage() {
               <ArrowLeft className="w-4 h-4 mr-1" />
               Back to Sign Up
             </button>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </div>
