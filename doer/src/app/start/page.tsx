@@ -92,7 +92,7 @@ export default function StartPage() {
                 setWaitlistModalOpen(true)
               }}
             />
-            {!IS_PRE_LAUNCH && !isAuthenticated && (
+            {!isAuthenticated && (
               <p className="mt-4 text-center text-gray-400">
                 Already have an account?{' '}
                 <Link href="/login" className="text-orange-400 hover:text-orange-300">
