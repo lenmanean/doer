@@ -102,7 +102,7 @@
     "q2": "我可以修改AI生成的计划吗？",
     "a2": "当然可以！虽然 DOER 创建了一个智能起点，但您拥有完全的控制权来自定义任务、调整时间表、重新排序里程碑，并根据您的特定需求和偏好调整计划。",
     "q3": "DOER 支持哪些集成？",
-    "a3": "DOER 与流行工具集成，如Google日历、Outlook、Slack、Notion、Todoist、Asana、Trello等。Pro用户可以访问与HubSpot、Jira和Google Workspace的高级集成。",
+    "a3": "DOER 与流行工具集成，如Google日历、Outlook、Slack、Notion、Todoist、Asana、Trello等。",
     "q4": "有免费计划吗？",
     "a4": "是的！DOER 提供包含所有核心功能的免费计划，包括AI计划生成、任务管理、基本集成和每日自动化。非常适合个人使用和开始实现目标。",
     "q5": "智能调度如何工作？",

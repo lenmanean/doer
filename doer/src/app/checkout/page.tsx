@@ -751,11 +751,7 @@ function CheckoutForm() {
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Native integrations (Slack, HubSpot, Notion, Jira, Google Workspace)</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <span>Portfolio analytics & KPI dashboards</span>
+                          <span>Google, Outlook, Slack, Asana, Todo-ist, & More</span>
                         </li>
                       </>
                     ) : (
