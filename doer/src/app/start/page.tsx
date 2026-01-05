@@ -37,26 +37,6 @@ export default function StartPage() {
     }
   }, [])
 
-  // Auto-open waitlist modal if user has submitted consent form (pre-launch only)
-  useEffect(() => {
-    if (!IS_PRE_LAUNCH || typeof window === 'undefined') return
-    
-    const consentData = localStorage.getItem('cookieConsent')
-    if (!consentData) return
-    
-    try {
-      const consent = JSON.parse(consentData)
-      if (consent.accepted) {
-        const timer = setTimeout(() => {
-          setWaitlistModalOpen(true)
-        }, 2000)
-        
-        return () => clearTimeout(timer)
-      }
-    } catch (error) {
-      console.error('Error parsing consent data:', error)
-    }
-  }, [])
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col overflow-x-hidden">

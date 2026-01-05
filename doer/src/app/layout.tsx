@@ -13,7 +13,6 @@ import { getLocale } from '@/i18n/request'
 import { LocaleProvider } from '@/components/providers/locale-provider'
 import { AnalyticsInitializer } from '@/components/analytics/AnalyticsInitializer'
 import { AnalyticsScripts } from '@/components/analytics/AnalyticsScripts'
-import { CookieConsent } from '@/components/ui/CookieConsent'
 import enMessages from '../messages/en.json'
 
 const DEFAULT_TIME_ZONE = process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || 'UTC'
@@ -441,7 +440,6 @@ export default async function RootLayout({
               <TimezoneProvider>
                 <ToastProvider>
                   <AnalyticsInitializer />
-                  <CookieConsent />
                   <PageFadeIn className="min-h-screen">
                     {children}
                   </PageFadeIn>

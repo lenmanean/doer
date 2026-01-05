@@ -37,7 +37,7 @@ export default function AnalyticsPage() {
       setEmailConfirmed(true)
       return
     }
-    setEmailConfirmed(isEmailConfirmed(user))
+          setEmailConfirmed(isEmailConfirmed(user))
   }, [user?.id])
 
   const handleSignOut = async () => {
@@ -176,67 +176,67 @@ export default function AnalyticsPage() {
           </div>
         ) : (
           <>
-            {/* Metric Cards Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
-              <MetricCard
-                title="Completion Rate"
-                value={metrics.completionRate}
-                trend={0}
-                description="Overall task completion"
-                color="#22c55e"
+        {/* Metric Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
+          <MetricCard
+            title="Completion Rate"
+            value={metrics.completionRate}
+            trend={0}
+            description="Overall task completion"
+            color="#22c55e"
+          />
+          <MetricCard
+            title="Current Streak"
+            value={metrics.currentStreak}
+            trend={0}
+            description="Consecutive days with completions"
+            color="#3b82f6"
+            formatValue={(v) => `${Math.round(v)} days`}
+          />
+          <div className="bg-[var(--input)] border border-[var(--border)] rounded-lg p-4 flex flex-col">
+            <h3 className="text-sm font-medium text-[var(--muted-foreground)] mb-1.5">On-Time Rate</h3>
+            <div className="flex items-center gap-2 mb-2">
+              <ProgressRing
+                percentage={metrics.onTimeRate}
+                size={32}
+                strokeWidth={3}
+                color="#f59e0b"
+                showBreakdown={false}
               />
-              <MetricCard
-                title="Current Streak"
-                value={metrics.currentStreak}
-                trend={0}
-                description="Consecutive days with completions"
-                color="#3b82f6"
-                formatValue={(v) => `${Math.round(v)} days`}
-              />
-              <div className="bg-[var(--input)] border border-[var(--border)] rounded-lg p-4 flex flex-col">
-                <h3 className="text-sm font-medium text-[var(--muted-foreground)] mb-1.5">On-Time Rate</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <ProgressRing
-                    percentage={metrics.onTimeRate}
-                    size={32}
-                    strokeWidth={3}
-                    color="#f59e0b"
-                    showBreakdown={false}
-                  />
-                  <span className="text-2xl font-bold text-[var(--foreground)]" style={{ color: '#f59e0b' }}>
-                    {metrics.onTimeRate}%
-                  </span>
-                </div>
-                <p 
-                  className="text-xs leading-tight"
-                  style={{ color: 'color-mix(in srgb, var(--foreground) 50%, transparent)' }}
-                >
-                  Tasks completed on schedule
-                </p>
-              </div>
-              <MetricCard
-                title="Reschedule Rate"
-                value={metrics.rescheduleRate}
-                trend={0}
-                description="Tasks requiring rescheduling"
-                color="#ef4444"
-              />
+              <span className="text-2xl font-bold text-[var(--foreground)]" style={{ color: '#f59e0b' }}>
+                {metrics.onTimeRate}%
+              </span>
             </div>
+            <p 
+              className="text-xs leading-tight"
+              style={{ color: 'color-mix(in srgb, var(--foreground) 50%, transparent)' }}
+            >
+              Tasks completed on schedule
+            </p>
+          </div>
+          <MetricCard
+            title="Reschedule Rate"
+            value={metrics.rescheduleRate}
+            trend={0}
+            description="Tasks requiring rescheduling"
+            color="#ef4444"
+          />
+        </div>
 
-            {/* Analytics Tabs */}
-            <AnalyticsTabs
-              activityData={activityData}
-              completionTrend={completionTrend}
-              productivityPatterns={productivityPatterns}
-              reschedulingAnalysis={reschedulingAnalysis}
-              timeRange={timeRange}
-              onDayClick={(date) => {
-                // TODO: Navigate to daily detail view
-              }}
-              onTimeRangeChange={(range) => {
-                setTimeRange(range)
-              }}
-            />
+        {/* Analytics Tabs */}
+        <AnalyticsTabs
+          activityData={activityData}
+          completionTrend={completionTrend}
+          productivityPatterns={productivityPatterns}
+          reschedulingAnalysis={reschedulingAnalysis}
+          timeRange={timeRange}
+          onDayClick={(date) => {
+            // TODO: Navigate to daily detail view
+          }}
+          onTimeRangeChange={(range) => {
+            setTimeRange(range)
+          }}
+        />
           </>
         )}
       </main>
