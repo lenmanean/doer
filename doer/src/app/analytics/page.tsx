@@ -14,11 +14,10 @@ import { AnalyticsTabs } from '@/components/ui/AnalyticsTabs'
 import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { signOutClient } from '@/lib/auth/sign-out-client'
-import { supabase } from '@/lib/supabase/client'
 
 export default function AnalyticsPage() {
   const router = useRouter()
-  const { user, loading: authLoading, sessionReady } = useSupabase()
+  const { user, supabase, loading: authLoading, sessionReady } = useSupabase()
   const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
   const [emailConfirmed, setEmailConfirmed] = useState(true)
 
@@ -38,23 +37,8 @@ export default function AnalyticsPage() {
       setEmailConfirmed(true)
       return
     }
-    
-    const checkEmailStatus = async () => {
-      try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
-        if (currentUser) {
-          setEmailConfirmed(isEmailConfirmed(currentUser))
-        } else {
-          setEmailConfirmed(isEmailConfirmed(user))
-        }
-      } catch (error) {
-        console.error('Error checking email status:', error)
-        setEmailConfirmed(isEmailConfirmed(user))
-      }
-    }
-    
-    checkEmailStatus()
-  }, [user])
+    setEmailConfirmed(isEmailConfirmed(user))
+  }, [user?.id])
 
   const handleSignOut = async () => {
     try {
@@ -64,15 +48,6 @@ export default function AnalyticsPage() {
       console.error('[AnalyticsPage] Error signing out:', error)
       window.location.href = '/'
     }
-  }
-
-  // Show loading state until auth is confirmed
-  if (authLoading || !sessionReady || !user) {
-    return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="text-[var(--foreground)]">Loading...</div>
-      </div>
-    )
   }
 
   // Analytics data state
@@ -139,16 +114,24 @@ export default function AnalyticsPage() {
     fetchAnalytics()
   }, [user, timeRange])
 
-  if (authLoading || loading) {
+  // Only block the page while we genuinely don't have a user yet (during auth loading)
+  // Once auth is resolved, render the sidebar immediately even if data is still loading
+  if (authLoading && !user) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
+        <div className="text-[var(--foreground)]">Loading...</div>
       </div>
     )
   }
 
-  if (!user) {
-    return null // Will redirect
+  // If loading is false but no user, the hook will handle redirect
+  if (!authLoading && !user) {
+    // Redirect will happen, but show a brief message while redirect happens
+    return (
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="text-[var(--foreground)]">Redirecting...</div>
+      </div>
+    )
   }
 
   return (
@@ -183,67 +166,79 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
-          <MetricCard
-            title="Completion Rate"
-            value={metrics.completionRate}
-            trend={0}
-            description="Overall task completion"
-            color="#22c55e"
-          />
-          <MetricCard
-            title="Current Streak"
-            value={metrics.currentStreak}
-            trend={0}
-            description="Consecutive days with completions"
-            color="#3b82f6"
-            formatValue={(v) => `${Math.round(v)} days`}
-          />
-          <div className="bg-[var(--input)] border border-[var(--border)] rounded-lg p-4 flex flex-col">
-            <h3 className="text-sm font-medium text-[var(--muted-foreground)] mb-1.5">On-Time Rate</h3>
-            <div className="flex items-center gap-2 mb-2">
-              <ProgressRing
-                percentage={metrics.onTimeRate}
-                size={32}
-                strokeWidth={3}
-                color="#f59e0b"
-                showBreakdown={false}
-              />
-              <span className="text-2xl font-bold text-[var(--foreground)]" style={{ color: '#f59e0b' }}>
-                {metrics.onTimeRate}%
-              </span>
+        {/* Loading State - Show within content area while data loads */}
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+              <p className="text-[var(--muted-foreground)]">Loading analytics data...</p>
             </div>
-            <p 
-              className="text-xs leading-tight"
-              style={{ color: 'color-mix(in srgb, var(--foreground) 50%, transparent)' }}
-            >
-              Tasks completed on schedule
-            </p>
           </div>
-          <MetricCard
-            title="Reschedule Rate"
-            value={metrics.rescheduleRate}
-            trend={0}
-            description="Tasks requiring rescheduling"
-            color="#ef4444"
-          />
-        </div>
+        ) : (
+          <>
+            {/* Metric Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 items-start">
+              <MetricCard
+                title="Completion Rate"
+                value={metrics.completionRate}
+                trend={0}
+                description="Overall task completion"
+                color="#22c55e"
+              />
+              <MetricCard
+                title="Current Streak"
+                value={metrics.currentStreak}
+                trend={0}
+                description="Consecutive days with completions"
+                color="#3b82f6"
+                formatValue={(v) => `${Math.round(v)} days`}
+              />
+              <div className="bg-[var(--input)] border border-[var(--border)] rounded-lg p-4 flex flex-col">
+                <h3 className="text-sm font-medium text-[var(--muted-foreground)] mb-1.5">On-Time Rate</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <ProgressRing
+                    percentage={metrics.onTimeRate}
+                    size={32}
+                    strokeWidth={3}
+                    color="#f59e0b"
+                    showBreakdown={false}
+                  />
+                  <span className="text-2xl font-bold text-[var(--foreground)]" style={{ color: '#f59e0b' }}>
+                    {metrics.onTimeRate}%
+                  </span>
+                </div>
+                <p 
+                  className="text-xs leading-tight"
+                  style={{ color: 'color-mix(in srgb, var(--foreground) 50%, transparent)' }}
+                >
+                  Tasks completed on schedule
+                </p>
+              </div>
+              <MetricCard
+                title="Reschedule Rate"
+                value={metrics.rescheduleRate}
+                trend={0}
+                description="Tasks requiring rescheduling"
+                color="#ef4444"
+              />
+            </div>
 
-        {/* Analytics Tabs */}
-        <AnalyticsTabs
-          activityData={activityData}
-          completionTrend={completionTrend}
-          productivityPatterns={productivityPatterns}
-          reschedulingAnalysis={reschedulingAnalysis}
-          timeRange={timeRange}
-          onDayClick={(date) => {
-            // TODO: Navigate to daily detail view
-          }}
-          onTimeRangeChange={(range) => {
-            setTimeRange(range)
-          }}
-        />
+            {/* Analytics Tabs */}
+            <AnalyticsTabs
+              activityData={activityData}
+              completionTrend={completionTrend}
+              productivityPatterns={productivityPatterns}
+              reschedulingAnalysis={reschedulingAnalysis}
+              timeRange={timeRange}
+              onDayClick={(date) => {
+                // TODO: Navigate to daily detail view
+              }}
+              onTimeRangeChange={(range) => {
+                setTimeRange(range)
+              }}
+            />
+          </>
+        )}
       </main>
     </div>
   )
