@@ -148,20 +148,20 @@ export async function POST(request: NextRequest) {
       const upcomingInvoice = await response.json() as any
 
       // Extract tax amount from total_tax_amounts
-      const taxAmount = (upcomingInvoice.total_tax_amounts as any[] | undefined)?.reduce(
+      const taxAmount = (previewInvoice.total_tax_amounts as any[] | undefined)?.reduce(
         (sum: number, tax: any) => sum + (tax?.amount || 0),
         0
       ) || 0
 
-      const subtotal = upcomingInvoice.subtotal || 0
-      const total = upcomingInvoice.total || subtotal
+      const subtotal = previewInvoice.subtotal || 0
+      const total = previewInvoice.total || subtotal
 
       return NextResponse.json({
         subtotal,
         tax: taxAmount,
         total,
-        currency: upcomingInvoice.currency || 'usd',
-        taxBreakdown: upcomingInvoice.total_tax_amounts || [],
+        currency: previewInvoice.currency || 'usd',
+        taxBreakdown: previewInvoice.total_tax_amounts || [],
       })
     } catch (invoiceError: any) {
       // Handle case where Stripe Tax is not configured
