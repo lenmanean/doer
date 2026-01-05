@@ -22,7 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
 import { Bell } from 'lucide-react'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
-import { PlanSelectionOverlay, shouldShowPlanOverlay } from '@/components/ui/PlanSelectionOverlay'
+import { PlanSelectionModal } from '@/components/ui/PlanSelectionModal'
 // Removed direct import - using API route instead
 import { useToast } from '@/components/ui/Toast'
 
@@ -130,17 +130,15 @@ function DashboardContent() {
         const hasSubscription = data.subscription !== null
         setHasActiveSubscription(hasSubscription)
 
-        // Show overlay if: no subscription AND hasn't been dismissed AND should show
-        if (!hasSubscription && shouldShowPlanOverlay()) {
+        // Show modal if: no subscription
+        if (!hasSubscription) {
           setShowPlanOverlay(true)
         }
       } catch (error) {
         console.error('[Dashboard] Error checking subscription:', error)
-        // On error, assume no subscription and show overlay if not dismissed
+        // On error, assume no subscription
         setHasActiveSubscription(false)
-        if (shouldShowPlanOverlay()) {
-          setShowPlanOverlay(true)
-        }
+        setShowPlanOverlay(true)
       }
     }
 
@@ -1482,11 +1480,10 @@ function DashboardContent() {
         }}
       />
 
-      {/* Plan Selection Overlay */}
-      <PlanSelectionOverlay
+      {/* Plan Selection Modal */}
+      <PlanSelectionModal
         isOpen={showPlanOverlay}
         onClose={() => setShowPlanOverlay(false)}
-        userEmail={user?.email}
       />
     </div>
   )
