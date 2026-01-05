@@ -14,7 +14,7 @@ import { CheckCircle, XCircle, Settings, ArrowRight, Zap, Clock } from 'lucide-r
 import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { integrations, type IntegrationDefinition } from '@/data/integrations'
-import { PlanSelectionOverlay } from '@/components/ui/PlanSelectionOverlay'
+import { PlanSelectionModal } from '@/components/ui/PlanSelectionModal'
 import { 
   SiGooglecalendar, 
   SiApple, 
@@ -497,11 +497,10 @@ export default function IntegrationsPage() {
         </div>
       </main>
 
-      {/* Plan Selection Overlay for non-Pro users */}
-      <PlanSelectionOverlay
+      {/* Plan Selection Modal for non-Pro users */}
+      <PlanSelectionModal
         isOpen={showPlanOverlay}
         onClose={() => setShowPlanOverlay(false)}
-        userEmail={user?.email || null}
       />
     </div>
   )
