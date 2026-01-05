@@ -120,20 +120,32 @@ export async function POST(request: NextRequest) {
     // Preview invoice using upcoming invoice API
     // Stripe automatically calculates tax based on customer address if Stripe Tax is enabled
     try {
-      // Use Stripe API directly via request method (retrieveUpcoming isn't in SDK types)
-      const upcomingInvoice = await stripe.request({
+      // Use Stripe REST API directly (retrieveUpcoming isn't in SDK)
+      const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+      if (!stripeSecretKey) {
+        throw new Error('STRIPE_SECRET_KEY is not configured')
+      }
+
+      const params = new URLSearchParams({
+        customer: stripeCustomerId,
+        'subscription_items[0][price]': priceId,
+        'subscription_items[0][quantity]': '1',
+      })
+
+      const response = await fetch(`https://api.stripe.com/v1/invoices/upcoming?${params.toString()}`, {
         method: 'GET',
-        path: '/v1/invoices/upcoming',
-        params: {
-          customer: stripeCustomerId,
-          subscription_items: [
-            {
-              price: priceId,
-              quantity: 1,
-            },
-          ],
+        headers: {
+          'Authorization': `Bearer ${stripeSecretKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-      }) as any
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error?.message || `Stripe API error: ${response.status}`)
+      }
+
+      const upcomingInvoice = await response.json() as any
 
       // Extract tax amount from total_tax_amounts
       const taxAmount = (upcomingInvoice.total_tax_amounts as any[] | undefined)?.reduce(
