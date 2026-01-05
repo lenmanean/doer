@@ -26,12 +26,10 @@ import {
   SiStrava,
   SiLinear,
   SiClickup,
-  SiMondaydotcom,
   SiJira,
   SiDiscord,
   SiObsidian,
   SiEvernote,
-  SiMicrosoftonenote,
   SiGithub,
   SiGooglefit
 } from 'react-icons/si'
@@ -75,12 +73,12 @@ const integrationIconMap: Record<string, ComponentType<{ className?: string }>> 
   strava: SiStrava,
   linear: SiLinear,
   clickUp: SiClickup,
-  mondayCom: SiMondaydotcom,
+  // mondayCom: No icon available, will use emoji fallback
   jira: SiJira,
   discord: SiDiscord,
   obsidian: SiObsidian,
   evernote: SiEvernote,
-  oneNote: SiMicrosoftonenote,
+  // oneNote: No icon available, will use emoji fallback
   github: SiGithub,
   appleHealth: SiApple, // Using SiApple as placeholder, emoji will be used via fallback
   googleFit: SiGooglefit,
