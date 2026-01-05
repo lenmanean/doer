@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
+import { getCountryCode } from '@/lib/stripe/country-codes'
 import { type SubscriptionStatus, type BillingCycle } from '@/lib/billing/plans'
 import { checkTrialEligibility } from '@/lib/billing/trial-eligibility'
 import { syncSubscriptionSnapshot } from '@/lib/billing/subscription-sync'
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
     planSlug = (body.planSlug as string | undefined)?.toLowerCase()
     const billingCycleRaw = ((body.billingCycle as string | undefined) || 'monthly').toLowerCase()
     const paymentMethodId = body.paymentMethodId as string | undefined
+    const countryName = body.country as string | undefined
+    const address = body.address as string | undefined
 
     // Validate inputs
     if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
@@ -158,6 +161,28 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
     })
+
+    // Update customer address if provided (for tax calculation)
+    if (countryName) {
+      const countryCode = getCountryCode(countryName)
+      if (countryCode) {
+        try {
+          await stripe.customers.update(stripeCustomerId, {
+            address: {
+              country: countryCode,
+              line1: address || undefined,
+            },
+          })
+          console.log('[Create Subscription] Updated customer address for tax calculation', {
+            country: countryCode,
+            hasAddress: !!address,
+          })
+        } catch (updateError) {
+          console.warn('[Create Subscription] Error updating customer address:', updateError)
+          // Non-fatal - continue with subscription creation
+        }
+      }
+    }
 
     // Attach payment method to customer
     await stripe.paymentMethods.attach(paymentMethodId, {
@@ -317,7 +342,10 @@ export async function POST(request: NextRequest) {
           // metadata is NOT allowed with pending_if_incomplete - will update separately
           payment_behavior: 'pending_if_incomplete', // Try to charge default payment method, require confirmation if it fails
           proration_behavior: 'always_invoice', // Prorate the difference
-          expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+          automatic_tax: {
+            enabled: true,
+          },
+          expand: ['latest_invoice', 'latest_invoice.payment_intent', 'latest_invoice.total_tax_amounts'],
         })
         
         // Update metadata separately (not allowed in the update call above)
@@ -404,12 +432,15 @@ export async function POST(request: NextRequest) {
           payment_method_types: ['card'],
           save_default_payment_method: 'on_subscription',
         },
+        automatic_tax: {
+          enabled: true,
+        },
         metadata: {
           userId: user.id,
           planSlug,
           billingCycle,
         },
-        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+        expand: ['latest_invoice', 'latest_invoice.payment_intent', 'latest_invoice.total_tax_amounts'],
       }
 
       // Add trial period for eligible Pro Monthly subscriptions

@@ -37,6 +37,11 @@ function CheckoutForm() {
   const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
   const alreadySubscribedNotificationShown = useRef(false)
   
+  // Tax breakdown state
+  const [taxBreakdown, setTaxBreakdown] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null)
+  const [taxLoading, setTaxLoading] = useState(false)
+  const [taxError, setTaxError] = useState<string | null>(null)
+  
   // Billing address fields
   const [fullName, setFullName] = useState('')
   const [country, setCountry] = useState('United States')
@@ -356,6 +361,8 @@ function CheckoutForm() {
           planSlug,
           billingCycle,
           paymentMethodId: setupIntent.payment_method,
+          country: country || undefined,
+          address: address || undefined,
         }),
       })
 
@@ -509,6 +516,65 @@ function CheckoutForm() {
     if (!cents) return 'Free'
     return `$${(cents / 100).toFixed(2)}`
   }
+
+  // Fetch tax preview when country or plan changes
+  useEffect(() => {
+    // Skip if no plan details or invalid country
+    if (!planDetails || !country || country === 'Other') {
+      setTaxBreakdown(null)
+      setTaxError(null)
+      return
+    }
+
+    // Skip for basic plan (no tax needed)
+    if (planSlug === 'basic') {
+      setTaxBreakdown(null)
+      setTaxError(null)
+      return
+    }
+
+    // Debounce tax preview call
+    const timeoutId = setTimeout(async () => {
+      try {
+        setTaxLoading(true)
+        setTaxError(null)
+
+        const response = await fetch('/api/checkout/preview-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planSlug,
+            billingCycle,
+            country,
+            address: address || undefined,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Failed to calculate tax')
+        }
+
+        const data = await response.json()
+        setTaxBreakdown({
+          subtotal: data.subtotal || 0,
+          tax: data.tax || 0,
+          total: data.total || data.subtotal || 0,
+          currency: data.currency || 'usd',
+        })
+        setTaxError(null)
+      } catch (err) {
+        console.error('[Checkout] Error fetching tax preview:', err)
+        // Non-blocking error - proceed without tax breakdown
+        setTaxError('Tax calculation unavailable')
+        setTaxBreakdown(null)
+      } finally {
+        setTaxLoading(false)
+      }
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [country, address, planDetails, billingCycle, planSlug])
 
   if (initialLoading) {
     return (
@@ -712,28 +778,73 @@ function CheckoutForm() {
                   </p>
                 </div>
 
-                <div className="border-t border-white/10 pt-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-lg font-semibold text-[#d7d2cb]">
-                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? 'Due Today' : 'Total'}
+                <div className="border-t border-white/10 pt-4 space-y-3">
+                  {/* Subtotal */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#d7d2cb]/80">Subtotal</span>
+                    <span className="text-sm font-medium text-[#d7d2cb]">
+                      {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
                     </span>
-                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold text-[#ff7f00]">$0</span>
-                        <span className="text-lg text-[#d7d2cb]/40 line-through">$20</span>
-                        <span className="text-sm text-[#d7d2cb]/60">/mo</span>
-                      </div>
-                    ) : (
-                      <span className="text-2xl font-bold text-[#ff7f00]">
-                        {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                  </div>
+
+                  {/* Tax */}
+                  {planSlug === 'pro' && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-[#d7d2cb]/80">
+                        Tax {taxLoading ? '(calculating...)' : taxBreakdown ? '(estimated)' : ''}
                       </span>
+                      {taxLoading ? (
+                        <Loader2 className="w-4 h-4 text-[#d7d2cb]/60 animate-spin" />
+                      ) : taxBreakdown ? (
+                        <span className="text-sm font-medium text-[#d7d2cb]">
+                          {formatPrice(taxBreakdown.tax)}
+                        </span>
+                      ) : taxError ? (
+                        <span className="text-xs text-[#d7d2cb]/60">Unavailable</span>
+                      ) : (
+                        <span className="text-sm font-medium text-[#d7d2cb]">$0.00</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div className="border-t border-white/10 pt-3">
+                    {/* Total or Due Today */}
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-lg font-semibold text-[#d7d2cb]">
+                        {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? 'Due Today' : 'Total'}
+                      </span>
+                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-[#ff7f00]">$0</span>
+                          {taxBreakdown && (
+                            <span className="text-lg text-[#d7d2cb]/40 line-through">
+                              {formatPrice(taxBreakdown.total)}
+                            </span>
+                          )}
+                          {!taxBreakdown && (
+                            <span className="text-lg text-[#d7d2cb]/40 line-through">
+                              {formatPrice(planDetails.priceCents)}
+                            </span>
+                          )}
+                          <span className="text-sm text-[#d7d2cb]/60">/mo</span>
+                        </div>
+                      ) : taxBreakdown ? (
+                        <span className="text-2xl font-bold text-[#ff7f00]">
+                          {formatPrice(taxBreakdown.total)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                        </span>
+                      ) : (
+                        <span className="text-2xl font-bold text-[#ff7f00]">
+                          {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                        </span>
+                      )}
+                    </div>
+                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
+                      <p className="text-xs text-[#d7d2cb]/60">
+                        14-day free trial, then {taxBreakdown ? formatPrice(taxBreakdown.total) : '$20.00'}/month
+                      </p>
                     )}
                   </div>
-                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
-                    <p className="text-xs text-[#d7d2cb]/60">
-                      14-day free trial, then $20/month
-                    </p>
-                  )}
                 </div>
 
                 <div className="border-t border-white/10 pt-4 space-y-3">
