@@ -117,27 +117,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Preview invoice using upcoming invoice API
+    // Preview invoice using Create Preview Invoice API (new API, replaces deprecated upcoming endpoint)
     // Stripe automatically calculates tax based on customer address if Stripe Tax is enabled
     try {
-      // Use Stripe REST API directly (retrieveUpcoming isn't in SDK)
+      // Use Stripe REST API directly (create_preview is the new recommended endpoint)
       const stripeSecretKey = process.env.STRIPE_SECRET_KEY
       if (!stripeSecretKey) {
         throw new Error('STRIPE_SECRET_KEY is not configured')
       }
 
-      const params = new URLSearchParams({
-        customer: stripeCustomerId,
-        'subscription_items[0][price]': priceId,
-        'subscription_items[0][quantity]': '1',
-      })
+      // Use form data format for POST request
+      const formData = new URLSearchParams()
+      formData.append('customer', stripeCustomerId)
+      formData.append('subscription_items[0][price]', priceId)
+      formData.append('subscription_items[0][quantity]', '1')
 
-      const response = await fetch(`https://api.stripe.com/v1/invoices/upcoming?${params.toString()}`, {
-        method: 'GET',
+      const response = await fetch('https://api.stripe.com/v1/invoices/create_preview', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${stripeSecretKey}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+        body: formData.toString(),
       })
 
       if (!response.ok) {
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
         throw new Error(errorData.error?.message || `Stripe API error: ${response.status}`)
       }
 
-      const upcomingInvoice = await response.json() as any
+      const previewInvoice = await response.json() as any
 
       // Extract tax amount from total_tax_amounts
       const taxAmount = (previewInvoice.total_tax_amounts as any[] | undefined)?.reduce(
