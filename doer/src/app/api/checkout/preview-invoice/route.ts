@@ -126,8 +126,8 @@ export async function POST(request: NextRequest) {
       })
 
       // Extract tax amount from total_tax_amounts
-      const taxAmount = upcomingInvoice.total_tax_amounts?.reduce(
-        (sum, tax) => sum + tax.amount,
+      const taxAmount = (upcomingInvoice.total_tax_amounts as Stripe.InvoiceTotalTaxAmount[] | undefined)?.reduce(
+        (sum: number, tax: Stripe.InvoiceTotalTaxAmount) => sum + tax.amount,
         0
       ) || 0
 
