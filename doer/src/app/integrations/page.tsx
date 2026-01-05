@@ -23,7 +23,17 @@ import {
   SiTrello, 
   SiNotion, 
   SiSlack, 
-  SiStrava
+  SiStrava,
+  SiLinear,
+  SiClickup,
+  SiMondaydotcom,
+  SiJira,
+  SiDiscord,
+  SiObsidian,
+  SiEvernote,
+  SiMicrosoftonenote,
+  SiGithub,
+  SiGooglefit
 } from 'react-icons/si'
 import { FaMicrosoft } from 'react-icons/fa'
 import { MdEmail } from 'react-icons/md'
@@ -63,6 +73,17 @@ const integrationIconMap: Record<string, ComponentType<{ className?: string }>> 
   slack: SiSlack,
   microsoftTeams: FaMicrosoft,
   strava: SiStrava,
+  linear: SiLinear,
+  clickUp: SiClickup,
+  mondayCom: SiMondaydotcom,
+  jira: SiJira,
+  discord: SiDiscord,
+  obsidian: SiObsidian,
+  evernote: SiEvernote,
+  oneNote: SiMicrosoftonenote,
+  github: SiGithub,
+  appleHealth: SiApple, // Using SiApple as placeholder, emoji will be used via fallback
+  googleFit: SiGooglefit,
 }
 
 // Convert integration key to URL-friendly identifier

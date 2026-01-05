@@ -163,7 +163,18 @@
         "trello": "Chaque tâche DOER devient une carte Trello avec une date d’échéance, permettant au scheduler de réserver le bon créneau tandis que votre board reflète les progrès.",
         "notion": "Stockez le contexte de votre plan dans Notion et DOER s'y réfère lorsqu'il met à jour le calendrier IA ou affiche les prochaines actions.",
         "slack": "Recevez des synthèses dans Slack, déclenchez des replanifications avec des slash commands et laissez le scheduler notifier les canaux.",
-        "strava": "Les entraînements Strava signalent les fenêtres de récupération, évitant au scheduler d'empiler des sessions intensives les jours épuisés."
+        "strava": "Les entraînements Strava signalent les fenêtres de récupération, évitant au scheduler d'empiler des sessions intensives les jours épuisés.",
+        "linear": "Linear issues become DOER tasks with priorities and due dates; when the AI scheduler reshuffles work, Linear boards update to reflect the latest timeline and keep engineering teams in sync.",
+        "clickUp": "ClickUp tasks sync with DOER plans—the AI scheduler creates tasks with estimates and deadlines, and when priorities shift the workspace reflects the updated schedule automatically.",
+        "mondayCom": "Monday.com boards receive DOER tasks as items with timelines; the AI scheduler keeps project views current as work gets rescheduled and ensures dependencies stay aligned across teams.",
+        "jira": "Jira issues sync with DOER tasks—the AI scheduler creates tickets with story points and due dates, and when plans change the backlog updates to match the latest sprint timeline.",
+        "discord": "Discord channels receive DOER plan updates and milestone notifications; the AI scheduler posts summaries when tasks are rescheduled and keeps communities informed about progress changes.",
+        "obsidian": "Obsidian vaults store plan context as notes—DOER references linked thoughts when generating tasks and updates knowledge graphs whenever the AI schedule evolves.",
+        "evernote": "Evernote notebooks become the knowledge base for DOER plans; the AI scheduler uses embedded notes as context for task generation and keeps plan details synchronized across all devices.",
+        "oneNote": "OneNote pages store plan details and reference materials—DOER uses notebook content when creating tasks and updates sections as the AI schedule adapts to new priorities.",
+        "github": "GitHub issues sync with DOER tasks—the AI scheduler creates issues with labels and milestones, and when development plans shift the repository timeline updates to match the latest schedule.",
+        "appleHealth": "Apple Health data informs DOER about activity levels and recovery needs; the AI scheduler avoids scheduling intense work after high-activity days and adapts plans based on fitness patterns.",
+        "googleFit": "Google Fit workouts influence DOER scheduling—the AI scheduler accounts for exercise intensity and recovery windows, ensuring cognitive work doesn't conflict with fitness goals."
       }
     },
     "features": {
