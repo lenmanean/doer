@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
     // Preview invoice using upcoming invoice API
     // Stripe automatically calculates tax based on customer address if Stripe Tax is enabled
     try {
-      const upcomingInvoice = await stripe.invoices.retrieveUpcoming({
+      // Use type assertion since retrieveUpcoming exists in runtime but not in TypeScript types
+      const upcomingInvoice = await (stripe.invoices as any).retrieveUpcoming({
         customer: stripeCustomerId,
         subscription_items: [
           {
