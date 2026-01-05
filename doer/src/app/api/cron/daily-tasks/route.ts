@@ -12,9 +12,8 @@ export const dynamic = 'force-dynamic'
  * 
  * Handles:
  * 1. Calendar sync
- * 2. Waitlist email drip
- * 3. Process scheduled account deletions
- * 4. Slack digest notifications (daily and weekly)
+ * 2. Process scheduled account deletions
+ * 3. Slack digest notifications (daily and weekly)
  * 
  * Security: Verifies cron secret from Vercel
  * Uses service role client to bypass RLS for cron operations
@@ -34,7 +33,6 @@ export async function GET(request: NextRequest) {
 
   const results = {
     calendarSync: { success: false, error: null as string | null },
-    waitlistDrip: { success: false, error: null as string | null },
     scheduledDeletions: { success: false, error: null as string | null },
     slackDigests: { success: false, error: null as string | null },
   }
@@ -62,30 +60,7 @@ export async function GET(request: NextRequest) {
     logger.error('Calendar sync error in daily-tasks cron', { error: errorMessage })
   }
 
-  // Task 2: Waitlist Drip
-  try {
-    const waitlistResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://usedoer.com'}/api/cron/waitlist-drip`, {
-      method: 'GET',
-      headers: {
-        'Authorization': cronSecret ? `Bearer ${cronSecret}` : '',
-      },
-    })
-    
-    if (waitlistResponse.ok) {
-      results.waitlistDrip.success = true
-      logger.info('Waitlist drip completed via daily-tasks cron')
-    } else {
-      const errorData = await waitlistResponse.json().catch(() => ({}))
-      results.waitlistDrip.error = errorData.error || `HTTP ${waitlistResponse.status}`
-      logger.error('Waitlist drip failed in daily-tasks cron', { error: results.waitlistDrip.error })
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    results.waitlistDrip.error = errorMessage
-    logger.error('Waitlist drip error in daily-tasks cron', { error: errorMessage })
-  }
-
-  // Task 3: Process Scheduled Deletions
+  // Task 2: Process Scheduled Deletions
   try {
     const deletionsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://usedoer.com'}/api/cron/process-scheduled-deletions`, {
       method: 'GET',
@@ -108,7 +83,7 @@ export async function GET(request: NextRequest) {
     logger.error('Scheduled deletions error in daily-tasks cron', { error: errorMessage })
   }
 
-  // Task 4: Slack Digest Notifications
+  // Task 3: Slack Digest Notifications
   try {
     const { scheduleDailyDigests, scheduleWeeklyDigests } = await import('@/lib/notifications/digest-scheduler')
     await scheduleDailyDigests()
@@ -121,7 +96,7 @@ export async function GET(request: NextRequest) {
     logger.error('Slack digests error in daily-tasks cron', { error: errorMessage })
   }
 
-  const allSuccessful = results.calendarSync.success && results.waitlistDrip.success && results.scheduledDeletions.success && results.slackDigests.success
+  const allSuccessful = results.calendarSync.success && results.scheduledDeletions.success && results.slackDigests.success
 
   return NextResponse.json({
     success: allSuccessful,

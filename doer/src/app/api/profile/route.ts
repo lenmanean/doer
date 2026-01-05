@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sanitizePreferences } from '@/lib/validation/preferences'
 import { updateStripeCustomerProfile } from '@/lib/stripe/customer-profile'
+import { sendResendEmail } from '@/lib/email/resend'
+import { EmailWelcome } from '@/emails/welcome/EmailWelcome'
+import { logger } from '@/lib/logger'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -203,14 +206,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Merge preferences: keep existing JSONB and update only intended keys
-    // Fetch current preferences
-    const { data: existingSettings } = await supabase
+    // Fetch current profile to check if this is first-time completion
+    const { data: existingProfile } = await supabase
       .from('user_settings')
-      .select('preferences')
+      .select('preferences, first_name')
       .eq('user_id', user.id)
       .single()
 
-    const currentPrefs = existingSettings?.preferences || {}
+    const currentPrefs = existingProfile?.preferences || {}
+    const hadFirstName = !!existingProfile?.first_name
+    const isFirstTimeCompletion = !hadFirstName && first_name !== undefined && first_name !== null && first_name.trim().length > 0
 
     // Build preferences object from incoming settings
     const incomingPrefs: any = { ...currentPrefs }
@@ -345,6 +350,28 @@ export async function POST(request: NextRequest) {
     }).catch((stripeError) => {
       console.warn('[profile] Failed to update Stripe customer profile:', stripeError)
     })
+
+    // Send welcome email on first-time profile completion (non-blocking)
+    if (isFirstTimeCompletion && user.email) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://usedoer.com'
+      const unsubscribeUrl = `${baseUrl}/api/unsubscribe?email=${encodeURIComponent(user.email)}`
+      const dashboardUrl = `${baseUrl}/dashboard`
+      
+      sendResendEmail({
+        to: user.email,
+        subject: 'Welcome to DOER! 🎉',
+        react: EmailWelcome({ unsubscribeUrl, dashboardUrl }),
+        tag: 'user-welcome',
+        unsubscribeUrl,
+      }).catch((emailError) => {
+        logger.error('Failed to send welcome email', {
+          error: emailError instanceof Error ? emailError.message : String(emailError),
+          userId: user.id,
+          email: user.email,
+        })
+        // Don't fail the request - email sending is non-blocking
+      })
+    }
 
     return NextResponse.json({ profile, success: true })
   } catch (error) {

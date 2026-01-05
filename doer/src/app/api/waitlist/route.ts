@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { sendResendEmail } from '@/lib/email/resend'
-import { Email0Welcome } from '@/emails/waitlist/Email0Welcome'
-import { logger } from '@/lib/logger'
 
 // Force dynamic rendering since we use cookies
 export const dynamic = 'force-dynamic'
@@ -146,44 +143,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send welcome email on first-time signup only
-    // Do this after successful insert to ensure we only send for new signups
-    const baseUrl = getBaseUrl(request)
-    const unsubscribeUrl = `${baseUrl}/api/unsubscribe?email=${encodeURIComponent(normalizedEmail)}`
-    
-    const emailResult = await sendResendEmail({
-      to: normalizedEmail,
-      subject: 'Welcome to DOER!',
-      react: Email0Welcome({ unsubscribeUrl }),
-      tag: 'waitlist-welcome',
-      unsubscribeUrl,
-    })
-
-    // Update email timestamps only if email was sent successfully
-    if (emailResult.success) {
-      const now = new Date().toISOString()
-      const { error: updateError } = await supabase
-        .from('waitlist')
-        .update({
-          welcome_sent_at: now,
-          last_email_sent_at: now,
-        })
-        .eq('email', normalizedEmail)
-
-      if (updateError) {
-        logger.error('Failed to update email timestamps after welcome email', {
-          error: updateError.message,
-          email: normalizedEmail,
-        })
-        // Don't fail the request - email was sent, just timestamp update failed
-      }
-    } else {
-      logger.error('Failed to send welcome email', {
-        error: emailResult.error,
-        email: normalizedEmail,
-      })
-      // Don't fail the request - signup succeeded, email sending failed
-    }
+    // Note: Email sending removed - app is now live, users receive welcome email after signup completion
 
     return NextResponse.json({
       success: true,
