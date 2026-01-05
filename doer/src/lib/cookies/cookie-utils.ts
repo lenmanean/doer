@@ -64,24 +64,36 @@ export function deleteCookie(name: string, options?: { path?: string; domain?: s
 
 /**
  * Check if user has consented to a specific cookie category
- * Only essential cookies are allowed - analytics, marketing, and functional cookies are disabled
  */
 export function hasConsent(category: CookieCategory): boolean {
-  // Only allow essential cookies - all other categories are disabled
-  if (category === 'essential') {
-    return true
+  if (typeof window === 'undefined') return false
+
+  const stored = localStorage.getItem(COOKIE_CONSENT_KEY)
+  if (!stored) return false
+
+  try {
+    const consentData = JSON.parse(stored)
+    return consentData.categories?.includes(category) || false
+  } catch {
+    return false
   }
-  // Analytics, marketing, and functional cookies are not collected
-  return false
 }
 
 /**
  * Get all consented cookie categories
- * Only essential cookies are allowed
  */
 export function getConsentCategories(): CookieCategory[] {
-  // Only return essential cookies - no analytics, marketing, or functional cookies
-  return ['essential']
+  if (typeof window === 'undefined') return []
+
+  const stored = localStorage.getItem(COOKIE_CONSENT_KEY)
+  if (!stored) return []
+
+  try {
+    const consentData = JSON.parse(stored)
+    return consentData.categories || []
+  } catch {
+    return []
+  }
 }
 
 /**

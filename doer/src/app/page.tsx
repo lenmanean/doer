@@ -66,6 +66,30 @@ export default function Home() {
     }
   }, [])
 
+  // Auto-open waitlist modal if user has submitted consent form
+  useEffect(() => {
+    if (!IS_PRE_LAUNCH || typeof window === 'undefined') return
+    
+    // Check if consent has been given
+    const consentData = localStorage.getItem('cookieConsent')
+    if (!consentData) return
+    
+    try {
+      const consent = JSON.parse(consentData)
+      // If consent exists and user hasn't explicitly closed the waitlist modal
+      if (consent.accepted) {
+        // Check if user has already joined waitlist (optional - you may want to check this)
+        // For now, just show the modal after a short delay
+        const timer = setTimeout(() => {
+          setWaitlistModalOpen(true)
+        }, 2000) // 2 second delay after page load
+        
+        return () => clearTimeout(timer)
+      }
+    } catch (error) {
+      console.error('Error parsing consent data:', error)
+    }
+  }, [])
 
   // Debug: Log feature flag values
   useEffect(() => {
