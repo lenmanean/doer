@@ -19,6 +19,21 @@ interface PlanDetails {
   priceCents: number | null
 }
 
+// Helper function to convert country name to ISO code for Stripe
+function getCountryCode(countryName: string | null | undefined): string | undefined {
+  if (!countryName || countryName === 'Other') return undefined
+  const countryMap: Record<string, string> = {
+    'United States': 'US',
+    'Canada': 'CA',
+    'United Kingdom': 'GB',
+    'Australia': 'AU',
+    'Germany': 'DE',
+    'France': 'FR',
+    'Japan': 'JP',
+  }
+  return countryMap[countryName] || undefined
+}
+
 function CheckoutForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -46,6 +61,9 @@ function CheckoutForm() {
   const [fullName, setFullName] = useState('')
   const [country, setCountry] = useState('United States')
   const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [zip, setZip] = useState('')
 
   const planSlug = searchParams.get('plan')?.toLowerCase()
   const billingCycle = (searchParams.get('cycle')?.toLowerCase() || 'monthly') as BillingCycle
@@ -338,7 +356,10 @@ function CheckoutForm() {
               name: billingName,
               address: address ? {
                 line1: address,
-                country: country === 'United States' ? 'US' : country,
+                city: city || undefined,
+                state: state || undefined,
+                postal_code: zip || undefined,
+                country: getCountryCode(country) || undefined,
               } : undefined,
             },
           },
@@ -363,6 +384,9 @@ function CheckoutForm() {
           paymentMethodId: setupIntent.payment_method,
           country: country || undefined,
           address: address || undefined,
+          city: city || undefined,
+          state: state || undefined,
+          zip: zip || undefined,
         }),
       })
 
@@ -547,6 +571,9 @@ function CheckoutForm() {
             billingCycle,
             country,
             address: address || undefined,
+            city: city || undefined,
+            state: state || undefined,
+            zip: zip || undefined,
           }),
         })
 
@@ -574,7 +601,7 @@ function CheckoutForm() {
     }, 300) // 300ms debounce
 
     return () => clearTimeout(timeoutId)
-  }, [country, address, planDetails, billingCycle, planSlug])
+  }, [country, address, city, state, zip, planDetails, billingCycle, planSlug])
 
   if (initialLoading) {
     return (
@@ -726,6 +753,96 @@ function CheckoutForm() {
                         className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
                       />
                     </div>
+
+                    {/* City, State, ZIP - Layout depends on country */}
+                    {country === 'United States' && (
+                      <>
+                        {/* City and State Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                              City
+                            </label>
+                            <input
+                              type="text"
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              placeholder="City"
+                              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                              State
+                            </label>
+                            <input
+                              type="text"
+                              value={state}
+                              onChange={(e) => setState(e.target.value)}
+                              placeholder="State"
+                              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                        {/* ZIP Code */}
+                        <div>
+                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                            ZIP Code
+                          </label>
+                          <input
+                            type="text"
+                            value={zip}
+                            onChange={(e) => setZip(e.target.value)}
+                            placeholder="ZIP Code"
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                          />
+                        </div>
+                      </>
+                    )}
+                    {(country !== 'United States' && country !== 'Other') && (
+                      <>
+                        {/* City */}
+                        <div>
+                          <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                            placeholder="City"
+                            className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                          />
+                        </div>
+                        {/* State/Province and Postal Code Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                              State/Province
+                            </label>
+                            <input
+                              type="text"
+                              value={state}
+                              onChange={(e) => setState(e.target.value)}
+                              placeholder="State/Province"
+                              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-[#d7d2cb] mb-2">
+                              Postal Code
+                            </label>
+                            <input
+                              type="text"
+                              value={zip}
+                              onChange={(e) => setZip(e.target.value)}
+                              placeholder="Postal Code"
+                              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {error && (

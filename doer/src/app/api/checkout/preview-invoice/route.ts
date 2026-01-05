@@ -42,6 +42,9 @@ export async function POST(request: NextRequest) {
     const billingCycleRaw = ((body.billingCycle as string | undefined) || 'monthly').toLowerCase()
     const countryName = body.country as string | undefined
     const address = body.address as string | undefined
+    const city = body.city as string | undefined
+    const state = body.state as string | undefined
+    const zip = body.zip as string | undefined
 
     // Validate inputs
     if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
@@ -102,6 +105,9 @@ export async function POST(request: NextRequest) {
             address: {
               country: countryCode,
               line1: address || undefined,
+              city: city || undefined,
+              state: state || undefined,
+              postal_code: zip || undefined,
             },
           })
         } catch (updateError) {
@@ -114,16 +120,20 @@ export async function POST(request: NextRequest) {
     // Preview invoice using upcoming invoice API
     // Stripe automatically calculates tax based on customer address if Stripe Tax is enabled
     try {
-      // Use type assertion since retrieveUpcoming exists in runtime but not in TypeScript types
-      const upcomingInvoice = await (stripe.invoices as any).retrieveUpcoming({
-        customer: stripeCustomerId,
-        subscription_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-      })
+      // Use Stripe API directly via request method (retrieveUpcoming isn't in SDK types)
+      const upcomingInvoice = await stripe.request({
+        method: 'GET',
+        path: '/v1/invoices/upcoming',
+        params: {
+          customer: stripeCustomerId,
+          subscription_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+        },
+      }) as any
 
       // Extract tax amount from total_tax_amounts
       const taxAmount = (upcomingInvoice.total_tax_amounts as any[] | undefined)?.reduce(

@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
     const paymentMethodId = body.paymentMethodId as string | undefined
     const countryName = body.country as string | undefined
     const address = body.address as string | undefined
+    const city = body.city as string | undefined
+    const state = body.state as string | undefined
+    const zip = body.zip as string | undefined
 
     // Validate inputs
     if (!planSlug || !['basic', 'pro'].includes(planSlug)) {
@@ -171,11 +174,17 @@ export async function POST(request: NextRequest) {
             address: {
               country: countryCode,
               line1: address || undefined,
+              city: city || undefined,
+              state: state || undefined,
+              postal_code: zip || undefined,
             },
           })
           console.log('[Create Subscription] Updated customer address for tax calculation', {
             country: countryCode,
             hasAddress: !!address,
+            hasCity: !!city,
+            hasState: !!state,
+            hasZip: !!zip,
           })
         } catch (updateError) {
           console.warn('[Create Subscription] Error updating customer address:', updateError)
