@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button'
 import { Clock, AlertCircle, CheckCircle } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
+import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
 
 export default function AccountRestorePage() {
   const [scheduledDeletionAt, setScheduledDeletionAt] = useState<string | null>(null)
@@ -20,6 +21,8 @@ export default function AccountRestorePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRestoring, setIsRestoring] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -141,6 +144,48 @@ export default function AccountRestorePage() {
     }
   }
 
+  const handleDeleteNow = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetch('/api/account/delete-immediate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE' }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete account')
+      }
+
+      // Account has been deleted, sign out and redirect
+      addToast({
+        type: 'success',
+        title: 'Account Deleted',
+        description: 'Your account has been deleted immediately.',
+        duration: 5000,
+      })
+
+      // Sign out and redirect to home
+      try {
+        await signOutClient(supabase)
+      } catch (signOutError) {
+        console.error('Error signing out after deletion:', signOutError)
+      }
+      router.push('/')
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      addToast({
+        type: 'error',
+        title: 'Deletion Failed',
+        description: error instanceof Error ? error.message : 'Failed to delete account. Please try again.',
+        duration: 5000,
+      })
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
@@ -255,9 +300,31 @@ export default function AccountRestorePage() {
             <p className="text-xs text-center text-[#d7d2cb]/60">
               If you restore your account, your subscription cancellation will remain scheduled, but you can continue using DOER until the end of your billing period.
             </p>
+
+            {/* Delete Account Now Button */}
+            <div className="pt-2 border-t border-white/10">
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isRestoring || isSigningOut || isDeleting}
+                className="w-full text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Delete account now
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteNow}
+        title="Delete Account Immediately?"
+        description="Your account and subscription will be canceled and deleted immediately. This action cannot be undone. All your data will be permanently removed."
+        confirmText="Delete Account Now"
+        isDeleting={isDeleting}
+      />
     </div>
   )
 }

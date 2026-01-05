@@ -164,6 +164,89 @@ async function cancelAllSubscriptions(
 }
 
 /**
+ * Cancel all subscriptions for a Stripe customer immediately
+ * Idempotent: skips already canceled subscriptions
+ */
+async function cancelAllSubscriptionsImmediate(
+  stripe: Stripe,
+  customerId: string
+): Promise<{ 
+  canceled: number
+  hasActiveSubscriptions: boolean
+  errors: Array<{ subscriptionId: string; error: string }> 
+}> {
+  const errors: Array<{ subscriptionId: string; error: string }> = []
+  let canceled = 0
+  let hasActiveSubscriptions = false
+
+  try {
+    // List all subscriptions for the customer
+    const subscriptions = await stripeWithRetry(() =>
+      stripe.subscriptions.list({
+        customer: customerId,
+        limit: 100,
+      })
+    )
+
+    for (const subscription of subscriptions.data) {
+      // Skip if already canceled
+      if (subscription.status === 'canceled') {
+        serverLogger.debug('Subscription already canceled, skipping', {
+          subscriptionId: subscription.id,
+          customerId,
+        })
+        canceled++
+        continue
+      }
+
+      // Check if subscription is active or trialing (not already canceled)
+      if (subscription.status === 'active' || subscription.status === 'trialing') {
+        hasActiveSubscriptions = true
+      }
+
+      try {
+        // Cancel subscription immediately
+        await stripeWithRetry(() => stripe.subscriptions.cancel(subscription.id))
+        canceled++
+        serverLogger.info('Subscription canceled immediately', {
+          subscriptionId: subscription.id,
+          customerId,
+          status: subscription.status,
+        })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        
+        // If already canceled or not found, treat as success
+        if (isNotFoundOrDeletedError(error) || isAlreadyInDesiredStateError(error)) {
+          canceled++
+          serverLogger.info('Subscription already canceled or not found, treating as success', {
+            subscriptionId: subscription.id,
+            customerId,
+            error: errorMessage,
+          })
+        } else {
+          errors.push({ subscriptionId: subscription.id, error: errorMessage })
+          serverLogger.error('Failed to cancel subscription immediately', {
+            subscriptionId: subscription.id,
+            customerId,
+            error: errorMessage,
+          })
+        }
+      }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    serverLogger.error('Failed to list subscriptions for immediate cancellation', {
+      customerId,
+      error: errorMessage,
+    })
+    // Don't throw - return partial results
+  }
+
+  return { canceled, hasActiveSubscriptions, errors }
+}
+
+/**
  * Detach all payment methods from a Stripe customer
  * Idempotent: skips already detached payment methods
  */
@@ -347,6 +430,75 @@ export async function cleanupStripeBillingData(
     paymentMethodsDetached: result.paymentMethodsDetached,
     customerDeleted: result.customerDeleted,
     customerDeletionDeferred: result.customerDeletionDeferred,
+    errorCount: result.errors.length,
+  })
+
+  return result
+}
+
+/**
+ * Clean up all Stripe billing data for a user with immediate subscription cancellation
+ * This function cancels subscriptions immediately instead of scheduling them for period end
+ * 
+ * Order of operations:
+ * 1. Cancel all subscriptions immediately
+ * 2. Detach all payment methods (removes payment capability, prevents new charges)
+ * 3. Delete customer only if no active subscriptions remain
+ * 
+ * @param stripe - Stripe client instance
+ * @param customerId - Stripe customer ID to clean up
+ * @returns Result object with success status and counts
+ */
+export async function cleanupStripeBillingDataImmediate(
+  stripe: Stripe,
+  customerId: string
+): Promise<StripeCleanupResult> {
+  const result: StripeCleanupResult = {
+    success: false,
+    subscriptionsCanceled: 0,
+    subscriptionsScheduledForCancellation: 0,
+    paymentMethodsDetached: 0,
+    customerDeleted: false,
+    customerDeletionDeferred: false,
+    errors: [],
+  }
+
+  serverLogger.info('Starting immediate Stripe billing data cleanup', { customerId })
+
+  // Step 1: Cancel all subscriptions immediately
+  serverLogger.info('Canceling subscriptions immediately', { customerId })
+  const subscriptionResult = await cancelAllSubscriptionsImmediate(stripe, customerId)
+  result.subscriptionsCanceled = subscriptionResult.canceled
+  subscriptionResult.errors.forEach(err => {
+    result.errors.push({ step: 'subscription_cancel_immediate', error: `${err.subscriptionId}: ${err.error}` })
+  })
+
+  // Step 2: Detach all payment methods (prevents new charges)
+  serverLogger.info('Detaching payment methods', { customerId })
+  const paymentMethodResult = await detachAllPaymentMethods(stripe, customerId)
+  result.paymentMethodsDetached = paymentMethodResult.detached
+  paymentMethodResult.errors.forEach(err => {
+    result.errors.push({ step: 'payment_method_detach', error: `${err.paymentMethodId}: ${err.error}` })
+  })
+
+  // Step 3: Delete customer - subscriptions are canceled so we can delete immediately
+  // Even if there were active subscriptions, they're now canceled so customer can be deleted
+  serverLogger.info('Deleting customer after immediate subscription cancellation', { customerId })
+  const customerResult = await deleteCustomer(stripe, customerId)
+  result.customerDeleted = customerResult.deleted
+  if (customerResult.error) {
+    result.errors.push({ step: 'customer_delete', error: customerResult.error })
+  }
+
+  // Consider cleanup successful if subscriptions were canceled (even if customer deletion failed)
+  result.success = result.subscriptionsCanceled > 0 || result.customerDeleted
+
+  serverLogger.info('Immediate Stripe billing data cleanup completed', {
+    customerId,
+    success: result.success,
+    subscriptionsCanceled: result.subscriptionsCanceled,
+    paymentMethodsDetached: result.paymentMethodsDetached,
+    customerDeleted: result.customerDeleted,
     errorCount: result.errors.length,
   })
 
