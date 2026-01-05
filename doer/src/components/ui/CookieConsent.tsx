@@ -49,12 +49,13 @@ export function CookieConsent() {
   const [showCustomize, setShowCustomize] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<CookieCategory[]>(['essential'])
 
-  // Don't show cookie consent on early-access page
+  // Don't show cookie consent on early-access or start pages
   const isEarlyAccessPage = pathname === '/early-access'
+  const isStartPage = pathname === '/start'
 
   useEffect(() => {
-    // Don't show on early-access page
-    if (isEarlyAccessPage) {
+    // Don't show on early-access or start pages
+    if (isEarlyAccessPage || isStartPage) {
       return
     }
 
@@ -69,7 +70,7 @@ export function CookieConsent() {
       }, 1000)
       return () => clearTimeout(timer)
     }
-  }, [isEarlyAccessPage])
+  }, [isEarlyAccessPage, isStartPage])
 
   const saveConsent = async (categories: CookieCategory[]) => {
     if (typeof window === 'undefined') return
@@ -140,8 +141,8 @@ export function CookieConsent() {
     })
   }
 
-  // Don't render on early-access page
-  if (isEarlyAccessPage || !isVisible) return null
+  // Don't render on early-access or start pages
+  if (isEarlyAccessPage || isStartPage || !isVisible) return null
 
   return (
     <AnimatePresence>

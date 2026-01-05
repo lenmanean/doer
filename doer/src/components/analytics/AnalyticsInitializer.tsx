@@ -16,8 +16,8 @@ export function AnalyticsInitializer() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Skip analytics initialization on early-access page
-    if (pathname === '/early-access') {
+    // Skip analytics initialization on early-access or start pages
+    if (pathname === '/early-access' || pathname === '/start') {
       return
     }
 
@@ -36,8 +36,8 @@ export function AnalyticsInitializer() {
 
   // Track page views on route changes across all platforms (GA4, Pixel, Vercel Analytics)
   useEffect(() => {
-    // Skip tracking on early-access page
-    if (pathname === '/early-access') {
+    // Skip tracking on early-access or start pages
+    if (pathname === '/early-access' || pathname === '/start') {
       return
     }
 
