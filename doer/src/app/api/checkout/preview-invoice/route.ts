@@ -4,7 +4,6 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
-import { getCountryCode } from '@/lib/stripe/country-codes'
 import type { BillingCycle } from '@/lib/billing/plans'
 
 // Force dynamic rendering since we use cookies for authentication
@@ -88,99 +87,23 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Ensure customer exists
-    const stripeCustomerId = await ensureStripeCustomer({
-      supabase,
-      stripe,
-      userId: user.id,
-      email: user.email,
+    // For subscription preview, Stripe's create_preview API doesn't support recurring prices
+    // (invoice_items only accepts one-time prices). Since we're creating a subscription
+    // with automatic_tax enabled anyway, we'll return the base price here.
+    // Tax will be calculated correctly when the actual subscription is created.
+    const price = await stripe.prices.retrieve(priceId)
+    const subtotal = price.unit_amount || 0
+
+    // Return subtotal without tax preview
+    // Note: Tax will be calculated automatically when the subscription is actually created
+    // (automatic_tax is enabled in create-subscription endpoint)
+    return NextResponse.json({
+      subtotal,
+      tax: 0, // Tax preview not available for recurring prices via create_preview API
+      total: subtotal,
+      currency: price.currency || 'usd',
+      taxBreakdown: [],
     })
-
-    // Get country code for tax calculation
-    const countryCode = countryName ? getCountryCode(countryName) : null
-
-    // Preview invoice using Create Preview Invoice API (new API, replaces deprecated upcoming endpoint)
-    // Stripe automatically calculates tax based on customer address if Stripe Tax is enabled
-    try {
-      // Use Stripe REST API directly (create_preview is the new recommended endpoint)
-      const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-      if (!stripeSecretKey) {
-        throw new Error('STRIPE_SECRET_KEY is not configured')
-      }
-
-      // Use form data format for POST request
-      // create_preview uses 'invoice_items' parameter, not 'subscription_items'
-      const formData = new URLSearchParams()
-      formData.append('customer', stripeCustomerId)
-      formData.append('invoice_items[0][price]', priceId)
-      formData.append('invoice_items[0][quantity]', '1')
-      formData.append('automatic_tax[enabled]', 'true')
-      
-      // Include customer address for accurate tax calculation
-      if (countryCode) {
-        if (address) formData.append('customer_details[address][line1]', address)
-        if (city) formData.append('customer_details[address][city]', city)
-        if (state) formData.append('customer_details[address][state]', state)
-        if (zip) formData.append('customer_details[address][postal_code]', zip)
-        formData.append('customer_details[address][country]', countryCode)
-      }
-
-      const response = await fetch('https://api.stripe.com/v1/invoices/create_preview', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${stripeSecretKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error?.message || `Stripe API error: ${response.status}`)
-      }
-
-      const previewInvoice = await response.json() as any
-
-      // Extract tax amount from total_tax_amounts
-      const taxAmount = (previewInvoice.total_tax_amounts as any[] | undefined)?.reduce(
-        (sum: number, tax: any) => sum + (tax?.amount || 0),
-        0
-      ) || 0
-
-      const subtotal = previewInvoice.subtotal || 0
-      const total = previewInvoice.total || subtotal
-
-      return NextResponse.json({
-        subtotal,
-        tax: taxAmount,
-        total,
-        currency: previewInvoice.currency || 'usd',
-        taxBreakdown: previewInvoice.total_tax_amounts || [],
-      })
-    } catch (invoiceError: any) {
-      // Handle case where Stripe Tax is not configured
-      if (
-        invoiceError?.code === 'tax_id_invalid' ||
-        invoiceError?.message?.includes('automatic tax') ||
-        invoiceError?.message?.includes('tax')
-      ) {
-        console.warn('[Preview Invoice] Stripe Tax not configured, returning subtotal only:', invoiceError)
-        // Return subtotal without tax
-        const price = await stripe.prices.retrieve(priceId)
-        const subtotal = price.unit_amount || 0
-        return NextResponse.json({
-          subtotal,
-          tax: 0,
-          total: subtotal,
-          currency: price.currency || 'usd',
-          taxBreakdown: [],
-          warning: 'Tax calculation unavailable',
-        })
-      }
-
-      // Re-throw other errors
-      throw invoiceError
-    }
   } catch (error) {
     console.error('[Preview Invoice] Error:', error)
 
