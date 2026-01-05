@@ -139,7 +139,7 @@ function createProviderInfo(integration: IntegrationDefinition): ProviderInfo {
 const PROVIDER_INFO: ProviderInfo[] = integrations.map(createProviderInfo)
 
 // Define which integrations are implemented (have backend API routes)
-const IMPLEMENTED_INTEGRATION_KEYS = ['googleCalendar', 'outlook', 'appleCalendar', 'todoist', 'asana', 'trello', 'slack']
+const IMPLEMENTED_INTEGRATION_KEYS = ['googleCalendar', 'outlook', 'appleCalendar', 'todoist', 'asana', 'trello', 'slack', 'notion', 'strava']
 
 // Separate implemented and unimplemented providers
 const IMPLEMENTED_PROVIDERS = PROVIDER_INFO.filter(p => IMPLEMENTED_INTEGRATION_KEYS.includes(p.key))
@@ -364,22 +364,30 @@ export default function IntegrationsPage() {
               })}
               </div>
 
-              {/* See More Button */}
-              {UNIMPLEMENTED_PROVIDERS.length > 0 && (
-                <div className="flex items-center justify-center py-6">
-                  <button
-                    onClick={() => setShowUnimplemented(!showUnimplemented)}
-                    className="flex items-center gap-4 text-[var(--foreground)] hover:text-[var(--primary)] transition-colors cursor-pointer group"
-                    aria-label={showUnimplemented ? 'See less integrations' : 'See more integrations'}
+              {/* See More Button - Above unimplemented section (shown when collapsed) */}
+              <AnimatePresence>
+                {UNIMPLEMENTED_PROVIDERS.length > 0 && !showUnimplemented && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                    className="flex items-center justify-center py-6"
                   >
-                    <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
-                    <span className="text-sm font-medium whitespace-nowrap">
-                      {showUnimplemented ? 'See less' : 'See more'}
-                    </span>
-                    <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
-                  </button>
-                </div>
-              )}
+                    <button
+                      onClick={() => setShowUnimplemented(true)}
+                      className="flex items-center gap-4 text-[var(--foreground)] hover:text-[var(--primary)] transition-colors cursor-pointer group"
+                      aria-label="See more integrations"
+                    >
+                      <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
+                      <span className="text-sm font-medium whitespace-nowrap">
+                        See more
+                      </span>
+                      <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Unimplemented Integrations Section */}
               <AnimatePresence>
@@ -437,6 +445,31 @@ export default function IntegrationsPage() {
                         </motion.div>
                       ))}
                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* See Less Button - Below unimplemented section (shown when expanded) */}
+              <AnimatePresence>
+                {UNIMPLEMENTED_PROVIDERS.length > 0 && showUnimplemented && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                    className="flex items-center justify-center py-6"
+                  >
+                    <button
+                      onClick={() => setShowUnimplemented(false)}
+                      className="flex items-center gap-4 text-[var(--foreground)] hover:text-[var(--primary)] transition-colors cursor-pointer group"
+                      aria-label="See less integrations"
+                    >
+                      <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
+                      <span className="text-sm font-medium whitespace-nowrap">
+                        See less
+                      </span>
+                      <span className="flex-1 border-t border-[var(--border)] group-hover:border-[var(--primary)] transition-colors"></span>
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
