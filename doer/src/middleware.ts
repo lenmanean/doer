@@ -111,6 +111,7 @@ export async function middleware(req: NextRequest) {
     '/affiliates', // Affiliate program page (public)
     '/report-misuse', // Report misuse page (public, for abuse reporting)
     '/early-access', // Cold ads landing page (public)
+    '/start', // Landing page for ad campaigns (public)
   ]
 
   // Redirect /community to dashboard (temporarily disabled until multi-user functionality is implemented)
