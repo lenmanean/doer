@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ensureStripeCustomer } from '@/lib/stripe/customers'
 import { requirePriceId } from '@/lib/stripe/prices'
 import type { BillingCycle } from '@/lib/billing/plans'
+import { subscriptionCache } from '@/lib/cache/subscription-cache'
 
 // Helper function to convert country name to ISO code
 function getCountryCode(countryName: string | null | undefined): string | undefined {
@@ -19,6 +20,20 @@ function getCountryCode(countryName: string | null | undefined): string | undefi
     'Japan': 'JP',
   }
   return countryMap[countryName] || undefined
+}
+
+// Simple in-memory cache for tax previews (5 minute TTL)
+// Key format: `${priceId}:${countryCode}:${state}:${zip}`
+interface TaxPreviewCache {
+  subtotal: number
+  tax: number
+  total: number
+  currency: string
+  taxBreakdown: any[]
+}
+
+function getCacheKey(priceId: string, countryCode: string | null, state?: string, zip?: string): string {
+  return `${priceId}:${countryCode || 'none'}:${state || 'none'}:${zip || 'none'}`
 }
 
 // Force dynamic rendering since we use cookies for authentication
@@ -102,6 +117,38 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check cache first to avoid creating unnecessary temporary subscriptions
+    const countryCode = countryName ? getCountryCode(countryName) : null
+    const cacheKey = getCacheKey(priceId, countryCode, state, zip)
+    const cached = subscriptionCache.get<TaxPreviewCache>(cacheKey)
+    
+    if (cached) {
+      console.log('[Preview Invoice] Returning cached tax preview')
+      return NextResponse.json(cached)
+    }
+
+    // Only create temp subscription if we have minimum address info for tax calculation
+    // For US: need country + (state OR zip)
+    // For other countries: need country
+    const hasMinAddressInfo = countryCode && (
+      countryCode !== 'US' || 
+      (state && state.trim()) || 
+      (zip && zip.trim())
+    )
+
+    if (!hasMinAddressInfo) {
+      // Return base price without tax if we don't have enough address info
+      const price = await stripe.prices.retrieve(priceId)
+      const subtotal = price.unit_amount || 0
+      return NextResponse.json({
+        subtotal,
+        tax: 0,
+        total: subtotal,
+        currency: price.currency || 'usd',
+        taxBreakdown: [],
+      })
+    }
+
     // Ensure customer exists and update address for tax calculation
     const stripeCustomerId = await ensureStripeCustomer({
       supabase,
@@ -111,7 +158,6 @@ export async function POST(request: NextRequest) {
     })
 
     // Update customer address for accurate tax calculation
-    const countryCode = countryName ? getCountryCode(countryName) : null
     if (countryCode) {
       try {
         await stripe.customers.update(stripeCustomerId, {
@@ -131,6 +177,7 @@ export async function POST(request: NextRequest) {
 
     // For subscription tax preview, create a temporary subscription with default_incomplete
     // to get the tax amount from the upcoming invoice, then cancel it
+    // NOTE: This creates temporary subscriptions in Stripe logs. We use caching to minimize this.
     let tempSubscription: Stripe.Subscription | null = null
     try {
       const price = await stripe.prices.retrieve(priceId)
@@ -166,13 +213,18 @@ export async function POST(request: NextRequest) {
         // Non-fatal - subscription might auto-cancel
       }
 
-      return NextResponse.json({
+      const result: TaxPreviewCache = {
         subtotal,
         tax: taxAmount,
         total,
         currency: price.currency || 'usd',
         taxBreakdown,
-      })
+      }
+
+      // Cache the result for 5 minutes to avoid repeated temp subscriptions
+      subscriptionCache.set(cacheKey, result, 5 * 60 * 1000)
+
+      return NextResponse.json(result)
     } catch (previewError: any) {
       // Clean up temp subscription if it was created
       if (tempSubscription) {

@@ -557,7 +557,7 @@ function CheckoutForm() {
       return
     }
 
-    // Debounce tax preview call
+    // Debounce tax preview call (increased to 500ms to reduce API calls)
     const timeoutId = setTimeout(async () => {
       try {
         setTaxLoading(true)
@@ -598,7 +598,7 @@ function CheckoutForm() {
       } finally {
         setTaxLoading(false)
       }
-    }, 300) // 300ms debounce
+    }, 500) // 500ms debounce to reduce temp subscription creation
 
     return () => clearTimeout(timeoutId)
   }, [country, address, city, state, zip, planDetails, billingCycle, planSlug])
@@ -928,12 +928,12 @@ function CheckoutForm() {
                   <div className="border-t border-white/10 pt-3">
                     {/* Total or Due Today */}
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-lg font-semibold text-[#d7d2cb]">
-                        {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? 'Due Today' : 'Total'}
-                      </span>
-                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? (
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-bold text-[#ff7f00]">$0</span>
+                    <span className="text-lg font-semibold text-[#d7d2cb]">
+                      {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? 'Due Today' : 'Total'}
+                    </span>
+                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-[#ff7f00]">$0</span>
                           {taxBreakdown && (
                             <span className="text-lg text-[#d7d2cb]/40 line-through">
                               {formatPrice(taxBreakdown.total)}
@@ -944,23 +944,23 @@ function CheckoutForm() {
                               {formatPrice(planDetails.priceCents)}
                             </span>
                           )}
-                          <span className="text-sm text-[#d7d2cb]/60">/mo</span>
-                        </div>
+                        <span className="text-sm text-[#d7d2cb]/60">/mo</span>
+                      </div>
                       ) : taxBreakdown ? (
                         <span className="text-2xl font-bold text-[#ff7f00]">
                           {formatPrice(taxBreakdown.total)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
                         </span>
-                      ) : (
-                        <span className="text-2xl font-bold text-[#ff7f00]">
-                          {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                        </span>
-                      )}
-                    </div>
-                    {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
-                      <p className="text-xs text-[#d7d2cb]/60">
-                        14-day free trial, then {taxBreakdown ? formatPrice(taxBreakdown.total) : '$20.00'}/month
-                      </p>
+                    ) : (
+                      <span className="text-2xl font-bold text-[#ff7f00]">
+                        {formatPrice(planDetails.priceCents)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                      </span>
                     )}
+                  </div>
+                  {planSlug === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
+                    <p className="text-xs text-[#d7d2cb]/60">
+                        14-day free trial, then {taxBreakdown ? formatPrice(taxBreakdown.total) : '$20.00'}/month
+                    </p>
+                  )}
                   </div>
                 </div>
 
