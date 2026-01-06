@@ -637,7 +637,6 @@ export default function HourView({ selectedDate, onClose, theme, planId }: HourV
                           // Only open create modal if there are no tasks that start in this slot
                           if (tasksInThisSlot.length === 0) {
                             const timeString = `${slot.hour.toString().padStart(2, '0')}:${slot.minute.toString().padStart(2, '0')}`
-                            console.log('Clicked time slot in HourView:', { slot, timeString, day: day.dateString })
                             
                             // Update state and then open modal
                             setSelectedTimeSlot(timeString)

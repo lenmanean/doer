@@ -72,18 +72,6 @@ export async function detectOverdueTasks(
     const localDateObj = new Date(checkTime.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
     const todayDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
     
-    console.log('[detectOverdueTasks] Checking for overdue tasks:', {
-      planId: planId || 'free-mode',
-      userId,
-      checkTimeUTC: checkTimeISO,
-      checkTimeLocal: checkTime.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
-      localDate,
-      localTime: localTimeStr,
-      localHour: localTime.getHours(),
-      localMinute: localTime.getMinutes(),
-      todayDateStr
-    })
-    
     // Get all schedules for today and past dates (not future dates)
     // This allows detection of overdue tasks from past days as well as today
     const { data: allSchedules, error: schedulesError } = await supabase
@@ -96,17 +84,6 @@ export async function detectOverdueTasks(
       console.error('[detectOverdueTasks] Error fetching schedules:', schedulesError)
       throw schedulesError
     }
-    
-    console.log('[detectOverdueTasks] All schedules fetched:', {
-      count: allSchedules?.length || 0,
-      schedules: allSchedules?.map((s: any) => ({
-        id: s.id,
-        date: s.date,
-        end_time: s.end_time,
-        plan_id: s.plan_id,
-        status: s.status
-      }))
-    })
     
     // Filter for free-mode or plan-based tasks
     // Include 'scheduled', 'overdue', and 'rescheduling' statuses
@@ -123,11 +100,7 @@ export async function detectOverdueTasks(
       s.status !== 'pending_reschedule' // Already has a proposal
     )
     
-    console.log('[detectOverdueTasks] Filtered schedules:', {
-      planId,
-      count: filteredSchedules.length,
-      schedules: filteredSchedules.map((s: any) => ({
-        id: s.id,
+    // Process filtered schedules
         date: s.date,
         end_time: s.end_time,
         end_time_type: typeof s.end_time,
@@ -228,7 +201,6 @@ export async function detectOverdueTasks(
         const completion = completionsMap.get(schedule.id)
       
         if (!task) {
-          console.log('[detectOverdueTasks] No task found for schedule:', schedule.id, 'task_id:', schedule.task_id)
           return null
         }
         
@@ -263,26 +235,6 @@ export async function detectOverdueTasks(
         // So there can never be a completion for free-mode tasks
         // Map.get() returns undefined (not null) when key doesn't exist, so check for truthiness
         const isCompleted = !!completion
-        
-        console.log('[detectOverdueTasks] Checking schedule:', {
-          schedule_id: schedule.id,
-          schedule_plan_id: schedule.plan_id,
-          task_name: task.name,
-          task_id: schedule.task_id,
-          task_plan_id: task.plan_id,
-          end_time: schedule.end_time,
-          localTimeStr,
-          isOverdueByTime,
-          completion_found: completion !== null,
-          completion_details: completion ? {
-            id: completion.id,
-            task_id: completion.task_id,
-            scheduled_date: completion.scheduled_date,
-            plan_id: completion.plan_id
-          } : null,
-          isCompleted,
-          willInclude: isOverdueByTime && !isCompleted
-        })
         
         if (isOverdueByTime && !isCompleted) {
           return {
@@ -344,8 +296,6 @@ export async function detectOverdueTasks(
     }
     
     if (indefTasks && indefTasks.length > 0) {
-      console.log(`[detectOverdueTasks] Found ${indefTasks.length} indefinite recurring task(s) to check`)
-      
       // Helper function to format date as YYYY-MM-DD
       const fmtLocal = (d: Date) => {
         const y = d.getFullYear()

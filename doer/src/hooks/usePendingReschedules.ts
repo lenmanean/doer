@@ -40,12 +40,6 @@ export function usePendingReschedules(
 
       const data = await response.json()
 
-      console.log('[PendingReschedules] Fetched proposals:', {
-        success: data.success,
-        count: data.proposals?.length || 0,
-        planId: planIdParam || 'free-mode'
-      })
-
       if (data.success && data.proposals) {
         setPendingReschedules(data.proposals)
       } else {

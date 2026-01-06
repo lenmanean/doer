@@ -333,7 +333,6 @@ function ScheduleContent() {
     const checkAndRescheduleOverdue = async () => {
       try {
         // Always check free-mode tasks (planId = null)
-        console.log('[Schedule] Checking for overdue free-mode tasks...', { userId })
         const freeModeResponse = await fetch('/api/tasks/reschedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -342,18 +341,10 @@ function ScheduleContent() {
 
         if (freeModeResponse.ok) {
           const freeModeData = await freeModeResponse.json()
-          console.log('[Schedule] Free-mode reschedule check:', {
-            success: freeModeData.success,
-            resultsCount: freeModeData.results?.length || 0
-          })
-          if (freeModeData.success && freeModeData.results && freeModeData.results.length > 0) {
-            console.log(`✅ Created ${freeModeData.results.length} free-mode reschedule proposal(s)`)
-          }
         }
 
         // Also check plan tasks if there's a current plan
         if (currentPlanId) {
-          console.log('[Schedule] Checking for overdue plan tasks...', { planId: currentPlanId, userId })
           const planResponse = await fetch('/api/tasks/reschedule', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -362,13 +353,6 @@ function ScheduleContent() {
 
           if (planResponse.ok) {
             const planData = await planResponse.json()
-            console.log('[Schedule] Plan reschedule check:', {
-              success: planData.success,
-              resultsCount: planData.results?.length || 0
-            })
-            if (planData.success && planData.results && planData.results.length > 0) {
-              console.log(`✅ Created ${planData.results.length} plan reschedule proposal(s)`)
-            }
           }
         }
 
@@ -397,16 +381,6 @@ function ScheduleContent() {
   // Show reschedule modal when pending reschedules are detected (works for both plan-based and free-mode)
   // Only show modal when on schedule page and proposals haven't been dismissed
   useEffect(() => {
-    console.log('[Schedule] Modal trigger check:', {
-      hasPending,
-      loadingPending,
-      showRescheduleModal,
-      pendingCount: allPendingReschedules.length,
-      freeModeCount: freeModeReschedules.length,
-      planCount: planReschedules.length,
-      dismissedCount: dismissedProposalIds.size
-    })
-    
     // Filter out dismissed proposals
     const visibleProposals = allPendingReschedules.filter(
       proposal => !dismissedProposalIds.has(proposal.id)
@@ -414,14 +388,12 @@ function ScheduleContent() {
     
     // Close modal if no visible proposals remain
     if (showRescheduleModal && visibleProposals.length === 0 && !loadingPending) {
-      console.log('[Schedule] Closing modal - no visible proposals remaining')
       setShowRescheduleModal(false)
       return
     }
     
     // Only show modal on schedule page when there are pending reschedules that haven't been dismissed
     if (hasPending && !loadingPending && !showRescheduleModal && visibleProposals.length > 0) {
-      console.log('[Schedule] ✅ Showing reschedule modal with', visibleProposals.length, 'proposal(s)')
       setShowRescheduleModal(true)
     }
   }, [hasPending, loadingPending, showRescheduleModal, allPendingReschedules, dismissedProposalIds])
@@ -1762,14 +1734,6 @@ function ScheduleContent() {
 
                 {/* Day Headers */}
                 {weekDays.map((day, dayIndex) => {
-                  console.log('Rendering day header:', {
-                    dayIndex,
-                    dateString: day.dateString,
-                    dayName: day.dayName,
-                    fullDate: day.date.toDateString(),
-                    key: day.dateString
-                  })
-                  
                   return (
                     <motion.div
                       key={`${day.dateString}-${dayIndex}`} // Add index to ensure uniqueness
@@ -2099,7 +2063,6 @@ function ScheduleContent() {
                               // Only open create modal if there are no tasks that start in this slot
                               if (tasksInThisSlot.length === 0) {
                                 const timeString = `${slot.hour.toString().padStart(2, '0')}:${slot.minute.toString().padStart(2, '0')}`
-                                console.log('Clicked time slot:', { slot, timeString, day: day.dateString })
                                 
                                 // Update state and then open modal
                                 setSelectedTimeSlot(timeString)

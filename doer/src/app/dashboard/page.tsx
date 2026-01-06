@@ -179,7 +179,6 @@ function DashboardContent() {
     const checkAndRescheduleOverdue = async () => {
       try {
         // Always check free-mode tasks (planId = null)
-        console.log('[Dashboard] Checking for overdue free-mode tasks...', { userId: user.id })
         const freeModeResponse = await fetch('/api/tasks/reschedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -188,18 +187,10 @@ function DashboardContent() {
 
         if (freeModeResponse.ok) {
           const freeModeData = await freeModeResponse.json()
-          console.log('[Dashboard] Free-mode reschedule check:', {
-            success: freeModeData.success,
-            resultsCount: freeModeData.results?.length || 0
-          })
-          if (freeModeData.success && freeModeData.results && freeModeData.results.length > 0) {
-            console.log(`✅ Created ${freeModeData.results.length} free-mode reschedule proposal(s)`)
-          }
         }
 
         // Also check plan tasks if there's an active plan
         if (activePlan?.id) {
-          console.log('[Dashboard] Checking for overdue plan tasks...', { planId: activePlan.id, userId: user.id })
           const planResponse = await fetch('/api/tasks/reschedule', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -208,13 +199,6 @@ function DashboardContent() {
 
           if (planResponse.ok) {
             const planData = await planResponse.json()
-            console.log('[Dashboard] Plan reschedule check:', {
-              success: planData.success,
-              resultsCount: planData.results?.length || 0
-            })
-            if (planData.success && planData.results && planData.results.length > 0) {
-              console.log(`✅ Created ${planData.results.length} plan reschedule proposal(s)`)
-            }
           }
         }
 
@@ -575,6 +559,27 @@ function DashboardContent() {
     }
   }, [activePlan, loadingPlans])
 
+  // Helper function to derive a concise title from goal_text
+  const getPlanTitle = useCallback((plan: { goal_text?: string; summary_data?: { goal_title?: string } }) => {
+    // First, try to use explicit goal_title from summary_data
+    const explicitTitle = plan.summary_data?.goal_title
+    if (explicitTitle && typeof explicitTitle === 'string' && explicitTitle.trim().length > 0) {
+      return explicitTitle
+    }
+    
+    // Otherwise, derive a concise title from goal_text (3-8 words)
+    const raw = (plan.goal_text || '').trim()
+    if (!raw) return 'Untitled plan'
+    
+    // Take first sentence, then first 8 words
+    const firstSentence = raw.split(/[.!?]/)[0] || raw
+    const words = firstSentence.split(/\s+/).filter(Boolean).slice(0, 8)
+    const title = words.join(' ')
+    
+    // Ensure trailing ellipsis if goal is longer
+    return raw.length > title.length ? `${title}…` : title
+  }, [])
+
   // Load notifications (recent activity) - extracted to useCallback so it can be called from multiple places
   const loadNotifications = useCallback(async () => {
     if (!user?.id) return
@@ -678,7 +683,7 @@ function DashboardContent() {
       // 4. Load recent plan status changes
       const { data: planUpdates } = await supabase
         .from('plans')
-        .select('id, goal_text, status, updated_at')
+        .select('id, goal_text, status, updated_at, summary_data')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
         .limit(5)
@@ -686,12 +691,13 @@ function DashboardContent() {
       if (planUpdates) {
         planUpdates.forEach((plan: any) => {
           if (plan.status === 'active' || plan.status === 'completed') {
+            const planTitle = getPlanTitle(plan)
             allNotifications.push({
               id: `plan-${plan.id}`,
               type: 'plan_status',
               message: plan.status === 'completed' 
-                ? `Plan completed: ${plan.goal_text}`
-                : `Plan updated: ${plan.goal_text}`,
+                ? `Plan completed: ${planTitle}`
+                : `Plan updated: ${planTitle}`,
               timestamp: plan.updated_at,
               planId: plan.id
             })
@@ -710,7 +716,7 @@ function DashboardContent() {
     } finally {
       setLoadingNotifications(false)
     }
-  }, [user?.id, activePlan?.id])
+  }, [user?.id, activePlan?.id, getPlanTitle])
 
   // Load notifications on mount and when active plan changes
   useEffect(() => {

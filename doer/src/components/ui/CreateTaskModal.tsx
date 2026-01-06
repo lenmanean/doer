@@ -421,68 +421,29 @@ export function CreateTaskModal({
   const { generateTask, isLoading: isAILoading, error: aiError, clearError } = useAITaskGeneration()
 
   // Helper function to check if there are unsaved changes
+  // Only checks for actual user input in the primary task input field
   const hasUnsavedChanges = useMemo(() => {
-    if (!initialStateRef.current) return false
-    
-    const initialState = initialStateRef.current
-    
-    // Check AI mode changes
+    // Check AI mode - only check if description field has input
     if (mode === 'ai') {
-      const hasAIDescription = aiDescription.trim().length > 0
-      const hasAIStartTime = aiStartTime.trim().length > 0
-      const hasAIGeneratedTask = aiGeneratedTask !== null
-      const hasShowAIPreview = showAIPreview !== initialState.showAIPreview
-      const hasFollowUp = aiFollowUp !== null || showFollowUp !== initialState.showFollowUp
-      const isEditing = isEditingAITask !== initialState.isEditingAITask
-      
-      return hasAIDescription || hasAIStartTime || hasAIGeneratedTask || hasShowAIPreview || hasFollowUp || isEditing
+      return aiDescription.trim().length > 0
     }
     
-    // Check Manual mode changes
+    // Check Manual mode - only check if any task name field has input
     if (mode === 'manual') {
-      // Check if any manual task has non-empty data
-      const hasManualTaskData = manualTasks.some(task => {
-        return task.name.trim().length > 0 ||
-               task.details.trim().length > 0 ||
-               task.startTime.trim().length > 0 ||
-               task.endTime.trim().length > 0 ||
-               task.date.trim().length > 0 ||
-               task.recurrenceDays.length > 0 ||
-               task.recurrenceStartDate.trim().length > 0 ||
-               task.recurrenceEndDate.trim().length > 0 ||
-               task.isRecurring !== (initialState.manualTasks?.[0]?.isRecurring ?? false) ||
-               task.isIndefinite !== (initialState.manualTasks?.[0]?.isIndefinite ?? false) ||
-               task.priority !== (initialState.manualTasks?.[0]?.priority ?? 3)
-      })
-      
-      // Also check if number of tasks changed
-      const taskCountChanged = manualTasks.length !== (initialState.manualTasks?.length || 1)
-      
-      return hasManualTaskData || taskCountChanged
+      return manualTasks.some(task => task.name.trim().length > 0)
     }
     
-    // Check Todo List mode changes
+    // Check Todo List mode - only check if any task name field has input
     if (mode === 'todo-list') {
-      const hasTodoListData = todoListTasks.some(task => task.name.trim().length > 0)
-      const hasTodoListPreview = todoListPreview !== null
-      const taskCountChanged = todoListTasks.length !== (initialState.todoListTasks?.length || 1)
-      
-      return hasTodoListData || hasTodoListPreview || taskCountChanged
+      return todoListTasks.some(task => task.name.trim().length > 0)
     }
     
     return false
   }, [
     mode,
     aiDescription,
-    aiStartTime,
-    aiGeneratedTask,
-    showAIPreview,
-    aiFollowUp,
-    showFollowUp,
-    isEditingAITask,
     manualTasks,
-    todoListTasks,
-    todoListPreview
+    todoListTasks
   ])
 
   // Reset form when modal opens

@@ -86,13 +86,6 @@ export function useTaskTimeSchedule(
         return
       }
       
-      // Debug: Log the API response structure
-      console.log('API Response data structure:', {
-        hasTasksByDate: !!data.tasksByDate,
-        tasksByDateKeys: data.tasksByDate ? Object.keys(data.tasksByDate) : [],
-        sampleTasksByDate: data.tasksByDate ? Object.entries(data.tasksByDate).slice(0, 2) : []
-      })
-      
       // Debug: Log specific problematic tasks
       if (data.tasksByDate) {
         Object.entries(data.tasksByDate).forEach(([date, tasks]) => {

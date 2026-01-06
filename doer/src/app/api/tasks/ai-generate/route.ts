@@ -739,21 +739,92 @@ CRITICAL VALIDATION:
 ✓ Considers priority distribution to avoid clustering`
 
     // Call OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
+    let completion
+    try {
+      completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are an expert task scheduler. Return only valid JSON. Be realistic with duration estimates and respect user constraints. CRITICAL: Only detect recurring tasks when EXPLICIT recurring keywords are present (e.g., "every", "daily", "weekly", plural days like "Mondays"). Simply mentioning a day name (e.g., "Friday") is a one-time task on that day, NOT recurring.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+        max_tokens: 1000,
+      })
+    } catch (openaiError: any) {
+      console.error('OpenAI API error:', openaiError)
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'openai_api_error',
+          error: openaiError?.message || 'OpenAI API request failed',
+        }).catch((releaseError) => {
+          console.error('Failed to release credit:', releaseError)
+        })
+        reserved = false
+      }
+      
+      // Provide more specific error messages
+      if (openaiError?.status === 429) {
+        return NextResponse.json(
+          { 
+            error: 'RATE_LIMIT_EXCEEDED', 
+            message: 'AI service is temporarily unavailable due to rate limits. Please try again in a moment.' 
+          },
+          { status: 429 }
+        )
+      }
+      
+      if (openaiError?.status === 401 || openaiError?.status === 403) {
+        return NextResponse.json(
+          { 
+            error: 'AI_SERVICE_ERROR', 
+            message: 'AI service authentication failed. Please contact support.' 
+          },
+          { status: 500 }
+        )
+      }
+      
+      return NextResponse.json(
         { 
-          role: 'system', 
-          content: 'You are an expert task scheduler. Return only valid JSON. Be realistic with duration estimates and respect user constraints. CRITICAL: Only detect recurring tasks when EXPLICIT recurring keywords are present (e.g., "every", "daily", "weekly", plural days like "Mondays"). Simply mentioning a day name (e.g., "Friday") is a one-time task on that day, NOT recurring.' 
+          error: 'AI_SERVICE_ERROR', 
+          message: 'Failed to communicate with AI service. Please try again.' 
         },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
-      max_tokens: 1000,
-    })
+        { status: 500 }
+      )
+    }
 
-    const aiResponse = JSON.parse(completion.choices[0].message.content || '{}')
+    // Parse AI response with error handling
+    let aiResponse
+    try {
+      const content = completion.choices[0]?.message?.content
+      if (!content) {
+        throw new Error('Empty response from AI service')
+      }
+      aiResponse = JSON.parse(content)
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError, 'Raw content:', completion.choices[0]?.message?.content)
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'invalid_ai_response',
+          error: parseError instanceof Error ? parseError.message : 'Failed to parse AI response',
+        }).catch((releaseError) => {
+          console.error('Failed to release credit:', releaseError)
+        })
+        reserved = false
+      }
+      return NextResponse.json(
+        { 
+          error: 'INVALID_AI_RESPONSE', 
+          message: 'AI service returned an invalid response. Please try again.' 
+        },
+        { status: 500 }
+      )
+    }
 
     // If the user text contains an explicit weekday/time (e.g., "next Tuesday at 8am"),
     // compute it deterministically in our timezone and override AI suggestion if mismatched.
@@ -820,7 +891,30 @@ CRITICAL VALIDATION:
 
     // Handle regular task generation
     if (!aiResponse.name || !aiResponse.duration_minutes || !aiResponse.suggested_date || !aiResponse.suggested_time) {
-      throw new Error('Invalid AI response format')
+      console.error('Invalid AI response format - missing required fields:', {
+        hasName: !!aiResponse.name,
+        hasDuration: !!aiResponse.duration_minutes,
+        hasDate: !!aiResponse.suggested_date,
+        hasTime: !!aiResponse.suggested_time,
+        response: aiResponse
+      })
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'invalid_ai_response_format',
+          error: 'Missing required fields in AI response',
+        }).catch((releaseError) => {
+          console.error('Failed to release credit:', releaseError)
+        })
+        reserved = false
+      }
+      return NextResponse.json(
+        { 
+          error: 'INVALID_AI_RESPONSE', 
+          message: 'AI service returned incomplete task data. Please try again.' 
+        },
+        { status: 500 }
+      )
     }
 
     // Validate duration is within acceptable range
@@ -845,16 +939,36 @@ CRITICAL VALIDATION:
 
     // HARD VALIDATION: AI must NEVER generate tasks in the past
     // Reject any task with past dates or overdue times
-    const { todayStr, currentTimeStr } = getCurrentDateTime()
+    // Use timezone-aware date/time (not server UTC time)
+    const todayStr = formatDateForDB(today)
+    const currentTimeStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`
+    
     if (isTaskInPast(aiResponse.suggested_date, endTime, todayStr, currentTimeStr)) {
       console.error('AI attempted to generate task in the past:', {
         suggested_date: aiResponse.suggested_date,
         suggested_time: startTime,
         end_time: endTime,
         current_date: todayStr,
-        current_time: currentTimeStr
+        current_time: currentTimeStr,
+        timezone: DEFAULT_TZ
       })
-      throw new Error('AI cannot generate tasks in the past. The suggested date/time has already passed.')
+      if (reserved && authContext) {
+        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+          route: 'tasks.ai-generate',
+          reason: 'task_in_past',
+          error: 'AI suggested a time in the past',
+        }).catch((releaseError) => {
+          console.error('Failed to release credit:', releaseError)
+        })
+        reserved = false
+      }
+      return NextResponse.json(
+        { 
+          error: 'INVALID_TIME', 
+          message: 'The suggested time has already passed. Please select a future time slot.' 
+        },
+        { status: 400 }
+      )
     }
 
     // Validate and default priority
@@ -927,10 +1041,24 @@ CRITICAL VALIDATION:
       )
     }
 
+    // Provide more specific error messages based on error type
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    let userMessage = 'Failed to generate task. Please try again.'
+    
+    // Check for common error patterns
+    if (errorMessage.includes('JSON') || errorMessage.includes('parse')) {
+      userMessage = 'Failed to process AI response. Please try again.'
+    } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      userMessage = 'Network error. Please check your connection and try again.'
+    } else if (errorMessage.includes('timeout')) {
+      userMessage = 'Request timed out. Please try again.'
+    }
+
     return NextResponse.json(
       { 
-        error: 'Failed to generate task', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+        error: 'TASK_GENERATION_ERROR', 
+        message: userMessage,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
       },
       { status: 500 }
     )
