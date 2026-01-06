@@ -574,7 +574,7 @@ export async function POST(request: NextRequest) {
 
 USER'S TASK DESCRIPTION: "${description.trim()}"
 
-${constrainedDate ? `CONSTRAINT: User selected a time slot on ${constrainedDate}${constrainedTime ? ` at ${constrainedTime}` : ''}. You MUST use this date (${constrainedDate}) as the suggested_date unless the user explicitly mentions a different date in their description.` : 'FLEXIBLE SCHEDULING: Find the next best available time slot'}
+${constrainedDate ? `CRITICAL CONSTRAINT: User explicitly selected a time slot on ${constrainedDate}${constrainedTime ? ` at ${constrainedTime}` : ''}. You MUST use ${constrainedDate} as the suggested_date. DO NOT suggest any other date unless the user's description explicitly mentions a specific different date (like "January 15th" or "next Tuesday"). Relative terms like "tomorrow" or "next week" should be IGNORED when a time slot is selected.` : 'FLEXIBLE SCHEDULING: Find the next best available time slot'}
 
 USER'S CURRENT SCHEDULE (next 2 weeks):
 ${scheduleInfo.length > 0 ? scheduleInfo.map(s => `- ${s.date} ${s.time}: ${s.task}${s.priority ? ` (Priority ${s.priority}: ${s.priority === 1 ? 'Critical' : s.priority === 2 ? 'High' : s.priority === 3 ? 'Medium' : 'Low'})` : ' (No priority set)'}`).join('\n') : 'No existing tasks scheduled'}
@@ -655,8 +655,10 @@ ANALYSIS RULES:
 
 4. For SCHEDULING (non-recurring only):
    ${constrainedDate ? 
-     `- CRITICAL: User selected time slot on ${constrainedDate}${constrainedTime ? ` at ${constrainedTime}` : ''}. You MUST use ${constrainedDate} as the suggested_date.
+     `- CRITICAL: User explicitly selected time slot on ${constrainedDate}${constrainedTime ? ` at ${constrainedTime}` : ''}. You MUST use ${constrainedDate} as the suggested_date. DO NOT suggest any other date.
      - If the user's description mentions a different time within the same day, use that time (e.g., if user says "12:30-1pm" but selected 12:00pm slot, use 12:30-1pm)
+     - If the user's description mentions a specific different date (like "January 15th" or "next Tuesday"), you may use that date instead, but ONLY if it's explicitly mentioned
+     - IGNORE relative terms like "tomorrow", "next week", etc. when a time slot is selected - use the selected date (${constrainedDate})
      - Only adjust duration if needed
      - If time conflicts, suggest the closest available slot on that day
      - ABSOLUTE REQUIREMENT: NEVER suggest dates or times in the past. If ${constrainedDate} is today (${formatDateForDB(today)}) and the selected time has passed, you MUST reject the request or suggest a future time.
@@ -759,14 +761,18 @@ CRITICAL VALIDATION:
     const explicitTime = resolveExplicitTime(description)
     const relative = resolveRelativeDate(description, today, DEFAULT_TZ)
     
-    // Priority order: explicit date in description > relative date > constrainedDate > AI suggestion
-    if (explicit.date) {
+    // CRITICAL: When user selects a time slot (constrainedDate), that date ALWAYS takes precedence
+    // Priority order: constrainedDate (user's explicit selection) > explicit date in description > relative date > AI suggestion
+    if (constrainedDate) {
+      // CRITICAL: If user selected a time slot, ALWAYS use that date
+      // This takes precedence over everything else - user's explicit selection is the source of truth
+      aiResponse.suggested_date = constrainedDate
+    } else if (explicit.date) {
+      // Only use explicit date if user hasn't selected a time slot
       aiResponse.suggested_date = explicit.date
     } else if (relative.date) {
+      // Relative dates (tomorrow, today, next week) only if no constrainedDate
       aiResponse.suggested_date = relative.date
-    } else if (constrainedDate) {
-      // If user selected a time slot, use that date as the default
-      aiResponse.suggested_date = constrainedDate
     }
     if (explicitTime) {
       if (explicitTime.startTime) {
