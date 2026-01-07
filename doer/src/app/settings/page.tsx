@@ -1110,71 +1110,6 @@ export default function SettingsPage() {
     )
   }
 
-  // Unified Save/Revert Button Component (Fixed at bottom of viewport)
-  const UnifiedSaveRevertButtons = () => {
-    // Determine which section to save/revert based on active section
-    const targetSection = activeSection === 'subscription' ? null : activeSection
-    
-    // Check if the active section has unsaved changes
-    const hasChanges = targetSection ? hasUnsavedChanges[targetSection] || false : false
-    const isSaving = savingSection !== null
-    
-    if (!hasChanges || !targetSection) return null
-    
-    return (
-      <AnimatePresence>
-        <motion.div
-          key={`unified-save-${targetSection}`}
-          initial={{ opacity: 0, y: 100 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 100 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)]/95 backdrop-blur-md border-t border-[var(--border)] shadow-lg"
-        >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-[var(--foreground)]">
-                You have unsaved changes
-              </p>
-              <p className="text-xs text-[var(--muted-foreground)]">
-                Don't forget to save your changes
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleUnifiedRevert(targetSection)}
-                disabled={isSaving}
-                className="px-6 py-2.5 bg-[var(--accent)] border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-              >
-                <X className="w-4 h-4" />
-                Revert Changes
-              </button>
-              <button
-                onClick={() => handleUnifiedSave(targetSection)}
-                disabled={isSaving}
-                className="px-6 py-2.5 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-md"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-      </AnimatePresence>
-    )
-  }
-
   // Handle preferences changes
   const handlePreferencesChange = (key: string, value: any) => {
     setSettingsData(prev => ({ ...prev, [key]: value }))
@@ -3579,9 +3514,6 @@ export default function SettingsPage() {
           refetch()
         }}
       />
-
-      {/* Unified Save/Revert Buttons */}
-      <UnifiedSaveRevertButtons />
     </div>
   )
 }
