@@ -35,7 +35,7 @@ import {
   AlertCircle,
   CreditCard
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { SwitchPlanModal } from '@/components/ui/SwitchPlanModal'
 import { useUserRoadmap } from '@/hooks/useUserRoadmap'
@@ -143,6 +143,7 @@ export default function SettingsPage() {
   const [deletingTasks, setDeletingTasks] = useState(false)
   const [exportingData, setExportingData] = useState(false)
   const [improveModelEnabled, setImproveModelEnabled] = useState(false)
+  const [originalImproveModelEnabled, setOriginalImproveModelEnabled] = useState(false)
   const [loggingOutAll, setLoggingOutAll] = useState(false)
   const [plans, setPlans] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -262,11 +263,9 @@ export default function SettingsPage() {
 
       // Load improve model setting from preferences
       // Check both new privacy structure and legacy root level
-      if (prefs.privacy?.improve_model_enabled !== undefined) {
-        setImproveModelEnabled(prefs.privacy.improve_model_enabled)
-      } else if (prefs.improve_model_enabled !== undefined) {
-        setImproveModelEnabled(prefs.improve_model_enabled)
-      }
+      const initialImproveModelEnabled = prefs.privacy?.improve_model_enabled ?? prefs.improve_model_enabled ?? false
+      setImproveModelEnabled(initialImproveModelEnabled)
+      setOriginalImproveModelEnabled(initialImproveModelEnabled)
     }
   }, [user, profile, theme, emailRequestId])
 
@@ -670,7 +669,7 @@ export default function SettingsPage() {
         )
       case 'privacy':
         // improveModelEnabled is stored separately, check it against original
-        return false // Will be handled separately since it's not in SettingsData
+        return improveModelEnabled !== originalImproveModelEnabled
       case 'preferences':
         return (
           settingsData.theme !== originalSettings.theme ||
@@ -696,7 +695,7 @@ export default function SettingsPage() {
     
     setHasUnsavedChanges(newHasUnsavedChanges)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsData, originalSettings])
+  }, [settingsData, originalSettings, improveModelEnabled, originalImproveModelEnabled])
 
   // Unified save handler
   const handleUnifiedSave = async (section: string) => {
@@ -785,6 +784,57 @@ export default function SettingsPage() {
             type: 'success',
             title: 'Settings Saved',
             description: 'Your workday settings have been updated successfully.',
+            duration: 3000
+          })
+          break
+        }
+        
+        case 'privacy': {
+          // Get current preferences
+          const { data: currentSettings } = await supabase
+            .from('user_settings')
+            .select('preferences')
+            .eq('user_id', user?.id)
+            .single()
+
+          const currentPrefs = currentSettings?.preferences || {}
+          
+          // Update preferences with improve_model_enabled in privacy object
+          const updatedPreferences = {
+            ...currentPrefs,
+            privacy: {
+              ...(currentPrefs.privacy || {}),
+              improve_model_enabled: improveModelEnabled
+            }
+          }
+          
+          // Remove legacy root-level improve_model_enabled if it exists
+          if (updatedPreferences.improve_model_enabled !== undefined) {
+            delete updatedPreferences.improve_model_enabled
+          }
+
+          // Update in database
+          const { error } = await supabase
+            .from('user_settings')
+            .update({
+              preferences: updatedPreferences,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user?.id)
+
+          if (error) {
+            throw error
+          }
+
+          // Update original value after successful save
+          setOriginalImproveModelEnabled(improveModelEnabled)
+
+          addToast({
+            type: 'success',
+            title: improveModelEnabled ? 'Opt-in Enabled' : 'Opt-in Disabled',
+            description: improveModelEnabled 
+              ? 'Thank you for helping improve the model!'
+              : 'You have opted out of model improvement.',
             duration: 3000
           })
           break
@@ -918,6 +968,13 @@ export default function SettingsPage() {
           break
         }
         
+        case 'privacy': {
+          const revertedValue = prefs.privacy?.improve_model_enabled ?? prefs.improve_model_enabled ?? false
+          setImproveModelEnabled(revertedValue)
+          setOriginalImproveModelEnabled(revertedValue)
+          break
+        }
+        
         case 'preferences': {
           setSettingsData(prev => ({
             ...prev,
@@ -984,6 +1041,75 @@ export default function SettingsPage() {
     }
   }
 
+  // Helper function to check if workday hours panel has changes
+  const hasWorkdayHoursChanges = (): boolean => {
+    if (!originalSettings) return false
+    return (
+      settingsData.workdayStartHour !== originalSettings.workdayStartHour ||
+      settingsData.workdayEndHour !== originalSettings.workdayEndHour ||
+      settingsData.lunchStartHour !== originalSettings.lunchStartHour ||
+      settingsData.lunchEndHour !== originalSettings.lunchEndHour ||
+      settingsData.allowWeekends !== originalSettings.allowWeekends
+    )
+  }
+
+  // Helper function to check if smart scheduling panel has changes
+  const hasSmartSchedulingChanges = (): boolean => {
+    if (!originalSettings) return false
+    return settingsData.smartSchedulingEnabled !== originalSettings.smartSchedulingEnabled
+  }
+
+  // Helper function to check if model improvement panel has changes
+  const hasModelImprovementChanges = (): boolean => {
+    return improveModelEnabled !== originalImproveModelEnabled
+  }
+
+  // Panel Save Button Component
+  const PanelSaveButton = ({ 
+    hasChanges, 
+    onSave, 
+    isSaving, 
+    section 
+  }: { 
+    hasChanges: boolean
+    onSave: () => void
+    isSaving: boolean
+    section: string
+  }) => {
+    return (
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            key={`save-button-${section}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="pt-4 border-t border-[var(--border)] mt-4"
+          >
+            <button
+              onClick={onSave}
+              disabled={isSaving}
+              className="w-full px-6 py-2.5 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-md"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </>
+              )}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
+
   // Unified Save/Revert Button Component (Fixed at bottom of viewport)
   const UnifiedSaveRevertButtons = () => {
     // Determine which section to save/revert based on active section
@@ -993,16 +1119,17 @@ export default function SettingsPage() {
     const hasChanges = targetSection ? hasUnsavedChanges[targetSection] || false : false
     const isSaving = savingSection !== null
     
-    if (!hasChanges || !targetSection) return null
-    
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 100 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 100 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)]/95 backdrop-blur-md border-t border-[var(--border)] shadow-lg"
-      >
+      <AnimatePresence>
+        {hasChanges && targetSection && (
+          <motion.div
+            key={`unified-save-${targetSection}`}
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)]/95 backdrop-blur-md border-t border-[var(--border)] shadow-lg"
+          >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
@@ -1043,6 +1170,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </motion.div>
+      </AnimatePresence>
     )
   }
 
@@ -1764,64 +1892,10 @@ export default function SettingsPage() {
     }
   }
 
-  const handleImproveModelToggle = async (enabled: boolean) => {
+  const handleImproveModelToggle = (enabled: boolean) => {
+    // Just update state - don't save immediately
+    // Save button will handle the actual save
     setImproveModelEnabled(enabled)
-    try {
-      // Get current preferences
-      const { data: currentSettings } = await supabase
-        .from('user_settings')
-        .select('preferences')
-        .eq('user_id', user?.id)
-        .single()
-
-      const currentPrefs = currentSettings?.preferences || {}
-      
-      // Update preferences with improve_model_enabled in privacy object
-      const updatedPreferences = {
-        ...currentPrefs,
-        privacy: {
-          ...(currentPrefs.privacy || {}),
-          improve_model_enabled: enabled
-        }
-      }
-      
-      // Remove legacy root-level improve_model_enabled if it exists
-      if (updatedPreferences.improve_model_enabled !== undefined) {
-        delete updatedPreferences.improve_model_enabled
-      }
-
-      // Update in database
-      const { error } = await supabase
-        .from('user_settings')
-        .update({
-          preferences: updatedPreferences,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user?.id)
-
-      if (error) {
-        throw error
-      }
-
-      addToast({
-        type: 'success',
-        title: enabled ? 'Opt-in Enabled' : 'Opt-in Disabled',
-        description: enabled 
-          ? 'Thank you for helping improve the model!'
-          : 'You have opted out of model improvement.',
-        duration: 3000
-      })
-    } catch (error: any) {
-      console.error('Error saving improve model setting:', error)
-      // Revert on error
-      setImproveModelEnabled(!enabled)
-      addToast({
-        type: 'error',
-        title: 'Save Failed',
-        description: 'Failed to save setting. Please try again.',
-        duration: 5000
-      })
-    }
   }
 
   const sections = [
@@ -2946,6 +3020,12 @@ export default function SettingsPage() {
                             />
                           </button>
                         </div>
+                        <PanelSaveButton
+                          hasChanges={hasWorkdayHoursChanges()}
+                          onSave={() => handleUnifiedSave('workday')}
+                          isSaving={savingSection === 'workday' && saving}
+                          section="workday"
+                        />
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -2986,6 +3066,12 @@ export default function SettingsPage() {
                             />
                           </button>
                         </div>
+                        <PanelSaveButton
+                          hasChanges={hasSmartSchedulingChanges()}
+                          onSave={() => handleUnifiedSave('workday')}
+                          isSaving={savingSection === 'workday' && saving}
+                          section="workday"
+                        />
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -3053,6 +3139,12 @@ export default function SettingsPage() {
                             />
                           </button>
                         </div>
+                        <PanelSaveButton
+                          hasChanges={hasModelImprovementChanges()}
+                          onSave={() => handleUnifiedSave('privacy')}
+                          isSaving={savingSection === 'privacy' && saving}
+                          section="privacy"
+                        />
                       </CardContent>
                     </Card>
 
@@ -3457,6 +3549,12 @@ export default function SettingsPage() {
                             <option value="monday">Monday</option>
                           </select>
                         </div>
+                        <PanelSaveButton
+                          hasChanges={hasUnsavedChanges.preferences || false}
+                          onSave={() => handleUnifiedSave('preferences')}
+                          isSaving={savingSection === 'preferences' && saving}
+                          section="preferences"
+                        />
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -3480,6 +3578,9 @@ export default function SettingsPage() {
           refetch()
         }}
       />
+
+      {/* Unified Save/Revert Buttons */}
+      <UnifiedSaveRevertButtons />
     </div>
   )
 }
