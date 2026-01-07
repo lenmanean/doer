@@ -516,7 +516,8 @@ export async function POST(req: NextRequest) {
             description: conflict.description,
             goalPreference: conflict.goalPreference,
             userSetting: conflict.userSetting,
-            resolutionOptions: conflict.resolutionOptions
+            settingsTab: conflict.settingsTab,
+            alternativeText: conflict.alternativeText
           }
         },
         'settings_conflict_detected',

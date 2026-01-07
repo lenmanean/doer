@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { useOnboardingProtection } from '@/lib/useOnboardingProtection'
 import { useGlobalPendingReschedules } from '@/hooks/useGlobalPendingReschedules'
@@ -78,12 +79,21 @@ interface SettingsData {
 }
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
   const { user, profile, loading, handleSignOut } = useOnboardingProtection()
   const { roadmapData, refetch } = useUserRoadmap(user?.id || null)
   const { theme, setTheme, accentColor, setAccentColor } = useTheme()
   const { hasPending: hasPendingReschedules } = useGlobalPendingReschedules(user?.id || null)
   const { addToast } = useToast()
   const [activeSection, setActiveSection] = useState('account')
+  
+  // Read tab from URL parameter
+  useEffect(() => {
+    const tab = searchParams?.get('tab')
+    if (tab && ['account', 'subscription', 'workday', 'privacy', 'preferences'].includes(tab)) {
+      setActiveSection(tab)
+    }
+  }, [searchParams])
   const [showSwitchPlanModal, setShowSwitchPlanModal] = useState(false)
   const [settingsData, setSettingsData] = useState<SettingsData>({
     email: '',

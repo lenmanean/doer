@@ -187,16 +187,10 @@ function OnboardingContent() {
     await generatePlan({})
   }
 
-  const handleResolveConflict = async (action: string) => {
-    if (action === 'enable_weekends') {
-      // Redirect to settings page to enable weekends
-      router.push('/settings?tab=scheduling')
-    } else if (action === 'update_workday_hours' || action === 'update_workday_start' || action === 'update_workday_end') {
-      // Redirect to settings page to update workday hours
-      router.push('/settings?tab=scheduling')
-    } else if (action === 'adjust_goal') {
-      // Clear conflict and let user adjust goal
-      setSettingsConflict(null)
+  const handleResolveConflict = () => {
+    if (settingsConflict) {
+      // Redirect to settings page with the appropriate tab
+      router.push(`/settings?tab=${settingsConflict.settingsTab}`)
     }
   }
 
@@ -323,22 +317,33 @@ function OnboardingContent() {
                             >
                               {settingsConflict.description}
                             </motion.p>
-                            <div className="flex flex-col gap-2">
-                              {settingsConflict.resolutionOptions.map((option, idx) => (
-                                <motion.button
-                                  key={idx}
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ duration: 0.3, delay: 0.25 + idx * 0.05 }}
-                                  whileHover={{ scale: 1.02 }}
-                                  whileTap={{ scale: 0.98 }}
-                                  onClick={() => handleResolveConflict(option.action)}
-                                  className="text-xs text-left px-3 py-2 rounded-md bg-orange-500/20 hover:bg-orange-500/30 text-orange-200 transition-colors"
-                                >
-                                  {option.description}
-                                </motion.button>
-                              ))}
-                            </div>
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: 0.25 }}
+                              className="flex flex-col gap-2"
+                            >
+                              <motion.a
+                                href={`/settings?tab=${settingsConflict.settingsTab}`}
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  handleResolveConflict()
+                                }}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="text-xs text-orange-300 hover:text-orange-200 underline transition-colors cursor-pointer"
+                              >
+                                Update settings →
+                              </motion.a>
+                              <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.3, delay: 0.3 }}
+                                className="text-xs text-orange-200/60"
+                              >
+                                {settingsConflict.alternativeText}
+                              </motion.p>
+                            </motion.div>
                           </div>
                         </div>
                       </motion.div>

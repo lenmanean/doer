@@ -60,10 +60,8 @@ export interface SettingsConflict {
   description: string
   goalPreference: string
   userSetting: string
-  resolutionOptions: Array<{
-    action: string
-    description: string
-  }>
+  settingsTab: 'workday' | 'account' | 'subscription' | 'privacy' | 'preferences'
+  alternativeText: string
 }
 
 export interface UrgencyAnalysis {
@@ -556,16 +554,8 @@ export function detectSettingsConflicts(
       description: 'Your goal mentions working on weekends, but weekend scheduling is disabled in your settings.',
       goalPreference: 'Work on weekends',
       userSetting: 'Weekend scheduling disabled',
-      resolutionOptions: [
-        {
-          action: 'enable_weekends',
-          description: 'Enable weekend scheduling in your settings'
-        },
-        {
-          action: 'adjust_goal',
-          description: 'Adjust your goal to remove weekend references'
-        }
-      ]
+      settingsTab: 'workday',
+      alternativeText: 'Alternatively, adjust your goal to remove weekend references.'
     })
   }
   
@@ -585,16 +575,8 @@ export function detectSettingsConflicts(
         description: `Your goal mentions working ${goalHours}, but your settings have workday hours set to ${settingHours}.`,
         goalPreference: `Work ${goalHours}`,
         userSetting: `Workday hours: ${settingHours}`,
-        resolutionOptions: [
-          {
-            action: 'update_workday_hours',
-            description: `Update your workday hours to ${goalHours} in settings`
-          },
-          {
-            action: 'adjust_goal',
-            description: 'Adjust your goal to match your current workday hours'
-          }
-        ]
+        settingsTab: 'workday',
+        alternativeText: 'Alternatively, adjust your goal to match your current workday hours.'
       })
     }
   }
@@ -608,16 +590,8 @@ export function detectSettingsConflicts(
         description: `Your goal mentions working after ${afterTime}:00, but your workday ends at ${userSettings.workday_end_hour}:00 in your settings.`,
         goalPreference: `Work after ${afterTime}:00`,
         userSetting: `Workday ends at ${userSettings.workday_end_hour}:00`,
-        resolutionOptions: [
-          {
-            action: 'update_workday_end',
-            description: `Update your workday end time to ${afterTime}:00 in settings`
-          },
-          {
-            action: 'adjust_goal',
-            description: 'Adjust your goal to match your current workday hours'
-          }
-        ]
+        settingsTab: 'workday',
+        alternativeText: 'Alternatively, adjust your goal to match your current workday hours.'
       })
     } else if (lowerText.includes('after work') && userSettings.workday_end_hour < 17) {
       // Generic "after work" but workday ends early
@@ -626,16 +600,8 @@ export function detectSettingsConflicts(
         description: `Your goal mentions working "after work", but your workday ends at ${userSettings.workday_end_hour}:00. Evening work typically starts after 5:00 PM.`,
         goalPreference: 'Work after work (evenings)',
         userSetting: `Workday ends at ${userSettings.workday_end_hour}:00`,
-        resolutionOptions: [
-          {
-            action: 'update_workday_end',
-            description: 'Update your workday end time in settings to better reflect evening availability'
-          },
-          {
-            action: 'adjust_goal',
-            description: 'Clarify your evening availability in your goal'
-          }
-        ]
+        settingsTab: 'workday',
+        alternativeText: 'Alternatively, clarify your evening availability in your goal.'
       })
     }
   }
@@ -649,16 +615,8 @@ export function detectSettingsConflicts(
         description: `Your goal mentions working before ${beforeTime}:00, but your workday starts at ${userSettings.workday_start_hour}:00 in your settings.`,
         goalPreference: `Work before ${beforeTime}:00`,
         userSetting: `Workday starts at ${userSettings.workday_start_hour}:00`,
-        resolutionOptions: [
-          {
-            action: 'update_workday_start',
-            description: `Update your workday start time to ${beforeTime}:00 in settings`
-          },
-          {
-            action: 'adjust_goal',
-            description: 'Adjust your goal to match your current workday hours'
-          }
-        ]
+        settingsTab: 'workday',
+        alternativeText: 'Alternatively, adjust your goal to match your current workday hours.'
       })
     }
   }
@@ -678,16 +636,8 @@ export function detectSettingsConflicts(
         description: `Your goal mentions having ${availabilityAnalysis.hoursPerDay} hours available per day, but your workday settings only allow ${availableHours} hours (${userSettings.workday_start_hour}:00 - ${userSettings.workday_end_hour}:00, minus lunch).`,
         goalPreference: `${availabilityAnalysis.hoursPerDay} hours per day`,
         userSetting: `${availableHours} hours available per day`,
-        resolutionOptions: [
-          {
-            action: 'update_workday_hours',
-            description: 'Extend your workday hours in settings to match your availability'
-          },
-          {
-            action: 'adjust_goal',
-            description: `Adjust your goal to reflect ${availableHours} hours per day availability`
-          }
-        ]
+        settingsTab: 'workday',
+        alternativeText: `Alternatively, adjust your goal to reflect ${availableHours} hours per day availability.`
       })
     }
   }
