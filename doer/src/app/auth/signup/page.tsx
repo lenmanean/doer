@@ -24,17 +24,21 @@ function CustomSignupForm() {
   const [usernameChecking, setUsernameChecking] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const [emailError, setEmailError] = useState('')
+  const [emailChecking, setEmailChecking] = useState(false)
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [termsError, setTermsError] = useState('')
   const [hasSavedGoal, setHasSavedGoal] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const emailAbortControllerRef = useRef<AbortController | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const { addToast } = useToast()
   
-  // Debounce username for availability check
+  // Debounce username and email for availability checks
   const debouncedUsername = useDebounce(username, 500)
+  const debouncedEmail = useDebounce(email, 500)
 
   // Redirect to waitlist during pre-launch
   useEffect(() => {
@@ -160,6 +164,69 @@ function CustomSignupForm() {
     }
   }, [debouncedUsername])
 
+  // Real-time email availability check
+  useEffect(() => {
+    // Cancel previous request if any
+    if (emailAbortControllerRef.current) {
+      emailAbortControllerRef.current.abort()
+    }
+
+    // Reset availability state when email changes
+    setEmailAvailable(null)
+    setEmailError('')
+
+    // Only check if email is valid format
+    if (!debouncedEmail) {
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(debouncedEmail)) {
+      return
+    }
+
+    // Check availability
+    const checkEmailAvailability = async () => {
+      setEmailChecking(true)
+      emailAbortControllerRef.current = new AbortController()
+
+      try {
+        const response = await fetch('/api/auth/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: debouncedEmail }),
+          signal: emailAbortControllerRef.current.signal
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setEmailAvailable(data.available)
+          if (!data.available) {
+            setEmailError('This email is already registered. Please sign in instead.')
+          }
+        } else {
+          // Don't show error for network issues during typing
+          setEmailAvailable(null)
+        }
+      } catch (error: any) {
+        // Ignore abort errors
+        if (error.name !== 'AbortError') {
+          setEmailAvailable(null)
+        }
+      } finally {
+        setEmailChecking(false)
+      }
+    }
+
+    checkEmailAvailability()
+
+    return () => {
+      if (emailAbortControllerRef.current) {
+        emailAbortControllerRef.current.abort()
+      }
+    }
+  }, [debouncedEmail])
+
   // Real-time email validation
   const validateEmail = (email: string): boolean => {
     if (!email) {
@@ -189,6 +256,46 @@ function CustomSignupForm() {
     if (!validateEmail(email)) {
       setIsLoading(false)
       return
+    }
+
+    // Check if email is available (final check)
+    if (emailChecking) {
+      addToast({
+        type: 'error',
+        title: 'Please wait',
+        description: 'Checking email availability...',
+        duration: 3000
+      })
+      setIsLoading(false)
+      return
+    }
+
+    if (emailAvailable === false) {
+      setEmailError('This email is already registered. Please sign in instead.')
+      setIsLoading(false)
+      return
+    }
+
+    // Final email availability check if not already checked
+    if (emailAvailable === null) {
+      try {
+        const emailCheckResponse = await fetch('/api/auth/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        })
+        
+        const emailCheckData = await emailCheckResponse.json()
+        
+        if (!emailCheckData.available) {
+          setEmailError('This email is already registered. Please sign in instead.')
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        // Continue with signup if check fails - Supabase will catch duplicate emails
+        console.error('Failed to check email availability:', error)
+      }
     }
 
     // Validate username
@@ -288,6 +395,14 @@ function CustomSignupForm() {
       })
 
       if (error) {
+        // Check for duplicate email errors
+        const isDuplicateEmail = 
+          error.message.toLowerCase().includes('user already registered') ||
+          error.message.toLowerCase().includes('email already exists') ||
+          error.message.toLowerCase().includes('already been registered') ||
+          error.message.toLowerCase().includes('email address has already been registered') ||
+          error.status === 422 && error.message.toLowerCase().includes('email')
+        
         // Check for rate limiting (429) or email sending errors
         const isRateLimitError = error.status === 429 || 
                                  error.message.toLowerCase().includes('rate limit') ||
@@ -298,12 +413,15 @@ function CustomSignupForm() {
                             isRateLimitError
         
         let errorDescription = error.message
-        if (isRateLimitError) {
+        if (isDuplicateEmail) {
+          setEmailError('This email is already registered. Please sign in instead.')
+          errorDescription = 'This email is already registered. Please sign in or use a different email address.'
+        } else if (isRateLimitError) {
           // Extract retry-after if available, otherwise suggest 5-10 minutes
           const retryAfter = (error as any).retryAfter || 300 // Default to 5 minutes
           const waitMinutes = Math.ceil(retryAfter / 60)
           errorDescription = `Too many signup attempts. Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} and try again. If this persists, the rate limit may need to be increased in the Supabase dashboard.`
-        } else if (isEmailError) {
+        } else if (isEmailError && !isDuplicateEmail) {
           errorDescription = 'Unable to send confirmation email. This may be due to rate limiting. Please wait a few minutes and try again, or contact support.'
         }
         
@@ -503,6 +621,7 @@ function CustomSignupForm() {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
+                setEmailAvailable(null)
                 if (e.target.value) {
                   validateEmail(e.target.value)
                 } else {
@@ -512,38 +631,49 @@ function CustomSignupForm() {
               onBlur={() => validateEmail(email)}
               aria-invalid={emailError ? 'true' : 'false'}
               aria-describedby={emailError ? 'email-error' : undefined}
-              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border ${emailError ? 'border-red-500' : email && !emailError ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
+              className={`appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 pr-10 min-h-[44px] border ${emailError ? 'border-red-500' : emailAvailable === true ? 'border-green-500' : 'border-gray-300 dark:border-gray-700'} bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500/50 sm:text-base transition-all duration-300`}
               placeholder="Enter your email"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
-            <AnimatePresence mode="wait">
-              {email && !emailError && (
-                <motion.div
-                  key="email-success"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
-                </motion.div>
-              )}
-              {emailError && (
-                <motion.div
-                  key="email-error"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <AnimatePresence mode="wait">
+                {emailChecking && (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Loader2 className="h-5 w-5 text-gray-400 dark:text-gray-500 animate-spin" />
+                  </motion.div>
+                )}
+                {!emailChecking && emailAvailable === true && (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CheckCircle className="h-5 w-5 text-green-500" aria-hidden="true" />
+                  </motion.div>
+                )}
+                {!emailChecking && emailError && (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
           <AnimatePresence>
             {emailError && (
