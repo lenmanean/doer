@@ -100,17 +100,6 @@ export async function detectOverdueTasks(
       s.status !== 'pending_reschedule' // Already has a proposal
     )
     
-    // Process filtered schedules
-        date: s.date,
-        end_time: s.end_time,
-        end_time_type: typeof s.end_time,
-        localTimeStr,
-        localTimeStr_type: typeof localTimeStr,
-        is_overdue: s.end_time && s.end_time < localTimeStr,
-        status: s.status
-      }))
-    })
-    
     // Get tasks for these schedules
     const taskIds = filteredSchedules.map((s: any) => s.task_id)
     let tasks: any[] = []
