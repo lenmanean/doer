@@ -3470,9 +3470,6 @@ export default function SettingsPage() {
           refetch()
         }}
       />
-      
-      {/* Fixed Save/Revert Buttons at Bottom of Viewport */}
-      <UnifiedSaveRevertButtons />
     </div>
   )
 }
