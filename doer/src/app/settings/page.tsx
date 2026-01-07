@@ -1119,17 +1119,18 @@ export default function SettingsPage() {
     const hasChanges = targetSection ? hasUnsavedChanges[targetSection] || false : false
     const isSaving = savingSection !== null
     
+    if (!hasChanges || !targetSection) return null
+    
     return (
       <AnimatePresence>
-        {hasChanges && targetSection && (
-          <motion.div
-            key={`unified-save-${targetSection}`}
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)]/95 backdrop-blur-md border-t border-[var(--border)] shadow-lg"
-          >
+        <motion.div
+          key={`unified-save-${targetSection}`}
+          initial={{ opacity: 0, y: 100 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 100 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--background)]/95 backdrop-blur-md border-t border-[var(--border)] shadow-lg"
+        >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
