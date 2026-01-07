@@ -489,13 +489,20 @@ export async function POST(req: NextRequest) {
     const workdaySettings = {
       workday_end_hour: workdayPrefs.workday_end_hour,
     }
+    const userSettingsForConflicts = {
+      allow_weekends: allowWeekends,
+      workday_start_hour: workdayPrefs.workday_start_hour ?? prefs.workday_start_hour,
+      workday_end_hour: workdayPrefs.workday_end_hour ?? prefs.workday_end_hour,
+      lunch_start_hour: workdayPrefs.lunch_start_hour ?? prefs.lunch_start_hour,
+      lunch_end_hour: workdayPrefs.lunch_end_hour ?? prefs.lunch_end_hour,
+    }
 
     // Detect availability patterns from goal text and clarifications (with user settings)
     const availabilityAnalysis = detectAvailabilityPatterns(finalGoalText, finalClarifications, workdaySettings)
     console.log('📅 Availability analysis:', availabilityAnalysis)
 
     // Check for conflicts between goal preferences and user settings
-    const settingsConflicts = detectSettingsConflicts(finalGoalText, finalClarifications, { allow_weekends: allowWeekends })
+    const settingsConflicts = detectSettingsConflicts(finalGoalText, finalClarifications, userSettingsForConflicts)
     if (settingsConflicts.length > 0) {
       console.log('⚠️ Settings conflicts detected:', settingsConflicts)
       const conflict = settingsConflicts[0] // Return first conflict

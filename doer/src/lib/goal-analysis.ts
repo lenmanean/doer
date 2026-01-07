@@ -56,7 +56,7 @@ export interface AvailabilityPattern {
 }
 
 export interface SettingsConflict {
-  type: 'weekend_scheduling' | 'workday_hours' | 'time_availability'
+  type: 'weekend_scheduling' | 'workday_hours' | 'time_availability' | 'evening_availability' | 'morning_availability' | 'hours_per_day'
   description: string
   goalPreference: string
   userSetting: string
@@ -457,24 +457,99 @@ export function detectAvailabilityPatterns(
 }
 
 /**
+ * Extract workday hours from goal text (e.g., "8am-6pm", "9 to 5")
+ */
+function extractWorkdayHoursFromGoal(goalText: string): { startHour?: number; endHour?: number } | null {
+  const lowerText = goalText.toLowerCase()
+  
+  // Patterns: "8am-6pm", "9am to 5pm", "8:00 AM - 6:00 PM", "9-5", "9 to 5"
+  const patterns = [
+    /(\d{1,2})(?::\d{2})?\s*(am|pm)\s*[-–—to]\s*(\d{1,2})(?::\d{2})?\s*(am|pm)/i,
+    /(\d{1,2})\s*[-–—to]\s*(\d{1,2})\s*(?:pm|am)?/i, // "9-5" or "9 to 5"
+    /work\s+(?:from|between)\s+(\d{1,2})(?::\d{2})?\s*(am|pm)\s*(?:[-–—to]|until)\s*(\d{1,2})(?::\d{2})?\s*(am|pm)/i,
+  ]
+  
+  for (const pattern of patterns) {
+    const match = lowerText.match(pattern)
+    if (match) {
+      let startHour = parseInt(match[1], 10)
+      let endHour = parseInt(match[match.length === 3 ? 2 : 3], 10)
+      
+      // Handle AM/PM
+      if (match.length >= 4) {
+        const startPeriod = match[2]?.toLowerCase()
+        const endPeriod = match[4]?.toLowerCase()
+        
+        if (startPeriod === 'pm' && startHour !== 12) startHour += 12
+        if (startPeriod === 'am' && startHour === 12) startHour = 0
+        if (endPeriod === 'pm' && endHour !== 12) endHour += 12
+        if (endPeriod === 'am' && endHour === 12) endHour = 0
+      } else {
+        // Assume "9-5" means 9am-5pm
+        if (endHour < startHour || endHour <= 12) {
+          // Likely means 9am-5pm
+        }
+      }
+      
+      if (startHour >= 0 && startHour <= 23 && endHour >= 0 && endHour <= 24) {
+        return { startHour, endHour }
+      }
+    }
+  }
+  
+  return null
+}
+
+/**
+ * Extract time from "after X" or "before X" patterns
+ */
+function extractTimeFromPattern(goalText: string, pattern: 'after' | 'before'): number | null {
+  const lowerText = goalText.toLowerCase()
+  const timePattern = new RegExp(`${pattern}\\s+(\\d{1,2})(?::\\d{2})?\\s*(am|pm)?`, 'i')
+  const match = lowerText.match(timePattern)
+  
+  if (match) {
+    let hour = parseInt(match[1], 10)
+    const period = match[2]?.toLowerCase()
+    
+    if (period === 'pm' && hour !== 12) hour += 12
+    if (period === 'am' && hour === 12) hour = 0
+    
+    if (hour >= 0 && hour <= 23) {
+      return hour
+    }
+  }
+  
+  return null
+}
+
+/**
  * Detect conflicts between goal preferences and user settings
  * Returns an array of conflicts that need to be resolved before plan generation
  */
 export function detectSettingsConflicts(
   goalText: string,
   clarifications?: Record<string, any> | string[],
-  userSettings?: { allow_weekends?: boolean }
+  userSettings?: { 
+    allow_weekends?: boolean
+    workday_start_hour?: number
+    workday_end_hour?: number
+    lunch_start_hour?: number
+    lunch_end_hour?: number
+  }
 ): SettingsConflict[] {
   const conflicts: SettingsConflict[] = []
   const combinedText = combineGoalWithClarifications(goalText, clarifications)
   const lowerText = combinedText.toLowerCase()
   
-  // Detect weekend availability in goal
+  const availabilityAnalysis = detectAvailabilityPatterns(goalText, clarifications, {
+    workday_end_hour: userSettings?.workday_end_hour
+  })
+  
+  // 1. Check for weekend scheduling conflict
   const mentionsWeekends = lowerText.includes('weekend') || lowerText.includes('weekends')
-  const availabilityAnalysis = detectAvailabilityPatterns(goalText, clarifications)
   const prefersWeekends = availabilityAnalysis.daysOfWeek?.includes('weekend') || mentionsWeekends
   
-  // Check for weekend scheduling conflict
   if (prefersWeekends && userSettings?.allow_weekends === false) {
     conflicts.push({
       type: 'weekend_scheduling',
@@ -492,6 +567,129 @@ export function detectSettingsConflicts(
         }
       ]
     })
+  }
+  
+  // 2. Check for workday hours mismatch
+  const goalWorkdayHours = extractWorkdayHoursFromGoal(combinedText)
+  if (goalWorkdayHours && userSettings?.workday_start_hour !== undefined && userSettings?.workday_end_hour !== undefined) {
+    const startDiff = Math.abs((goalWorkdayHours.startHour ?? 9) - userSettings.workday_start_hour)
+    const endDiff = Math.abs((goalWorkdayHours.endHour ?? 17) - userSettings.workday_end_hour)
+    
+    // If there's a significant difference (more than 1 hour), flag it
+    if (startDiff > 1 || endDiff > 1) {
+      const goalHours = `${goalWorkdayHours.startHour ?? 9}:00 - ${goalWorkdayHours.endHour ?? 17}:00`
+      const settingHours = `${userSettings.workday_start_hour}:00 - ${userSettings.workday_end_hour}:00`
+      
+      conflicts.push({
+        type: 'workday_hours',
+        description: `Your goal mentions working ${goalHours}, but your settings have workday hours set to ${settingHours}.`,
+        goalPreference: `Work ${goalHours}`,
+        userSetting: `Workday hours: ${settingHours}`,
+        resolutionOptions: [
+          {
+            action: 'update_workday_hours',
+            description: `Update your workday hours to ${goalHours} in settings`
+          },
+          {
+            action: 'adjust_goal',
+            description: 'Adjust your goal to match your current workday hours'
+          }
+        ]
+      })
+    }
+  }
+  
+  // 3. Check for evening availability mismatch
+  if (availabilityAnalysis.timeOfDay === 'evening' && userSettings?.workday_end_hour !== undefined) {
+    const afterTime = extractTimeFromPattern(combinedText, 'after')
+    if (afterTime && afterTime > userSettings.workday_end_hour) {
+      conflicts.push({
+        type: 'evening_availability',
+        description: `Your goal mentions working after ${afterTime}:00, but your workday ends at ${userSettings.workday_end_hour}:00 in your settings.`,
+        goalPreference: `Work after ${afterTime}:00`,
+        userSetting: `Workday ends at ${userSettings.workday_end_hour}:00`,
+        resolutionOptions: [
+          {
+            action: 'update_workday_end',
+            description: `Update your workday end time to ${afterTime}:00 in settings`
+          },
+          {
+            action: 'adjust_goal',
+            description: 'Adjust your goal to match your current workday hours'
+          }
+        ]
+      })
+    } else if (lowerText.includes('after work') && userSettings.workday_end_hour < 17) {
+      // Generic "after work" but workday ends early
+      conflicts.push({
+        type: 'evening_availability',
+        description: `Your goal mentions working "after work", but your workday ends at ${userSettings.workday_end_hour}:00. Evening work typically starts after 5:00 PM.`,
+        goalPreference: 'Work after work (evenings)',
+        userSetting: `Workday ends at ${userSettings.workday_end_hour}:00`,
+        resolutionOptions: [
+          {
+            action: 'update_workday_end',
+            description: 'Update your workday end time in settings to better reflect evening availability'
+          },
+          {
+            action: 'adjust_goal',
+            description: 'Clarify your evening availability in your goal'
+          }
+        ]
+      })
+    }
+  }
+  
+  // 4. Check for morning availability mismatch
+  if (availabilityAnalysis.timeOfDay === 'morning' && userSettings?.workday_start_hour !== undefined) {
+    const beforeTime = extractTimeFromPattern(combinedText, 'before')
+    if (beforeTime && beforeTime < userSettings.workday_start_hour) {
+      conflicts.push({
+        type: 'morning_availability',
+        description: `Your goal mentions working before ${beforeTime}:00, but your workday starts at ${userSettings.workday_start_hour}:00 in your settings.`,
+        goalPreference: `Work before ${beforeTime}:00`,
+        userSetting: `Workday starts at ${userSettings.workday_start_hour}:00`,
+        resolutionOptions: [
+          {
+            action: 'update_workday_start',
+            description: `Update your workday start time to ${beforeTime}:00 in settings`
+          },
+          {
+            action: 'adjust_goal',
+            description: 'Adjust your goal to match your current workday hours'
+          }
+        ]
+      })
+    }
+  }
+  
+  // 5. Check for hours per day mismatch
+  if (availabilityAnalysis.hoursPerDay && userSettings?.workday_start_hour !== undefined && userSettings?.workday_end_hour !== undefined) {
+    const workdayDuration = userSettings.workday_end_hour - userSettings.workday_start_hour
+    const lunchDuration = userSettings.lunch_start_hour && userSettings.lunch_end_hour
+      ? userSettings.lunch_end_hour - userSettings.lunch_start_hour
+      : 1
+    const availableHours = workdayDuration - lunchDuration
+    
+    // If user says they have more hours available than their workday allows
+    if (availabilityAnalysis.hoursPerDay > availableHours) {
+      conflicts.push({
+        type: 'hours_per_day',
+        description: `Your goal mentions having ${availabilityAnalysis.hoursPerDay} hours available per day, but your workday settings only allow ${availableHours} hours (${userSettings.workday_start_hour}:00 - ${userSettings.workday_end_hour}:00, minus lunch).`,
+        goalPreference: `${availabilityAnalysis.hoursPerDay} hours per day`,
+        userSetting: `${availableHours} hours available per day`,
+        resolutionOptions: [
+          {
+            action: 'update_workday_hours',
+            description: 'Extend your workday hours in settings to match your availability'
+          },
+          {
+            action: 'adjust_goal',
+            description: `Adjust your goal to reflect ${availableHours} hours per day availability`
+          }
+        ]
+      })
+    }
   }
   
   return conflicts
