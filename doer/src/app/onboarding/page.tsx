@@ -158,11 +158,16 @@ function OnboardingContent() {
       const data = await response.json()
 
       if (!response.ok) {
-        const message =
-          data?.message ||
-          data?.error ||
-          'Failed to generate plan.'
-        setErrorMessage(message)
+        // Check if this is a usage limit exceeded error
+        if (data?.error === 'USAGE_LIMIT_EXCEEDED' || data?.message?.includes('USAGE_LIMIT_EXCEEDED') || data?.message?.includes("plan's limit")) {
+          setErrorMessage("You've reached your plan's limit for this feature. Please upgrade your plan or wait for the next billing cycle.")
+        } else {
+          const message =
+            data?.message ||
+            data?.error ||
+            'Failed to generate plan.'
+          setErrorMessage(message)
+        }
         return
       }
 
@@ -217,8 +222,25 @@ function OnboardingContent() {
                 <Card className="bg-white/5 border-white/10 relative overflow-hidden">
                 <CardHeader>
                   {errorMessage && (
-                    <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-left text-sm text-red-200">
-                      {errorMessage}
+                    <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-left">
+                      {errorMessage.includes("plan's limit") ? (
+                        <div className="flex flex-col gap-2">
+                          <p className="text-sm font-medium text-red-200">
+                            Feature limit reached
+                          </p>
+                          <p className="text-xs text-red-200/80">
+                            {errorMessage}
+                          </p>
+                          <a
+                            href="/pricing"
+                            className="text-xs underline mt-1 text-red-200/80 hover:text-red-200 transition-colors"
+                          >
+                            View pricing plans →
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-200">{errorMessage}</p>
+                      )}
                     </div>
                   )}
                   <div className="flex items-center gap-4 mb-2">
