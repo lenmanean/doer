@@ -224,6 +224,14 @@ function CustomLoginForm() {
           </div>
         </div>
 
+        <div className="flex items-center justify-end">
+          <a
+            href="/auth/forgot-password"
+            className="text-sm font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-colors duration-300"
+          >
+            Forgot your password?
+          </a>
+        </div>
 
         <div>
           <button
