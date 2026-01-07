@@ -6,7 +6,7 @@ import { useSupabase } from '@/components/providers/supabase-provider'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Target, Calendar, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Target, Calendar, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -294,7 +294,7 @@ function OnboardingContent() {
                       size="lg"
                     >
                       {isGenerating ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
                         <>
                           Generate My Plan
