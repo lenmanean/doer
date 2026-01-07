@@ -348,6 +348,7 @@ TIMELINE ESTIMATION:
    - "Plan and rehearse a workshop": 10-14 days
 
 TIMELINE CALCULATION RULES:
+• CRITICAL: If user explicitly specified a timeline (e.g., "in the next two weeks", "over 14 days"), timeline_days MUST be at least that number, even if tasks could fit in fewer days. User-specified timelines take ABSOLUTE PRIORITY over capacity calculations.
 • Sum all task durations (in minutes)
 • REALISTIC DAILY CAPACITY: ~250 minutes per day (accounts for breaks, interruptions, realistic pacing)
   - Base workday: 9am-5pm (8 hours = 480 minutes)
@@ -363,11 +364,12 @@ TIMELINE CALCULATION RULES:
   - If total tasks = 240 minutes → 1 day plan (fits)
   - If total tasks = 480 minutes → 2 day plan minimum
   - If total tasks = 720 minutes → 3 day plan minimum
+  - If user says "in the next two weeks" (14 days) → timeline_days MUST be 14, even if tasks only need 2 days
 • Add 10-20% buffer for realistic pacing (already built into 60% capacity)
-• Short-term goals (<250 min total) = 1 day
-• Medium goals (250-500 min) = 2 days
+• Short-term goals (<250 min total) = 1 day (UNLESS user specified longer timeline)
+• Medium goals (250-500 min) = 2 days (UNLESS user specified longer timeline)
 • Long-term goals = proportional days (max 21)
-• MAX 21 days. Bias toward SHORTEST realistic timeline.
+• MAX 21 days. Bias toward SHORTEST realistic timeline (UNLESS user explicitly specified a longer timeline).
 • CRITICAL: timeline_days MUST NOT exceed 21. If calculated timeline > 21 days, reduce task count or simplify goal scope.
 • Quality over quantity: Better to have 10-12 high-quality tasks over 21 days than 20+ generic tasks.
 • If goal requires more than 21 days, break into phases or simplify scope.

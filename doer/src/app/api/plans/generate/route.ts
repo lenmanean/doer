@@ -104,7 +104,7 @@ import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
-import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications } from '@/lib/goal-analysis'
+import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications, detectSettingsConflicts } from '@/lib/goal-analysis'
 import { calculateRemainingTime, calculateDaysNeeded } from '@/lib/time-constraints'
 import { NormalizedAvailability, BusySlot } from '@/lib/types'
 
@@ -493,6 +493,29 @@ export async function POST(req: NextRequest) {
     // Detect availability patterns from goal text and clarifications (with user settings)
     const availabilityAnalysis = detectAvailabilityPatterns(finalGoalText, finalClarifications, workdaySettings)
     console.log('📅 Availability analysis:', availabilityAnalysis)
+
+    // Check for conflicts between goal preferences and user settings
+    const settingsConflicts = detectSettingsConflicts(finalGoalText, finalClarifications, { allow_weekends: allowWeekends })
+    if (settingsConflicts.length > 0) {
+      console.log('⚠️ Settings conflicts detected:', settingsConflicts)
+      const conflict = settingsConflicts[0] // Return first conflict
+      return fail(
+        400,
+        {
+          error: 'SETTINGS_CONFLICT',
+          message: conflict.description,
+          conflict: {
+            type: conflict.type,
+            description: conflict.description,
+            goalPreference: conflict.goalPreference,
+            userSetting: conflict.userSetting,
+            resolutionOptions: conflict.resolutionOptions
+          }
+        },
+        'settings_conflict_detected',
+        { conflictType: conflict.type }
+      )
+    }
 
     // Calculate evening workday hours if availability patterns detected
     let eveningWorkdayStartHour: number | undefined
@@ -1007,20 +1030,59 @@ export async function POST(req: NextRequest) {
           }
         }
         
-        // Cap timeline at deadline if one exists
-        if (maxAllowedDays !== null && proposedTimelineDays > maxAllowedDays) {
-          proposedTimelineDays = maxAllowedDays
-          console.log(`⚠️ Timeline capped at ${maxAllowedDays} days due to deadline constraint`)
+        // PRIORITY: User-specified timeline requirements take precedence over capacity calculations
+        // If user explicitly specified a timeline (e.g., "in the next two weeks"), respect it
+        if (timelineRequirement?.minimumDays) {
+          // User specified a timeline - it must be respected even if capacity suggests fewer days
+          // However, if weekends are disabled, we need to calculate calendar days needed to achieve the active days
+          if (allowWeekends) {
+            // Weekends allowed - use user's minimum directly
+            proposedTimelineDays = Math.max(proposedTimelineDays, timelineRequirement.minimumDays)
+          } else {
+            // Weekends disabled - calculate calendar days needed to achieve minimum active days
+            // The user's minimum refers to active days, so we need to convert to calendar days
+            const minimumActiveDays = timelineRequirement.minimumDays
+            // Calculate how many calendar days are needed to get this many active days
+            let calendarDaysCount = 0
+            let activeDaysCount = 0
+            let currentDate = new Date(parsedStartDate)
+            const maxDays = 21 // Safety limit
+            
+            while (activeDaysCount < minimumActiveDays && calendarDaysCount < maxDays) {
+              const dayOfWeek = currentDate.getDay()
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+              
+              if (!isWeekend) {
+                activeDaysCount++
+              }
+              calendarDaysCount++
+              
+              if (activeDaysCount < minimumActiveDays) {
+                currentDate = addDays(currentDate, 1)
+              }
+            }
+            
+            // Use the larger of capacity-based or user-specified timeline
+            proposedTimelineDays = Math.max(proposedTimelineDays, calendarDaysCount)
+          }
+          
+          console.log('📅 Enforcing user-specified timeline requirement:', {
+            userMinimum: timelineRequirement.minimumDays,
+            capacityBased: proposedTimelineDays < timelineRequirement.minimumDays ? proposedTimelineDays : 'N/A',
+            finalTimeline: proposedTimelineDays,
+            allowWeekends
+          })
         }
         
-        // Ensure we don't go below AI's original timeline if user specified a timeline
-        if (timelineRequirement?.minimumDays && proposedTimelineDays < timelineDays) {
-          proposedTimelineDays = Math.max(timelineDays, timelineRequirement.minimumDays)
-          console.log('📅 Preserving AI timeline due to user requirement:', {
-            aiTimeline: timelineDays,
-            userMinimum: timelineRequirement.minimumDays,
-            finalTimeline: proposedTimelineDays
-          })
+        // Cap timeline at deadline if one exists (but only if it doesn't conflict with user requirement)
+        if (maxAllowedDays !== null && proposedTimelineDays > maxAllowedDays) {
+          if (timelineRequirement?.minimumDays && maxAllowedDays < timelineRequirement.minimumDays) {
+            console.warn(`⚠️ Warning: User specified ${timelineRequirement.minimumDays} days but deadline only allows ${maxAllowedDays} days. Using user requirement.`)
+            // Keep user requirement, but log warning
+          } else {
+            proposedTimelineDays = maxAllowedDays
+            console.log(`⚠️ Timeline capped at ${maxAllowedDays} days due to deadline constraint`)
+          }
         }
         
         adjustedTimelineDays = proposedTimelineDays

@@ -55,6 +55,17 @@ export interface AvailabilityPattern {
   clarificationQuestions?: string[]
 }
 
+export interface SettingsConflict {
+  type: 'weekend_scheduling' | 'workday_hours' | 'time_availability'
+  description: string
+  goalPreference: string
+  userSetting: string
+  resolutionOptions: Array<{
+    action: string
+    description: string
+  }>
+}
+
 export interface UrgencyAnalysis {
   urgencyLevel: 'high' | 'medium' | 'low' | 'none'
   indicators: string[]
@@ -289,12 +300,23 @@ export function detectTimelineRequirement(
   // Patterns for explicit timeline requirements
   // "in X days", "over X days", "happening in X days", "within X days"
   // Also handle "one week", "in one week", "over one week", etc.
+  // Also handle "in the next X weeks/days", "over the next X weeks/days"
   const timelinePatterns = [
+    // Week-based patterns with "next" keyword (check these first as they're more specific)
+    /\b(?:in|over|within|for)\s+the\s+next\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+weeks?\b/i,
+    /\b(?:in|over|within|for)\s+the\s+next\s+(\d+)\s+weeks?\b/i,
+    /\b(?:in|over|within|for)\s+next\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+weeks?\b/i,
+    /\b(?:in|over|within|for)\s+next\s+(\d+)\s+weeks?\b/i,
     // Week-based patterns (check these first as they're more specific)
     /\b(?:in|over|within|for)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+weeks?\b/i,
     /\b(?:in|over|within|for)\s+(\d+)\s+weeks?\b/,
     /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+week\s+(?:plan|timeline|schedule)\b/i,
     /\b(\d+)\s+week\s+(?:plan|timeline|schedule)\b/,
+    // Day-based patterns with "next" keyword
+    /\b(?:in|over|within|for)\s+the\s+next\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,
+    /\b(?:in|over|within|for)\s+the\s+next\s+(\d+)\s+days?\b/i,
+    /\b(?:in|over|within|for)\s+next\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,
+    /\b(?:in|over|within|for)\s+next\s+(\d+)\s+days?\b/i,
     // Day-based patterns
     /\b(?:in|over|within|for)\s+(\d+)\s+days?\b/,  // Digits
     /\b(?:in|over|within|for)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+days?\b/i,  // Word numbers
@@ -432,6 +454,47 @@ export function detectAvailabilityPatterns(
   }
   
   return result
+}
+
+/**
+ * Detect conflicts between goal preferences and user settings
+ * Returns an array of conflicts that need to be resolved before plan generation
+ */
+export function detectSettingsConflicts(
+  goalText: string,
+  clarifications?: Record<string, any> | string[],
+  userSettings?: { allow_weekends?: boolean }
+): SettingsConflict[] {
+  const conflicts: SettingsConflict[] = []
+  const combinedText = combineGoalWithClarifications(goalText, clarifications)
+  const lowerText = combinedText.toLowerCase()
+  
+  // Detect weekend availability in goal
+  const mentionsWeekends = lowerText.includes('weekend') || lowerText.includes('weekends')
+  const availabilityAnalysis = detectAvailabilityPatterns(goalText, clarifications)
+  const prefersWeekends = availabilityAnalysis.daysOfWeek?.includes('weekend') || mentionsWeekends
+  
+  // Check for weekend scheduling conflict
+  if (prefersWeekends && userSettings?.allow_weekends === false) {
+    conflicts.push({
+      type: 'weekend_scheduling',
+      description: 'Your goal mentions working on weekends, but weekend scheduling is disabled in your settings.',
+      goalPreference: 'Work on weekends',
+      userSetting: 'Weekend scheduling disabled',
+      resolutionOptions: [
+        {
+          action: 'enable_weekends',
+          description: 'Enable weekend scheduling in your settings'
+        },
+        {
+          action: 'adjust_goal',
+          description: 'Adjust your goal to remove weekend references'
+        }
+      ]
+    })
+  }
+  
+  return conflicts
 }
 
 /**
