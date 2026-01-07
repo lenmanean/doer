@@ -501,6 +501,7 @@ export default function IntegrationsPage() {
       <PlanSelectionModal
         isOpen={showPlanOverlay}
         onClose={() => setShowPlanOverlay(false)}
+        context="integration"
       />
     </div>
   )

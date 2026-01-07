@@ -9,11 +9,13 @@ import { useRouter } from 'next/navigation'
 interface PlanSelectionModalProps {
   isOpen: boolean
   onClose: () => void
+  context?: 'integration' | 'general'
 }
 
 export function PlanSelectionModal({
   isOpen,
-  onClose
+  onClose,
+  context = 'general'
 }: PlanSelectionModalProps) {
   const router = useRouter()
   const [canClose, setCanClose] = useState(false)
@@ -56,8 +58,8 @@ export function PlanSelectionModal({
 
   const handlePlanSelect = (cycle: 'monthly' | 'annual') => {
     // Redirect to checkout page with plan parameters
+    // Don't call onClose() here - let the X button handle closing
     router.push(`/checkout?plan=pro&cycle=${cycle}`)
-    onClose()
   }
 
   if (!isOpen) return null
@@ -88,7 +90,9 @@ export function PlanSelectionModal({
             <div>
               <h2 className="text-2xl font-bold text-[#d7d2cb]">Upgrade to Pro</h2>
               <p className="text-sm text-[#d7d2cb]/60 mt-1">
-                Integrations require a Pro plan subscription. Choose your preferred billing cycle.
+                {context === 'integration' 
+                  ? 'Integrations require a Pro plan subscription. Choose your preferred billing cycle.'
+                  : 'Choose your preferred billing cycle.'}
               </p>
             </div>
             <AnimatePresence>
