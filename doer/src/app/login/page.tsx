@@ -59,7 +59,7 @@ function CustomLoginForm() {
         }
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: emailToUse,
         password,
       })
@@ -81,52 +81,101 @@ function CustomLoginForm() {
             duration: 5000
           })
         }
-      } else {
-        addToast({
-          type: 'success',
-          title: 'Welcome Back!',
-          description: 'Successfully signed in to your account.',
-          duration: 3000
-        })
-        
-        // Check if account is scheduled for deletion
-        try {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: userSettings } = await supabase
-              .from('user_settings')
-              .select('scheduled_deletion_at')
-              .eq('user_id', user.id)
-              .maybeSingle()
-
-            if (userSettings?.scheduled_deletion_at) {
-              const deletionDate = new Date(userSettings.scheduled_deletion_at)
-              const now = new Date()
-              
-              // If deletion date is in the future, redirect to restore page
-              if (deletionDate > now) {
-                router.push('/account/restore')
-                return
-              }
-              // If deletion date has passed, allow normal flow (cron should have deleted)
-            }
-          }
-        } catch (checkError) {
-          // If error checking scheduled deletion, continue with normal flow
-          console.error('Error checking scheduled deletion:', checkError)
-        }
-        
-        // Check if there's a pending goal from homepage
-        const pendingGoal = localStorage.getItem('pendingGoal')
-        if (pendingGoal) {
-          localStorage.removeItem('pendingGoal')
-          // Redirect to onboarding with the goal
-          router.push(`/onboarding?goal=${encodeURIComponent(pendingGoal)}`)
-        } else {
-          // Always redirect to dashboard after successful login
-          router.push('/dashboard')
-        }
+        setIsLoading(false)
+        return
       }
+
+      // Sign-in successful - use user and session from signInWithPassword response
+      const user = signInData?.user
+      const session = signInData?.session
+      
+      if (!user || !session) {
+        addToast({
+          type: 'error',
+          title: 'Login Error',
+          description: 'Authentication succeeded but user data is missing. Please try again.',
+          duration: 5000
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Sync session to server cookies before redirecting
+      // This ensures middleware can authenticate the user on the next page load
+      try {
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            event: 'SIGNED_IN', 
+            session: {
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              user: session.user
+            }
+          }),
+          credentials: 'same-origin',
+        })
+      } catch (syncError) {
+        // Log error but continue - the SupabaseProvider's onAuthStateChange will also try to sync
+        console.error('[Login] Failed to sync session to server:', syncError)
+        // Continue anyway - session is set in client storage and provider will retry
+      }
+
+      addToast({
+        type: 'success',
+        title: 'Welcome Back!',
+        description: 'Successfully signed in to your account.',
+        duration: 3000
+      })
+      
+      // Check if account is scheduled for deletion (with timeout protection)
+      try {
+        const deletionCheckPromise = supabase
+          .from('user_settings')
+          .select('scheduled_deletion_at')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Deletion check timeout')), 3000)
+        )
+
+        const userSettings = await Promise.race([deletionCheckPromise, timeoutPromise]) as any
+
+        if (userSettings?.data?.scheduled_deletion_at) {
+          const deletionDate = new Date(userSettings.data.scheduled_deletion_at)
+          const now = new Date()
+          
+          // If deletion date is in the future, redirect to restore page
+          if (deletionDate > now) {
+            setIsLoading(false)
+            // Use window.location for hard redirect after session sync
+            window.location.href = '/account/restore'
+            return
+          }
+          // If deletion date has passed, allow normal flow (cron should have deleted)
+        }
+      } catch (checkError) {
+        // If error checking scheduled deletion (including timeout), continue with normal flow
+        // The middleware will also check this, so it's safe to continue
+        console.error('Error checking scheduled deletion:', checkError)
+      }
+      
+      // Check if there's a pending goal from homepage
+      const pendingGoal = localStorage.getItem('pendingGoal')
+      let redirectPath = '/dashboard'
+      
+      if (pendingGoal) {
+        localStorage.removeItem('pendingGoal')
+        redirectPath = `/onboarding?goal=${encodeURIComponent(pendingGoal)}`
+      }
+      
+      setIsLoading(false)
+      
+      // Use window.location.href for hard redirect after session sync
+      // This ensures a fresh page load and the middleware can authenticate the user
+      window.location.href = redirectPath
     } catch (err) {
       addToast({
         type: 'error',

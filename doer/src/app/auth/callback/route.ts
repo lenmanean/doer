@@ -40,10 +40,10 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // Get the user after successful authentication
-      const { data: { user } } = await supabase.auth.getUser()
+    const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && exchangeData?.session?.user) {
+      // Use user from exchangeCodeForSession response (best practice - avoids unnecessary getUser() call)
+      const user = exchangeData.session.user
       
       let redirectPath = '/dashboard' // default
       
