@@ -55,7 +55,7 @@ export function VoiceInputButton({
       aria-label={isListening ? 'Stop recording' : 'Start voice input'}
       aria-pressed={isListening}
       className={cn(
-        'rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed',
+        'flex items-center justify-center rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed',
         'focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:ring-offset-2 focus:ring-offset-transparent',
         sizeClasses[size],
         isListening
