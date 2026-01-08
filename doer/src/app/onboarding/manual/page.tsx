@@ -65,7 +65,7 @@ export default function ManualOnboardingPage() {
         duration: 5000,
       })
     },
-    continuous: false,
+    continuous: true, // Keep recording until manually stopped
     interimResults: true,
   })
 
@@ -120,7 +120,7 @@ export default function ManualOnboardingPage() {
         duration: 5000,
       })
     },
-    continuous: false,
+    continuous: true, // Keep recording until manually stopped
     interimResults: true,
   })
 

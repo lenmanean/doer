@@ -23,7 +23,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
   const {
     onResult,
     onError,
-    continuous = false,
+    continuous = true, // Keep recording until manually stopped
     interimResults = true,
     lang = 'en-US',
   } = options

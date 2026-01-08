@@ -448,7 +448,7 @@ export function CreateTaskModal({
         duration: 5000,
       })
     },
-    continuous: false,
+    continuous: true, // Keep recording until manually stopped
     interimResults: true,
   })
 
@@ -540,7 +540,7 @@ export function CreateTaskModal({
         duration: 5000,
       })
     },
-    continuous: false,
+    continuous: true, // Keep recording until manually stopped
     interimResults: true,
   })
 

@@ -76,7 +76,7 @@ export function WaitlistForm({
         duration: 5000,
       })
     },
-    continuous: false, // Stop after each phrase
+    continuous: true, // Keep recording until manually stopped
     interimResults: true, // Show real-time transcription
   })
 
