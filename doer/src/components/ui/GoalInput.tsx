@@ -58,14 +58,7 @@ export function GoalInput({
     stopListening,
     reset: resetSpeech,
   } = useSpeechRecognition({
-    onResult: (finalTranscript) => {
-      // Append to existing goal text or replace
-      setGoal((prev) => {
-        const newGoal = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
-        return newGoal
-      })
-      setError('')
-    },
+    // No onResult callback - real-time transcription handles everything
     onError: (error) => {
       addToast({
         type: 'error',
@@ -95,21 +88,21 @@ export function GoalInput({
   useEffect(() => {
     if (isListening && !textBeforeListeningRef.current) {
       textBeforeListeningRef.current = goal
-    } else if (!isListening && textBeforeListeningRef.current) {
-      // Reset when listening stops
+    } else if (!isListening) {
+      // When listening stops, keep the final text but clear the ref for next time
       textBeforeListeningRef.current = ''
     }
-  }, [isListening]) // Only depend on isListening
+  }, [isListening])
 
   // Update goal with real-time transcripts while listening
   useEffect(() => {
-    if (isListening) {
-      // Always update when listening, even if transcript is empty (to clear previous)
+    if (isListening && transcript) {
+      // Combine base text with current transcript
       const baseText = textBeforeListeningRef.current.trim()
-      const fullText = transcript ? (baseText ? `${baseText} ${transcript}` : transcript) : baseText
+      const fullText = baseText ? `${baseText} ${transcript}` : transcript
       setGoal(fullText)
     }
-  }, [transcript, isListening]) // Don't include goal to avoid loops
+  }, [transcript, isListening])
 
   // Auto-resize textarea based on content
   const adjustTextareaHeight = () => {
