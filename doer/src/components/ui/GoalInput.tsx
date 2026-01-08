@@ -115,12 +115,22 @@ export function GoalInput({
   useEffect(() => {
     const textarea = textareaRef.current
     if (textarea) {
-      // Reset height to auto to get the correct scrollHeight
-      textarea.style.height = 'auto'
-      // Set height to scrollHeight to fit content
-      textarea.style.height = `${textarea.scrollHeight}px`
+      // Reset height to get accurate scrollHeight
+      textarea.style.height = '0px'
+      // Calculate the proper height
+      const scrollHeight = textarea.scrollHeight
+      // Set height to scrollHeight to fit content (minimum 4.5rem = 72px)
+      textarea.style.height = `${Math.max(scrollHeight, 72)}px`
     }
   }, [goal])
+
+  // Initial height setup
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = '72px' // Initial min-height
+    }
+  }, [])
 
   // Goal suggestions for animated placeholder (expanded list)
   const goalSuggestions = [
@@ -450,8 +460,7 @@ export function GoalInput({
             rows={1}
             className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-28' : 'pr-16'} text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
-            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden min-h-[4.5rem]`}
-            style={{ height: 'auto' }}
+            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden min-h-[4.5rem] leading-relaxed`}
           />
           {/* Animated placeholder overlay */}
           {goal === '' && !isInputFocused && (
