@@ -44,6 +44,7 @@ export function GoalInput({
   const [isTransitioning, setIsTransitioning] = useState(false)
   const placeholderIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const placeholderTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -109,6 +110,17 @@ export function GoalInput({
       setGoal(fullText)
     }
   }, [transcript, isListening]) // Don't include goal to avoid loops
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto'
+      // Set height to scrollHeight to fit content
+      textarea.style.height = `${textarea.scrollHeight}px`
+    }
+  }, [goal])
 
   // Goal suggestions for animated placeholder (expanded list)
   const goalSuggestions = [
@@ -426,22 +438,24 @@ export function GoalInput({
       <div className="space-y-4">
         {/* Input field with arrow button */}
         <div className="relative">
-          <input
+          <textarea
+            ref={textareaRef}
             id="goal-input"
-            type="text"
             value={goal}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             placeholder="" // Empty placeholder - we'll use animated overlay instead
             disabled={isLoading}
+            rows={1}
             className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-28' : 'pr-16'} text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
-            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed resize-none overflow-hidden min-h-[4.5rem]`}
+            style={{ height: 'auto' }}
           />
           {/* Animated placeholder overlay */}
           {goal === '' && !isInputFocused && (
-            <div className="absolute inset-0 pointer-events-none flex items-center px-6 py-6 z-10">
+            <div className="absolute top-0 left-0 right-0 pointer-events-none flex items-start px-6 py-6 z-10">
               <div
                 className={`w-full text-xl text-[#d7d2cb]/40 transition-opacity duration-[1000ms] ease-in-out ${
                   isTransitioning ? 'opacity-0' : 'opacity-100'
@@ -457,7 +471,7 @@ export function GoalInput({
           
           {/* Voice input button */}
           {isSpeechSupported && (
-            <div className="absolute right-20 top-1/2 -translate-y-1/2 z-20">
+            <div className="absolute right-20 top-6 z-20">
               <VoiceInputButton
                 isListening={isListening}
                 isSupported={isSpeechSupported}
@@ -470,11 +484,11 @@ export function GoalInput({
           )}
 
 
-          {/* Arrow button at right-center */}
+          {/* Arrow button at top-right */}
           <button
             type="submit"
             disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-20"
+            className="absolute right-4 top-6 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-20"
           >
             <ArrowUp className="w-6 h-6" />
           </button>
