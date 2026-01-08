@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Mail, Check, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Mail, Check, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { trackWaitlistSignup } from '@/lib/analytics/unified-tracking-service'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { VoiceInputButton } from './VoiceInputButton'
 
 interface WaitlistFormProps {
   source: string
@@ -46,6 +48,47 @@ export function WaitlistForm({
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState('')
   const { addToast } = useToast()
+
+  // Voice input integration
+  const {
+    isListening,
+    transcript,
+    error: speechError,
+    isSupported: isSpeechSupported,
+    startListening,
+    stopListening,
+    reset: resetSpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      // Append to existing goal text or replace
+      setGoal((prev) => {
+        const newGoal = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
+        return newGoal
+      })
+      setError('')
+      setUserHasChangedStep(true) // Mark that user has interacted with goal
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false, // Stop after each phrase
+    interimResults: true, // Show real-time transcription
+  })
+
+  // Handle microphone button click
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      resetSpeech()
+      startListening()
+    }
+  }
 
   // Track if user has manually changed step to prevent useEffect from overriding
   const [userHasChangedStep, setUserHasChangedStep] = useState(false)
@@ -290,15 +333,38 @@ export function WaitlistForm({
               }}
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               disabled={isLoading || isSuccess}
-              className={`w-full px-4 py-4 pr-14 text-lg bg-white/5 border ${
+              className={`w-full px-4 py-4 ${isSpeechSupported ? 'pr-24' : 'pr-14'} text-lg bg-white/5 border ${
                 error ? 'border-red-500/50' : 'border-white/10'
               } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             />
+            
+            {/* Voice input button */}
+            {isSpeechSupported && (
+              <div className="absolute right-14 top-1/2 -translate-y-1/2 z-10">
+                <VoiceInputButton
+                  isListening={isListening}
+                  isSupported={isSpeechSupported}
+                  onClick={handleMicClick}
+                  disabled={isLoading || isSuccess}
+                  size="sm"
+                  error={speechError}
+                />
+              </div>
+            )}
+
+            {/* Real-time listening indicator */}
+            {isListening && (
+              <div className="absolute top-2 left-2 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Listening...</span>
+              </div>
+            )}
+
             {/* Arrow button at right-end - vertically centered */}
             <button
               type="submit"
               disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-10"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
@@ -306,6 +372,11 @@ export function WaitlistForm({
           
           {error && (
             <p className="text-sm text-red-400">{error}</p>
+          )}
+
+          {/* Show speech errors */}
+          {speechError && !error && (
+            <p className="text-sm text-yellow-400">{speechError}</p>
           )}
 
           {/* Clickable Suggestion Chips - Below input */}

@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowUp, ArrowRight, ArrowLeft, Mail, Check } from 'lucide-react'
+import { ArrowUp, ArrowRight, ArrowLeft, Mail, Check, Loader2 } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { trackWaitlistSignup } from '@/lib/analytics/unified-tracking-service'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { VoiceInputButton } from './VoiceInputButton'
 
 interface GoalInputProps {
   className?: string
@@ -44,6 +46,46 @@ export function GoalInput({
   const placeholderTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
+
+  // Voice input integration
+  const {
+    isListening,
+    transcript,
+    error: speechError,
+    isSupported: isSpeechSupported,
+    startListening,
+    stopListening,
+    reset: resetSpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      // Append to existing goal text or replace
+      setGoal((prev) => {
+        const newGoal = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
+        return newGoal
+      })
+      setError('')
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false, // Stop after each phrase
+    interimResults: true, // Show real-time transcription
+  })
+
+  // Handle microphone button click
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      resetSpeech()
+      startListening()
+    }
+  }
 
   // Goal suggestions for animated placeholder (expanded list)
   const goalSuggestions = [
@@ -370,7 +412,7 @@ export function GoalInput({
             onBlur={handleInputBlur}
             placeholder="" // Empty placeholder - we'll use animated overlay instead
             disabled={isLoading}
-            className={`w-full px-6 py-6 pr-16 text-xl bg-white/5 border ${
+            className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-24' : 'pr-16'} text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
             } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
           />
@@ -389,6 +431,29 @@ export function GoalInput({
               </div>
             </div>
           )}
+          
+          {/* Voice input button */}
+          {isSpeechSupported && (
+            <div className="absolute right-14 top-1/2 -translate-y-1/2 z-20">
+              <VoiceInputButton
+                isListening={isListening}
+                isSupported={isSpeechSupported}
+                onClick={handleMicClick}
+                disabled={isLoading}
+                size="md"
+                error={speechError}
+              />
+            </div>
+          )}
+
+          {/* Real-time listening indicator */}
+          {isListening && (
+            <div className="absolute top-2 left-2 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-30">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Listening...</span>
+            </div>
+          )}
+
           {/* Arrow button at right-center */}
           <button
             type="submit"
@@ -401,6 +466,11 @@ export function GoalInput({
         
         {error && (
           <p className="text-sm text-red-400">{error}</p>
+        )}
+
+        {/* Show speech errors */}
+        {speechError && !error && (
+          <p className="text-sm text-yellow-400">{speechError}</p>
         )}
 
         {/* Clickable Suggestion Chips - Below input (only if showSuggestions is true) */}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Save, Calendar, Clock, Plus, Settings, ChevronDown, Check, Trash2 } from 'lucide-react'
+import { X, Save, Calendar, Clock, Plus, Settings, ChevronDown, Check, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ThemeAwareInput } from '@/components/ui/ThemeAwareInput'
 import { TimePicker } from './TimePicker'
@@ -26,6 +26,9 @@ import { useAITaskGeneration } from '@/hooks/useAITaskGeneration'
 import { convertUrlsToLinks } from '@/lib/url-utils'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { ConfirmDeleteModal } from './ConfirmDeleteModal'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { VoiceInputButton } from './VoiceInputButton'
+import { useToast } from './Toast'
 
 interface CreateTaskModalProps {
   isOpen: boolean
@@ -419,6 +422,119 @@ export function CreateTaskModal({
   
   // AI generation hook
   const { generateTask, isLoading: isAILoading, error: aiError, clearError } = useAITaskGeneration()
+  const { addToast } = useToast()
+
+  // Voice input for AI mode
+  const {
+    isListening: isAIListening,
+    error: aiSpeechError,
+    isSupported: isSpeechSupported,
+    startListening: startAIListening,
+    stopListening: stopAIListening,
+    reset: resetAISpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      setAiDescription((prev) => {
+        const newDesc = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
+        return newDesc
+      })
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false,
+    interimResults: true,
+  })
+
+  const handleAIMicClick = () => {
+    if (isAIListening) {
+      stopAIListening()
+    } else {
+      resetAISpeech()
+      startAIListening()
+    }
+  }
+
+  // Voice input for manual/todo-list modes - track active field
+  const [activeVoiceField, setActiveVoiceField] = useState<{
+    mode: 'manual' | 'todo-list'
+    taskId: string
+    field: 'name' | 'details'
+  } | null>(null)
+
+  const {
+    isListening: isFieldListening,
+    error: fieldSpeechError,
+    startListening: startFieldListening,
+    stopListening: stopFieldListening,
+    reset: resetFieldSpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      if (!activeVoiceField) return
+
+      if (activeVoiceField.mode === 'manual') {
+        setManualTasks((prevTasks) =>
+          prevTasks.map((task) => {
+            if (task.id === activeVoiceField.taskId) {
+              const currentValue = task[activeVoiceField.field] || ''
+              return {
+                ...task,
+                [activeVoiceField.field]: currentValue.trim()
+                  ? `${currentValue} ${finalTranscript}`
+                  : finalTranscript,
+              }
+            }
+            return task
+          })
+        )
+      } else if (activeVoiceField.mode === 'todo-list') {
+        setTodoListTasks((prevTasks) =>
+          prevTasks.map((task) => {
+            if (task.id === activeVoiceField.taskId) {
+              const currentValue = task.name || ''
+              return {
+                ...task,
+                name: currentValue.trim()
+                  ? `${currentValue} ${finalTranscript}`
+                  : finalTranscript,
+              }
+            }
+            return task
+          })
+        )
+      }
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false,
+    interimResults: true,
+  })
+
+  const handleFieldMicClick = (
+    mode: 'manual' | 'todo-list',
+    taskId: string,
+    field: 'name' | 'details'
+  ) => {
+    if (isFieldListening && activeVoiceField?.taskId === taskId && activeVoiceField?.field === field) {
+      stopFieldListening()
+      setActiveVoiceField(null)
+    } else {
+      resetFieldSpeech()
+      setActiveVoiceField({ mode, taskId, field })
+      startFieldListening()
+    }
+  }
 
   // Helper function to check if there are unsaved changes
   // Only checks for actual user input in the primary task input field
@@ -2522,7 +2638,7 @@ export function CreateTaskModal({
                   )}
 
                   {/* AI Description Input */}
-                  <div>
+                  <div className="relative">
                     <label htmlFor="ai-description" className={`text-sm font-medium block mb-2 ${
                       currentTheme === 'dark' ? 'text-[#d7d2cb]/80' : 'text-gray-700'
                     }`}>
@@ -2534,13 +2650,40 @@ export function CreateTaskModal({
                       onChange={(e) => setAiDescription(e.target.value)}
                       placeholder="e.g., 'Take out the trash on Thursday at 5pm' or 'Remember to call mom tomorrow morning'"
                       rows={3}
-                      className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none ${
+                      className={`w-full px-4 py-2 ${isSpeechSupported ? 'pr-12' : 'pr-4'} rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none ${
                         currentTheme === 'dark'
                           ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
+                    
+                    {/* Voice input button for AI mode */}
+                    {isSpeechSupported && (
+                      <div className="absolute right-2 bottom-2 z-10">
+                        <VoiceInputButton
+                          isListening={isAIListening}
+                          isSupported={isSpeechSupported}
+                          onClick={handleAIMicClick}
+                          disabled={isAILoading}
+                          size="sm"
+                          error={aiSpeechError}
+                        />
+                      </div>
+                    )}
+
+                    {/* Listening indicator for AI mode */}
+                    {isAIListening && (
+                      <div className="absolute top-0 left-0 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Listening...</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Show speech errors for AI mode */}
+                  {aiSpeechError && !aiError && (
+                    <p className="text-sm text-yellow-400">{aiSpeechError}</p>
+                  )}
 
 
                   {/* Follow-up Question */}
@@ -3000,7 +3143,7 @@ export function CreateTaskModal({
                   <div className="space-y-3">
                     {todoListTasks.map((task, index) => (
                       <div key={task.id} className="flex gap-2 items-start">
-                        <div className="flex-1">
+                        <div className="flex-1 relative">
                           <label className={`block text-xs font-medium mb-1 ${
                             currentTheme === 'dark' ? 'text-[#d7d2cb]/70' : 'text-gray-600'
                           }`}>
@@ -3015,12 +3158,34 @@ export function CreateTaskModal({
                               setTodoListTasks(newTasks)
                             }}
                             placeholder={`Task ${index + 1}`}
-                            className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
+                            className={`w-full px-3 py-2 ${isSpeechSupported ? 'pr-10' : 'pr-3'} rounded-lg border focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
                               currentTheme === 'dark'
                                 ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                 : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                             }`}
                           />
+                          
+                          {/* Voice input button for todo-list task name */}
+                          {isSpeechSupported && (
+                            <div className="absolute right-2 top-7 z-10">
+                              <VoiceInputButton
+                                isListening={isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name'}
+                                isSupported={isSpeechSupported}
+                                onClick={() => handleFieldMicClick('todo-list', task.id, 'name')}
+                                disabled={isAnalyzingTodoList}
+                                size="sm"
+                                error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' ? fieldSpeechError : null}
+                              />
+                            </div>
+                          )}
+
+                          {/* Listening indicator */}
+                          {isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' && (
+                            <div className="absolute top-0 left-0 flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                              <span>Listening...</span>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className={`block text-xs font-medium mb-1 ${
@@ -3206,7 +3371,7 @@ export function CreateTaskModal({
 
                           <div className="space-y-3">
                             {/* Task Name */}
-                            <div>
+                            <div className="relative">
                               <label className={`text-xs font-medium block mb-1 ${
                                 currentTheme === 'dark' ? 'text-[#d7d2cb]/70' : 'text-gray-600'
                               }`}>
@@ -3217,16 +3382,38 @@ export function CreateTaskModal({
                                 value={task.name}
                                 onChange={(e) => handleManualTaskChange(task.id, 'name', e.target.value)}
                                 placeholder="Enter task name"
-                                className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
+                                className={`w-full px-3 py-2 ${isSpeechSupported ? 'pr-10' : 'pr-3'} rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
                                   currentTheme === 'dark'
                                     ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                                 }`}
                               />
+                              
+                              {/* Voice input button for task name */}
+                              {isSpeechSupported && (
+                                <div className="absolute right-2 top-7 z-10">
+                                  <VoiceInputButton
+                                    isListening={isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name'}
+                                    isSupported={isSpeechSupported}
+                                    onClick={() => handleFieldMicClick('manual', task.id, 'name')}
+                                    disabled={isLoading}
+                                    size="sm"
+                                    error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' ? fieldSpeechError : null}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Listening indicator */}
+                              {isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' && (
+                                <div className="absolute top-0 left-0 flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                  <span>Listening...</span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Task Description */}
-                            <div>
+                            <div className="relative">
                               <label className={`text-xs font-medium block mb-1 ${
                                 currentTheme === 'dark' ? 'text-[#d7d2cb]/70' : 'text-gray-600'
                               }`}>
@@ -3237,12 +3424,34 @@ export function CreateTaskModal({
                                 onChange={(e) => handleManualTaskChange(task.id, 'details', e.target.value)}
                                 placeholder="Enter task description"
                                 rows={2}
-                                className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none ${
+                                className={`w-full px-3 py-2 ${isSpeechSupported ? 'pr-10' : 'pr-3'} rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none ${
                                   currentTheme === 'dark'
                                     ? 'bg-white/5 border-white/10 text-[#d7d2cb] placeholder-[#d7d2cb]/50'
                                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                                 }`}
                               />
+                              
+                              {/* Voice input button for task details */}
+                              {isSpeechSupported && (
+                                <div className="absolute right-2 bottom-2 z-10">
+                                  <VoiceInputButton
+                                    isListening={isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details'}
+                                    isSupported={isSpeechSupported}
+                                    onClick={() => handleFieldMicClick('manual', task.id, 'details')}
+                                    disabled={isLoading}
+                                    size="sm"
+                                    error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details' ? fieldSpeechError : null}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Listening indicator */}
+                              {isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details' && (
+                                <div className="absolute top-0 left-0 flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                  <span>Listening...</span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Priority Selector */}

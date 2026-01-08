@@ -4,10 +4,13 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Task } from '@/lib/types'
-import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Trash2, Copy, Clipboard, CopyPlus } from 'lucide-react'
+import { CheckCircle, RotateCcw, ChevronDown, ChevronUp, Plus, Trash2, Copy, Clipboard, CopyPlus, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateDuration, isCrossDayTask } from '@/lib/task-time-utils'
 import { toLocalMidnight } from '@/lib/date-utils'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
+import { useToast } from '@/components/ui/Toast'
 
 export default function ManualOnboardingPage() {
   const router = useRouter()
@@ -36,6 +39,78 @@ export default function ManualOnboardingPage() {
   
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { addToast } = useToast()
+
+  // Voice input for goal title
+  const {
+    isListening: isTitleListening,
+    error: titleSpeechError,
+    isSupported: isSpeechSupported,
+    startListening: startTitleListening,
+    stopListening: stopTitleListening,
+    reset: resetTitleSpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      setGoalTitle((prev) => {
+        const newTitle = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
+        return newTitle
+      })
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false,
+    interimResults: true,
+  })
+
+  const handleTitleMicClick = () => {
+    if (isTitleListening) {
+      stopTitleListening()
+    } else {
+      resetTitleSpeech()
+      startTitleListening()
+    }
+  }
+
+  // Voice input for plan summary
+  const {
+    isListening: isDescriptionListening,
+    error: descriptionSpeechError,
+    startListening: startDescriptionListening,
+    stopListening: stopDescriptionListening,
+    reset: resetDescriptionSpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      setGoalDescription((prev) => {
+        const newDesc = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
+        return newDesc
+      })
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false,
+    interimResults: true,
+  })
+
+  const handleDescriptionMicClick = () => {
+    if (isDescriptionListening) {
+      stopDescriptionListening()
+    } else {
+      resetDescriptionSpeech()
+      startDescriptionListening()
+    }
+  }
   const [error, setError] = useState<string | null>(null)
   const [createdPlanId, setCreatedPlanId] = useState<string | null>(null) // Track plan ID for cleanup
   
@@ -477,7 +552,7 @@ export default function ManualOnboardingPage() {
           {/* Goal Header */}
           <div className="mb-6">
             <div className="space-y-4">
-              <div>
+              <div className="relative">
                 <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
                   Goal Title *
                 </label>
@@ -485,11 +560,33 @@ export default function ManualOnboardingPage() {
                   type="text"
                   value={goalTitle}
                   onChange={(e) => setGoalTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] text-3xl font-bold placeholder:text-[#d7d2cb]/20"
+                  className={`w-full px-3 py-2 ${isSpeechSupported ? 'pr-12' : 'pr-3'} bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] text-3xl font-bold placeholder:text-[#d7d2cb]/20`}
                   placeholder="Enter your goal"
                 />
+                
+                {/* Voice input button for goal title */}
+                {isSpeechSupported && (
+                  <div className="absolute right-2 top-9 z-10">
+                    <VoiceInputButton
+                      isListening={isTitleListening}
+                      isSupported={isSpeechSupported}
+                      onClick={handleTitleMicClick}
+                      disabled={isSubmitting}
+                      size="sm"
+                      error={titleSpeechError}
+                    />
+                  </div>
+                )}
+
+                {/* Listening indicator for goal title */}
+                {isTitleListening && (
+                  <div className="absolute top-0 left-0 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Listening...</span>
+                  </div>
+                )}
               </div>
-              <div>
+              <div className="relative">
                 <label className="text-sm font-medium text-[#d7d2cb]/80 mb-2 block">
                   Plan Summary
                 </label>
@@ -497,9 +594,31 @@ export default function ManualOnboardingPage() {
                   value={goalDescription}
                   onChange={(e) => setGoalDescription(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none placeholder:text-[#d7d2cb]/20"
+                  className={`w-full px-3 py-2 ${isSpeechSupported ? 'pr-12' : 'pr-3'} bg-white/5 border border-white/10 rounded-lg text-[#d7d2cb] focus:outline-none focus:ring-2 focus:ring-[#ff7f00] resize-none placeholder:text-[#d7d2cb]/20`}
                   placeholder="Describe your plan"
                 />
+                
+                {/* Voice input button for plan summary */}
+                {isSpeechSupported && (
+                  <div className="absolute right-2 bottom-2 z-10">
+                    <VoiceInputButton
+                      isListening={isDescriptionListening}
+                      isSupported={isSpeechSupported}
+                      onClick={handleDescriptionMicClick}
+                      disabled={isSubmitting}
+                      size="sm"
+                      error={descriptionSpeechError}
+                    />
+                  </div>
+                )}
+
+                {/* Listening indicator for plan summary */}
+                {isDescriptionListening && (
+                  <div className="absolute top-0 left-0 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Listening...</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

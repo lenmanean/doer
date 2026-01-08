@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { motion, AnimatePresence } from 'framer-motion'
 import { Target, Calendar, ArrowRight, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react'
 import { detectSettingsConflicts, type SettingsConflict } from '@/lib/goal-analysis'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
+import { useToast } from '@/components/ui/Toast'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -29,6 +32,47 @@ function OnboardingContent() {
   } | null>(null)
   const hasFetchedWaitlistGoal = useRef(false)
   const { supabase } = useSupabase()
+  const { addToast } = useToast()
+
+  // Voice input integration
+  const {
+    isListening,
+    transcript,
+    error: speechError,
+    isSupported: isSpeechSupported,
+    startListening,
+    stopListening,
+    reset: resetSpeech,
+  } = useSpeechRecognition({
+    onResult: (finalTranscript) => {
+      // Append to existing goal text or replace
+      setGoal((prev) => {
+        const newGoal = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
+        return newGoal
+      })
+      setErrorMessage(null)
+    },
+    onError: (error) => {
+      addToast({
+        type: 'error',
+        title: 'Voice Input Error',
+        description: error,
+        duration: 5000,
+      })
+    },
+    continuous: false, // Stop after each phrase
+    interimResults: true, // Show real-time transcription
+  })
+
+  // Handle microphone button click
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      resetSpeech()
+      startListening()
+    }
+  }
 
   /**
    * Goal Priority System:
@@ -386,16 +430,43 @@ function OnboardingContent() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div>
+                  <div className="relative">
                     <textarea
                       id="goal"
                       value={goal}
                       onChange={(e) => setGoal(e.target.value)}
                       placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
-                      className="w-full px-4 py-4 text-lg bg-white/5 border border-white/10 rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all resize-none"
+                      className={`w-full px-4 py-4 ${isSpeechSupported ? 'pr-14' : 'pr-4'} text-lg bg-white/5 border border-white/10 rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all resize-none`}
                       rows={4}
                     />
+                    
+                    {/* Voice input button */}
+                    {isSpeechSupported && (
+                      <div className="absolute right-2 bottom-2 z-10">
+                        <VoiceInputButton
+                          isListening={isListening}
+                          isSupported={isSpeechSupported}
+                          onClick={handleMicClick}
+                          disabled={isGenerating}
+                          size="sm"
+                          error={speechError}
+                        />
+                      </div>
+                    )}
+
+                    {/* Real-time listening indicator */}
+                    {isListening && (
+                      <div className="absolute top-2 left-2 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Listening...</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Show speech errors */}
+                  {speechError && !errorMessage && (
+                    <p className="text-sm text-yellow-400">{speechError}</p>
+                  )}
 
                   <div>
                     <div className="flex items-center gap-2 mb-3">
