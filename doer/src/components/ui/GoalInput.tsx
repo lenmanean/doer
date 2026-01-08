@@ -39,7 +39,9 @@ export function GoalInput({
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0)
   const [isPlaceholderAnimating, setIsPlaceholderAnimating] = useState(true)
   const [isInputFocused, setIsInputFocused] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const placeholderIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const placeholderTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -66,28 +68,59 @@ export function GoalInput({
     setIsPlaceholderAnimating(false) // Stop animation when user clicks a suggestion
   }
 
-  // Animated placeholder cycling effect
+  // Animated placeholder cycling effect with proper timing
   useEffect(() => {
+    // Clear any existing timeouts/intervals
+    if (placeholderIntervalRef.current) {
+      clearInterval(placeholderIntervalRef.current)
+      placeholderIntervalRef.current = null
+    }
+    if (placeholderTimeoutRef.current) {
+      clearTimeout(placeholderTimeoutRef.current)
+      placeholderTimeoutRef.current = null
+    }
+
     // Only animate if input is empty, not focused, and user hasn't started typing
     if (step === 'goal' && goal === '' && !isInputFocused && isPlaceholderAnimating) {
-      placeholderIntervalRef.current = setInterval(() => {
-        setCurrentPlaceholderIndex((prevIndex) => {
-          // Cycle through suggestions - change every 3 seconds (2s animation + 1s pause)
-          const nextIndex = (prevIndex + 1) % goalSuggestions.length
-          return nextIndex
-        })
-      }, 3000) // Change every 3 seconds (2s fade animation + 1s visible pause)
-    } else {
-      // Clear interval when conditions aren't met
-      if (placeholderIntervalRef.current) {
-        clearInterval(placeholderIntervalRef.current)
-        placeholderIntervalRef.current = null
+      // Start the cycle - change index after animation completes
+      const cyclePlaceholder = () => {
+        // Set transitioning state to trigger fade out
+        setIsTransitioning(true)
+        
+        // After fade out completes (1.5s), change to next suggestion and fade in
+        placeholderTimeoutRef.current = setTimeout(() => {
+          setCurrentPlaceholderIndex((prevIndex) => {
+            const nextIndex = (prevIndex + 1) % goalSuggestions.length
+            return nextIndex
+          })
+          // Immediately start fade in after changing text
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setIsTransitioning(false)
+            })
+          })
+        }, 1500) // Wait for fade out to complete (1.5s)
       }
+
+      // Initial delay before first cycle - show first suggestion for 2.5s
+      placeholderTimeoutRef.current = setTimeout(() => {
+        cyclePlaceholder()
+        
+        // Then set up interval for subsequent cycles
+        placeholderIntervalRef.current = setInterval(() => {
+          cyclePlaceholder()
+        }, 4000) // Total cycle: 1.5s fade out + 0.1s transition + 1.5s fade in + 0.9s visible = 4s
+      }, 2500) // Initial display time before first transition
     }
 
     return () => {
       if (placeholderIntervalRef.current) {
         clearInterval(placeholderIntervalRef.current)
+        placeholderIntervalRef.current = null
+      }
+      if (placeholderTimeoutRef.current) {
+        clearTimeout(placeholderTimeoutRef.current)
+        placeholderTimeoutRef.current = null
       }
     }
   }, [step, goal, isInputFocused, isPlaceholderAnimating, goalSuggestions.length])
@@ -95,10 +128,21 @@ export function GoalInput({
   const handleInputFocus = () => {
     setIsInputFocused(true)
     setIsPlaceholderAnimating(false)
+    setIsTransitioning(false)
+    // Clear any pending animations
+    if (placeholderIntervalRef.current) {
+      clearInterval(placeholderIntervalRef.current)
+      placeholderIntervalRef.current = null
+    }
+    if (placeholderTimeoutRef.current) {
+      clearTimeout(placeholderTimeoutRef.current)
+      placeholderTimeoutRef.current = null
+    }
   }
 
   const handleInputBlur = () => {
     setIsInputFocused(false)
+    setIsTransitioning(false)
     // Resume animation if input is empty
     if (goal === '') {
       setIsPlaceholderAnimating(true)
@@ -336,8 +380,12 @@ export function GoalInput({
             <div className="absolute inset-0 pointer-events-none flex items-start px-6 py-6">
               <div className="relative w-full overflow-hidden" style={{ minHeight: '120px' }}>
                 <div
-                  key={currentPlaceholderIndex}
-                  className="absolute inset-0 flex items-start text-xl text-[#d7d2cb]/40 animate-fade-in-out"
+                  className={`absolute inset-0 flex items-start text-xl text-[#d7d2cb]/40 transition-opacity duration-[1500ms] ease-in-out ${
+                    isTransitioning ? 'opacity-0' : 'opacity-100'
+                  }`}
+                  style={{
+                    willChange: 'opacity',
+                  }}
                 >
                   {goalSuggestions[currentPlaceholderIndex]}
                 </div>

@@ -1085,27 +1085,5 @@ input[type="date"]::-ms-clear { display: none; }
   animation: pulsing-glow 3s ease-in-out infinite;
 }
 
-/* Animated placeholder fade in/out for goal input */
-@keyframes fadeInOut {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  85% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-}
-
-.animate-fade-in-out {
-  animation: fadeInOut 3s ease-in-out;
-}
+/* Animated placeholder fade in/out for goal input - using CSS transitions for smoother performance */
 
