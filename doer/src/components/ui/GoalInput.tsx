@@ -412,7 +412,7 @@ export function GoalInput({
             onBlur={handleInputBlur}
             placeholder="" // Empty placeholder - we'll use animated overlay instead
             disabled={isLoading}
-            className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-24' : 'pr-16'} text-xl bg-white/5 border ${
+            className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-28' : 'pr-16'} text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
             } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
           />
@@ -434,7 +434,7 @@ export function GoalInput({
           
           {/* Voice input button */}
           {isSpeechSupported && (
-            <div className="absolute right-14 top-1/2 -translate-y-1/2 z-20">
+            <div className="absolute right-20 top-1/2 -translate-y-1/2 z-20">
               <VoiceInputButton
                 isListening={isListening}
                 isSupported={isSpeechSupported}

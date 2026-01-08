@@ -333,14 +333,14 @@ export function WaitlistForm({
               }}
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               disabled={isLoading || isSuccess}
-              className={`w-full px-4 py-4 ${isSpeechSupported ? 'pr-24' : 'pr-14'} text-lg bg-white/5 border ${
+              className={`w-full px-4 py-4 ${isSpeechSupported ? 'pr-28' : 'pr-14'} text-lg bg-white/5 border ${
                 error ? 'border-red-500/50' : 'border-white/10'
               } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
             />
             
             {/* Voice input button */}
             {isSpeechSupported && (
-              <div className="absolute right-14 top-1/2 -translate-y-1/2 z-10">
+              <div className="absolute right-20 top-1/2 -translate-y-1/2 z-10">
                 <VoiceInputButton
                   isListening={isListening}
                   isSupported={isSpeechSupported}
