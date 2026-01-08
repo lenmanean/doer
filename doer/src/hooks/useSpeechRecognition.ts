@@ -182,7 +182,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     return () => {
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop()
+          // Use abort() to immediately release microphone on unmount
+          recognitionRef.current.abort()
         } catch (e) {
           // Ignore errors when stopping
         }
@@ -196,7 +197,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     const handleBeforeUnload = () => {
       if (recognitionRef.current && isListeningRef.current) {
         try {
-          recognitionRef.current.stop()
+          // Use abort() to immediately release microphone
+          recognitionRef.current.abort()
         } catch (e) {
           // Ignore errors
         }
@@ -206,7 +208,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     const handleVisibilityChange = () => {
       if (document.hidden && recognitionRef.current && isListeningRef.current) {
         try {
-          recognitionRef.current.stop()
+          // Use abort() to immediately release microphone
+          recognitionRef.current.abort()
         } catch (e) {
           // Ignore errors
         }
@@ -216,7 +219,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     const handlePageHide = () => {
       if (recognitionRef.current && isListeningRef.current) {
         try {
-          recognitionRef.current.stop()
+          // Use abort() to immediately release microphone
+          recognitionRef.current.abort()
         } catch (e) {
           // Ignore errors
         }
@@ -285,7 +289,10 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     if (!recognitionRef.current) return
 
     try {
-      recognitionRef.current.stop()
+      // Use abort() instead of stop() to immediately release microphone
+      // abort() terminates recognition immediately and releases resources
+      // stop() only stops gracefully but may keep microphone active
+      recognitionRef.current.abort()
       isListeningRef.current = false
       setState((prev) => ({
         ...prev,
@@ -305,7 +312,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     // Stop if currently listening
     if (recognitionRef.current && isListeningRef.current) {
       try {
-        recognitionRef.current.stop()
+        // Use abort() to immediately release microphone
+        recognitionRef.current.abort()
       } catch (e) {
         // Ignore errors
       }
