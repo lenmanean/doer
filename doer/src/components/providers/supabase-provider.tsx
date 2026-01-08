@@ -356,8 +356,35 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
           // We need to verify via a callback or current ref values
           // Since we can't access state directly in timeout, we'll check isMountedRef
           // and let the redirect happen if we're still mounted (user would have loaded by now if successful)
-          console.error('[SupabaseProvider] Auth timeout after 30s - redirecting to error page')
+          console.error('[SupabaseProvider] Auth timeout after 30s - clearing state and redirecting to error page')
+          
           if (typeof window !== 'undefined') {
+            // Clear authentication state before redirecting
+            // This ensures users can try signing in again
+            try {
+              // Clear browser storage
+              clearStorageOnSignOut()
+              
+              // Clear server-side session
+              fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'SIGNED_OUT', session: null }),
+                credentials: 'same-origin',
+              }).catch(() => {
+                // Ignore errors - we're redirecting anyway
+              })
+              
+              // Sign out from Supabase (non-blocking)
+              supabase.auth.signOut().catch(() => {
+                // Ignore errors - we're redirecting anyway
+              })
+            } catch (error) {
+              console.error('[SupabaseProvider] Error clearing state on timeout:', error)
+              // Continue with redirect even if cleanup fails
+            }
+            
+            // Redirect to timeout error page (which will also clear state)
             window.location.href = '/auth/timeout-error'
           }
         }
