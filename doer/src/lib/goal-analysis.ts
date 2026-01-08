@@ -783,49 +783,61 @@ function safeAddDependency(
 }
 
 /**
- * Extract topic keywords from a task name
- * Returns an array of topic keywords found in the name
- * Examples: "variables", "loops", "functions", "classes", "lists", etc.
+ * Extract topic keywords from a task name to determine domain/context
+ * Covers programming topics, business topics, and general domains
  */
 function extractTopicKeywords(taskName: string): string[] {
-  const lowerName = taskName.toLowerCase()
+  const lower = taskName.toLowerCase()
   const topics: string[] = []
   
-  // Common programming topics
-  const topicKeywords = [
-    'variable', 'variables',
-    'loop', 'loops', 'iteration', 'iterations',
-    'function', 'functions', 'method', 'methods',
-    'class', 'classes', 'object', 'objects', 'oop',
-    'list', 'lists', 'array', 'arrays',
-    'dictionary', 'dictionaries', 'dict', 'map', 'maps',
-    'string', 'strings',
-    'number', 'numbers', 'integer', 'integers',
-    'boolean', 'booleans', 'bool',
-    'tuple', 'tuples',
-    'set', 'sets',
-    'file', 'files', 'io', 'input', 'output',
-    'exception', 'exceptions', 'error', 'errors',
-    'module', 'modules', 'package', 'packages',
-    'decorator', 'decorators',
-    'generator', 'generators',
-    'async', 'asynchronous', 'await',
-    'thread', 'threads', 'concurrency',
-    'database', 'db', 'sql',
-    'api', 'rest', 'graphql',
-    'test', 'testing', 'unit test', 'integration test',
-    'calculator', 'program', 'application', 'app'
+  // Programming topics
+  const programmingKeywords = [
+    'variable', 'loop', 'function', 'class', 'object', 'list', 'array',
+    'dictionary', 'string', 'number', 'boolean', 'tuple', 'set',
+    'file', 'exception', 'error', 'module', 'package', 'decorator',
+    'generator', 'async', 'thread', 'calculator'
   ]
-  
-  for (const keyword of topicKeywords) {
-    if (lowerName.includes(keyword)) {
-      // Normalize the keyword (e.g., "variable" and "variables" both map to "variable")
-      const normalized = keyword.replace(/s$/, '') // Remove plural 's'
-      if (!topics.includes(normalized)) {
-        topics.push(normalized)
-      }
+  for (const keyword of programmingKeywords) {
+    if (lower.includes(keyword)) {
+      topics.push('programming')
+      break
     }
   }
+  
+  // E-commerce/Store keywords
+  if (lower.includes('store') || lower.includes('shop') || lower.includes('commerce') || lower.includes('ecommerce') || lower.includes('e-commerce')) topics.push('store')
+  if (lower.includes('payment') || lower.includes('checkout') || lower.includes('transaction')) topics.push('payment')
+  if (lower.includes('product')) topics.push('product')
+  if (lower.includes('customer') || lower.includes('user')) topics.push('customer')
+  if (lower.includes('inventory') || lower.includes('stock')) topics.push('inventory')
+  if (lower.includes('shipping') || lower.includes('delivery')) topics.push('shipping')
+  
+  // Platform/Technical keywords
+  if (lower.includes('platform') || lower.includes('system')) topics.push('platform')
+  if (lower.includes('database') || lower.includes('data') || lower.includes('db') || lower.includes('sql')) topics.push('data')
+  if (lower.includes('api') || lower.includes('backend') || lower.includes('server') || lower.includes('rest') || lower.includes('graphql')) topics.push('api')
+  if (lower.includes('frontend') || lower.includes('ui') || lower.includes('interface')) topics.push('frontend')
+  
+  // Content/Marketing keywords
+  if (lower.includes('content') || lower.includes('description') || lower.includes('copy') || lower.includes('text')) topics.push('content')
+  if (lower.includes('marketing') || lower.includes('promotion') || lower.includes('campaign')) topics.push('marketing')
+  if (lower.includes('design') || lower.includes('layout') || lower.includes('theme')) topics.push('design')
+  if (lower.includes('seo') || lower.includes('analytics')) topics.push('analytics')
+  
+  // Business/Strategy keywords
+  if (lower.includes('business') || lower.includes('plan') || lower.includes('strategy')) topics.push('business')
+  if (lower.includes('research') || lower.includes('analysis') || lower.includes('study')) topics.push('research')
+  if (lower.includes('target') || lower.includes('audience') || lower.includes('market')) topics.push('audience')
+  
+  // Development/Technical keywords
+  if (lower.includes('code') || lower.includes('program') || lower.includes('develop') || lower.includes('application') || lower.includes('app')) topics.push('code')
+  if (lower.includes('test') || lower.includes('testing') || lower.includes('qa') || lower.includes('unit test') || lower.includes('integration test')) topics.push('testing')
+  if (lower.includes('deploy') || lower.includes('launch') || lower.includes('release')) topics.push('launch')
+  
+  // Learning/Education keywords
+  if (lower.includes('learn') || lower.includes('study') || lower.includes('understand')) topics.push('learning')
+  if (lower.includes('practice') || lower.includes('exercise') || lower.includes('drill')) topics.push('practice')
+  if (lower.includes('tutorial') || lower.includes('guide') || lower.includes('documentation')) topics.push('documentation')
   
   return topics
 }
@@ -845,6 +857,60 @@ function shareTopicKeywords(task1Name: string, task2Name: string): boolean {
   
   // Check if any topics match
   return topics1.some(topic => topics2.includes(topic))
+}
+
+/**
+ * Calculate dependency confidence score between two tasks
+ * Higher score = more likely to be a valid dependency
+ */
+function calculateDependencyConfidence(prerequisiteName: string, dependentName: string): number {
+  const prereqLower = prerequisiteName.toLowerCase()
+  const depLower = dependentName.toLowerCase()
+  
+  let confidence = 0
+  
+  // Base confidence from topic overlap
+  const prereqTopics = extractTopicKeywords(prerequisiteName)
+  const depTopics = extractTopicKeywords(dependentName)
+  const sharedTopics = prereqTopics.filter(t => depTopics.includes(t))
+  confidence += sharedTopics.length * 20 // 20 points per shared topic
+  
+  // Penalty for obviously unrelated combinations
+  // "payment" setup should NOT be prerequisite for "description" writing
+  if ((prereqLower.includes('payment') || prereqLower.includes('checkout')) && 
+      (depLower.includes('description') || depLower.includes('content') || depLower.includes('copy'))) {
+    confidence -= 50
+  }
+  
+  // "store setup" is NOT prerequisite for "product description" writing
+  if (prereqLower.includes('store') && prereqLower.includes('set') && 
+      depLower.includes('description') && !depLower.includes('store')) {
+    confidence -= 30
+  }
+  
+  // Payment setup should NOT block content creation
+  if (prereqLower.includes('payment') && 
+      (depLower.includes('write') || depLower.includes('create')) &&
+      (depLower.includes('content') || depLower.includes('description'))) {
+    confidence -= 50
+  }
+  
+  // Boost confidence for clear logical dependencies
+  // Setup/install → build/use is logical
+  if ((prereqLower.includes('setup') || prereqLower.includes('install')) &&
+      (depLower.includes('build') || depLower.includes('use')) &&
+      sharedTopics.length > 0) {
+    confidence += 30
+  }
+  
+  // Research → create/write is logical
+  if (prereqLower.includes('research') && 
+      (depLower.includes('create') || depLower.includes('write')) &&
+      sharedTopics.length > 0) {
+    confidence += 30
+  }
+  
+  return confidence
 }
 
 /**
@@ -906,6 +972,7 @@ export function detectTaskDependencies(
 
     // Pattern: "research" must come before "prepare" / "create" / "write"
     // Make prepare/create tasks depend on research tasks
+    // CRITICAL: Only if tasks share topics
     if (task.lowerName.includes('research')) {
       for (const otherTask of lowerTaskNames) {
         if (
@@ -915,13 +982,21 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('write') ||
             otherTask.lowerName.includes('develop'))
         ) {
-          // Make otherTask (prepare/create) depend on task (research)
-          if (!dependencies.has(otherTask.idx)) {
-            dependencies.set(otherTask.idx, [])
-          }
-          const otherTaskDeps = dependencies.get(otherTask.idx)!
-          if (!otherTaskDeps.includes(task.idx)) {
-            otherTaskDeps.push(task.idx)
+          // Check if tasks share topics - research should be relevant to what's being created
+          const confidence = calculateDependencyConfidence(task.name, otherTask.name)
+          const sharesTopics = shareTopicKeywords(task.name, otherTask.name)
+          
+          if (sharesTopics && confidence >= 0) {
+            // Make otherTask (prepare/create) depend on task (research)
+            if (!dependencies.has(otherTask.idx)) {
+              dependencies.set(otherTask.idx, [])
+            }
+            const otherTaskDeps = dependencies.get(otherTask.idx)!
+            if (!otherTaskDeps.includes(task.idx)) {
+              otherTaskDeps.push(task.idx)
+            }
+          } else if (confidence < 0) {
+            console.log(`🔧 Skipped illogical dependency: "${otherTask.name}" → "${task.name}" (confidence: ${confidence})`)
           }
         }
       }
@@ -1092,6 +1167,7 @@ export function detectTaskDependencies(
     // Pattern: "set up" / "setup" / "install" / "configure" must come before "learn" / "practice" / "build" / "write"
     // Make learn/practice/build tasks depend on setup/install tasks
     // CRITICAL: Practice should depend on setup/learn, NOT on final review
+    // CRITICAL: Only create dependency if tasks share topics AND have high confidence
     if (
       task.lowerName.includes('set up') ||
       task.lowerName.includes('setup') ||
@@ -1109,8 +1185,19 @@ export function detectTaskDependencies(
             otherTask.lowerName.includes('explore') ||
             otherTask.lowerName.includes('understand'))
         ) {
-          // Make otherTask (learn/practice/build) depend on task (setup/install)
-          addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
+          // Check if tasks share topics AND dependency makes logical sense
+          const confidence = calculateDependencyConfidence(task.name, otherTask.name)
+          const sharesTopics = shareTopicKeywords(task.name, otherTask.name)
+          
+          // Only add dependency if:
+          // 1. Tasks share topics, AND
+          // 2. Confidence score is positive (not obviously illogical)
+          if (sharesTopics && confidence >= 0) {
+            // Make otherTask (learn/practice/build/write) depend on task (setup/install)
+            addDependency(otherTask.idx, task.idx, otherTask.name, task.name)
+          } else if (confidence < 0) {
+            console.log(`🔧 Skipped illogical dependency: "${otherTask.name}" → "${task.name}" (confidence: ${confidence})`)
+          }
         }
       }
     }
@@ -1489,14 +1576,22 @@ export function detectTaskDependencies(
     }
   }
 
-  // Log detected dependencies
+  // Log detected dependencies with detailed statistics
   if (dependencies.size > 0) {
     console.log('🔗 Detected task dependencies:')
+    let semanticDepsCount = 0
+    let totalDepsCount = 0
+    
     dependencies.forEach((deps, taskIdx) => {
       const task = tasks.find(t => t.idx === taskIdx)
       const depTasks = deps.map(idx => tasks.find(t => t.idx === idx)?.name || `task ${idx}`)
       console.log(`  Task ${taskIdx} (${task?.name || 'unknown'}): depends on [${depTasks.join(', ')}]`)
+      
+      semanticDepsCount++
+      totalDepsCount += deps.length
     })
+    
+    console.log(`📊 Dependency Statistics: ${semanticDepsCount} task(s) have dependencies, ${totalDepsCount} total dependency edge(s)`)
   } else {
     console.log('🔗 No task dependencies detected')
   }
@@ -1593,7 +1688,7 @@ function resolveCircularDependencies(
     if (cycle.length < 2) continue
     
     // Find the dependency in the cycle that should be removed
-    // Remove the one where a later task type depends on an earlier task type (backwards dependency)
+    // Use multiple factors: task type hierarchy AND topic similarity
     let weakestDep: { from: number; to: number } | null = null
     let weakestScore = Infinity
     
@@ -1624,6 +1719,16 @@ function resolveCircularDependencies(
         score = -1000 // Very low score = remove this dependency
       }
       
+      // Factor in topic similarity: dependencies between unrelated topics are weaker
+      const topicConfidence = calculateDependencyConfidence(toTask.name, fromTask.name)
+      if (topicConfidence < 0) {
+        // Negative confidence = illogical dependency, make it very weak
+        score -= 500 // Strong penalty for illogical dependencies
+      } else {
+        // Positive confidence = logical dependency, boost the score slightly
+        score += topicConfidence / 10
+      }
+      
       if (score < weakestScore) {
         weakestScore = score
         weakestDep = { from: fromIdx, to: toIdx }
@@ -1638,7 +1743,10 @@ function resolveCircularDependencies(
       
       const fromTask = tasks.find(t => t.idx === weakestDep!.from)
       const toTask = tasks.find(t => t.idx === weakestDep!.to)
-      console.log(`  🔧 Breaking cycle: Removing dependency from "${fromTask?.name || weakestDep.from}" to "${toTask?.name || weakestDep.to}"`)
+      const topicConfidence = calculateDependencyConfidence(toTask?.name || '', fromTask?.name || '')
+      const sharesTopics = shareTopicKeywords(fromTask?.name || '', toTask?.name || '')
+      
+      console.log(`  🔧 Breaking cycle: Removing dependency from "${fromTask?.name || weakestDep.from}" to "${toTask?.name || weakestDep.to}" (score: ${weakestScore.toFixed(1)}, confidence: ${topicConfidence.toFixed(1)}, shares topics: ${sharesTopics})`)
     }
   }
   

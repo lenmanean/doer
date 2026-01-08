@@ -13,6 +13,116 @@ interface DayScheduleConfig {
 }
 
 /**
+ * Topologically sort tasks by dependencies within each priority tier
+ * Returns tasks in an order where prerequisites always come before dependents
+ */
+function topologicalSortTasks<T extends { idx: number; priority: number }>(
+  tasks: T[],
+  dependencies: Map<number, number[]>
+): T[] {
+  // Group tasks by priority
+  const tasksByPriority = new Map<number, T[]>()
+  for (const task of tasks) {
+    if (!tasksByPriority.has(task.priority)) {
+      tasksByPriority.set(task.priority, [])
+    }
+    tasksByPriority.get(task.priority)!.push(task)
+  }
+  
+  const result: T[] = []
+  
+  // Process each priority tier in order (1, 2, 3, 4)
+  for (const priority of [1, 2, 3, 4]) {
+    const tierTasks = tasksByPriority.get(priority) || []
+    if (tierTasks.length === 0) continue
+    
+    // Topologically sort tasks within this tier
+    const sorted = topologicalSortWithinTier(tierTasks, dependencies)
+    result.push(...sorted)
+  }
+  
+  return result
+}
+
+/**
+ * Topologically sort tasks within a single priority tier
+ * Uses Kahn's algorithm for topological sorting
+ */
+function topologicalSortWithinTier<T extends { idx: number }>(
+  tasks: T[],
+  dependencies: Map<number, number[]>
+): T[] {
+  const taskIndices = new Set(tasks.map(t => t.idx))
+  const taskMap = new Map(tasks.map(t => [t.idx, t]))
+  
+  // Calculate in-degree for each task (number of prerequisites)
+  const inDegree = new Map<number, number>()
+  const adjList = new Map<number, number[]>() // prerequisite -> [dependents]
+  
+  for (const task of tasks) {
+    inDegree.set(task.idx, 0)
+    adjList.set(task.idx, [])
+  }
+  
+  // Build adjacency list and calculate in-degrees
+  // Only consider dependencies within this tier
+  for (const task of tasks) {
+    if (dependencies.has(task.idx)) {
+      const prereqs = dependencies.get(task.idx)!
+      for (const prereqIdx of prereqs) {
+        if (taskIndices.has(prereqIdx)) {
+          // This prerequisite is in the same tier
+          adjList.get(prereqIdx)!.push(task.idx)
+          inDegree.set(task.idx, inDegree.get(task.idx)! + 1)
+        }
+      }
+    }
+  }
+  
+  // Start with tasks that have no prerequisites in this tier
+  const queue: number[] = []
+  for (const [idx, degree] of inDegree.entries()) {
+    if (degree === 0) {
+      queue.push(idx)
+    }
+  }
+  
+  // Sort queue by idx to maintain stable ordering for tasks with same in-degree
+  queue.sort((a, b) => a - b)
+  
+  const result: T[] = []
+  
+  while (queue.length > 0) {
+    // Take the task with smallest idx (stable ordering)
+    const currentIdx = queue.shift()!
+    result.push(taskMap.get(currentIdx)!)
+    
+    // Reduce in-degree of dependent tasks
+    for (const dependentIdx of adjList.get(currentIdx)!) {
+      inDegree.set(dependentIdx, inDegree.get(dependentIdx)! - 1)
+      if (inDegree.get(dependentIdx) === 0) {
+        queue.push(dependentIdx)
+        // Keep queue sorted for stable ordering
+        queue.sort((a, b) => a - b)
+      }
+    }
+  }
+  
+  // If we haven't processed all tasks, there might be a cycle (shouldn't happen after cycle resolution)
+  // Fall back to original order for any remaining tasks
+  if (result.length < tasks.length) {
+    const processedIndices = new Set(result.map(t => t.idx))
+    for (const task of tasks) {
+      if (!processedIndices.has(task.idx)) {
+        result.push(task)
+      }
+    }
+  }
+  
+  return result
+}
+
+/**
  * Time-block scheduler that places tasks into specific time slots
  * with hour-level precision and considers workday constraints
  */
@@ -663,6 +773,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
 
   // Helper function to check if a task can be scheduled on a specific day based on dependencies
   // Returns true if task can be scheduled on dayIndex, false if it would violate dependencies
+  // OPTIMIZED: Now fails fast if prerequisites aren't scheduled yet (with topological sorting, they should be)
   const canScheduleOnDay = (
     task: typeof tasksWithTargetDays[number],
     dayIndex: number,
@@ -693,9 +804,13 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           return false
         }
         // If prerequisite is on same day or earlier, it's OK (time ordering will be handled separately)
+      } else {
+        // OPTIMIZATION: With topological sorting, prerequisites should already be scheduled
+        // If not scheduled yet, this is an error condition - fail fast
+        // This prevents wasted work trying to find time slots for tasks that will fail anyway
+        console.log(`    🔗 Cannot schedule "${task.name}" on day ${dayIndex}: prerequisite "${depTask.name}" not yet scheduled`)
+        return false
       }
-      // If prerequisite is not scheduled yet, we can still schedule this task
-      // (the prerequisite will be scheduled later, and we'll catch violations in post-validation)
     }
     
     return true
@@ -953,12 +1068,13 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         
         // Check reverse dependencies - tasks that depend on this one
         let hasReverseDependencies = false
+        const reverseDependents: Array<{idx: number, name: string, priority: number}> = []
         for (const [depTaskIdx, deps] of dependencies.entries()) {
           if (deps.includes(task.idx || -1)) {
             const depTask = tasks.find(t => t.idx === depTaskIdx)
             if (depTask && depTask.targetDay > task.targetDay) {
               hasReverseDependencies = true
-              break
+              reverseDependents.push({idx: depTask.idx, name: depTask.name, priority: depTask.priority})
             }
           }
         }
@@ -968,6 +1084,28 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         if (hasLaterDependencies) {
           console.log(`  ⚖️ Skipping movement of "${task.name}" - has dependencies on later days`)
           continue
+        }
+        
+        // CRITICAL: Check if moving would create scheduling order violations
+        // If moving task T to an earlier day, check if any task D that depends on T
+        // would be scheduled BEFORE T in the topological ordering
+        // This prevents retry loops where D tries to schedule before T is scheduled
+        if (hasReverseDependencies) {
+          // Check if any reverse dependent would be processed before this task in scheduling order
+          // Since we now use topological sorting, this is less of an issue, but we still check
+          // to avoid moving tasks that would confuse the balancing algorithm
+          const wouldCreateSchedulingOrderViolation = reverseDependents.some(dep => {
+            // If dependent has higher priority (lower number), it would be scheduled first
+            // This is OK now with topological sorting, but we're conservative
+            // If dependent has same priority but lower idx, it would be scheduled first
+            return (dep.priority < task.priority) || 
+                   (dep.priority === task.priority && dep.idx < task.idx)
+          })
+          
+          if (wouldCreateSchedulingOrderViolation) {
+            console.log(`  ⚖️ Skipping movement of "${task.name}" - would create scheduling order violation (dependents: ${reverseDependents.map(d => d.name).join(', ')})`)
+            continue
+          }
         }
         
         // If tasks depend on this one and are on later days, be conservative about moving earlier
@@ -1638,11 +1776,44 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     })
   }
 
+  // CRITICAL: Topologically sort tasks by dependencies before scheduling
+  // This ensures prerequisites are always scheduled before dependents, eliminating retry loops
+  const topologicallySortedTasks = topologicalSortTasks(tasksWithTargetDays, taskDependencies)
+  
+  console.log('🔧 Topologically sorted tasks for scheduling:', topologicallySortedTasks.map(t => ({
+    idx: t.idx,
+    name: t.name,
+    priority: t.priority,
+    targetDay: t.targetDay
+  })))
+  
+  // Validate topological sort: verify no task comes before its prerequisites
+  let sortViolations = 0
+  for (let i = 0; i < topologicallySortedTasks.length; i++) {
+    const task = topologicallySortedTasks[i]
+    if (task.idx && taskDependencies.has(task.idx)) {
+      const prereqs = taskDependencies.get(task.idx)!
+      for (const prereqIdx of prereqs) {
+        const prereqPosition = topologicallySortedTasks.findIndex(t => t.idx === prereqIdx)
+        if (prereqPosition > i) {
+          console.error(`❌ Topological sort violation: Task ${task.idx} "${task.name}" at position ${i} depends on task ${prereqIdx} at position ${prereqPosition}`)
+          sortViolations++
+        }
+      }
+    }
+  }
+  
+  if (sortViolations > 0) {
+    console.error(`❌ Found ${sortViolations} topological sort violation(s) - scheduling may fail`)
+  } else {
+    console.log('✅ Topological sort validated: all prerequisites come before dependents')
+  }
+
   let latestSequentialDay = 0
   const tasksSkippedDueToDependencies: Array<{task: typeof tasksWithTargetDays[number], reason: string}> = []
   const tasksFailedDueToCapacity: Array<{task: typeof tasksWithTargetDays[number], reason: string}> = []
 
-  for (const taskWithTarget of tasksWithTargetDays) {
+  for (const taskWithTarget of topologicallySortedTasks) {
     const task = taskWithTarget
     let remainingDuration = task.estimated_duration_minutes
     let scheduled = false
@@ -3386,8 +3557,24 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     }
   }
   
+  // COMPREHENSIVE POST-SCHEDULING VALIDATION AND STATISTICS
+  console.log('📊 Scheduling Summary:')
+  console.log(`  ✓ Scheduled: ${placements.length} task(s)`)
+  console.log(`  ✗ Unscheduled: ${unscheduledTasks.length} task(s)`)
+  console.log(`  ⏱️  Total scheduled time: ${totalScheduledHours.toFixed(2)} hours`)
+  console.log(`  🔄 Retry passes needed: ${retryPass}`)
+  
+  // Count tasks skipped due to dependencies vs capacity
+  console.log(`  📋 Tasks skipped due to dependencies: ${tasksSkippedDueToDependencies.length}`)
+  console.log(`  💾 Tasks failed due to capacity: ${tasksFailedDueToCapacity.length}`)
+  
   // Validate dependency ordering in final schedule
+  let dependencyViolations = 0
+  let dependencyWarnings = 0
+  
   if (taskDependencies.size > 0) {
+    console.log('🔍 Validating dependency ordering in final schedule...')
+    
     for (const [taskIdx, depIdxs] of taskDependencies.entries()) {
       const task = tasks.find(t => t.idx === taskIdx)
       if (!task) continue
@@ -3405,6 +3592,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         // Check if dependency is scheduled on same or earlier day
         if (depPlacement.day_index > taskPlacement.day_index) {
           console.error(`❌ Post-scheduling validation failed: Task "${task.name}" (day ${taskPlacement.day_index}) depends on "${depTask.name}" (day ${depPlacement.day_index}) - dependency violation`)
+          dependencyViolations++
         } else if (depPlacement.day_index === taskPlacement.day_index) {
           // Check time ordering on same day
           const [taskHour, taskMin] = taskPlacement.start_time.split(':').map(Number)
@@ -3415,9 +3603,16 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
           
           if (taskStart < depEnd) {
             console.warn(`⚠️  Post-scheduling validation: Task "${task.name}" (${taskPlacement.start_time}) may overlap with dependency "${depTask.name}" (ends at ${Math.floor(depEnd / 60)}:${String(depEnd % 60).padStart(2, '0')}) on same day`)
+            dependencyWarnings++
           }
         }
       }
+    }
+    
+    if (dependencyViolations === 0 && dependencyWarnings === 0) {
+      console.log('✅ All dependencies satisfied: no violations or warnings')
+    } else {
+      console.log(`📊 Validation Results: ${dependencyViolations} violation(s), ${dependencyWarnings} warning(s)`)
     }
   } // closes: if (taskDependencies.size > 0)
 
