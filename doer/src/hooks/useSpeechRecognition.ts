@@ -34,6 +34,13 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
   })
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const callbacksRef = useRef({ onResult, onError })
+  const isListeningRef = useRef(false)
+  
+  // Keep callbacks ref updated without causing re-initialization
+  useEffect(() => {
+    callbacksRef.current = { onResult, onError }
+  }, [onResult, onError])
 
   // Check browser support and initialize
   useEffect(() => {
@@ -54,6 +61,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     recognition.lang = lang
 
     recognition.onstart = () => {
+      isListeningRef.current = true
       setState((prev) => ({
         ...prev,
         isListening: true,
@@ -81,8 +89,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
         transcript: fullTranscript.trim(),
       }))
 
-      if (finalTranscript && onResult) {
-        onResult(finalTranscript.trim())
+      if (finalTranscript && callbacksRef.current.onResult) {
+        callbacksRef.current.onResult(finalTranscript.trim())
       }
     }
 
@@ -104,6 +112,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
           break
         case 'aborted':
           // User stopped manually, not an error
+          isListeningRef.current = false
           setState((prev) => ({
             ...prev,
             isListening: false,
@@ -113,22 +122,31 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
           errorMessage = `Speech recognition error: ${event.error}`
       }
 
+      isListeningRef.current = false
       setState((prev) => ({
         ...prev,
         isListening: false,
         error: errorMessage,
       }))
 
-      if (onError) {
-        onError(errorMessage)
+      if (callbacksRef.current.onError) {
+        callbacksRef.current.onError(errorMessage)
       }
     }
 
     recognition.onend = () => {
-      setState((prev) => ({
-        ...prev,
-        isListening: false,
-      }))
+      isListeningRef.current = false
+      setState((prev) => {
+        // Only update if we were actually listening
+        // This prevents overriding manual stops
+        if (prev.isListening) {
+          return {
+            ...prev,
+            isListening: false,
+          }
+        }
+        return prev
+      })
     }
 
     recognitionRef.current = recognition
@@ -143,44 +161,90 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
         recognitionRef.current = null
       }
     }
-  }, [continuous, interimResults, lang, onResult, onError])
+  }, [continuous, interimResults, lang])
 
   const startListening = useCallback(() => {
-    if (!recognitionRef.current || state.isListening) return
+    if (!recognitionRef.current) return
+    
+    // Don't start if already listening (use ref for accurate state)
+    if (isListeningRef.current) return
 
     try {
       recognitionRef.current.start()
-    } catch (error) {
+    } catch (error: any) {
+      // Handle case where recognition is already started or in invalid state
+      if (error?.name === 'InvalidStateError' || error?.message?.includes('already started')) {
+        // Recognition might be starting/stopping, check after a brief delay
+        setTimeout(() => {
+          if (!isListeningRef.current) {
+            // Try once more after a short delay
+            try {
+              recognitionRef.current?.start()
+            } catch (e) {
+              // If still failing, report error
+              const errorMessage = 'Speech recognition is busy. Please try again in a moment.'
+              setState((prev) => ({
+                ...prev,
+                error: errorMessage,
+              }))
+              if (callbacksRef.current.onError) {
+                callbacksRef.current.onError(errorMessage)
+              }
+            }
+          }
+        }, 100)
+        return
+      }
+      
       const errorMessage = 'Failed to start speech recognition'
       setState((prev) => ({
         ...prev,
         error: errorMessage,
       }))
-      if (onError) {
-        onError(errorMessage)
+      if (callbacksRef.current.onError) {
+        callbacksRef.current.onError(errorMessage)
       }
     }
-  }, [state.isListening, onError])
+  }, [])
 
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current || !state.isListening) return
+    if (!recognitionRef.current) return
 
     try {
       recognitionRef.current.stop()
+      isListeningRef.current = false
+      setState((prev) => ({
+        ...prev,
+        isListening: false,
+      }))
     } catch (error) {
-      // Ignore errors when stopping
+      // Ignore errors when stopping, but still update state
+      isListeningRef.current = false
+      setState((prev) => ({
+        ...prev,
+        isListening: false,
+      }))
     }
-  }, [state.isListening])
+  }, [])
 
   const reset = useCallback(() => {
-    stopListening()
+    // Stop if currently listening
+    if (recognitionRef.current && isListeningRef.current) {
+      try {
+        recognitionRef.current.stop()
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    
+    isListeningRef.current = false
     setState((prev) => ({
       ...prev,
       isListening: false,
       transcript: '',
       error: null,
     }))
-  }, [stopListening])
+  }, [])
 
   return {
     ...state,
