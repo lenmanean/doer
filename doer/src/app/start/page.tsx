@@ -73,6 +73,17 @@ export default function StartPage() {
                 setWaitlistModalOpen(true)
               }}
             />
+            
+            {/* Homepage Link - Just below input field */}
+            <div className="mt-6 text-center">
+              <Link
+                href="/"
+                className="inline-flex items-center text-gray-400 hover:text-white transition-colors duration-200 text-sm sm:text-base"
+              >
+                Visit our homepage
+                <span className="ml-1">→</span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -85,19 +96,6 @@ export default function StartPage() {
           initialGoal={waitlistInitialGoal}
         />
       )}
-
-      {/* Homepage Link */}
-      <div className="mt-auto pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto text-center">
-          <Link
-            href="/"
-            className="inline-flex items-center text-gray-400 hover:text-white transition-colors duration-200 text-sm sm:text-base"
-          >
-            Visit our homepage
-            <span className="ml-1">→</span>
-          </Link>
-        </div>
-      </div>
     </div>
   )
 }
