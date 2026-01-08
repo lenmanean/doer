@@ -87,7 +87,7 @@ export function GoalInput({
         // Set transitioning state to trigger fade out
         setIsTransitioning(true)
         
-        // After fade out completes (1.5s), change to next suggestion and fade in
+        // After fade out completes (1s), change to next suggestion and fade in
         placeholderTimeoutRef.current = setTimeout(() => {
           setCurrentPlaceholderIndex((prevIndex) => {
             const nextIndex = (prevIndex + 1) % goalSuggestions.length
@@ -99,18 +99,18 @@ export function GoalInput({
               setIsTransitioning(false)
             })
           })
-        }, 1500) // Wait for fade out to complete (1.5s)
+        }, 1000) // Wait for fade out to complete (1s)
       }
 
-      // Initial delay before first cycle - show first suggestion for 2.5s
+      // Initial delay before first cycle - show first suggestion for 1.5s
       placeholderTimeoutRef.current = setTimeout(() => {
         cyclePlaceholder()
         
         // Then set up interval for subsequent cycles
         placeholderIntervalRef.current = setInterval(() => {
           cyclePlaceholder()
-        }, 4000) // Total cycle: 1.5s fade out + 0.1s transition + 1.5s fade in + 0.9s visible = 4s
-      }, 2500) // Initial display time before first transition
+        }, 2500) // Total cycle: 1s fade out + 0.1s transition + 1s fade in + 0.4s visible = 2.5s
+      }, 1500) // Initial display time before first transition
     }
 
     return () => {
@@ -380,7 +380,7 @@ export function GoalInput({
             <div className="absolute inset-0 pointer-events-none flex items-start px-6 py-6">
               <div className="relative w-full overflow-hidden" style={{ minHeight: '120px' }}>
                 <div
-                  className={`absolute inset-0 flex items-start text-xl text-[#d7d2cb]/40 transition-opacity duration-[1500ms] ease-in-out ${
+                  className={`absolute inset-0 flex items-start text-xl text-[#d7d2cb]/40 transition-opacity duration-[1000ms] ease-in-out ${
                     isTransitioning ? 'opacity-0' : 'opacity-100'
                   }`}
                   style={{
