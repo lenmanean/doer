@@ -94,9 +94,9 @@ export function WaitlistForm({
 
   // Update goal with real-time transcripts while listening
   useEffect(() => {
-    if (isListening && transcript) {
+    if (isListening) {
       const baseText = textBeforeListeningRef.current.trim()
-      const fullText = baseText ? `${baseText} ${transcript}` : transcript
+      const fullText = transcript ? (baseText ? `${baseText} ${transcript}` : transcript) : baseText
       setGoal(fullText)
       setError('')
       setUserHasChangedStep(true)

@@ -81,9 +81,9 @@ export default function ManualOnboardingPage() {
   }, [isTitleListening])
 
   useEffect(() => {
-    if (isTitleListening && titleTranscript) {
+    if (isTitleListening) {
       const baseText = titleTextBeforeListeningRef.current.trim()
-      const fullText = baseText ? `${baseText} ${titleTranscript}` : titleTranscript
+      const fullText = titleTranscript ? (baseText ? `${baseText} ${titleTranscript}` : titleTranscript) : baseText
       setGoalTitle(fullText)
     }
   }, [titleTranscript, isTitleListening])
@@ -136,9 +136,9 @@ export default function ManualOnboardingPage() {
   }, [isDescriptionListening])
 
   useEffect(() => {
-    if (isDescriptionListening && descriptionTranscript) {
+    if (isDescriptionListening) {
       const baseText = descriptionTextBeforeListeningRef.current.trim()
-      const fullText = baseText ? `${baseText} ${descriptionTranscript}` : descriptionTranscript
+      const fullText = descriptionTranscript ? (baseText ? `${baseText} ${descriptionTranscript}` : descriptionTranscript) : baseText
       setGoalDescription(fullText)
     }
   }, [descriptionTranscript, isDescriptionListening])

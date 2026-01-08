@@ -466,9 +466,9 @@ export function CreateTaskModal({
 
   // Update AI description with real-time transcripts while listening
   useEffect(() => {
-    if (isAIListening && aiTranscript) {
+    if (isAIListening) {
       const baseText = aiTextBeforeListeningRef.current.trim()
-      const fullText = baseText ? `${baseText} ${aiTranscript}` : aiTranscript
+      const fullText = aiTranscript ? (baseText ? `${baseText} ${aiTranscript}` : aiTranscript) : baseText
       setAiDescription(fullText)
     }
   }, [aiTranscript, isAIListening])
@@ -564,9 +564,9 @@ export function CreateTaskModal({
 
   // Update field with real-time transcripts while listening
   useEffect(() => {
-    if (isFieldListening && fieldTranscript && activeVoiceField) {
+    if (isFieldListening && activeVoiceField) {
       const baseText = fieldTextBeforeListeningRef.current.trim()
-      const fullText = baseText ? `${baseText} ${fieldTranscript}` : fieldTranscript
+      const fullText = fieldTranscript ? (baseText ? `${baseText} ${fieldTranscript}` : fieldTranscript) : baseText
 
       if (activeVoiceField.mode === 'manual') {
         setManualTasks((prevTasks) =>
