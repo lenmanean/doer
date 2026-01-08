@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { GoalInput } from '@/components/ui/GoalInput'
@@ -73,14 +72,6 @@ export default function StartPage() {
                 setWaitlistModalOpen(true)
               }}
             />
-            {!isAuthenticated && (
-              <p className="mt-4 text-center text-gray-400">
-                Already have an account?{' '}
-                <Link href="/login" className="text-orange-400 hover:text-orange-300">
-                  Log in
-                </Link>
-              </p>
-            )}
           </div>
         </div>
       </section>
