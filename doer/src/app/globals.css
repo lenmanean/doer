@@ -99,6 +99,26 @@ html:not(.light) [class*="border-white"]:not([class*="border-white/"]) {
   overflow-wrap: anywhere;
 }
 
+/* Mobile-safe success/info banners - always use dark styling on public pages */
+/* Target any green-50 backgrounds that should be dark */
+html:not(.light) .bg-green-50 {
+  background-color: rgba(20, 83, 45, 0.2) !important; /* green-900/20 */
+}
+
+html:not(.light) .text-green-800 {
+  color: rgb(187, 247, 208) !important; /* green-200 */
+}
+
+/* Ensure border colors match */
+html:not(.light) .border-green-200 {
+  border-color: rgb(22, 101, 52) !important; /* green-800 */
+}
+
+/* Ensure icon colors are correct */
+html:not(.light) .text-green-500 {
+  color: rgb(74, 222, 128) !important; /* green-400 */
+}
+
 
 :root {
   /* DOER.AI Dark Theme Colors (Default) */

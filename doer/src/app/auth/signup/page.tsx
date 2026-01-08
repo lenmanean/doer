@@ -501,11 +501,11 @@ function CustomSignupForm() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4"
+            className="rounded-xl bg-green-900/20 border border-green-800 p-4"
           >
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-500 dark:text-green-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-green-800 dark:text-green-200">
+              <CheckCircle2 className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-green-200">
                 Your goal has been saved. Sign up to continue.
               </p>
             </div>
