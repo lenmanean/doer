@@ -64,6 +64,28 @@ function OnboardingContent() {
     interimResults: true, // Show real-time transcription
   })
 
+  // Track text before starting voice input
+  const textBeforeListeningRef = useRef<string>('')
+
+  // Save current goal when starting to listen
+  useEffect(() => {
+    if (isListening && !textBeforeListeningRef.current) {
+      textBeforeListeningRef.current = goal
+    } else if (!isListening && textBeforeListeningRef.current) {
+      textBeforeListeningRef.current = ''
+    }
+  }, [isListening])
+
+  // Update goal with real-time transcripts while listening
+  useEffect(() => {
+    if (isListening && transcript) {
+      const baseText = textBeforeListeningRef.current.trim()
+      const fullText = baseText ? `${baseText} ${transcript}` : transcript
+      setGoal(fullText)
+      setErrorMessage(null)
+    }
+  }, [transcript, isListening])
+
   // Handle microphone button click
   const handleMicClick = () => {
     if (isListening) {

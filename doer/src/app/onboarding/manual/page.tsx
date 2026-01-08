@@ -44,6 +44,7 @@ export default function ManualOnboardingPage() {
   // Voice input for goal title
   const {
     isListening: isTitleListening,
+    transcript: titleTranscript,
     error: titleSpeechError,
     isSupported: isSpeechSupported,
     startListening: startTitleListening,
@@ -68,6 +69,25 @@ export default function ManualOnboardingPage() {
     interimResults: true,
   })
 
+  // Track text before starting title voice input
+  const titleTextBeforeListeningRef = useRef<string>('')
+
+  useEffect(() => {
+    if (isTitleListening && !titleTextBeforeListeningRef.current) {
+      titleTextBeforeListeningRef.current = goalTitle
+    } else if (!isTitleListening && titleTextBeforeListeningRef.current) {
+      titleTextBeforeListeningRef.current = ''
+    }
+  }, [isTitleListening])
+
+  useEffect(() => {
+    if (isTitleListening && titleTranscript) {
+      const baseText = titleTextBeforeListeningRef.current.trim()
+      const fullText = baseText ? `${baseText} ${titleTranscript}` : titleTranscript
+      setGoalTitle(fullText)
+    }
+  }, [titleTranscript, isTitleListening])
+
   const handleTitleMicClick = () => {
     if (isTitleListening) {
       stopTitleListening()
@@ -80,6 +100,7 @@ export default function ManualOnboardingPage() {
   // Voice input for plan summary
   const {
     isListening: isDescriptionListening,
+    transcript: descriptionTranscript,
     error: descriptionSpeechError,
     startListening: startDescriptionListening,
     stopListening: stopDescriptionListening,
@@ -102,6 +123,25 @@ export default function ManualOnboardingPage() {
     continuous: false,
     interimResults: true,
   })
+
+  // Track text before starting description voice input
+  const descriptionTextBeforeListeningRef = useRef<string>('')
+
+  useEffect(() => {
+    if (isDescriptionListening && !descriptionTextBeforeListeningRef.current) {
+      descriptionTextBeforeListeningRef.current = goalDescription
+    } else if (!isDescriptionListening && descriptionTextBeforeListeningRef.current) {
+      descriptionTextBeforeListeningRef.current = ''
+    }
+  }, [isDescriptionListening])
+
+  useEffect(() => {
+    if (isDescriptionListening && descriptionTranscript) {
+      const baseText = descriptionTextBeforeListeningRef.current.trim()
+      const fullText = baseText ? `${baseText} ${descriptionTranscript}` : descriptionTranscript
+      setGoalDescription(fullText)
+    }
+  }, [descriptionTranscript, isDescriptionListening])
 
   const handleDescriptionMicClick = () => {
     if (isDescriptionListening) {

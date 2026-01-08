@@ -87,6 +87,28 @@ export function GoalInput({
     }
   }
 
+  // Track text before starting voice input to preserve existing content
+  const textBeforeListeningRef = useRef<string>('')
+
+  // Save current goal when starting to listen
+  useEffect(() => {
+    if (isListening && !textBeforeListeningRef.current) {
+      textBeforeListeningRef.current = goal
+    } else if (!isListening && textBeforeListeningRef.current) {
+      // Reset when listening stops
+      textBeforeListeningRef.current = ''
+    }
+  }, [isListening]) // Only depend on isListening
+
+  // Update goal with real-time transcripts while listening
+  useEffect(() => {
+    if (isListening && transcript) {
+      const baseText = textBeforeListeningRef.current.trim()
+      const fullText = baseText ? `${baseText} ${transcript}` : transcript
+      setGoal(fullText)
+    }
+  }, [transcript, isListening]) // Don't include goal to avoid loops
+
   // Goal suggestions for animated placeholder (expanded list)
   const goalSuggestions = [
     'Learn to play guitar',

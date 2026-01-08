@@ -427,6 +427,7 @@ export function CreateTaskModal({
   // Voice input for AI mode
   const {
     isListening: isAIListening,
+    transcript: aiTranscript,
     error: aiSpeechError,
     isSupported: isSpeechSupported,
     startListening: startAIListening,
@@ -451,6 +452,27 @@ export function CreateTaskModal({
     interimResults: true,
   })
 
+  // Track text before starting AI voice input
+  const aiTextBeforeListeningRef = useRef<string>('')
+
+  // Save current AI description when starting to listen
+  useEffect(() => {
+    if (isAIListening && !aiTextBeforeListeningRef.current) {
+      aiTextBeforeListeningRef.current = aiDescription
+    } else if (!isAIListening && aiTextBeforeListeningRef.current) {
+      aiTextBeforeListeningRef.current = ''
+    }
+  }, [isAIListening])
+
+  // Update AI description with real-time transcripts while listening
+  useEffect(() => {
+    if (isAIListening && aiTranscript) {
+      const baseText = aiTextBeforeListeningRef.current.trim()
+      const fullText = baseText ? `${baseText} ${aiTranscript}` : aiTranscript
+      setAiDescription(fullText)
+    }
+  }, [aiTranscript, isAIListening])
+
   const handleAIMicClick = () => {
     if (isAIListening) {
       stopAIListening()
@@ -469,6 +491,7 @@ export function CreateTaskModal({
 
   const {
     isListening: isFieldListening,
+    transcript: fieldTranscript,
     error: fieldSpeechError,
     startListening: startFieldListening,
     stopListening: stopFieldListening,
@@ -520,6 +543,58 @@ export function CreateTaskModal({
     continuous: false,
     interimResults: true,
   })
+
+  // Track text before starting field voice input
+  const fieldTextBeforeListeningRef = useRef<string>('')
+
+  // Save current field value when starting to listen
+  useEffect(() => {
+    if (isFieldListening && activeVoiceField && !fieldTextBeforeListeningRef.current) {
+      if (activeVoiceField.mode === 'manual') {
+        const task = manualTasks.find(t => t.id === activeVoiceField.taskId)
+        fieldTextBeforeListeningRef.current = task?.[activeVoiceField.field] || ''
+      } else if (activeVoiceField.mode === 'todo-list') {
+        const task = todoListTasks.find(t => t.id === activeVoiceField.taskId)
+        fieldTextBeforeListeningRef.current = task?.name || ''
+      }
+    } else if (!isFieldListening && fieldTextBeforeListeningRef.current) {
+      fieldTextBeforeListeningRef.current = ''
+    }
+  }, [isFieldListening, activeVoiceField, manualTasks, todoListTasks])
+
+  // Update field with real-time transcripts while listening
+  useEffect(() => {
+    if (isFieldListening && fieldTranscript && activeVoiceField) {
+      const baseText = fieldTextBeforeListeningRef.current.trim()
+      const fullText = baseText ? `${baseText} ${fieldTranscript}` : fieldTranscript
+
+      if (activeVoiceField.mode === 'manual') {
+        setManualTasks((prevTasks) =>
+          prevTasks.map((task) => {
+            if (task.id === activeVoiceField.taskId) {
+              return {
+                ...task,
+                [activeVoiceField.field]: fullText,
+              }
+            }
+            return task
+          })
+        )
+      } else if (activeVoiceField.mode === 'todo-list') {
+        setTodoListTasks((prevTasks) =>
+          prevTasks.map((task) => {
+            if (task.id === activeVoiceField.taskId) {
+              return {
+                ...task,
+                name: fullText,
+              }
+            }
+            return task
+          })
+        )
+      }
+    }
+  }, [fieldTranscript, isFieldListening, activeVoiceField])
 
   const handleFieldMicClick = (
     mode: 'manual' | 'todo-list',

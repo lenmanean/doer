@@ -13,6 +13,8 @@ interface UseSpeechRecognitionOptions {
 interface SpeechRecognitionState {
   isListening: boolean
   transcript: string
+  finalTranscript: string // Accumulated final transcripts
+  interimTranscript: string // Current interim transcript
   error: string | null
   isSupported: boolean
 }
@@ -29,6 +31,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
   const [state, setState] = useState<SpeechRecognitionState>({
     isListening: false,
     transcript: '',
+    finalTranscript: '',
+    interimTranscript: '',
     error: null,
     isSupported: false,
   })
@@ -66,31 +70,51 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
         ...prev,
         isListening: true,
         error: null,
-        transcript: '',
+        interimTranscript: '', // Clear interim on new session
+        // Keep finalTranscript to accumulate across phrases if continuous
       }))
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interimTranscript = ''
-      let finalTranscript = ''
+      let newInterimTranscript = ''
+      let newFinalTranscript = ''
+      let hasFinal = false
 
+      // Process all results from the event
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript
         if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' '
+          newFinalTranscript += transcript + ' '
+          hasFinal = true
         } else {
-          interimTranscript += transcript
+          newInterimTranscript += transcript
         }
       }
 
-      const fullTranscript = finalTranscript || interimTranscript
-      setState((prev) => ({
-        ...prev,
-        transcript: fullTranscript.trim(),
-      }))
+      setState((prev) => {
+        let updatedFinal = prev.finalTranscript
+        let updatedInterim = newInterimTranscript
 
-      if (finalTranscript && callbacksRef.current.onResult) {
-        callbacksRef.current.onResult(finalTranscript.trim())
+        // If we have final results, add them to accumulated final transcript
+        if (hasFinal && newFinalTranscript) {
+          updatedFinal = (updatedFinal + ' ' + newFinalTranscript).trim()
+          updatedInterim = '' // Clear interim when we get final
+        }
+
+        // Combine final and interim for display
+        const displayTranscript = (updatedFinal + ' ' + updatedInterim).trim()
+
+        return {
+          ...prev,
+          finalTranscript: updatedFinal,
+          interimTranscript: updatedInterim,
+          transcript: displayTranscript,
+        }
+      })
+
+      // Call onResult callback only when we have final transcript
+      if (hasFinal && newFinalTranscript && callbacksRef.current.onResult) {
+        callbacksRef.current.onResult(newFinalTranscript.trim())
       }
     }
 
@@ -241,7 +265,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     setState((prev) => ({
       ...prev,
       isListening: false,
-      transcript: '',
+      transcript: prev.finalTranscript, // Keep final transcript, clear interim
+      interimTranscript: '',
       error: null,
     }))
   }, [])
@@ -253,4 +278,5 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     reset,
   }
 }
+
 
