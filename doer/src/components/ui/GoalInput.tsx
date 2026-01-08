@@ -14,6 +14,7 @@ interface GoalInputProps {
   buttonText?: string
   source?: string
   onGoalSubmit?: (goal: string) => void // Callback when goal is submitted (pre-launch mode)
+  showSuggestions?: boolean // Whether to show suggestion chips (default: true)
 }
 
 /**
@@ -27,6 +28,7 @@ export function GoalInput({
   buttonText = "Get Started",
   source = "landing_page_hero",
   onGoalSubmit,
+  showSuggestions = true, // Default to showing suggestions for backward compatibility
 }: GoalInputProps) {
   const [goal, setGoal] = useState('')
   const [email, setEmail] = useState('')
@@ -286,19 +288,21 @@ export function GoalInput({
           <p className="text-sm text-red-400">{error}</p>
         )}
 
-        {/* Clickable Suggestion Chips - Below input */}
-        <div className="flex flex-wrap gap-3 justify-center mt-4">
-          {goalSuggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => handleSuggestionClick(suggestion)}
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#ff7f00]/50 rounded-lg text-base font-medium text-[#d7d2cb] hover:text-white transition-all duration-200"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
+        {/* Clickable Suggestion Chips - Below input (only if showSuggestions is true) */}
+        {showSuggestions && (
+          <div className="flex flex-wrap gap-3 justify-center mt-4">
+            {goalSuggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#ff7f00]/50 rounded-lg text-base font-medium text-[#d7d2cb] hover:text-white transition-all duration-200"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </form>
   )

@@ -67,6 +67,7 @@ export default function StartPage() {
               placeholder="e.g., Learn to play guitar, Start a blog, Get in shape..."
               buttonText="Get Started"
               source="landing_page_hero"
+              showSuggestions={false}
               onGoalSubmit={(goal) => {
                 setWaitlistInitialGoal(goal)
                 setWaitlistModalOpen(true)
