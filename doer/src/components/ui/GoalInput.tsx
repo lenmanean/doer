@@ -461,7 +461,7 @@ export function GoalInput({
             placeholder="" // Empty placeholder - we'll use animated overlay instead
             disabled={isLoading}
             rows={1}
-            className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-28' : 'pr-16'} text-xl bg-white/5 border ${
+            className={`w-full px-6 py-6 ${isSpeechSupported ? 'pr-[123px]' : 'pr-16'} text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
             } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 disabled:opacity-50 disabled:cursor-not-allowed resize-none min-h-[4.5rem] leading-relaxed`}
             style={{ overflow: 'hidden' }}
