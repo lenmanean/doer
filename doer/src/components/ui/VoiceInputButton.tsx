@@ -1,6 +1,6 @@
 'use client'
 
-import { Mic, MicOff, Loader2 } from 'lucide-react'
+import { Mic, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface VoiceInputButtonProps {
@@ -59,7 +59,7 @@ export function VoiceInputButton({
         'focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:ring-offset-2 focus:ring-offset-transparent',
         sizeClasses[size],
         isListening
-          ? 'bg-red-500 hover:bg-red-600 animate-pulse text-white'
+          ? 'bg-red-500 hover:bg-red-600 text-white'
           : error
           ? 'bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 text-yellow-400'
           : 'bg-white/10 hover:bg-white/20 text-white',
@@ -68,7 +68,7 @@ export function VoiceInputButton({
       title={isListening ? 'Stop recording' : 'Start voice input'}
     >
       {isListening ? (
-        <MicOff className={iconSizes[size]} aria-hidden="true" />
+        <Square className={iconSizes[size]} fill="currentColor" aria-hidden="true" />
       ) : (
         <Mic className={iconSizes[size]} aria-hidden="true" />
       )}

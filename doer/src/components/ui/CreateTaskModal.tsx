@@ -2746,13 +2746,6 @@ export function CreateTaskModal({
                       </div>
                     )}
 
-                    {/* Listening indicator for AI mode */}
-                    {isAIListening && (
-                      <div className="absolute top-0 left-0 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>Listening...</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Show speech errors for AI mode */}

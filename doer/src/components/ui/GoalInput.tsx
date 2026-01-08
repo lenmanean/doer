@@ -102,9 +102,10 @@ export function GoalInput({
 
   // Update goal with real-time transcripts while listening
   useEffect(() => {
-    if (isListening && transcript) {
+    if (isListening) {
+      // Always update when listening, even if transcript is empty (to clear previous)
       const baseText = textBeforeListeningRef.current.trim()
-      const fullText = baseText ? `${baseText} ${transcript}` : transcript
+      const fullText = transcript ? (baseText ? `${baseText} ${transcript}` : transcript) : baseText
       setGoal(fullText)
     }
   }, [transcript, isListening]) // Don't include goal to avoid loops
@@ -468,13 +469,6 @@ export function GoalInput({
             </div>
           )}
 
-          {/* Real-time listening indicator */}
-          {isListening && (
-            <div className="absolute top-2 left-2 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-30">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Listening...</span>
-            </div>
-          )}
 
           {/* Arrow button at right-center */}
           <button

@@ -70,8 +70,9 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
         ...prev,
         isListening: true,
         error: null,
+        transcript: '', // Reset transcript for new session
+        finalTranscript: '', // Reset final for new session
         interimTranscript: '', // Clear interim on new session
-        // Keep finalTranscript to accumulate across phrases if continuous
       }))
     }
 
@@ -101,8 +102,10 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
           updatedInterim = '' // Clear interim when we get final
         }
 
-        // Combine final and interim for display
-        const displayTranscript = (updatedFinal + ' ' + updatedInterim).trim()
+        // Combine final and interim for display - show interim even if no final yet
+        const displayTranscript = updatedFinal
+          ? (updatedFinal + ' ' + updatedInterim).trim()
+          : updatedInterim.trim()
 
         return {
           ...prev,
@@ -265,7 +268,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     setState((prev) => ({
       ...prev,
       isListening: false,
-      transcript: prev.finalTranscript, // Keep final transcript, clear interim
+      transcript: '', // Clear transcript on reset
+      finalTranscript: '',
       interimTranscript: '',
       error: null,
     }))
