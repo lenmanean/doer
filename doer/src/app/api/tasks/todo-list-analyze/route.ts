@@ -49,25 +49,22 @@ export async function POST(req: NextRequest) {
       reserved = true
     }
 
-    const supabase = await createClient()
-
-    // Authenticate user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      if (reserved && authContext) {
-        await authContext.creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
+    // SECURITY FIX: Use authContext.userId directly - no redundant getUser() call
+    // authContext is already authenticated via authenticateApiRequest() or session fallback
+    if (!authContext) {
+      if (reserved) {
+        // Credit service should be in authContext, but check if it exists
+        const { CreditService } = await import('@/lib/usage/credit-service')
+        const creditService = new CreditService('', undefined)
+        await creditService.release('api_credits', TODO_LIST_ANALYZE_CREDIT_COST, {
           route: 'tasks.todo-list-analyze',
-          reason: 'user_not_authenticated',
-        })
-        reserved = false
+          reason: 'auth_context_missing',
+        }).catch(() => {})
       }
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
     }
 
+    const supabase = await createClient()
     const body = await req.json()
     const { tasks } = body
 

@@ -423,20 +423,23 @@ export async function POST(request: NextRequest) {
       reserved = true
     }
 
-    const supabase = await createClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      if (reserved && authContext) {
-        await authContext.creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
+    // SECURITY FIX: Use authContext.userId directly - no redundant getUser() call
+    // authContext is already authenticated via authenticateApiRequest() or session fallback
+    if (!authContext) {
+      if (reserved) {
+        // Credit service should be in authContext, but check if it exists
+        const { CreditService } = await import('@/lib/usage/credit-service')
+        const creditService = new CreditService('', undefined)
+        await creditService.release('api_credits', TASK_GENERATION_CREDIT_COST, {
           route: 'tasks.ai-generate',
-          reason: 'user_not_authenticated',
-        })
-        reserved = false
+          reason: 'auth_context_missing',
+        }).catch(() => {})
       }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const userId = authContext.userId
+    const supabase = await createClient()
 
     // Parse request body
     const body = await request.json()
@@ -467,7 +470,7 @@ export async function POST(request: NextRequest) {
         end_time,
         tasks!inner(name, priority)
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('date', formatDateForDB(today))
       .lte('date', formatDateForDB(twoWeeksFromNow))
       .order('date', { ascending: true })
@@ -497,7 +500,7 @@ export async function POST(request: NextRequest) {
     const { data: allTasks, error: allTasksError } = await supabase
       .from('tasks')
       .select('priority, estimated_duration_minutes')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .not('priority', 'is', null)
 
     if (allTasksError) {
@@ -530,7 +533,7 @@ export async function POST(request: NextRequest) {
     const { data: settings } = await supabase
       .from('user_settings')
       .select('preferences')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     const preferences = settings?.preferences || {}

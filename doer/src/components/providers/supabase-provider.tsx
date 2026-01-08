@@ -127,7 +127,7 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
   const [loading, setLoading] = useState(initialUser === undefined || initialUser === null)
   const [sessionReady, setSessionReady] = useState(initialUser ? true : false)
   const isMountedRef = useRef(true)
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // loadingTimeoutRef removed - no longer using timeout bypass for security
   const sessionValidationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -154,17 +154,9 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     }
 
     const resolveUser = async () => {
-      // Add timeout protection - loading should never exceed 10 seconds
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current)
-      }
-      loadingTimeoutRef.current = setTimeout(() => {
-        if (isMountedRef.current && loading) {
-          console.error('[SupabaseProvider] Loading timeout - forcing loading to false')
-          setLoading(false)
-        }
-      }, 10000)
-
+      // SECURITY FIX: Removed timeout bypass that forced loading=false after 10s
+      // Authentication must resolve naturally to prevent pages rendering without auth
+      
       try {
         const { data, error } = await supabase.auth.getUser()
         
@@ -193,11 +185,8 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
           setUser(null)
         }
       } finally {
+        // Only set loading=false when auth actually resolves
         if (isMountedRef.current) {
-          if (loadingTimeoutRef.current) {
-            clearTimeout(loadingTimeoutRef.current)
-            loadingTimeoutRef.current = null
-          }
           setLoading(false)
         }
       }
@@ -237,6 +226,21 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     }
 
     init()
+
+    // Extended timeout for error page redirect (not a bypass - redirects if auth takes too long)
+    // This prevents infinite loading but doesn't bypass authentication
+    useEffect(() => {
+      if (loading && !user) {
+        const extendedTimeout = setTimeout(() => {
+          if (isMountedRef.current && loading && !user) {
+            console.error('[SupabaseProvider] Auth timeout after 30s - redirecting to error page')
+            window.location.href = '/auth/timeout-error'
+          }
+        }, 30000) // 30 seconds
+        
+        return () => clearTimeout(extendedTimeout)
+      }
+    }, [loading, user])
 
     // Set up auth state change listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -337,9 +341,7 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
       if (typeof window !== 'undefined') {
         window.removeEventListener(SIGN_OUT_EVENT, handleImmediateSignOut)
       }
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current)
-      }
+      // loadingTimeoutRef removed - no longer using timeout bypass
       if (sessionValidationIntervalRef.current) {
         clearInterval(sessionValidationIntervalRef.current)
       }

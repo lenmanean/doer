@@ -1842,53 +1842,15 @@ export default function SettingsPage() {
     { id: 'preferences', label: 'Preferences', icon: Palette },
   ]
 
-  // Show loading state with timeout protection
-  // If loading takes more than 10 seconds, show page anyway (safety timeout in hook will handle it)
-  const [showLoadingFallback, setShowLoadingFallback] = useState(false)
+  // SECURITY FIX: Removed timeout fallback mechanism that allowed partial page render
+  // Simply wait for authentication to resolve - no timeout bypass
+  // If user is null after loading completes, useOnboardingProtection will redirect
   
-  // Handle loading timeout - must be before any conditional returns
-  useEffect(() => {
-    if (loading) {
-      const timeout = setTimeout(() => {
-        setShowLoadingFallback(true)
-      }, 10000)
-      return () => clearTimeout(timeout)
-    } else {
-      setShowLoadingFallback(false)
-    }
-  }, [loading])
-
-  // Handle redirect if no user after timeout - must be before any conditional returns
-  useEffect(() => {
-    if (!user && showLoadingFallback) {
-      const checkUser = async () => {
-        try {
-          const { data: { user: verifiedUser } } = await supabase.auth.getUser()
-          if (!verifiedUser) {
-            window.location.href = '/login'
-          }
-        } catch (error) {
-          console.error('Error verifying user:', error)
-          window.location.href = '/login'
-        }
-      }
-      checkUser()
-    }
-  }, [user, showLoadingFallback])
-
   // All hooks must be called before any conditional returns
-  if ((loading && !showLoadingFallback) || (!user && !showLoadingFallback)) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <div className="text-[var(--foreground)]">Loading...</div>
-      </div>
-    )
-  }
-  
-  if (!user && showLoadingFallback) {
-    return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="text-[var(--foreground)]">Redirecting...</div>
       </div>
     )
   }

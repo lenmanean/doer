@@ -100,10 +100,10 @@ function CustomLoginForm() {
         return
       }
 
-      // Sync session to server cookies before redirecting
+      // SECURITY FIX: Sync session to server cookies and verify before redirecting
       // This ensures middleware can authenticate the user on the next page load
       try {
-        await fetch('/api/auth/session', {
+        const syncResponse = await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -116,66 +116,95 @@ function CustomLoginForm() {
           }),
           credentials: 'same-origin',
         })
-      } catch (syncError) {
-        // Log error but continue - the SupabaseProvider's onAuthStateChange will also try to sync
-        console.error('[Login] Failed to sync session to server:', syncError)
-        // Continue anyway - session is set in client storage and provider will retry
-      }
 
-      addToast({
-        type: 'success',
-        title: 'Welcome Back!',
-        description: 'Successfully signed in to your account.',
-        duration: 3000
-      })
-      
-      // Check if account is scheduled for deletion (with timeout protection)
-      try {
-        const deletionCheckPromise = supabase
-          .from('user_settings')
-          .select('scheduled_deletion_at')
-          .eq('user_id', user.id)
-          .maybeSingle()
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Deletion check timeout')), 3000)
-        )
-
-        const userSettings = await Promise.race([deletionCheckPromise, timeoutPromise]) as any
-
-        if (userSettings?.data?.scheduled_deletion_at) {
-          const deletionDate = new Date(userSettings.data.scheduled_deletion_at)
-          const now = new Date()
-          
-          // If deletion date is in the future, redirect to restore page
-          if (deletionDate > now) {
-            setIsLoading(false)
-            // Use window.location for hard redirect after session sync
-            window.location.href = '/account/restore'
-            return
-          }
-          // If deletion date has passed, allow normal flow (cron should have deleted)
+        if (!syncResponse.ok) {
+          throw new Error(`Session sync failed: ${syncResponse.status}`)
         }
-      } catch (checkError) {
-        // If error checking scheduled deletion (including timeout), continue with normal flow
-        // The middleware will also check this, so it's safe to continue
-        console.error('Error checking scheduled deletion:', checkError)
+
+        // Wait for sync to propagate (give cookies time to be set)
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Verify middleware can authenticate (check /api/health with credentials)
+        const healthCheck = await fetch('/api/health', {
+          method: 'GET',
+          credentials: 'same-origin',
+        })
+        
+        if (!healthCheck.ok) {
+          throw new Error('Session verification failed - middleware cannot authenticate')
+        }
+
+        const healthData = await healthCheck.json()
+        if (!healthData.authenticated || healthData.userId !== user.id) {
+          throw new Error('Session verification failed - user mismatch')
+        }
+
+        // Session sync confirmed - now safe to continue with redirect logic
+        addToast({
+          type: 'success',
+          title: 'Welcome Back!',
+          description: 'Successfully signed in to your account.',
+          duration: 3000
+        })
+        
+        // Check if account is scheduled for deletion (with timeout protection)
+        try {
+          const deletionCheckPromise = supabase
+            .from('user_settings')
+            .select('scheduled_deletion_at')
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Deletion check timeout')), 3000)
+          )
+
+          const userSettings = await Promise.race([deletionCheckPromise, timeoutPromise]) as any
+
+          if (userSettings?.data?.scheduled_deletion_at) {
+            const deletionDate = new Date(userSettings.data.scheduled_deletion_at)
+            const now = new Date()
+            
+            // If deletion date is in the future, redirect to restore page
+            if (deletionDate > now) {
+              setIsLoading(false)
+              window.location.href = '/account/restore'
+              return
+            }
+            // If deletion date has passed, allow normal flow (cron should have deleted)
+          }
+        } catch (checkError) {
+          // If error checking scheduled deletion (including timeout), continue with normal flow
+          // The middleware will also check this, so it's safe to continue
+          console.error('Error checking scheduled deletion:', checkError)
+        }
+        
+        // Check if there's a pending goal from homepage
+        const pendingGoal = localStorage.getItem('pendingGoal')
+        let redirectPath = '/dashboard'
+        
+        if (pendingGoal) {
+          localStorage.removeItem('pendingGoal')
+          redirectPath = `/onboarding?goal=${encodeURIComponent(pendingGoal)}`
+        }
+        
+        setIsLoading(false)
+        
+        // NOW it's safe to redirect - session is synced and verified
+        window.location.href = redirectPath
+        
+      } catch (syncError) {
+        console.error('[Login] Session sync failed:', syncError)
+        setIsLoading(false)
+        addToast({
+          type: 'error',
+          title: 'Sign-in Error',
+          description: 'Failed to establish secure session. Please try again.',
+          duration: 5000
+        })
+        // DON'T redirect on error - let user try again
+        return
       }
-      
-      // Check if there's a pending goal from homepage
-      const pendingGoal = localStorage.getItem('pendingGoal')
-      let redirectPath = '/dashboard'
-      
-      if (pendingGoal) {
-        localStorage.removeItem('pendingGoal')
-        redirectPath = `/onboarding?goal=${encodeURIComponent(pendingGoal)}`
-      }
-      
-      setIsLoading(false)
-      
-      // Use window.location.href for hard redirect after session sync
-      // This ensures a fresh page load and the middleware can authenticate the user
-      window.location.href = redirectPath
     } catch (err) {
       addToast({
         type: 'error',
