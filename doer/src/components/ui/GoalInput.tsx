@@ -149,7 +149,7 @@ export function GoalInput({
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setGoal(e.target.value)
     setError('')
     // Stop animation when user starts typing
@@ -361,26 +361,25 @@ export function GoalInput({
       <div className="space-y-4">
         {/* Input field with arrow button */}
         <div className="relative">
-          <textarea
+          <input
             id="goal-input"
+            type="text"
             value={goal}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             placeholder="" // Empty placeholder - we'll use animated overlay instead
             disabled={isLoading}
-            rows={4}
             className={`w-full px-6 py-6 pr-16 text-xl bg-white/5 border ${
               error ? 'border-red-500/50' : 'border-white/10'
-            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed resize-none`}
-            style={{ minHeight: '120px' }}
+            } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
           />
           {/* Animated placeholder overlay */}
           {goal === '' && !isInputFocused && (
-            <div className="absolute inset-0 pointer-events-none flex items-start px-6 py-6">
-              <div className="relative w-full overflow-hidden" style={{ minHeight: '120px' }}>
+            <div className="absolute inset-0 pointer-events-none flex items-center px-6">
+              <div className="relative w-full overflow-hidden">
                 <div
-                  className={`absolute inset-0 flex items-start text-xl text-[#d7d2cb]/40 transition-opacity duration-[1000ms] ease-in-out ${
+                  className={`absolute inset-0 flex items-center text-xl text-[#d7d2cb]/40 transition-opacity duration-[1000ms] ease-in-out ${
                     isTransitioning ? 'opacity-0' : 'opacity-100'
                   }`}
                   style={{
