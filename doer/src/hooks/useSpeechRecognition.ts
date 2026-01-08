@@ -178,6 +178,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
 
     recognitionRef.current = recognition
 
+    // Cleanup function for component unmount
     return () => {
       if (recognitionRef.current) {
         try {
@@ -189,6 +190,52 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
       }
     }
   }, [continuous, interimResults, lang])
+
+  // Stop recording when browser/tab is closed or goes to background
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (recognitionRef.current && isListeningRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && recognitionRef.current && isListeningRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+    }
+
+    const handlePageHide = () => {
+      if (recognitionRef.current && isListeningRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+    }
+
+    // Listen for browser/tab close
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    // Listen for tab visibility changes (background/foreground)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    // Listen for page hide (mobile browsers, back/forward cache)
+    window.addEventListener('pagehide', handlePageHide)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', handlePageHide)
+    }
+  }, [])
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return
