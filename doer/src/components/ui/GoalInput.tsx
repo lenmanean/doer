@@ -246,7 +246,7 @@ export function GoalInput({
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setGoal(e.target.value)
     setError('')
     // Stop animation when user starts typing
