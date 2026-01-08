@@ -3569,7 +3569,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
   console.log(`  💾 Tasks failed due to capacity: ${tasksFailedDueToCapacity.length}`)
   
   // Validate dependency ordering in final schedule
-  let dependencyViolations = 0
+  let dependencyViolationCount = 0
   let dependencyWarnings = 0
   
   if (taskDependencies.size > 0) {
@@ -3592,7 +3592,7 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
         // Check if dependency is scheduled on same or earlier day
         if (depPlacement.day_index > taskPlacement.day_index) {
           console.error(`❌ Post-scheduling validation failed: Task "${task.name}" (day ${taskPlacement.day_index}) depends on "${depTask.name}" (day ${depPlacement.day_index}) - dependency violation`)
-          dependencyViolations++
+          dependencyViolationCount++
         } else if (depPlacement.day_index === taskPlacement.day_index) {
           // Check time ordering on same day
           const [taskHour, taskMin] = taskPlacement.start_time.split(':').map(Number)
@@ -3609,10 +3609,10 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
       }
     }
     
-    if (dependencyViolations === 0 && dependencyWarnings === 0) {
+    if (dependencyViolationCount === 0 && dependencyWarnings === 0) {
       console.log('✅ All dependencies satisfied: no violations or warnings')
     } else {
-      console.log(`📊 Validation Results: ${dependencyViolations} violation(s), ${dependencyWarnings} warning(s)`)
+      console.log(`📊 Validation Results: ${dependencyViolationCount} violation(s), ${dependencyWarnings} warning(s)`)
     }
   } // closes: if (taskDependencies.size > 0)
 
