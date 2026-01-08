@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowUp, ArrowRight, ArrowLeft, Mail, Check } from 'lucide-react'
 import { Button } from './Button'
@@ -36,11 +36,17 @@ export function GoalInput({
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0)
+  const [isPlaceholderAnimating, setIsPlaceholderAnimating] = useState(true)
+  const [isInputFocused, setIsInputFocused] = useState(false)
+  const placeholderIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
 
-  // Goal suggestions (same as WaitlistForm)
+  // Goal suggestions for animated placeholder (expanded list)
   const goalSuggestions = [
+    'Learn to play guitar',
+    'Start a blog',
     'Get in shape',
     'Learn a new skill',
     'Start a business',
@@ -57,6 +63,58 @@ export function GoalInput({
   const handleSuggestionClick = (suggestion: string) => {
     setGoal(suggestion)
     setError('')
+    setIsPlaceholderAnimating(false) // Stop animation when user clicks a suggestion
+  }
+
+  // Animated placeholder cycling effect
+  useEffect(() => {
+    // Only animate if input is empty, not focused, and user hasn't started typing
+    if (step === 'goal' && goal === '' && !isInputFocused && isPlaceholderAnimating) {
+      placeholderIntervalRef.current = setInterval(() => {
+        setCurrentPlaceholderIndex((prevIndex) => {
+          // Cycle through suggestions - change every 3 seconds (2s animation + 1s pause)
+          const nextIndex = (prevIndex + 1) % goalSuggestions.length
+          return nextIndex
+        })
+      }, 3000) // Change every 3 seconds (2s fade animation + 1s visible pause)
+    } else {
+      // Clear interval when conditions aren't met
+      if (placeholderIntervalRef.current) {
+        clearInterval(placeholderIntervalRef.current)
+        placeholderIntervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (placeholderIntervalRef.current) {
+        clearInterval(placeholderIntervalRef.current)
+      }
+    }
+  }, [step, goal, isInputFocused, isPlaceholderAnimating, goalSuggestions.length])
+
+  const handleInputFocus = () => {
+    setIsInputFocused(true)
+    setIsPlaceholderAnimating(false)
+  }
+
+  const handleInputBlur = () => {
+    setIsInputFocused(false)
+    // Resume animation if input is empty
+    if (goal === '') {
+      setIsPlaceholderAnimating(true)
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setGoal(e.target.value)
+    setError('')
+    // Stop animation when user starts typing
+    if (e.target.value.length > 0) {
+      setIsPlaceholderAnimating(false)
+    } else {
+      // Resume animation if input becomes empty
+      setIsPlaceholderAnimating(true)
+    }
   }
 
   const handleGoalNext = () => {
@@ -262,11 +320,10 @@ export function GoalInput({
           <textarea
             id="goal-input"
             value={goal}
-            onChange={(e) => {
-              setGoal(e.target.value)
-              setError('')
-            }}
-            placeholder={placeholder}
+            onChange={handleInputChange}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            placeholder="" // Empty placeholder - we'll use animated overlay instead
             disabled={isLoading}
             rows={4}
             className={`w-full px-6 py-6 pr-16 text-xl bg-white/5 border ${
@@ -274,11 +331,24 @@ export function GoalInput({
             } rounded-xl text-[#d7d2cb] placeholder-[#d7d2cb]/40 focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-[#ff7f00]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed resize-none`}
             style={{ minHeight: '120px' }}
           />
+          {/* Animated placeholder overlay */}
+          {goal === '' && !isInputFocused && (
+            <div className="absolute inset-0 pointer-events-none flex items-start px-6 py-6">
+              <div className="relative w-full overflow-hidden" style={{ minHeight: '120px' }}>
+                <div
+                  key={currentPlaceholderIndex}
+                  className="absolute inset-0 flex items-start text-xl text-[#d7d2cb]/40 animate-fade-in-out"
+                >
+                  {goalSuggestions[currentPlaceholderIndex]}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Arrow button at bottom-right */}
           <button
             type="submit"
             disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-            className="absolute right-4 bottom-4 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-4 bottom-4 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-10"
           >
             <ArrowUp className="w-6 h-6" />
           </button>
