@@ -376,26 +376,24 @@ export function GoalInput({
           />
           {/* Animated placeholder overlay */}
           {goal === '' && !isInputFocused && (
-            <div className="absolute inset-0 pointer-events-none flex items-center px-6">
-              <div className="relative w-full overflow-hidden">
-                <div
-                  className={`absolute inset-0 flex items-center text-xl text-[#d7d2cb]/40 transition-opacity duration-[1000ms] ease-in-out ${
-                    isTransitioning ? 'opacity-0' : 'opacity-100'
-                  }`}
-                  style={{
-                    willChange: 'opacity',
-                  }}
-                >
-                  {goalSuggestions[currentPlaceholderIndex]}
-                </div>
+            <div className="absolute inset-0 pointer-events-none flex items-center px-6 py-6 z-10">
+              <div
+                className={`w-full text-xl text-[#d7d2cb]/40 transition-opacity duration-[1000ms] ease-in-out ${
+                  isTransitioning ? 'opacity-0' : 'opacity-100'
+                }`}
+                style={{
+                  willChange: 'opacity',
+                }}
+              >
+                {goalSuggestions[currentPlaceholderIndex]}
               </div>
             </div>
           )}
-          {/* Arrow button at bottom-right */}
+          {/* Arrow button at right-center */}
           <button
             type="submit"
             disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-            className="absolute right-4 bottom-4 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-10"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-20"
           >
             <ArrowUp className="w-6 h-6" />
           </button>
