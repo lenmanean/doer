@@ -129,6 +129,7 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
   const isMountedRef = useRef(true)
   // loadingTimeoutRef removed - no longer using timeout bypass for security
   const sessionValidationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const extendedLoadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -226,21 +227,6 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
     }
 
     init()
-
-    // Extended timeout for error page redirect (not a bypass - redirects if auth takes too long)
-    // This prevents infinite loading but doesn't bypass authentication
-    useEffect(() => {
-      if (loading && !user) {
-        const extendedTimeout = setTimeout(() => {
-          if (isMountedRef.current && loading && !user) {
-            console.error('[SupabaseProvider] Auth timeout after 30s - redirecting to error page')
-            window.location.href = '/auth/timeout-error'
-          }
-        }, 30000) // 30 seconds
-        
-        return () => clearTimeout(extendedTimeout)
-      }
-    }, [loading, user])
 
     // Set up auth state change listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -345,11 +331,52 @@ export function SupabaseProvider({ children, initialUser }: SupabaseProviderProp
       if (sessionValidationIntervalRef.current) {
         clearInterval(sessionValidationIntervalRef.current)
       }
+      if (extendedLoadingTimeoutRef.current) {
+        clearTimeout(extendedLoadingTimeoutRef.current)
+      }
       if (subscription) {
         subscription.unsubscribe()
       }
     }
   }, [initialUser]) // Only depend on initialUser to avoid infinite loops
+
+  // Separate useEffect for extended timeout - monitors loading and user state
+  // This prevents infinite loading but doesn't bypass authentication
+  useEffect(() => {
+    if (loading && !user) {
+      // Clear any existing timeout
+      if (extendedLoadingTimeoutRef.current) {
+        clearTimeout(extendedLoadingTimeoutRef.current)
+      }
+      
+      // Set up new timeout - check current state when timeout fires
+      extendedLoadingTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          // Check current state at timeout, not captured closure values
+          // We need to verify via a callback or current ref values
+          // Since we can't access state directly in timeout, we'll check isMountedRef
+          // and let the redirect happen if we're still mounted (user would have loaded by now if successful)
+          console.error('[SupabaseProvider] Auth timeout after 30s - redirecting to error page')
+          if (typeof window !== 'undefined') {
+            window.location.href = '/auth/timeout-error'
+          }
+        }
+      }, 30000) // 30 seconds
+      
+      return () => {
+        if (extendedLoadingTimeoutRef.current) {
+          clearTimeout(extendedLoadingTimeoutRef.current)
+          extendedLoadingTimeoutRef.current = null
+        }
+      }
+    } else {
+      // Clear timeout if loading completes or user is found
+      if (extendedLoadingTimeoutRef.current) {
+        clearTimeout(extendedLoadingTimeoutRef.current)
+        extendedLoadingTimeoutRef.current = null
+      }
+    }
+  }, [loading, user])
 
   const contextValue: SupabaseContextType = {
     supabase,
