@@ -2699,13 +2699,13 @@ export function CreateTaskModal({
                     
                     {/* Voice input button for AI mode */}
                     {isSpeechSupported && (
-                      <div className="absolute right-2 bottom-2 z-10">
+                      <div className="absolute right-2 bottom-2 z-20">
                         <VoiceInputButton
                           isListening={isAIListening}
                           isSupported={isSpeechSupported}
                           onClick={handleAIMicClick}
                           disabled={isAILoading}
-                          size="sm"
+                          size="md"
                           error={aiSpeechError}
                         />
                       </div>
@@ -3200,13 +3200,13 @@ export function CreateTaskModal({
                           
                           {/* Voice input button for todo-list task name */}
                           {isSpeechSupported && (
-                            <div className="absolute right-2 top-7 z-10">
+                            <div className="absolute right-2 top-7 z-20">
                               <VoiceInputButton
                                 isListening={isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name'}
                                 isSupported={isSpeechSupported}
                                 onClick={() => handleFieldMicClick('todo-list', task.id, 'name')}
                                 disabled={isAnalyzingTodoList}
-                                size="sm"
+                                size="md"
                                 error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' ? fieldSpeechError : null}
                               />
                             </div>
@@ -3424,13 +3424,13 @@ export function CreateTaskModal({
                               
                               {/* Voice input button for task name */}
                               {isSpeechSupported && (
-                                <div className="absolute right-2 top-7 z-10">
+                                <div className="absolute right-2 top-7 z-20">
                                   <VoiceInputButton
                                     isListening={isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name'}
                                     isSupported={isSpeechSupported}
                                     onClick={() => handleFieldMicClick('manual', task.id, 'name')}
                                     disabled={isLoading}
-                                    size="sm"
+                                    size="md"
                                     error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' ? fieldSpeechError : null}
                                   />
                                 </div>
@@ -3466,13 +3466,13 @@ export function CreateTaskModal({
                               
                               {/* Voice input button for task details */}
                               {isSpeechSupported && (
-                                <div className="absolute right-2 bottom-2 z-10">
+                                <div className="absolute right-2 bottom-2 z-20">
                                   <VoiceInputButton
                                     isListening={isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details'}
                                     isSupported={isSpeechSupported}
                                     onClick={() => handleFieldMicClick('manual', task.id, 'details')}
                                     disabled={isLoading}
-                                    size="sm"
+                                    size="md"
                                     error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details' ? fieldSpeechError : null}
                                   />
                                 </div>

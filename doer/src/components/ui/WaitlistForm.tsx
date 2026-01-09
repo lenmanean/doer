@@ -357,13 +357,13 @@ export function WaitlistForm({
             
             {/* Voice input button */}
             {isSpeechSupported && (
-              <div className="absolute right-20 top-1/2 -translate-y-1/2 z-10">
+              <div className="absolute right-20 top-6 z-20">
                 <VoiceInputButton
                   isListening={isListening}
                   isSupported={isSpeechSupported}
                   onClick={handleMicClick}
                   disabled={isLoading || isSuccess}
-                  size="sm"
+                  size="md"
                   error={speechError}
                 />
               </div>

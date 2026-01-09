@@ -600,13 +600,13 @@ export default function ManualOnboardingPage() {
                 
                 {/* Voice input button for goal title */}
                 {isSpeechSupported && (
-                  <div className="absolute right-2 top-9 z-10">
+                  <div className="absolute right-2 top-9 z-20">
                     <VoiceInputButton
                       isListening={isTitleListening}
                       isSupported={isSpeechSupported}
                       onClick={handleTitleMicClick}
                       disabled={isSubmitting}
-                      size="sm"
+                      size="md"
                       error={titleSpeechError}
                     />
                   </div>
@@ -634,13 +634,13 @@ export default function ManualOnboardingPage() {
                 
                 {/* Voice input button for plan summary */}
                 {isSpeechSupported && (
-                  <div className="absolute right-2 bottom-2 z-10">
+                  <div className="absolute right-2 bottom-2 z-20">
                     <VoiceInputButton
                       isListening={isDescriptionListening}
                       isSupported={isSpeechSupported}
                       onClick={handleDescriptionMicClick}
                       disabled={isSubmitting}
-                      size="sm"
+                      size="md"
                       error={descriptionSpeechError}
                     />
                   </div>

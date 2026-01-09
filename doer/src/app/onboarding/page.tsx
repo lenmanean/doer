@@ -459,13 +459,13 @@ function OnboardingContent() {
                     
                     {/* Voice input button */}
                     {isSpeechSupported && (
-                      <div className="absolute right-2 bottom-2 z-10">
+                      <div className="absolute right-2 bottom-2 z-20">
                         <VoiceInputButton
                           isListening={isListening}
                           isSupported={isSpeechSupported}
                           onClick={handleMicClick}
                           disabled={isGenerating}
-                          size="sm"
+                          size="md"
                           error={speechError}
                         />
                       </div>
