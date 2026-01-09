@@ -771,8 +771,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate that we have enough tasks
-    // For a plan with N days, we typically want at least N-1 tasks (one per day minus start/end days)
-    const minExpectedTasks = Math.max(1, timelineDays - 2)
+    // Use a percentage-based approach that's more lenient for longer timelines
+    // For shorter plans (1-7 days): expect ~80% of days as tasks
+    // For longer plans (8+ days): expect ~70% of days as tasks (allows for longer tasks and better distribution)
+    const minExpectedTasks = timelineDays <= 7
+      ? Math.max(1, Math.ceil(timelineDays * 0.8))
+      : Math.max(1, Math.ceil(timelineDays * 0.7))
     if (aiContent.tasks.length < minExpectedTasks) {
       console.error('Insufficient tasks:', {
         expected: minExpectedTasks,
