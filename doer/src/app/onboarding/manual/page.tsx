@@ -51,12 +51,7 @@ export default function ManualOnboardingPage() {
     stopListening: stopTitleListening,
     reset: resetTitleSpeech,
   } = useSpeechRecognition({
-    onResult: (finalTranscript) => {
-      setGoalTitle((prev) => {
-        const newTitle = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
-        return newTitle
-      })
-    },
+    // No onResult callback - real-time transcription handles everything
     onError: (error) => {
       addToast({
         type: 'error',
@@ -66,24 +61,26 @@ export default function ManualOnboardingPage() {
       })
     },
     continuous: true, // Keep recording until manually stopped
-    interimResults: true,
+    interimResults: true, // Show real-time transcription
   })
 
-  // Track text before starting title voice input
+  // Track text before starting title voice input to preserve existing content
   const titleTextBeforeListeningRef = useRef<string>('')
 
   useEffect(() => {
     if (isTitleListening && !titleTextBeforeListeningRef.current) {
       titleTextBeforeListeningRef.current = goalTitle
-    } else if (!isTitleListening && titleTextBeforeListeningRef.current) {
+    } else if (!isTitleListening) {
+      // When listening stops, keep the final text but clear the ref for next time
       titleTextBeforeListeningRef.current = ''
     }
   }, [isTitleListening])
 
   useEffect(() => {
-    if (isTitleListening) {
+    if (isTitleListening && titleTranscript) {
+      // Combine base text with current transcript
       const baseText = titleTextBeforeListeningRef.current.trim()
-      const fullText = titleTranscript ? (baseText ? `${baseText} ${titleTranscript}` : titleTranscript) : baseText
+      const fullText = baseText ? `${baseText} ${titleTranscript}` : titleTranscript
       setGoalTitle(fullText)
     }
   }, [titleTranscript, isTitleListening])
@@ -106,12 +103,7 @@ export default function ManualOnboardingPage() {
     stopListening: stopDescriptionListening,
     reset: resetDescriptionSpeech,
   } = useSpeechRecognition({
-    onResult: (finalTranscript) => {
-      setGoalDescription((prev) => {
-        const newDesc = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
-        return newDesc
-      })
-    },
+    // No onResult callback - real-time transcription handles everything
     onError: (error) => {
       addToast({
         type: 'error',
@@ -121,24 +113,26 @@ export default function ManualOnboardingPage() {
       })
     },
     continuous: true, // Keep recording until manually stopped
-    interimResults: true,
+    interimResults: true, // Show real-time transcription
   })
 
-  // Track text before starting description voice input
+  // Track text before starting description voice input to preserve existing content
   const descriptionTextBeforeListeningRef = useRef<string>('')
 
   useEffect(() => {
     if (isDescriptionListening && !descriptionTextBeforeListeningRef.current) {
       descriptionTextBeforeListeningRef.current = goalDescription
-    } else if (!isDescriptionListening && descriptionTextBeforeListeningRef.current) {
+    } else if (!isDescriptionListening) {
+      // When listening stops, keep the final text but clear the ref for next time
       descriptionTextBeforeListeningRef.current = ''
     }
   }, [isDescriptionListening])
 
   useEffect(() => {
-    if (isDescriptionListening) {
+    if (isDescriptionListening && descriptionTranscript) {
+      // Combine base text with current transcript
       const baseText = descriptionTextBeforeListeningRef.current.trim()
-      const fullText = descriptionTranscript ? (baseText ? `${baseText} ${descriptionTranscript}` : descriptionTranscript) : baseText
+      const fullText = baseText ? `${baseText} ${descriptionTranscript}` : descriptionTranscript
       setGoalDescription(fullText)
     }
   }, [descriptionTranscript, isDescriptionListening])

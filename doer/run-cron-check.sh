@@ -50,3 +50,4 @@ psql "$DATABASE_URL" -f check-cron-jobs.sql
 
 
 
+

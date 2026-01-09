@@ -434,12 +434,7 @@ export function CreateTaskModal({
     stopListening: stopAIListening,
     reset: resetAISpeech,
   } = useSpeechRecognition({
-    onResult: (finalTranscript) => {
-      setAiDescription((prev) => {
-        const newDesc = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
-        return newDesc
-      })
-    },
+    // No onResult callback - real-time transcription handles everything
     onError: (error) => {
       addToast({
         type: 'error',
@@ -449,26 +444,28 @@ export function CreateTaskModal({
       })
     },
     continuous: true, // Keep recording until manually stopped
-    interimResults: true,
+    interimResults: true, // Show real-time transcription
   })
 
-  // Track text before starting AI voice input
+  // Track text before starting AI voice input to preserve existing content
   const aiTextBeforeListeningRef = useRef<string>('')
 
   // Save current AI description when starting to listen
   useEffect(() => {
     if (isAIListening && !aiTextBeforeListeningRef.current) {
       aiTextBeforeListeningRef.current = aiDescription
-    } else if (!isAIListening && aiTextBeforeListeningRef.current) {
+    } else if (!isAIListening) {
+      // When listening stops, keep the final text but clear the ref for next time
       aiTextBeforeListeningRef.current = ''
     }
   }, [isAIListening])
 
   // Update AI description with real-time transcripts while listening
   useEffect(() => {
-    if (isAIListening) {
+    if (isAIListening && aiTranscript) {
+      // Combine base text with current transcript
       const baseText = aiTextBeforeListeningRef.current.trim()
-      const fullText = aiTranscript ? (baseText ? `${baseText} ${aiTranscript}` : aiTranscript) : baseText
+      const fullText = baseText ? `${baseText} ${aiTranscript}` : aiTranscript
       setAiDescription(fullText)
     }
   }, [aiTranscript, isAIListening])
@@ -497,41 +494,7 @@ export function CreateTaskModal({
     stopListening: stopFieldListening,
     reset: resetFieldSpeech,
   } = useSpeechRecognition({
-    onResult: (finalTranscript) => {
-      if (!activeVoiceField) return
-
-      if (activeVoiceField.mode === 'manual') {
-        setManualTasks((prevTasks) =>
-          prevTasks.map((task) => {
-            if (task.id === activeVoiceField.taskId) {
-              const currentValue = task[activeVoiceField.field] || ''
-              return {
-                ...task,
-                [activeVoiceField.field]: currentValue.trim()
-                  ? `${currentValue} ${finalTranscript}`
-                  : finalTranscript,
-              }
-            }
-            return task
-          })
-        )
-      } else if (activeVoiceField.mode === 'todo-list') {
-        setTodoListTasks((prevTasks) =>
-          prevTasks.map((task) => {
-            if (task.id === activeVoiceField.taskId) {
-              const currentValue = task.name || ''
-              return {
-                ...task,
-                name: currentValue.trim()
-                  ? `${currentValue} ${finalTranscript}`
-                  : finalTranscript,
-              }
-            }
-            return task
-          })
-        )
-      }
-    },
+    // No onResult callback - real-time transcription handles everything
     onError: (error) => {
       addToast({
         type: 'error',
@@ -541,10 +504,10 @@ export function CreateTaskModal({
       })
     },
     continuous: true, // Keep recording until manually stopped
-    interimResults: true,
+    interimResults: true, // Show real-time transcription
   })
 
-  // Track text before starting field voice input
+  // Track text before starting field voice input to preserve existing content
   const fieldTextBeforeListeningRef = useRef<string>('')
 
   // Save current field value when starting to listen
@@ -557,16 +520,18 @@ export function CreateTaskModal({
         const task = todoListTasks.find(t => t.id === activeVoiceField.taskId)
         fieldTextBeforeListeningRef.current = task?.name || ''
       }
-    } else if (!isFieldListening && fieldTextBeforeListeningRef.current) {
+    } else if (!isFieldListening) {
+      // When listening stops, keep the final text but clear the ref for next time
       fieldTextBeforeListeningRef.current = ''
     }
   }, [isFieldListening, activeVoiceField, manualTasks, todoListTasks])
 
   // Update field with real-time transcripts while listening
   useEffect(() => {
-    if (isFieldListening && activeVoiceField) {
+    if (isFieldListening && activeVoiceField && fieldTranscript) {
+      // Combine base text with current transcript
       const baseText = fieldTextBeforeListeningRef.current.trim()
-      const fullText = fieldTranscript ? (baseText ? `${baseText} ${fieldTranscript}` : fieldTranscript) : baseText
+      const fullText = baseText ? `${baseText} ${fieldTranscript}` : fieldTranscript
 
       if (activeVoiceField.mode === 'manual') {
         setManualTasks((prevTasks) =>

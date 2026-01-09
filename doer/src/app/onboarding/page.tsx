@@ -44,14 +44,7 @@ function OnboardingContent() {
     stopListening,
     reset: resetSpeech,
   } = useSpeechRecognition({
-    onResult: (finalTranscript) => {
-      // Append to existing goal text or replace
-      setGoal((prev) => {
-        const newGoal = prev.trim() ? `${prev} ${finalTranscript}` : finalTranscript
-        return newGoal
-      })
-      setErrorMessage(null)
-    },
+    // No onResult callback - real-time transcription handles everything
     onError: (error) => {
       addToast({
         type: 'error',
@@ -64,23 +57,25 @@ function OnboardingContent() {
     interimResults: true, // Show real-time transcription
   })
 
-  // Track text before starting voice input
+  // Track text before starting voice input to preserve existing content
   const textBeforeListeningRef = useRef<string>('')
 
   // Save current goal when starting to listen
   useEffect(() => {
     if (isListening && !textBeforeListeningRef.current) {
       textBeforeListeningRef.current = goal
-    } else if (!isListening && textBeforeListeningRef.current) {
+    } else if (!isListening) {
+      // When listening stops, keep the final text but clear the ref for next time
       textBeforeListeningRef.current = ''
     }
   }, [isListening])
 
   // Update goal with real-time transcripts while listening
   useEffect(() => {
-    if (isListening) {
+    if (isListening && transcript) {
+      // Combine base text with current transcript
       const baseText = textBeforeListeningRef.current.trim()
-      const fullText = transcript ? (baseText ? `${baseText} ${transcript}` : transcript) : baseText
+      const fullText = baseText ? `${baseText} ${transcript}` : transcript
       setGoal(fullText)
       setErrorMessage(null)
     }
