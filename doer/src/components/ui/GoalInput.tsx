@@ -501,7 +501,7 @@ export function GoalInput({
           <button
             type="submit"
             disabled={isLoading || !goal.trim() || goal.trim().length < 10}
-            className="absolute right-4 top-6 p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-20"
+            className="absolute right-4 top-[18px] p-3 bg-[#ff7f00] hover:bg-[#ff7f00]/90 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-20"
           >
             <ArrowUp className="w-6 h-6" />
           </button>
