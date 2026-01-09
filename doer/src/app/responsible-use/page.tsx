@@ -1,6 +1,6 @@
 'use client'
 
-import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
@@ -9,13 +9,18 @@ export default function ResponsibleUsePage() {
   const lastUpdated = 'January 2025'
   const contactEmail = 'help@usedoer.com'
 
+  // Animation hook
+  const cardAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <FadeInWrapper>
-          <Card>
+        <Card
+          ref={cardAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${cardAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
                 <CardTitle className="text-2xl sm:text-3xl mb-2">Responsible Use Policy</CardTitle>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -303,7 +308,6 @@ export default function ResponsibleUsePage() {
               </div>
             </CardContent>
           </Card>
-        </FadeInWrapper>
       </div>
       </main>
       <PublicFooter />

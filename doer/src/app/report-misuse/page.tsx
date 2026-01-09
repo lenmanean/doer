@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { PublicHeader } from '@/components/ui/PublicHeader'
@@ -17,6 +17,9 @@ export default function ReportMisusePage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+
+  // Animation hook
+  const cardAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,8 +76,10 @@ export default function ReportMisusePage() {
       <PublicHeader />
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        <FadeInWrapper>
-          <Card>
+        <Card
+          ref={cardAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${cardAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
                 <CardTitle className="text-2xl sm:text-3xl mb-2">Report Misuse</CardTitle>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -219,7 +224,6 @@ export default function ReportMisusePage() {
               )}
             </CardContent>
           </Card>
-        </FadeInWrapper>
       </div>
       </main>
       <PublicFooter />

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
-import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
 
@@ -13,6 +13,13 @@ export default function MotionGraphicsBriefPage() {
   const [downloadingLogo, setDownloadingLogo] = useState(false)
   const [downloadingSwatches, setDownloadingSwatches] = useState(false)
   const logoCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Animation hooks
+  const headerAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const audienceAnim = useScrollAnimation({ delay: 100, triggerOnce: true })
+  const mainPointsAnim = useScrollAnimation({ delay: 200, triggerOnce: true })
+  const ctaAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
+  const brandingAnim = useScrollAnimation({ delay: 400, triggerOnce: true })
 
   // Generate the text logo on canvas
   useEffect(() => {
@@ -104,20 +111,23 @@ export default function MotionGraphicsBriefPage() {
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-12">
         {/* Header Section */}
-        <FadeInWrapper>
-          <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4">
-              Motion Graphics Brief
-            </h1>
-              <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">
-              DOER.AI - Internal Brief Document
-            </p>
-          </div>
-        </FadeInWrapper>
+        <div
+          ref={headerAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`text-center scroll-animate-fade-up ${headerAnim.isVisible ? 'visible' : ''}`}
+        >
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-4">
+            Motion Graphics Brief
+          </h1>
+          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">
+            DOER.AI - Internal Brief Document
+          </p>
+        </div>
 
         {/* Target Audience & Market Context */}
-        <FadeInWrapper delay={0.1}>
-          <Card>
+        <Card
+          ref={audienceAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${audienceAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
               <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Target Audience & Market Context</CardTitle>
             </CardHeader>
@@ -133,11 +143,12 @@ export default function MotionGraphicsBriefPage() {
               </p>
             </CardContent>
           </Card>
-        </FadeInWrapper>
 
         {/* Main Points to Focus On */}
-        <FadeInWrapper delay={0.2}>
-          <Card>
+        <Card
+          ref={mainPointsAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${mainPointsAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
               <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Main Points to Focus On</CardTitle>
             </CardHeader>
@@ -197,11 +208,12 @@ export default function MotionGraphicsBriefPage() {
               </div>
             </CardContent>
           </Card>
-        </FadeInWrapper>
 
         {/* Call to Action */}
-        <FadeInWrapper delay={0.3}>
-          <Card>
+        <Card
+          ref={ctaAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${ctaAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
               <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Call to Action</CardTitle>
             </CardHeader>
@@ -223,11 +235,12 @@ export default function MotionGraphicsBriefPage() {
               </p>
             </CardContent>
           </Card>
-        </FadeInWrapper>
 
         {/* Branding Assets */}
-        <FadeInWrapper delay={0.4}>
-          <Card>
+        <Card
+          ref={brandingAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${brandingAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
               <CardTitle className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Branding Assets</CardTitle>
             </CardHeader>
@@ -330,7 +343,6 @@ export default function MotionGraphicsBriefPage() {
               </div>
             </CardContent>
           </Card>
-        </FadeInWrapper>
       </div>
       </main>
       <PublicFooter />

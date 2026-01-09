@@ -4,10 +4,19 @@ import { useState, useEffect, useRef } from 'react'
 import { CheckCircle, ChevronDown } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
-import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 
 export default function EarlyAccessPage() {
   const [expandedStep, setExpandedStep] = useState<string | null>('step1')
+
+  // Animation hooks
+  const headlineAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const subheadlineAnim = useScrollAnimation({ delay: 200, triggerOnce: true })
+  const screenshotAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
+  const emailInputAnim = useScrollAnimation({ delay: 400, triggerOnce: true })
+  const stepsTitleAnim = useScrollAnimation({ delay: 200, triggerOnce: true })
+  const trustAnim = useScrollAnimation({ delay: 200, triggerOnce: true })
+  const benefitsAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
+  const bottomEmailAnim = useScrollAnimation({ delay: 600, triggerOnce: true })
 
   const steps = [
     { 
@@ -46,53 +55,58 @@ export default function EarlyAccessPage() {
       <section className="relative px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-32">
         <div className="max-w-5xl mx-auto text-center">
           {/* Headline */}
-          <FadeInWrapper delay={0} direction="up">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-              An AI planner that turns any written goal into a day-by-day roadmap.
-            </h1>
-          </FadeInWrapper>
+          <h1
+            ref={headlineAnim.ref as React.RefObject<HTMLHeadingElement>}
+            className={`text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight scroll-animate-fade-up ${headlineAnim.isVisible ? 'visible' : ''}`}
+          >
+            An AI planner that turns any written goal into a day-by-day roadmap.
+          </h1>
 
           {/* Subheadline */}
-          <FadeInWrapper delay={0.2} direction="up">
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
-              On January 1, DOER launches with auto-scheduling, progress tracking, and seamless calendar syncing. Join early to reserve your access and receive bonus AI credits on launch day.
-            </p>
-          </FadeInWrapper>
+          <p
+            ref={subheadlineAnim.ref as React.RefObject<HTMLParagraphElement>}
+            className={`text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed scroll-animate-fade-up ${subheadlineAnim.isVisible ? 'visible' : ''}`}
+          >
+            On January 1, DOER launches with auto-scheduling, progress tracking, and seamless calendar syncing. Join early to reserve your access and receive bonus AI credits on launch day.
+          </p>
 
           {/* Screenshot */}
-          <FadeInWrapper delay={0.3} direction="up">
-            <div className="mb-12 max-w-4xl mx-auto">
-              <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
-                <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900">
-                  <div className="relative aspect-video">
-                    <img
-                      src="/ai-plan-preview.png"
-                      alt="DOER AI Plan Preview"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
+          <div
+            ref={screenshotAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`mb-12 max-w-4xl mx-auto scroll-animate-fade-up ${screenshotAnim.isVisible ? 'visible' : ''}`}
+          >
+            <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-700 bg-gray-900 shadow-[0_20px_70px_rgba(2,6,23,0.55)]">
+              <div className="overflow-hidden rounded-[2.3rem] border border-slate-800 bg-gray-900">
+                <div className="relative aspect-video">
+                  <img
+                    src="/ai-plan-preview.png"
+                    alt="DOER AI Plan Preview"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
             </div>
-          </FadeInWrapper>
+          </div>
 
           {/* Email Input */}
-          <FadeInWrapper delay={0.4} direction="up">
-            <div className="max-w-xl mx-auto">
-              <EmailInputForm source="cold_ads_hero" />
-            </div>
-          </FadeInWrapper>
+          <div
+            ref={emailInputAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`max-w-xl mx-auto scroll-animate-fade-up ${emailInputAnim.isVisible ? 'visible' : ''}`}
+          >
+            <EmailInputForm source="cold_ads_hero" />
+          </div>
         </div>
       </section>
 
       {/* Steps Section */}
       <section className="px-4 sm:px-6 lg:px-8 py-16 sm:py-20 bg-gray-900/50">
         <div className="max-w-5xl mx-auto">
-          <FadeInWrapper delay={0.2} direction="up">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-12">
-              See DOER in action
-            </h2>
-          </FadeInWrapper>
+          <h2
+            ref={stepsTitleAnim.ref as React.RefObject<HTMLHeadingElement>}
+            className={`text-3xl sm:text-4xl font-bold text-white text-center mb-12 scroll-animate-fade-up ${stepsTitleAnim.isVisible ? 'visible' : ''}`}
+          >
+            See DOER in action
+          </h2>
 
           {/* Vertical Expandable Steps */}
           <div className="space-y-4">
@@ -116,47 +130,50 @@ export default function EarlyAccessPage() {
       <section className="px-4 sm:px-6 lg:px-8 py-16 sm:py-20 bg-gray-900">
         <div className="max-w-4xl mx-auto text-center">
           {/* Trust Element */}
-          <FadeInWrapper delay={0.2} direction="up">
-            <div className="mb-12">
-              <p className="text-xl sm:text-2xl text-gray-300 mb-4">
-                Launching January 1, 2025
-              </p>
-              <p className="text-lg text-gray-400">
-                Join the waitlist now to secure your early access and bonus credits
-              </p>
-            </div>
-          </FadeInWrapper>
+          <div
+            ref={trustAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`mb-12 scroll-animate-fade-up ${trustAnim.isVisible ? 'visible' : ''}`}
+          >
+            <p className="text-xl sm:text-2xl text-gray-300 mb-4">
+              Launching January 1, 2025
+            </p>
+            <p className="text-lg text-gray-400">
+              Join the waitlist now to secure your early access and bonus credits
+            </p>
+          </div>
 
           {/* Benefits */}
-          <FadeInWrapper delay={0.3} direction="up">
-            <div className="mb-12">
-              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-8">
-                What you'll get:
-              </h3>
-              <ul className="space-y-4 text-left max-w-2xl mx-auto">
-                {benefits.map((benefit, index) => (
-                  <motion.li
-                    key={index}
-                    className="flex items-start gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.4 + index * 0.1, duration: 0.5 }}
-                  >
-                    <CheckCircle className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-lg text-gray-300">{benefit}</span>
-                  </motion.li>
-                ))}
-              </ul>
-            </div>
-          </FadeInWrapper>
+          <div
+            ref={benefitsAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`mb-12 scroll-animate-fade-up ${benefitsAnim.isVisible ? 'visible' : ''}`}
+          >
+            <h3 className="text-2xl sm:text-3xl font-bold text-white mb-8">
+              What you'll get:
+            </h3>
+            <ul className="space-y-4 text-left max-w-2xl mx-auto">
+              {benefits.map((benefit, index) => (
+                <motion.li
+                  key={index}
+                  className="flex items-start gap-4"
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.4 + index * 0.1, duration: 0.5 }}
+                >
+                  <CheckCircle className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-lg text-gray-300">{benefit}</span>
+                </motion.li>
+              ))}
+            </ul>
+          </div>
 
           {/* Email Input */}
-          <FadeInWrapper delay={0.6} direction="up">
-            <div className="max-w-xl mx-auto">
-              <EmailInputForm source="cold_ads_bottom" />
-            </div>
-          </FadeInWrapper>
+          <div
+            ref={bottomEmailAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`max-w-xl mx-auto scroll-animate-fade-up ${bottomEmailAnim.isVisible ? 'visible' : ''}`}
+          >
+            <EmailInputForm source="cold_ads_bottom" />
+          </div>
         </div>
       </section>
     </div>
