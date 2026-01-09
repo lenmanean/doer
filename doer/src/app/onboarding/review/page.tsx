@@ -184,6 +184,29 @@ export default function ReviewPage() {
     bootstrap()
   }, [authLoading, user, supabase, router, searchParams])
 
+  // Check subscription on page load and show modal if user has basic plan
+  useEffect(() => {
+    if (!user || loading || authLoading) return
+
+    const checkSubscription = async () => {
+      try {
+        const subscriptionCheck = await fetch('/api/subscription/check')
+        if (subscriptionCheck.ok) {
+          const subscriptionData = await subscriptionCheck.json()
+          if (subscriptionData.hasBasicPlan) {
+            setHasBasicPlan(true)
+            setShowPlanSelectionModal(true)
+          }
+        }
+      } catch (error) {
+        console.error('[Review] Error checking subscription:', error)
+        // Don't show modal if check fails
+      }
+    }
+
+    checkSubscription()
+  }, [user, loading, authLoading])
+
   // Load user's time format preference
   useEffect(() => {
     if (!user) return
@@ -627,23 +650,6 @@ export default function ReviewPage() {
       
       const healthData = await healthCheck.json()
       console.log('[Review] Health check passed:', healthData)
-      
-      // Check if user has basic plan subscription
-      try {
-        const subscriptionCheck = await fetch('/api/subscription/check')
-        if (subscriptionCheck.ok) {
-          const subscriptionData = await subscriptionCheck.json()
-          if (subscriptionData.hasBasicPlan) {
-            // Show plan selection modal instead of redirecting
-            setHasBasicPlan(true)
-            setShowPlanSelectionModal(true)
-            return
-          }
-        }
-      } catch (error) {
-        console.error('[Review] Error checking subscription:', error)
-        // Continue to dashboard if check fails
-      }
       
       // Clear session storage and redirect
       sessionStorage.removeItem('generatedPlan')
@@ -1704,15 +1710,12 @@ export default function ReviewPage() {
         )}
       </AnimatePresence>
 
-      {/* Plan Selection Modal - Shows for basic plan users after accepting plan */}
+      {/* Plan Selection Modal - Shows for basic plan users on page load */}
       {hasBasicPlan && (
         <PlanSelectionModal
           isOpen={showPlanSelectionModal}
           onClose={() => {
             setShowPlanSelectionModal(false)
-            // Navigate to dashboard when user closes modal via X button
-            sessionStorage.removeItem('generatedPlan')
-            router.push('/dashboard')
           }}
         />
       )}
