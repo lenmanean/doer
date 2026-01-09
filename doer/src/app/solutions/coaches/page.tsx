@@ -7,10 +7,16 @@ import { PublicFooter } from '@/components/ui/PublicFooter'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 
 export default function CoachesPage() {
   const t = useTranslations()
   const { addToast } = useToast()
+
+  // Animation hooks
+  const titleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const descAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+  const cardAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -80,15 +86,24 @@ export default function CoachesPage() {
       <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900 transition-colors">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-6 transition-colors">
+            <h1 
+              ref={titleAnim.ref as React.RefObject<HTMLHeadingElement>}
+              className={`text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-6 transition-colors scroll-animate-fade-up ${titleAnim.isVisible ? 'visible' : ''}`}
+            >
               {t('pages.solutionsCoaches.title')}
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 dark:text-slate-300 transition-colors">
+            <p 
+              ref={descAnim.ref as React.RefObject<HTMLParagraphElement>}
+              className={`text-lg sm:text-xl text-gray-600 dark:text-slate-300 transition-colors scroll-animate-fade-up ${descAnim.isVisible ? 'visible' : ''}`}
+            >
               {t('pages.solutionsCoaches.description')}
             </p>
           </div>
 
-          <Card className="max-w-2xl mx-auto">
+          <Card 
+            ref={cardAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`max-w-2xl mx-auto scroll-animate-fade-up ${cardAnim.isVisible ? 'visible' : ''}`}
+          >
             <CardHeader>
               <CardTitle className="text-2xl sm:text-3xl">Contact Sales</CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">

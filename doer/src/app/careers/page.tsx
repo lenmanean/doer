@@ -1,18 +1,31 @@
 'use client'
 
-import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PublicHeader } from '@/components/ui/PublicHeader'
 import { PublicFooter } from '@/components/ui/PublicFooter'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 
 export default function CareersPage() {
+  const titleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const cardAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col transition-colors overflow-x-hidden">
       <PublicHeader />
-      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <FadeInWrapper>
-          <Card>
+        <div className="text-center mb-12">
+          <h1 
+            ref={titleAnim.ref as React.RefObject<HTMLHeadingElement>}
+            className={`text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-6 scroll-animate-fade-up ${titleAnim.isVisible ? 'visible' : ''}`}
+          >
+            Careers
+          </h1>
+        </div>
+        <Card
+          ref={cardAnim.ref as React.RefObject<HTMLDivElement>}
+          className={`scroll-animate-fade-up ${cardAnim.isVisible ? 'visible' : ''}`}
+        >
             <CardHeader>
                 <CardTitle className="text-2xl sm:text-3xl">Careers</CardTitle>
             </CardHeader>
@@ -28,7 +41,6 @@ export default function CareersPage() {
               </p>
             </CardContent>
           </Card>
-        </FadeInWrapper>
       </div>
       </main>
       <PublicFooter />

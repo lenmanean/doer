@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { integrations } from '@/data/integrations'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import Link from 'next/link'
 import { 
   Rocket, 
@@ -37,6 +38,11 @@ export default function DocumentationPage() {
     section: string
     content: string
   }>>([])
+
+  // Animation hooks
+  const titleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const descAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+  const searchAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
 
   // Build comprehensive search content index
   useEffect(() => {
@@ -155,13 +161,22 @@ export default function DocumentationPage() {
         <div className="border-b border-gray-800 bg-gray-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-bold text-slate-100 mb-4">
+              <h1 
+                ref={titleAnim.ref as React.RefObject<HTMLHeadingElement>}
+                className={`text-4xl md:text-5xl font-bold text-slate-100 mb-4 scroll-animate-fade-up ${titleAnim.isVisible ? 'visible' : ''}`}
+              >
                 {t('pages.documentation.title')}
               </h1>
-              <p className="text-xl text-slate-300 mb-6 max-w-3xl mx-auto break-words">
+              <p 
+                ref={descAnim.ref as React.RefObject<HTMLParagraphElement>}
+                className={`text-xl text-slate-300 mb-6 max-w-3xl mx-auto break-words scroll-animate-fade-up ${descAnim.isVisible ? 'visible' : ''}`}
+              >
                 {t('pages.documentation.description')}
               </p>
-              <div className="flex justify-center">
+              <div 
+                ref={searchAnim.ref as React.RefObject<HTMLDivElement>}
+                className={`flex justify-center scroll-animate-fade-up ${searchAnim.isVisible ? 'visible' : ''}`}
+              >
                 <SearchBar onResultClick={handleSearchResultClick} searchContent={searchContent} />
               </div>
             </div>

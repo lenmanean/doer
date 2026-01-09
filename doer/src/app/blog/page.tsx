@@ -15,6 +15,7 @@ import {
 } from '@/data/blog'
 import { searchBlogPosts, getCategoryDisplayName } from '@/lib/blog'
 import { logger } from '@/lib/logger'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 
 // Safe translation helper that doesn't throw on missing keys
 function safeTranslate(t: ReturnType<typeof useTranslations>, key: string, fallback: string): string {
@@ -38,6 +39,15 @@ export default function BlogPage() {
   const allPosts = getAllBlogPosts()
   const featuredPosts = getFeaturedBlogPosts()
   const allCategories = Array.from(new Set(allPosts.map(post => post.category))) as BlogCategory[]
+
+  // Animation hooks
+  const titleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const descAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+  const searchAnim = useScrollAnimation({ delay: 300, triggerOnce: true })
+  const featuredAnim = useScrollAnimation({ delay: 400, triggerOnce: true })
+  const filterAnim = useScrollAnimation({ delay: 500, triggerOnce: true })
+  const postsAnim = useScrollAnimation({ delay: 600, triggerOnce: true })
+  const newsletterAnim = useScrollAnimation({ delay: 700, triggerOnce: true })
 
   // Log translation availability on mount
   useEffect(() => {
@@ -93,15 +103,24 @@ export default function BlogPage() {
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-16">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-100 mb-6">
+            <h1 
+              ref={titleAnim.ref as React.RefObject<HTMLHeadingElement>}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-100 mb-6 scroll-animate-fade-up ${titleAnim.isVisible ? 'visible' : ''}`}
+            >
               {safeTranslate(t, 'blog.title', 'Blog')}
             </h1>
-            <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
+            <p 
+              ref={descAnim.ref as React.RefObject<HTMLParagraphElement>}
+              className={`text-lg sm:text-xl text-slate-300 mb-8 max-w-3xl mx-auto scroll-animate-fade-up ${descAnim.isVisible ? 'visible' : ''}`}
+            >
               {safeTranslate(t, 'blog.description', 'Read our latest articles and insights.')}
             </p>
             
             {/* Search Bar */}
-            <div className="flex justify-center mb-8">
+            <div 
+              ref={searchAnim.ref as React.RefObject<HTMLDivElement>}
+              className={`flex justify-center mb-8 scroll-animate-fade-up ${searchAnim.isVisible ? 'visible' : ''}`}
+            >
               <BlogSearch
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -111,7 +130,10 @@ export default function BlogPage() {
 
           {/* Featured Posts */}
           {featuredPosts.length > 0 && (
-            <section className="mb-16">
+            <section 
+              ref={featuredAnim.ref as React.RefObject<HTMLElement>}
+              className={`mb-16 scroll-animate-fade-up ${featuredAnim.isVisible ? 'visible' : ''}`}
+            >
               <h2 className="text-2xl font-bold text-white mb-6">
                 {safeTranslate(t, 'blog.featured', 'Featured Posts')}
               </h2>
@@ -124,7 +146,10 @@ export default function BlogPage() {
           )}
 
           {/* Category Filter */}
-          <div className="mb-8">
+          <div 
+            ref={filterAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`mb-8 scroll-animate-fade-up ${filterAnim.isVisible ? 'visible' : ''}`}
+          >
             <CategoryFilter
               categories={allCategories}
               selectedCategory={selectedCategory}
@@ -133,7 +158,10 @@ export default function BlogPage() {
           </div>
 
           {/* Posts Grid */}
-          <section>
+          <section
+            ref={postsAnim.ref as React.RefObject<HTMLElement>}
+            className={`scroll-animate-fade-up ${postsAnim.isVisible ? 'visible' : ''}`}
+          >
             {filteredPosts.length > 0 ? (
               <>
                 <div className="flex items-center justify-between mb-6">
@@ -172,7 +200,10 @@ export default function BlogPage() {
           </section>
 
           {/* Newsletter Signup */}
-          <section className="mt-16">
+          <section 
+            ref={newsletterAnim.ref as React.RefObject<HTMLElement>}
+            className={`mt-16 scroll-animate-fade-up ${newsletterAnim.isVisible ? 'visible' : ''}`}
+          >
             <NewsletterSignup />
           </section>
         </div>
