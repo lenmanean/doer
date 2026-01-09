@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast'
 import { isEmailConfirmed } from '@/lib/email-confirmation'
 import { integrations, type IntegrationDefinition } from '@/data/integrations'
 import { PlanSelectionModal } from '@/components/ui/PlanSelectionModal'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { 
   SiGooglecalendar, 
   SiApple, 
@@ -164,6 +165,93 @@ const IMPLEMENTED_INTEGRATION_KEYS = ['googleCalendar', 'outlook', 'appleCalenda
 const IMPLEMENTED_PROVIDERS = PROVIDER_INFO.filter(p => IMPLEMENTED_INTEGRATION_KEYS.includes(p.key))
 const UNIMPLEMENTED_PROVIDERS = PROVIDER_INFO.filter(p => !IMPLEMENTED_INTEGRATION_KEYS.includes(p.key))
 
+// Integration card component with animation
+function IntegrationCard({
+  providerInfo,
+  status,
+  delay,
+  onProviderClick
+}: {
+  providerInfo: ProviderInfo
+  status: ProviderStatus | undefined
+  delay: number
+  onProviderClick: (provider: string) => void
+}) {
+  const cardAnim = useScrollAnimation({ delay, triggerOnce: true })
+  const isConnected = status?.connected || false
+
+  return (
+    <Card
+      ref={cardAnim.ref as React.RefObject<HTMLDivElement>}
+      className={`cursor-pointer hover:border-[var(--primary)] transition-colors scroll-animate-fade-up ${cardAnim.isVisible ? 'visible' : ''}`}
+      onClick={() => onProviderClick(providerInfo.provider)}
+    >
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              {providerInfo.icon}
+            </div>
+            <div>
+              <CardTitle>{providerInfo.name}</CardTitle>
+            </div>
+          </div>
+          {isConnected && (
+            <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Connected
+            </Badge>
+          )}
+          {!isConnected && (
+            <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20">
+              <XCircle className="w-3 h-3 mr-1" />
+              Not Connected
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <CardDescription>
+          {providerInfo.description}
+        </CardDescription>
+        {isConnected && status?.connection && status.connection.selected_calendar_ids && (
+          <div className="text-xs text-[#d7d2cb]/60 space-y-1">
+            <p>
+              Last sync: {status.connection.last_sync_at
+                ? new Date(status.connection.last_sync_at).toLocaleString()
+                : 'Never'}
+            </p>
+            <p>
+              Calendars: {status.connection.selected_calendar_ids.length} selected
+            </p>
+          </div>
+        )}
+        <Button
+          variant={isConnected ? 'outline' : 'default'}
+          className="w-full flex items-center justify-center gap-2"
+          onClick={(e) => {
+            e.stopPropagation()
+            onProviderClick(providerInfo.provider)
+          }}
+        >
+          {isConnected ? (
+            <>
+              <Settings className="w-4 h-4" />
+              Configure
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4" />
+              Connect
+            </>
+          )}
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 /**
  * Integrations Hub Page
  * Shows all available calendar providers and their connection status
@@ -179,6 +267,10 @@ export default function IntegrationsPage() {
   const [subscription, setSubscription] = useState<any>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [showUnimplemented, setShowUnimplemented] = useState(false)
+
+  // Animation hooks
+  const titleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const descAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
 
   useEffect(() => {
     if (!user) {
@@ -281,10 +373,16 @@ export default function IntegrationsPage() {
         <div className="space-y-6">
           {/* Header */}
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-[var(--foreground)] mb-2">
+            <h1 
+              ref={titleAnim.ref as React.RefObject<HTMLHeadingElement>}
+              className={`text-3xl sm:text-4xl font-bold text-[var(--foreground)] mb-2 scroll-animate-fade-up ${titleAnim.isVisible ? 'visible' : ''}`}
+            >
               Integrations
             </h1>
-            <p className="text-[#d7d2cb]/60">
+            <p 
+              ref={descAnim.ref as React.RefObject<HTMLParagraphElement>}
+              className={`text-[#d7d2cb]/60 scroll-animate-fade-up ${descAnim.isVisible ? 'visible' : ''}`}
+            >
               Connect and manage your integrations
             </p>
           </div>
@@ -306,81 +404,18 @@ export default function IntegrationsPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {IMPLEMENTED_PROVIDERS.map((providerInfo) => {
-                const status = providers.find(p => p.provider === providerInfo.provider)
-                const isConnected = status?.connected || false
-
-                return (
-                  <Card
-                    key={providerInfo.key}
-                    className="cursor-pointer hover:border-[var(--primary)] transition-colors"
-                    onClick={() => handleProviderClick(providerInfo.provider)}
-                  >
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0">
-                            {providerInfo.icon}
-                          </div>
-                          <div>
-                            <CardTitle>{providerInfo.name}</CardTitle>
-                          </div>
-                        </div>
-                        {isConnected && (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Connected
-                          </Badge>
-                        )}
-                        {!isConnected && (
-                          <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20">
-                            <XCircle className="w-3 h-3 mr-1" />
-                            Not Connected
-                          </Badge>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <CardDescription>
-                        {providerInfo.description}
-                      </CardDescription>
-                      {isConnected && status?.connection && status.connection.selected_calendar_ids && (
-                        <div className="text-xs text-[#d7d2cb]/60 space-y-1">
-                          <p>
-                            Last sync: {status.connection.last_sync_at
-                              ? new Date(status.connection.last_sync_at).toLocaleString()
-                              : 'Never'}
-                          </p>
-                          <p>
-                            Calendars: {status.connection.selected_calendar_ids.length} selected
-                          </p>
-                        </div>
-                      )}
-                      <Button
-                        variant={isConnected ? 'outline' : 'default'}
-                        className="w-full flex items-center justify-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleProviderClick(providerInfo.provider)
-                        }}
-                      >
-                        {isConnected ? (
-                          <>
-                            <Settings className="w-4 h-4" />
-                            Configure
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="w-4 h-4" />
-                            Connect
-                          </>
-                        )}
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                {IMPLEMENTED_PROVIDERS.map((providerInfo, index) => {
+                  const status = providers.find(p => p.provider === providerInfo.provider)
+                  return (
+                    <IntegrationCard
+                      key={providerInfo.key}
+                      providerInfo={providerInfo}
+                      status={status}
+                      delay={100 + (index * 100)}
+                      onProviderClick={handleProviderClick}
+                    />
+                  )
+                })}
               </div>
 
               {/* See More Button - Above unimplemented section (shown when collapsed) */}

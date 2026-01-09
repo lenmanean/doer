@@ -11,9 +11,151 @@ import { Button } from '@/components/ui/Button'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { IS_PRE_LAUNCH } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 
 // Hide pricing page during pre-launch - redirect to homepage
 const SHOW_PRICING_PAGE = !IS_PRE_LAUNCH
+
+// Pricing card component with animation
+function PricingCard({
+  plan,
+  delay,
+  proAnimating,
+  billingCycle,
+  trialEligible
+}: {
+  plan: {
+    id: string
+    name: string
+    blurb: string
+    price: string
+    suffix: string
+    note: string
+    highlights: string[]
+    ctaLabel: string
+    href: string
+    emphasis: boolean
+    trialBadge?: string
+    trialDescription?: string
+    afterTrial?: string
+  }
+  delay: number
+  proAnimating: boolean
+  billingCycle: 'monthly' | 'annual'
+  trialEligible: boolean | null
+}) {
+  const cardAnim = useScrollAnimation({ delay, triggerOnce: true })
+  const t = useTranslations()
+
+  return (
+    <div
+      ref={cardAnim.ref as React.RefObject<HTMLDivElement>}
+      className={`relative flex h-full flex-col gap-6 rounded-3xl border border-gray-800 bg-gray-900 p-6 sm:p-8 shadow-sm transition-colors scroll-animate-fade-up ${cardAnim.isVisible ? 'visible' : ''} ${
+        plan.emphasis
+          ? 'ring-2 ring-white/10'
+          : ''
+      } ${plan.id === 'pro' && proAnimating ? 'pro-plan-fade' : ''}`}
+    >
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+            {plan.name}
+          </p>
+          {plan.id === 'pro' && billingCycle === 'annual' && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-800">
+              Save 33%
+            </span>
+          )}
+          {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && plan.trialBadge && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
+              {plan.trialBadge}
+            </span>
+          )}
+        </div>
+        {plan.price && (
+          <div className="mt-4">
+            {plan.id === 'pro' && billingCycle === 'annual' && (
+              <div className="mb-2">
+                <span className="text-sm text-slate-400 line-through mr-2">
+                  $20/mo
+                </span>
+                <span className="text-xs font-semibold text-green-400">
+                  33% off
+                </span>
+              </div>
+            )}
+            {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && plan.trialDescription && (
+              <div className="mb-2">
+                <p className="text-sm font-semibold text-blue-400">
+                  {plan.trialDescription}
+                </p>
+                {plan.afterTrial && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {plan.afterTrial}
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="flex items-baseline gap-2">
+              <p className="text-3xl sm:text-4xl font-bold text-slate-100">
+                {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? '$0' : (plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price)}
+                <span className="text-base font-medium text-slate-400">
+                  {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
+                </span>
+              </p>
+              {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
+                <span className="text-lg sm:text-xl text-slate-400 line-through">$20</span>
+              )}
+            </div>
+          </div>
+        )}
+        {plan.note && (
+          <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+            {plan.note}
+          </p>
+        )}
+      </div>
+
+      <p className="text-sm text-slate-300">{plan.blurb}</p>
+
+      {plan.highlights.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+            {t('pages.pricing.includedFeatures')}
+          </h3>
+          <ul className="space-y-2 text-sm list-disc pl-4 marker:text-slate-500">
+            {plan.highlights.map((feature) => (
+              <li
+                key={feature}
+                className="text-slate-200 !opacity-100"
+              >
+                <span className="font-medium leading-relaxed text-slate-100">
+                  {feature}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-auto">
+        <Link href={plan.href}>
+          <Button
+            size="lg"
+            variant={plan.emphasis ? 'primary' : 'default'}
+            className={`w-full transition-colors duration-200 ${
+              plan.emphasis
+                ? 'hover:bg-[#e67300]'
+                : 'bg-gray-900 text-slate-100 border border-gray-700 hover:bg-gray-800 hover:border-gray-600'
+            }`}
+          >
+            {plan.ctaLabel}
+          </Button>
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 
 export default function PricingPage() {
@@ -36,6 +178,12 @@ export default function PricingPage() {
   const [proAnimating, setProAnimating] = useState(false)
   const [trialEligible, setTrialEligible] = useState<boolean | null>(null)
   const isFirstRender = useRef(true)
+
+  // Animation hooks
+  const titleAnim = useScrollAnimation({ delay: 0, triggerOnce: true })
+  const descAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+  const billingToggleAnim = useScrollAnimation({ delay: 150, triggerOnce: true })
+  const customPlanAnim = useScrollAnimation({ delay: 600, triggerOnce: true })
 
   // Log translation availability on mount
   useEffect(() => {
@@ -243,16 +391,25 @@ export default function PricingPage() {
       
       <main className="flex-1 py-20 px-4 sm:px-6 lg:px-12 bg-gray-900 transition-colors">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 mb-4">
+          <h1 
+            ref={titleAnim.ref as React.RefObject<HTMLHeadingElement>}
+            className={`text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 mb-4 scroll-animate-fade-up ${titleAnim.isVisible ? 'visible' : ''}`}
+          >
             {t('pages.pricing.title')}
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-10 max-w-3xl mx-auto">
+          <p 
+            ref={descAnim.ref as React.RefObject<HTMLParagraphElement>}
+            className={`text-base sm:text-lg md:text-xl text-slate-300 mb-10 max-w-3xl mx-auto scroll-animate-fade-up ${descAnim.isVisible ? 'visible' : ''}`}
+          >
             {t('pages.pricing.description')}
           </p>
         </div>
 
         <div className="mx-auto max-w-6xl space-y-10">
-          <div className="flex items-center justify-center gap-3">
+          <div 
+            ref={billingToggleAnim.ref as React.RefObject<HTMLDivElement>}
+            className={`flex items-center justify-center gap-3 scroll-animate-fade-up ${billingToggleAnim.isVisible ? 'visible' : ''}`}
+          >
             <span className="text-sm font-medium text-slate-300">
               {t('pages.pricing.billing.label')}
             </span>
@@ -283,119 +440,23 @@ export default function PricingPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            {plans.map((plan) => (
-              <div
+            {plans.map((plan, index) => (
+              <PricingCard
                 key={plan.id}
-                className={`relative flex h-full flex-col gap-6 rounded-3xl border border-gray-800 bg-gray-900 p-6 sm:p-8 shadow-sm transition-colors ${
-                  plan.emphasis
-                    ? 'ring-2 ring-white/10'
-                    : ''
-                } ${plan.id === 'pro' && proAnimating ? 'pro-plan-fade' : ''}`}
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                      {plan.name}
-                    </p>
-                    {plan.id === 'pro' && billingCycle === 'annual' && (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-800">
-                        Save 33%
-                      </span>
-                    )}
-                    {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && plan.trialBadge && (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
-                        {plan.trialBadge}
-                      </span>
-                    )}
-                  </div>
-                  {plan.price && (
-                    <div className="mt-4">
-                      {plan.id === 'pro' && billingCycle === 'annual' && (
-                        <div className="mb-2">
-                          <span className="text-sm text-slate-400 line-through mr-2">
-                            $20/mo
-                          </span>
-                          <span className="text-xs font-semibold text-green-400">
-                            33% off
-                          </span>
-                        </div>
-                      )}
-                      {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && plan.trialDescription && (
-                        <div className="mb-2">
-                          <p className="text-sm font-semibold text-blue-400">
-                            {plan.trialDescription}
-                          </p>
-                          {plan.afterTrial && (
-                            <p className="text-xs text-slate-400 mt-1">
-                              {plan.afterTrial}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl sm:text-4xl font-bold text-slate-100">
-                          {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false ? '$0' : (plan.id === 'pro' && billingCycle === 'annual' ? '$14' : plan.price)}
-                          <span className="text-base font-medium text-slate-400">
-                            {plan.id === 'pro' && billingCycle === 'annual' ? '/mo' : plan.suffix}
-                          </span>
-                        </p>
-                        {plan.id === 'pro' && billingCycle === 'monthly' && trialEligible !== false && (
-                          <span className="text-lg sm:text-xl text-slate-400 line-through">$20</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {plan.note && (
-                    <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-                      {plan.note}
-                    </p>
-                  )}
-                </div>
-
-                <p className="text-sm text-slate-300">{plan.blurb}</p>
-
-
-                {plan.highlights.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                      {t('pages.pricing.includedFeatures')}
-                    </h3>
-                    <ul className="space-y-2 text-sm list-disc pl-4 marker:text-slate-500">
-                      {plan.highlights.map((feature) => (
-                        <li
-                          key={feature}
-                          className="text-slate-200 !opacity-100"
-                        >
-                          <span className="font-medium leading-relaxed text-slate-100">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="mt-auto">
-                  <Link href={plan.href}>
-                    <Button
-                      size="lg"
-                      variant={plan.emphasis ? 'primary' : 'default'}
-                      className={`w-full transition-colors duration-200 ${
-                        plan.emphasis
-                          ? 'hover:bg-[#e67300]'
-                          : 'bg-gray-900 text-slate-100 border border-gray-700 hover:bg-gray-800 hover:border-gray-600'
-                      }`}
-                    >
-                      {plan.ctaLabel}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+                plan={plan}
+                delay={300 + (index * 150)}
+                proAnimating={proAnimating}
+                billingCycle={billingCycle}
+                trialEligible={trialEligible}
+              />
             ))}
           </div>
 
           <div className="mx-auto max-w-3xl">
-            <div className="relative flex h-full flex-col gap-4 rounded-3xl border border-gray-800 bg-gray-900 p-6 sm:p-8 text-center shadow-sm transition-colors">
+            <div 
+              ref={customPlanAnim.ref as React.RefObject<HTMLDivElement>}
+              className={`relative flex h-full flex-col gap-4 rounded-3xl border border-gray-800 bg-gray-900 p-6 sm:p-8 text-center shadow-sm transition-colors scroll-animate-fade-up ${customPlanAnim.isVisible ? 'visible' : ''}`}
+            >
               <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
                 {customPlan.name}
               </p>
