@@ -10,7 +10,7 @@ import { detectTaskDependencies } from '@/lib/goal-analysis'
  * Generate time-block schedule for all tasks in a plan.
  * Persists entries into task_schedule.
  */
-export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date, timezoneOffset?: number, userLocalTime?: Date, requireStartDate?: boolean, workdayStartHourOverride?: number, workdayEndHourOverride?: number) {
+export async function generateTaskSchedule(planId: string, startDateInput: Date, endDateInput: Date, timezoneOffset?: number, userLocalTime?: Date, requireStartDate?: boolean, workdayStartHourOverride?: number, workdayEndHourOverride?: number, preferredDaysOfWeek?: ('weekday' | 'weekend')[]) {
   const supabase = await createClient()
 
   // Fetch plan (to get user_id and canonical dates)
@@ -199,6 +199,15 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     console.log(`[generateTaskSchedule] Total existing schedules (tasks + calendar): ${existingSchedules.length}`)
   }
 
+  // Build availability object with preferred days of week if provided
+  const availability = preferredDaysOfWeek && preferredDaysOfWeek.length > 0
+    ? {
+        busySlots: [],
+        timeOff: [],
+        preferredDaysOfWeek
+      }
+    : undefined
+
   // Run scheduler
   const { placements, totalScheduledHours, unscheduledTasks } = timeBlockScheduler({
     tasks: tasks.map(t => ({
@@ -225,7 +234,8 @@ export async function generateTaskSchedule(planId: string, startDateInput: Date,
     existingSchedules, // Pass busy slots to avoid conflicts
     forceStartDate, // Force using start date when appropriate
     taskDependencies, // Pass detected dependencies to enforce ordering
-    requireStartDate // If true, schedule tasks on day 0 starting from workday start, even if current time is after workday end
+    requireStartDate, // If true, schedule tasks on day 0 starting from workday start, even if current time is after workday end
+    availability // Pass user's preferred days of week from goal text
   })
 
   // Persist placements

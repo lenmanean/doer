@@ -393,6 +393,7 @@ export interface NormalizedAvailability {
   busySlots: BusySlot[]
   timeOff: BusySlot[]
   deadline?: string | null
+  preferredDaysOfWeek?: ('weekday' | 'weekend')[]
 }
 
 export interface AvailabilityValidationResult {

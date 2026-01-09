@@ -1507,7 +1507,9 @@ export async function POST(req: NextRequest) {
       // Pass requireStartDate flag if user explicitly required today
       const requireStartDate = timeConstraints?.requiresToday && timeConstraints?.urgencyLevel === 'high'
       // Pass evening workday hours if availability patterns detected
-      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate, eveningWorkdayStartHour, eveningWorkdayEndHour)
+      // Pass availability preferences from goal text analysis
+      const preferredDaysOfWeek = availabilityAnalysis?.daysOfWeek || undefined
+      await generateTaskSchedule(plan.id, parsedStartDate, endDate, timezoneOffset, schedulerUserLocalTime, requireStartDate, eveningWorkdayStartHour, eveningWorkdayEndHour, preferredDaysOfWeek)
       console.log(`✅ Task schedule generated for ${aiContent.timeline_days}-day timeline`)
       
       // Notify Slack about plan and schedule generation

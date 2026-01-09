@@ -152,7 +152,8 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     existingSchedules = [],
     forceStartDate = false,
     taskDependencies = new Map<number, number[]>(),
-    requireStartDate = false
+    requireStartDate = false,
+    availability
   } = options
 
   // Log availability overrides if custom workday hours are provided
@@ -1823,13 +1824,31 @@ export function timeBlockScheduler(options: TimeBlockSchedulerOptions): {
     // Start from target day, but prioritize staying close to target
     // Search strategy: start at target day, then expand outward (target-1, target+1, target-2, target+2, etc.)
     // But limit how far we can deviate to ensure distribution across timeline
-    const prefersWeekend = allowWeekends &&
-      effectiveWeekendCap > effectiveWeekdayCap &&
-      task.estimated_duration_minutes >= effectiveWeekdayCap * 0.6
+    
+    // Check user's preferred days of week from goal text first
+    // If user specified preference, use it; otherwise fall back to duration-based heuristics
+    let prefersWeekend = false
+    let prefersWeekday = false
+    
+    if (availability?.preferredDaysOfWeek && availability.preferredDaysOfWeek.length > 0) {
+      // User has specified preference from goal text
+      if (availability.preferredDaysOfWeek.includes('weekend')) {
+        prefersWeekend = allowWeekends
+        prefersWeekday = false
+      } else if (availability.preferredDaysOfWeek.includes('weekday')) {
+        prefersWeekend = false
+        prefersWeekday = allowWeekends
+      }
+    } else {
+      // No user preference specified - use duration-based heuristics
+      prefersWeekend = allowWeekends &&
+        effectiveWeekendCap > effectiveWeekdayCap &&
+        task.estimated_duration_minutes >= effectiveWeekdayCap * 0.6
 
-    const prefersWeekday = allowWeekends &&
-      !prefersWeekend &&
-      task.estimated_duration_minutes <= effectiveWeekdayCap * 0.5
+      prefersWeekday = allowWeekends &&
+        !prefersWeekend &&
+        task.estimated_duration_minutes <= effectiveWeekdayCap * 0.5
+    }
 
     const allowEarlierThanTarget = task.priority === 1
 
