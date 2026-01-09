@@ -3211,14 +3211,6 @@ export function CreateTaskModal({
                               />
                             </div>
                           )}
-
-                          {/* Listening indicator */}
-                          {isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' && (
-                            <div className="absolute top-0 left-0 flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
-                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                              <span>Listening...</span>
-                            </div>
-                          )}
                         </div>
                         <div>
                           <label className={`block text-xs font-medium mb-1 ${
@@ -3435,14 +3427,6 @@ export function CreateTaskModal({
                                   />
                                 </div>
                               )}
-
-                              {/* Listening indicator */}
-                              {isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'name' && (
-                                <div className="absolute top-0 left-0 flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
-                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                  <span>Listening...</span>
-                                </div>
-                              )}
                             </div>
 
                             {/* Task Description */}
@@ -3475,14 +3459,6 @@ export function CreateTaskModal({
                                     size="md"
                                     error={fieldSpeechError && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details' ? fieldSpeechError : null}
                                   />
-                                </div>
-                              )}
-
-                              {/* Listening indicator */}
-                              {isFieldListening && activeVoiceField?.taskId === task.id && activeVoiceField?.field === 'details' && (
-                                <div className="absolute top-0 left-0 flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
-                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                  <span>Listening...</span>
                                 </div>
                               )}
                             </div>

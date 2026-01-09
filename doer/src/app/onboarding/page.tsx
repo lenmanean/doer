@@ -470,14 +470,6 @@ function OnboardingContent() {
                         />
                       </div>
                     )}
-
-                    {/* Real-time listening indicator */}
-                    {isListening && (
-                      <div className="absolute top-2 left-2 flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400 z-20">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>Listening...</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Show speech errors */}
