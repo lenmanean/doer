@@ -758,7 +758,8 @@ export async function POST(req: NextRequest) {
     const lunchStartHour = 12
     const lunchEndHour = 13
     const workdayStartHour = 9
-    const workdayEndHour = 17
+    // Use workdayEndHour already defined above (line 610)
+    // const workdayEndHour = 17  // Removed: duplicate definition
     const lunchMinutes = Math.max(0, (lunchEndHour - lunchStartHour) * 60)
     const workdayMinutes = Math.max(60, (workdayEndHour - workdayStartHour) * 60 - lunchMinutes)
     const realisticDailyCapacity = Math.max(120, Math.round(workdayMinutes * 0.65))
