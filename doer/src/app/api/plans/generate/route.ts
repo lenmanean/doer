@@ -104,7 +104,7 @@ import { generateTaskSchedule } from '@/lib/roadmap-server'
 import { createClient } from '@/lib/supabase/server'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
 import { autoAssignBasicPlan } from '@/lib/stripe/auto-assign-basic'
-import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications, detectSettingsConflicts } from '@/lib/goal-analysis'
+import { detectUrgencyIndicators, detectAvailabilityPatterns, combineGoalWithClarifications, detectSettingsConflicts, detectAfterWorkdayCompletionConflict } from '@/lib/goal-analysis'
 import { calculateRemainingTime, calculateDaysNeeded } from '@/lib/time-constraints'
 import { NormalizedAvailability, BusySlot } from '@/lib/types'
 
@@ -643,6 +643,36 @@ export async function POST(req: NextRequest) {
         deadlineType: urgencyAnalysis.deadlineType,
         userLocalTime: userLocalTime.toISOString(),
       })
+      
+      // Check for settings conflict: Goal requires completion today but workday has ended
+      const afterWorkdayConflict = detectAfterWorkdayCompletionConflict(
+        urgencyAnalysis.requiresToday,
+        remainingTime.isAfterWorkday,
+        userLocalTime,
+        userSettingsForConflicts.workday_end_hour ?? 17,
+        timeFormat
+      )
+      
+      if (afterWorkdayConflict) {
+        console.log('⚠️ After-workday completion conflict detected:', afterWorkdayConflict)
+        return fail(
+          400,
+          {
+            error: 'SETTINGS_CONFLICT',
+            message: afterWorkdayConflict.description,
+            conflict: {
+              type: afterWorkdayConflict.type,
+              description: afterWorkdayConflict.description,
+              goalPreference: afterWorkdayConflict.goalPreference,
+              userSetting: afterWorkdayConflict.userSetting,
+              settingsTab: afterWorkdayConflict.settingsTab,
+              alternativeText: afterWorkdayConflict.alternativeText
+            }
+          },
+          'settings_conflict_after_workday',
+          { conflictType: afterWorkdayConflict.type }
+        )
+      }
       
       // EARLY FEASIBILITY CHECK: If user explicitly requires "today" and workday has ended, reject before AI generation
       if (urgencyAnalysis.requiresToday && urgencyAnalysis.urgencyLevel === 'high' && remainingTime.isAfterWorkday) {

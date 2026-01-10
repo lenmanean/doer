@@ -2,6 +2,8 @@
  * Goal analysis utilities for detecting urgency and time constraints
  */
 
+import { formatTimeForDisplay } from '@/lib/date-utils'
+
 /**
  * Combine goal text with clarifications into a single contextual string
  * This ensures AI has full context when analyzing goals
@@ -56,7 +58,7 @@ export interface AvailabilityPattern {
 }
 
 export interface SettingsConflict {
-  type: 'weekend_scheduling' | 'workday_hours' | 'time_availability' | 'evening_availability' | 'morning_availability' | 'hours_per_day'
+  type: 'weekend_scheduling' | 'workday_hours' | 'time_availability' | 'evening_availability' | 'morning_availability' | 'hours_per_day' | 'after_workday_completion'
   description: string
   goalPreference: string
   userSetting: string
@@ -643,6 +645,44 @@ export function detectSettingsConflicts(
   }
   
   return conflicts
+}
+
+/**
+ * Check if goal requires completion today but current time is after workday end
+ * This is a special case that needs to be checked after time constraints are calculated
+ */
+export function detectAfterWorkdayCompletionConflict(
+  requiresToday: boolean,
+  isAfterWorkday: boolean,
+  userLocalTime: Date,
+  workdayEndHour: number,
+  timeFormat: '12h' | '24h' = '12h'
+): SettingsConflict | null {
+  if (!requiresToday || !isAfterWorkday || !workdayEndHour) {
+    return null
+  }
+
+  // Format the current time for display using the utility function
+  const formattedTime = formatTimeForDisplay(userLocalTime, timeFormat)
+
+  // Format workday end hour (it's just an hour number, not a Date)
+  let formattedWorkdayEnd: string
+  if (timeFormat === '12h') {
+    const hour12 = workdayEndHour % 12 || 12
+    const ampm = workdayEndHour >= 12 ? 'PM' : 'AM'
+    formattedWorkdayEnd = `${hour12}:00 ${ampm}`
+  } else {
+    formattedWorkdayEnd = `${String(workdayEndHour).padStart(2, '0')}:00`
+  }
+
+  return {
+    type: 'after_workday_completion',
+    description: `Your goal requires completion today, but your workday has ended (current time: ${formattedTime}, workday ends at ${formattedWorkdayEnd}). This would require working outside your set workday hours.`,
+    goalPreference: 'Complete everything today',
+    userSetting: `Workday ends at ${formattedWorkdayEnd}`,
+    settingsTab: 'workday',
+    alternativeText: 'Alternatively, adjust your goal to start tomorrow, or update your workday hours in settings if you want to work evenings.'
+  }
 }
 
 /**
