@@ -1804,11 +1804,11 @@ export default function ReviewPage() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.2 }}
-            onClick={showStrengthenPlanModal ? undefined : handleStrengthenPlan}
-            disabled={isGeneratingQuestions || isRegenerating || showStrengthenPlanModal}
-            className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg transition-all duration-300 flex items-center justify-center disabled:opacity-100 disabled:cursor-default touch-manipulation ${
+            onClick={showStrengthenPlanModal ? handleStrengthenPlanFromModal : handleStrengthenPlan}
+            disabled={isGeneratingQuestions || isRegenerating}
+            className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] w-14 h-14 min-w-[56px] min-h-[56px] rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
               showStrengthenPlanModal
-                ? 'animate-purple-glow'
+                ? 'animate-purple-glow cursor-pointer'
                 : 'shadow-purple-600/25 hover:shadow-purple-600/35'
             }`}
             aria-label="Strengthen plan"

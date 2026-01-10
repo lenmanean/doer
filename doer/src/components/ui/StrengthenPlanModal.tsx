@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -19,47 +19,6 @@ export function StrengthenPlanModal({
   onSkip,
 }: StrengthenPlanModalProps) {
   const [dontShowAgain, setDontShowAgain] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [isMobile, setIsMobile] = useState(false)
-
-  // Detect mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Handle video loading when modal opens
-  useEffect(() => {
-    if (isOpen && videoRef.current) {
-      // Video will be added later - placeholder for now
-      // When video is added, uncomment and configure:
-      /*
-      const timer = setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.load()
-          const playPromise = videoRef.current.play()
-          if (playPromise !== undefined) {
-            playPromise.catch((error) => {
-              console.log('Video autoplay prevented (may need user interaction on mobile):', error)
-              if (isMobile && videoRef.current) {
-                videoRef.current.currentTime = 0
-              }
-            })
-          }
-        }
-      }, 300)
-      return () => clearTimeout(timer)
-      */
-    } else {
-      if (videoRef.current) {
-        videoRef.current.pause()
-      }
-    }
-  }, [isOpen, isMobile])
 
   const handleSkip = () => {
     onSkip(dontShowAgain)
@@ -110,75 +69,23 @@ export function StrengthenPlanModal({
               </button>
 
               {/* Header */}
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pr-8">
-                <div className="p-1.5 sm:p-2 bg-purple-500/20 rounded-lg">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
+              <div className="mb-3 sm:mb-4 pr-8">
+                <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                  <div className="p-1.5 sm:p-2 bg-purple-500/20 rounded-lg">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-[#d7d2cb]">Strengthen Your Plan?</h3>
                 </div>
-                <h3 className="text-lg sm:text-xl font-semibold text-[#d7d2cb]">Strengthen Your Plan?</h3>
+                <p className="text-xs sm:text-sm text-[#d7d2cb]/60 ml-11 sm:ml-12">
+                  Costs 1 API credit
+                </p>
               </div>
 
               {/* Description */}
               <div className="mb-4 sm:mb-6">
-                <p className="text-sm sm:text-base text-[#d7d2cb]/80 mb-3">
-                  Improve your plan by answering a few clarifying questions. This will help us create a more personalized and effective roadmap for your goals.
+                <p className="text-sm sm:text-base text-[#d7d2cb]/80">
+                  Improve your plan by answering a few clarifying questions to create a more personalized roadmap.
                 </p>
-                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-2 sm:p-3">
-                  <p className="text-xs sm:text-sm text-[#d7d2cb]/70">
-                    <strong className="text-purple-400">Cost:</strong> 1 API credit
-                  </p>
-                </div>
-              </div>
-
-              {/* Video placeholder - ready for MP4 embed */}
-              <div className="mb-4 sm:mb-6">
-                <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 rounded-lg border-2 border-gray-700 overflow-hidden w-full mx-auto" style={{ minHeight: '150px' }}>
-                  {/* Video will be added here later */}
-                  {/* Structure ready for <video> tag:
-                  <video
-                    ref={videoRef}
-                    src="/path/to/video.mp4"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    preload="auto"
-                    className="w-full h-auto rounded-lg"
-                    style={{ 
-                      display: 'block',
-                      objectFit: 'contain'
-                    }}
-                    onError={(e) => {
-                      const video = e.currentTarget
-                      const error = video.error
-                      console.error('Video loading error:', {
-                        code: error?.code,
-                        message: error?.message,
-                        src: video.src,
-                      })
-                    }}
-                    onLoadedData={() => {
-                      if (isMobile && videoRef.current) {
-                        videoRef.current.play().catch(() => {
-                          // Silently fail - user may need to interact
-                        })
-                      }
-                    }}
-                    onLoadedMetadata={() => {
-                      if (videoRef.current) {
-                        videoRef.current.style.display = 'block'
-                        videoRef.current.setAttribute('webkit-playsinline', 'true')
-                        videoRef.current.setAttribute('playsinline', 'true')
-                        videoRef.current.setAttribute('x5-playsinline', 'true')
-                      }
-                    }}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                  */}
-                  <div className="flex items-center justify-center h-full min-h-[150px] text-[#d7d2cb]/40">
-                    <p className="text-xs sm:text-sm text-center px-4">Video placeholder - MP4 video will be embedded here</p>
-                  </div>
-                </div>
               </div>
 
               {/* Do not show again checkbox */}
