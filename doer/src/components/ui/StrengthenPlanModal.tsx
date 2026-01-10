@@ -76,9 +76,6 @@ export function StrengthenPlanModal({
                   </div>
                   <h3 className="text-lg sm:text-xl font-semibold text-[#d7d2cb]">Strengthen Your Plan?</h3>
                 </div>
-                <p className="text-xs sm:text-sm text-[#d7d2cb]/60 ml-11 sm:ml-12">
-                  Costs 1 API credit
-                </p>
               </div>
 
               {/* Description */}
