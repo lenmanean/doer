@@ -2174,7 +2174,10 @@ export default function ReviewPage() {
                           setClarificationPhase('freeText')
                         }
                       }}
-                      disabled={!clarificationAnswers[currentQuestionIndex.toString()] || (typeof clarificationAnswers[currentQuestionIndex.toString()] === 'string' && clarificationAnswers[currentQuestionIndex.toString()].trim() === '')}
+                      disabled={(() => {
+                        const answer = clarificationAnswers[currentQuestionIndex.toString()]
+                        return !answer || (typeof answer === 'string' && answer.trim() === '')
+                      })()}
                       className="flex items-center gap-2"
                     >
                     {currentQuestionIndex === clarificationQuestions.length - 1 ? (
