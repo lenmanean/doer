@@ -603,20 +603,66 @@ export async function POST(req: NextRequest) {
     const isStartDateToday = startDateUTC.getTime() === todayUTC.getTime()
     let timeConstraints: { isStartDateToday: boolean; remainingMinutes: number; urgencyLevel: 'high' | 'medium' | 'low' | 'none'; requiresToday: boolean; deadlineDate?: Date; deadlineType?: 'tomorrow' | 'specific_date' | 'none'; timeFormat?: '12h' | '24h'; userLocalTime?: Date; isAfterWorkday?: boolean; timelineRequirement?: { minimumDays?: number; preferredDays?: number; timelinePhrase?: string } } | undefined
 
-    if (isStartDateToday) {
-      // Fetch user's workday settings and time format preference
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('preferences')
-        .eq('user_id', user.id)
-        .maybeSingle()
+    // CRITICAL: Check for after-workday conflict BEFORE checking if start date is today
+    // Use already-fetched settings from earlier (lines 480-498)
+    const timeFormatFromPrefs = (prefs.time_format || '12h') as '12h' | '24h'
+    const workdayEndHour = userSettingsForConflicts.workday_end_hour ?? 17
+    // This conflict should be detected if the goal requires completion today,
+    // regardless of whether the start date is today or tomorrow
+    if (urgencyAnalysis.requiresToday) {
+      // Calculate if workday has ended using today as the reference date
+      const todayDate = new Date(todayUTC)
+      const todayWorkdaySettings = {
+        workday_start_hour: userSettingsForConflicts.workday_start_hour ?? 9,
+        workday_end_hour: workdayEndHour,
+        lunch_start_hour: userSettingsForConflicts.lunch_start_hour ?? 12,
+        lunch_end_hour: userSettingsForConflicts.lunch_end_hour ?? 13,
+      }
+      const todayRemainingTime = calculateRemainingTime(todayDate, todayWorkdaySettings, userLocalTime)
       
-      const prefs = (settings?.preferences as any) ?? {}
-      const workdaySettings = prefs.workday || {}
-      const timeFormat = prefs.time_format || '12h' // Default to 12h if not set
+      if (todayRemainingTime.isAfterWorkday) {
+        const afterWorkdayConflict = detectAfterWorkdayCompletionConflict(
+          urgencyAnalysis.requiresToday,
+          true, // isAfterWorkday
+          userLocalTime,
+          workdayEndHour,
+          timeFormatFromPrefs
+        )
+        
+        if (afterWorkdayConflict) {
+          console.log('⚠️ After-workday completion conflict detected (before time constraints):', afterWorkdayConflict)
+          return fail(
+            400,
+            {
+              error: 'SETTINGS_CONFLICT',
+              message: afterWorkdayConflict.description,
+              conflict: {
+                type: afterWorkdayConflict.type,
+                description: afterWorkdayConflict.description,
+                goalPreference: afterWorkdayConflict.goalPreference,
+                userSetting: afterWorkdayConflict.userSetting,
+                settingsTab: afterWorkdayConflict.settingsTab,
+                alternativeText: afterWorkdayConflict.alternativeText
+              }
+            },
+            'settings_conflict_after_workday',
+            { conflictType: afterWorkdayConflict.type }
+          )
+        }
+      }
+    }
+
+    if (isStartDateToday) {
+      // Use already-fetched workday settings and time format preference
+      const workdaySettingsForTime = {
+        workday_start_hour: userSettingsForConflicts.workday_start_hour ?? 9,
+        workday_end_hour: workdayEndHour,
+        lunch_start_hour: userSettingsForConflicts.lunch_start_hour ?? 12,
+        lunch_end_hour: userSettingsForConflicts.lunch_end_hour ?? 13,
+      }
       
       // Use user's local time for remaining time calculation
-      const remainingTime = calculateRemainingTime(startDate, workdaySettings, userLocalTime)
+      const remainingTime = calculateRemainingTime(startDate, workdaySettingsForTime, userLocalTime)
       
       // Validate: if workday has ended, remainingMinutes must be 0
       const validatedRemainingMinutes = remainingTime.isAfterWorkday ? 0 : remainingTime.remainingMinutes
@@ -628,7 +674,7 @@ export async function POST(req: NextRequest) {
         requiresToday: urgencyAnalysis.requiresToday,
         deadlineDate: urgencyAnalysis.deadlineDate,
         deadlineType: urgencyAnalysis.deadlineType,
-        timeFormat: timeFormat as '12h' | '24h',
+        timeFormat: timeFormatFromPrefs,
         userLocalTime: userLocalTime,
         isAfterWorkday: remainingTime.isAfterWorkday,
         timelineRequirement: urgencyAnalysis.timelineRequirement,
@@ -644,39 +690,10 @@ export async function POST(req: NextRequest) {
         userLocalTime: userLocalTime.toISOString(),
       })
       
-      // Check for settings conflict: Goal requires completion today but workday has ended
-      const afterWorkdayConflict = detectAfterWorkdayCompletionConflict(
-        urgencyAnalysis.requiresToday,
-        remainingTime.isAfterWorkday,
-        userLocalTime,
-        userSettingsForConflicts.workday_end_hour ?? 17,
-        timeFormat
-      )
-      
-      if (afterWorkdayConflict) {
-        console.log('⚠️ After-workday completion conflict detected:', afterWorkdayConflict)
-        return fail(
-          400,
-          {
-            error: 'SETTINGS_CONFLICT',
-            message: afterWorkdayConflict.description,
-            conflict: {
-              type: afterWorkdayConflict.type,
-              description: afterWorkdayConflict.description,
-              goalPreference: afterWorkdayConflict.goalPreference,
-              userSetting: afterWorkdayConflict.userSetting,
-              settingsTab: afterWorkdayConflict.settingsTab,
-              alternativeText: afterWorkdayConflict.alternativeText
-            }
-          },
-          'settings_conflict_after_workday',
-          { conflictType: afterWorkdayConflict.type }
-        )
-      }
-      
+      // Note: Conflict check for after-workday completion is already done above (before isStartDateToday check)
       // EARLY FEASIBILITY CHECK: If user explicitly requires "today" and workday has ended, reject before AI generation
       if (urgencyAnalysis.requiresToday && urgencyAnalysis.urgencyLevel === 'high' && remainingTime.isAfterWorkday) {
-        const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormat)
+        const formattedCurrentTime = formatTimeForDisplay(userLocalTime, timeFormatFromPrefs)
         
         console.log('❌ Plan rejected early: User requires completion today, but workday has ended:', {
           currentTime: formattedCurrentTime,
