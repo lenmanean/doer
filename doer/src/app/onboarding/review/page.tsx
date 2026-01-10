@@ -12,6 +12,7 @@ import { useSupabase } from '@/components/providers/supabase-provider'
 import { useToast } from '@/components/ui/Toast'
 import { PlanSelectionModal } from '@/components/ui/PlanSelectionModal'
 import { FadeInWrapper } from '@/components/ui/FadeInWrapper'
+import { StrengthenPlanModal } from '@/components/ui/StrengthenPlanModal'
 import type { ReviewPlanData } from '@/lib/types/roadmap'
 
 export default function ReviewPage() {
@@ -43,6 +44,8 @@ export default function ReviewPage() {
   const isRequestInFlightRef = useRef(false)
   const [showPlanSelectionModal, setShowPlanSelectionModal] = useState(false)
   const [hasBasicPlan, setHasBasicPlan] = useState(false)
+  const [showStrengthenPlanModal, setShowStrengthenPlanModal] = useState(false)
+  const [dontShowAgainPreference, setDontShowAgainPreference] = useState(false)
 
   const wrapSortTasksChronologically = (items: Task[]) => {
     return [...items].sort((a, b) => {
@@ -183,6 +186,27 @@ export default function ReviewPage() {
     }
     bootstrap()
   }, [authLoading, user, supabase, router, searchParams])
+
+  // Fetch user preference for strengthen plan modal
+  useEffect(() => {
+    if (!user || loading || authLoading) return
+
+    const fetchPreference = async () => {
+      try {
+        const response = await fetch('/api/preferences/strengthen-plan-modal')
+        if (response.ok) {
+          const data = await response.json()
+          setDontShowAgainPreference(data.dont_show_again || false)
+        }
+      } catch (error) {
+        console.error('Error fetching strengthen plan modal preference:', error)
+        // Default to false (show modal) if error
+        setDontShowAgainPreference(false)
+      }
+    }
+
+    fetchPreference()
+  }, [user, loading, authLoading])
 
   // Check subscription on page load and show modal if user has basic plan
   useEffect(() => {
@@ -630,8 +654,17 @@ export default function ReviewPage() {
   }
 
   const handleAcceptPlan = async () => {
-    // Plan is already saved to DB by /api/plans/generate
-    
+    // Check user preference - if "do not show again" is true, skip modal and go directly to dashboard
+    if (dontShowAgainPreference) {
+      await proceedToDashboard()
+      return
+    }
+
+    // Show strengthen plan modal
+    setShowStrengthenPlanModal(true)
+  }
+
+  const proceedToDashboard = async () => {
     try {
       // ✅ VALIDATE AUTH SESSION before redirecting
       console.log('[Review] Validating auth session before dashboard redirect...')
@@ -643,9 +676,9 @@ export default function ReviewPage() {
       
       if (!healthCheck.ok) {
         console.error('[Review] Auth session not valid for current user')
-          alert('Your session has expired. Please sign in again.')
-          router.push('/login')
-          return
+        alert('Your session has expired. Please sign in again.')
+        router.push('/login')
+        return
       }
       
       const healthData = await healthCheck.json()
@@ -664,6 +697,40 @@ export default function ReviewPage() {
       console.error('[Review] Error validating session:', error)
       alert('There was an error transitioning to the dashboard. Please try again.')
     }
+  }
+
+  const handleStrengthenPlanFromModal = () => {
+    setShowStrengthenPlanModal(false)
+    // Call existing strengthen plan handler
+    handleStrengthenPlan()
+  }
+
+  const handleSkipStrengthenPlan = async (dontShowAgain: boolean) => {
+    setShowStrengthenPlanModal(false)
+
+    // Save preference if "do not show again" is checked
+    if (dontShowAgain) {
+      try {
+        const response = await fetch('/api/preferences/strengthen-plan-modal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ dont_show_again: true }),
+        })
+
+        if (response.ok) {
+          setDontShowAgainPreference(true)
+        } else {
+          console.error('Failed to save preference:', await response.text())
+        }
+      } catch (error) {
+        console.error('Error saving preference:', error)
+      }
+    }
+
+    // Proceed to dashboard
+    await proceedToDashboard()
   }
 
   const handleContinueToDashboard = () => {
@@ -1709,6 +1776,14 @@ export default function ReviewPage() {
         </div>
         )}
       </AnimatePresence>
+
+      {/* Strengthen Plan Modal */}
+      <StrengthenPlanModal
+        isOpen={showStrengthenPlanModal}
+        onClose={() => handleSkipStrengthenPlan(false)}
+        onStrengthen={handleStrengthenPlanFromModal}
+        onSkip={handleSkipStrengthenPlan}
+      />
 
       {/* Plan Selection Modal - Shows for basic plan users on page load */}
       {hasBasicPlan && (
