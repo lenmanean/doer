@@ -7,6 +7,7 @@ import { calculateEveningWorkdayHours, extractWorkdayEndHourFromText } from '@/l
 import { formatDateForDB, parseDateFromDB, addDays } from '@/lib/date-utils'
 import { NormalizedAvailability, BusySlot } from '@/lib/types'
 import { UsageLimitExceeded } from '@/lib/usage/credit-service'
+import { extractToolsFromClarifications } from '@/lib/tool-extraction'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -97,15 +98,18 @@ export async function POST(
     }
 
     // Validate and sanitize input
-    const clarifications: Record<string, string> = 
+    // Handle both string (single-select) and string[] (multi-select) answers
+    const clarifications: Record<string, string | string[]> = 
       typeof body.clarifications === 'object' && body.clarifications !== null && !Array.isArray(body.clarifications)
         ? Object.fromEntries(
-            Object.entries(body.clarifications).filter(([_, v]) => typeof v === 'string')
-          ) as Record<string, string>
+            Object.entries(body.clarifications).filter(([_, v]) => 
+              typeof v === 'string' || (Array.isArray(v) && v.every(item => typeof item === 'string'))
+            )
+          ) as Record<string, string | string[]>
         : {}
     
     // clarificationQuestions is now optional - we use question text as keys in clarifications
-    const clarificationQuestions: Array<string | { text: string; options: string[] }> = 
+    const clarificationQuestions: Array<string | { text: string; options: string[]; type?: 'single' | 'multiple' }> = 
       Array.isArray(body.clarificationQuestions)
         ? body.clarificationQuestions
         : []
@@ -171,8 +175,21 @@ export async function POST(
       // Proceed, but rollback might be incomplete if tasks couldn't be fetched
     }
 
-    // Combine goal with new clarifications
-    const combinedGoal = combineGoalWithClarifications(plan.goal_text, clarifications)
+    // Convert clarifications to combined text for combineGoalWithClarifications
+    // Handle both string and string[] values (multi-select answers)
+    const clarificationsForCombining: Record<string, string> = {}
+    for (const key in clarifications) {
+      const value = clarifications[key]
+      if (typeof value === 'string') {
+        clarificationsForCombining[key] = value
+      } else if (Array.isArray(value)) {
+        // Join array items with commas for multi-select answers
+        clarificationsForCombining[key] = value.join(', ')
+      }
+    }
+
+    // Combine goal with new clarifications (using stringified version for compatibility)
+    const combinedGoal = combineGoalWithClarifications(plan.goal_text, clarificationsForCombining)
 
     // Fetch user settings for workday hours
     const { data: userSettings, error: settingsError } = await supabase
@@ -207,9 +224,9 @@ export async function POST(
       workday_end_hour: workdayEndHour,
     }
 
-    // Detect urgency and availability patterns
-    const urgencyAnalysis = detectUrgencyIndicators(combinedGoal, clarifications)
-    const availabilityAnalysis = detectAvailabilityPatterns(combinedGoal, clarifications, workdaySettings)
+    // Detect urgency and availability patterns (using stringified clarifications)
+    const urgencyAnalysis = detectUrgencyIndicators(combinedGoal, clarificationsForCombining)
+    const availabilityAnalysis = detectAvailabilityPatterns(combinedGoal, clarificationsForCombining, workdaySettings)
 
     // Calculate evening workday hours if needed
     let eveningWorkdayStartHour: number | undefined
@@ -259,7 +276,7 @@ export async function POST(
     }
 
     // Convert clarificationQuestions to string array for AI request
-    // Support both old format (string[]) and new format (Array<{text: string, options: string[]}>)
+    // Support both old format (string[]) and new format (Array<{text: string, options: string[], type?: 'single' | 'multiple'}>)
     const clarificationQuestionsForAI: string[] = clarificationQuestions.map((q) => {
       if (typeof q === 'string') {
         return q
@@ -269,11 +286,15 @@ export async function POST(
       return ''
     }).filter((q) => q.length > 0)
 
+    // Extract tools from clarifications
+    const extractedTools = extractToolsFromClarifications(clarifications)
+
     // Prepare AI request
     const aiRequest = {
       goal: combinedGoal,
       clarifications,
       clarificationQuestions: clarificationQuestionsForAI,
+      tools: extractedTools.length > 0 ? extractedTools : undefined,
       start_date: plan.start_date,
       availability,
       workdaySettings: {
@@ -304,7 +325,7 @@ export async function POST(
       .from('plans')
       .update({
         goal_text: plan.goal_text, // Keep original goal text
-        clarifications: clarifications,
+        clarifications: clarifications, // Store original structure (includes arrays for multi-select)
         end_date: newEndDateStr,
         summary_data: {
           ...(typeof plan.summary_data === 'object' ? plan.summary_data : {}),

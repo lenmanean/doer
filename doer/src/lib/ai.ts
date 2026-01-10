@@ -310,11 +310,45 @@ ${request.clarificationQuestions.map((q: string, i: number) => {
 
 IMPORTANT: Use these clarifications to tailor the plan. Adjust timeline and task complexity based on user's experience level and specific requirements.` : ''
 
+  // Build tools section if tools are provided
+  const { formatToolsForPrompt, groupToolsByCategory } = await import('@/lib/tool-extraction')
+  let toolsSection = ''
+  if (request.tools && request.tools.length > 0) {
+    const toolsText = formatToolsForPrompt(request.tools)
+    const groupedTools = groupToolsByCategory(request.tools)
+    const categorySections: string[] = []
+    
+    for (const [category, tools] of Object.entries(groupedTools)) {
+      if (category !== 'other' && tools.length > 0) {
+        categorySections.push(`${category}: ${tools.join(', ')}`)
+      }
+    }
+    
+    toolsSection = `
+TOOLS AND SOFTWARE CONTEXT:
+${toolsText}${categorySections.length > 0 ? `\nTool categories: ${categorySections.join('; ')}` : ''}
+
+CRITICAL INSTRUCTIONS FOR TOOL USAGE:
+- Tasks MUST explicitly reference the specific tools/software mentioned above when relevant
+- If a task involves creating slides, and user mentioned "Google Slides", the task details should say "Create slides in Google Slides" NOT just "Create slides"
+- If a task involves scheduling/calendar work and user mentioned "Google Calendar", reference it specifically
+- Task names should be generic (e.g., "Create presentation slides") but task details MUST include the specific tool (e.g., "Use Google Slides to create 10-12 slides covering...")
+- Incorporate tool-specific features when relevant (e.g., "Share via Google Slides sharing options" if Google Slides was mentioned)
+- If multiple tools were mentioned for different purposes, use the appropriate tool for each relevant task
+- DO NOT create generic tasks that could work with any tool - be specific based on what the user specified
+
+Examples:
+- User mentions "Google Slides" → Task details: "Create 10-12 slides in Google Slides covering the main topics. Use Google Slides templates and sharing features."
+- User mentions "PowerPoint" → Task details: "Design presentation slides in PowerPoint with consistent theme and animations."
+- User mentions "DOER and Google Calendar" → Relevant tasks should mention using DOER for task management and Google Calendar for scheduling
+`
+  }
+
   const prompt = `Create a structured plan with realistic duration estimates for:
 
 "${contextualGoal}"
 
-${clarificationsSection}
+${clarificationsSection}${toolsSection}
 
 ${availabilityContext}${timeConstraintContext}DURATION ESTIMATION:
 • AI determines EXACT duration for each task based on complexity
@@ -599,7 +633,10 @@ export async function generatePlanClarificationQuestions(request: {
   existingSchedules: Array<{ date: string; start_time: string; end_time: string }>
   calendarBusySlots: Array<{ start: string; end: string }>
   workdaySettings: { startHour: number; endHour: number; lunchStart: number; lunchEnd: number; allowWeekends: boolean }
-}): Promise<{ questions: Array<{ text: string; options: string[] }>; reasoning: string }> {
+}): Promise<{ questions: Array<{ text: string; options: string[]; type?: 'single' | 'multiple' }>; reasoning: string }> {
+  // Import tool extraction utilities
+  const { extractToolsFromText } = await import('@/lib/tool-extraction')
+  
   // Calculate capacity utilization
   const workdayMinutes = (request.workdaySettings.endHour - request.workdaySettings.startHour) * 60
   const lunchMinutes = Math.max(0, request.workdaySettings.lunchEnd - request.workdaySettings.lunchStart)
@@ -614,6 +651,40 @@ export async function generatePlanClarificationQuestions(request: {
   const conflictSummary = hasScheduleConflicts
     ? `User has ${request.existingSchedules.length} existing scheduled tasks and ${request.calendarBusySlots.length} calendar busy slots.`
     : 'User has no existing scheduled tasks or calendar conflicts.'
+
+  // Check if tasks suggest tool usage but tools are not mentioned
+  const goalText = request.goal.toLowerCase()
+  const planSummaryText = request.planSummary.toLowerCase()
+  const allTaskText = request.tasks.map(t => `${t.name} ${t.details || ''}`).join(' ').toLowerCase()
+  const combinedText = `${goalText} ${planSummaryText} ${allTaskText}`
+  
+  // Detect tool-related keywords that suggest tool usage
+  const toolKeywords = {
+    presentation: ['presentation', 'slides', 'slide deck', 'pitch', 'demo', 'present'],
+    calendar: ['schedule', 'calendar', 'appointment', 'meeting', 'event'],
+    design: ['design', 'mockup', 'prototype', 'ui', 'ux', 'wireframe'],
+    development: ['code', 'program', 'develop', 'build', 'app', 'website', 'software'],
+    writing: ['write', 'document', 'blog', 'article', 'copy', 'content'],
+    spreadsheet: ['spreadsheet', 'data', 'analysis', 'track', 'calculate'],
+  }
+  
+  // Check if goal/tasks suggest tool usage
+  let suggestedToolCategories: string[] = []
+  for (const [category, keywords] of Object.entries(toolKeywords)) {
+    if (keywords.some(keyword => combinedText.includes(keyword))) {
+      suggestedToolCategories.push(category)
+    }
+  }
+  
+  // Extract any tools already mentioned
+  const mentionedTools = extractToolsFromText(request.goal)
+  const mentionedToolsInTasks = request.tasks.flatMap(t => 
+    extractToolsFromText(`${t.name} ${t.details || ''}`)
+  )
+  const allMentionedTools = [...new Set([...mentionedTools, ...mentionedToolsInTasks])]
+  
+  // Determine if tool question would be valuable
+  const needsToolQuestion = suggestedToolCategories.length > 0 && allMentionedTools.length === 0
 
   const prompt = `You are an intelligent plan enhancement assistant. Analyze the following plan and generate 0-5 clarification questions that would help improve the plan's accuracy and effectiveness.
 
@@ -646,6 +717,12 @@ ANALYSIS CRITERIA:
 5. **Schedule Conflicts**: If there are many conflicts, ask about priority or flexibility
 6. **Task Dependencies**: If tasks seem out of order or missing prerequisites, ask about dependencies
 7. **Resource Needs**: If tasks require specific tools/materials, ask about availability
+8. **Tool/Software Needs**: If tasks suggest tool usage (presentations, design, development, etc.) but no specific tools are mentioned, ask what tools/software the user plans to use. This is CRITICAL for creating accurate, actionable tasks.
+
+TOOL DETECTION ANALYSIS:
+${suggestedToolCategories.length > 0 ? `Tasks suggest usage of: ${suggestedToolCategories.join(', ')} tools` : 'No specific tool categories detected'}
+${allMentionedTools.length > 0 ? `Tools already mentioned: ${allMentionedTools.join(', ')}` : 'No tools mentioned in goal or tasks'}
+${needsToolQuestion ? '⚠️ TOOL QUESTION RECOMMENDED: Tasks suggest tool usage but no specific tools are mentioned. This is a high-value question.' : ''}
 
 DECISION RULES:
 - Generate 0-5 questions (fewer is better - only ask what's truly valuable)
@@ -655,30 +732,81 @@ DECISION RULES:
 - If plan is already well-defined, return empty array
 - Questions should help refine timeline, task scope, or scheduling
 
+QUESTION TYPE SELECTION (CRITICAL):
+Each question MUST specify a "type" field: "single" or "multiple"
+
+Use **"multiple"** (check all that apply) when:
+- Question asks about multiple tools/resources/features that can coexist (e.g., "What tools will you use?")
+- Question asks "what areas/aspects/features" (plural implies multiple selections possible)
+- Question is about priorities/focus areas where multiple selections are meaningful
+- Options are NOT mutually exclusive (e.g., users can use PowerPoint AND Google Slides)
+- Question asks about resources, constraints, or aspects that can overlap
+
+Use **"single"** (radio button, one choice only) when:
+- Question asks for one preference/level/choice (e.g., "What's your experience level?")
+- Options are mutually exclusive (e.g., experience levels: Beginner, Intermediate, Advanced)
+- Binary/Yes-No questions or timeline flexibility decisions
+- Question uses singular form implying one choice (e.g., "How do you prefer to practice?")
+- Only one answer can be true at a time
+
 MULTIPLE CHOICE REQUIREMENTS:
 - Each question MUST include 2-5 answer options
 - The number of options should be appropriate for the question (typically 2-4, use 5 only for complex questions)
-- Options should be mutually exclusive and cover the most common scenarios
-- Always include an "Other" option as the last option to allow custom responses
+- For SINGLE-select questions: Options should be mutually exclusive and cover the most common scenarios
+- For MULTIPLE-select questions: Options should NOT be mutually exclusive and users may select multiple
+- Always include an "Other" option as the last option to allow custom responses (works for both types)
 - Options should be concise (1-2 short phrases each)
 - Make options specific and actionable, not vague
 
 EXAMPLES:
+
+SINGLE-SELECT EXAMPLES (type: "single"):
 - High capacity (95%): {
     "text": "Would you be able to extend the timeline, or do you have additional time available?",
+    "type": "single",
     "options": ["Extend timeline by 1-2 days", "I can add 1-2 hours per day", "I prefer to keep the current timeline", "Other"]
-  }
-- Vague task: {
-    "text": "For 'Research best practices', what specific areas should be prioritized?",
-    "options": ["Performance optimization", "Security best practices", "Code structure and patterns", "All of the above", "Other"]
   }
 - Missing context: {
     "text": "What's your current experience level with [relevant skill]?",
+    "type": "single",
     "options": ["Beginner", "Intermediate", "Advanced", "Expert", "Other"]
   }
 - Timeline tight: {
     "text": "Is the ${request.timelineDays}-day timeline firm, or could it be extended if needed?",
+    "type": "single",
     "options": ["Timeline is firm, cannot extend", "Can extend by 1-2 days if needed", "Can extend by 3+ days if needed", "Timeline is flexible", "Other"]
+  }
+- Preference question: {
+    "text": "How do you prefer to practice your presentation delivery?",
+    "type": "single",
+    "options": ["Alone", "With a friend or colleague", "In front of a small group", "Record myself and review", "Other"]
+  }
+
+MULTIPLE-SELECT EXAMPLES (type: "multiple"):
+- Tool/software question (for presentations) - MULTIPLE: {
+    "text": "Do you have any specific tools or software you plan to use for creating slides?",
+    "type": "multiple",
+    "options": ["PowerPoint", "Google Slides", "Keynote", "Canva", "None", "Other"]
+  }
+- Tool/software question (for design work) - MULTIPLE: {
+    "text": "What design tools will you use for this project?",
+    "type": "multiple",
+    "options": ["Figma", "Adobe XD", "Sketch", "Canva", "Photoshop", "Other"]
+  }
+- Focus areas question - MULTIPLE: {
+    "text": "What specific aspects of project management should the presentation focus on?",
+    "type": "multiple",
+    "options": ["Planning and organization", "Execution and delivery", "Team collaboration", "Risk management", "Monitoring and reporting", "Other"]
+  }
+- Resources question - MULTIPLE: {
+    "text": "What resources will you use for research?",
+    "type": "multiple",
+    "options": ["Online articles and blogs", "Books and publications", "Video tutorials", "Industry reports", "Academic papers", "Other"]
+  }
+- Vague task areas - MULTIPLE (replaces "All of the above" workaround): {
+    "text": "For 'Research best practices', what specific areas should be prioritized?",
+    "type": "multiple",
+    "options": ["Performance optimization", "Security best practices", "Code structure and patterns", "Scalability", "User experience", "Other"]
   }
 
 Return JSON format:
@@ -686,17 +814,20 @@ Return JSON format:
   "questions": [
     {
       "text": "Question text here",
+      "type": "single" | "multiple",
       "options": ["Option 1", "Option 2", "Option 3", "Other"]
     }
   ],
   "reasoning": "Brief explanation of why these questions were generated (or why none were needed)"
-}`
+}
+
+CRITICAL: Every question MUST include a "type" field set to either "single" or "multiple". Default to "single" only if truly uncertain.`
 
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are an intelligent plan enhancement assistant. Generate 0-5 specific, actionable clarification questions with multiple choice options (2-5 options each, always include "Other" as last option). Return only valid JSON.' },
+        { role: 'system', content: 'You are an intelligent plan enhancement assistant. Generate 0-5 specific, actionable clarification questions with multiple choice options (2-5 options each, always include "Other" as last option). Each question must specify a "type" field: "single" for radio buttons (one choice) or "multiple" for checkboxes (check all that apply). Return only valid JSON.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.4,
@@ -715,7 +846,7 @@ Return JSON format:
       throw new Error('AI did not return questions array')
     }
 
-    // Validate and transform questions to include options
+    // Validate and transform questions to include options and type
     const validQuestions = parsed.questions
       .filter((q: any) => {
         if (!q || typeof q !== 'object') return false
@@ -723,6 +854,8 @@ Return JSON format:
         if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 5) return false
         // Ensure all options are strings
         if (!q.options.every((opt: any) => typeof opt === 'string' && opt.trim().length > 0)) return false
+        // Validate type if provided
+        if (q.type !== undefined && q.type !== 'single' && q.type !== 'multiple') return false
         // Ensure "Other" is included as last option
         const lastOption = q.options[q.options.length - 1]?.toLowerCase().trim()
         if (lastOption !== 'other') {
@@ -734,6 +867,7 @@ Return JSON format:
       .slice(0, 5) // Limit to 5 questions max
       .map((q: any) => ({
         text: q.text.trim(),
+        type: (q.type === 'multiple' ? 'multiple' : 'single') as 'single' | 'multiple', // Default to 'single' for backward compatibility
         options: q.options.map((opt: string) => opt.trim()).filter((opt: string) => opt.length > 0)
       }))
 

@@ -33,8 +33,8 @@ export default function ReviewPage() {
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
   const [clarificationPhase, setClarificationPhase] = useState<'idle' | 'loading' | 'questions' | 'freeText' | 'review'>('idle')
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false)
-  const [clarificationQuestions, setClarificationQuestions] = useState<Array<{ text: string; options: string[] }>>([])
-  const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({})
+  const [clarificationQuestions, setClarificationQuestions] = useState<Array<{ text: string; options: string[]; type?: 'single' | 'multiple' }>>([])
+  const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string | string[]>>({})
   const [clarificationOtherTexts, setClarificationOtherTexts] = useState<Record<string, string>>({})
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -879,23 +879,67 @@ export default function ReviewPage() {
     const question = clarificationQuestions[currentQuestionIndex]
     if (!question) return
     
+    const questionType = question.type || 'single'
     const isOther = option.toLowerCase().trim() === 'other'
-    let finalAnswer: string
     
-    if (isOther) {
-      // For "Other", use the custom text if provided, otherwise use "Other"
-      const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim() || ''
-      finalAnswer = otherText ? `Other: ${otherText}` : 'Other'
+    if (questionType === 'multiple') {
+      // Multi-select: toggle option in array
+      const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()]
+      const selectedOptions = Array.isArray(currentAnswer) ? [...currentAnswer] : []
+      
+      if (isOther) {
+        // Toggle "Other" option
+        const otherIndex = selectedOptions.findIndex(opt => opt.toLowerCase().startsWith('other'))
+        if (otherIndex >= 0) {
+          selectedOptions.splice(otherIndex, 1)
+        } else {
+          const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim() || ''
+          selectedOptions.push(otherText ? `Other: ${otherText}` : 'Other')
+        }
+      } else {
+        // Toggle regular option
+        const optionIndex = selectedOptions.indexOf(option)
+        if (optionIndex >= 0) {
+          selectedOptions.splice(optionIndex, 1)
+        } else {
+          selectedOptions.push(option)
+        }
+      }
+      
+      const newAnswers = {
+        ...clarificationAnswers,
+        [currentQuestionIndex.toString()]: selectedOptions,
+      }
+      setClarificationAnswers(newAnswers)
     } else {
-      finalAnswer = option
-    }
-    
-    const newAnswers = {
-      ...clarificationAnswers,
-      [currentQuestionIndex.toString()]: finalAnswer,
-    }
-    setClarificationAnswers(newAnswers)
+      // Single-select: replace with new selection
+      let finalAnswer: string
+      
+      if (isOther) {
+        // For "Other", use the custom text if provided, otherwise use "Other"
+        const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim() || ''
+        finalAnswer = otherText ? `Other: ${otherText}` : 'Other'
+      } else {
+        finalAnswer = option
+      }
+      
+      const newAnswers = {
+        ...clarificationAnswers,
+        [currentQuestionIndex.toString()]: finalAnswer,
+      }
+      setClarificationAnswers(newAnswers)
 
+      if (currentQuestionIndex < clarificationQuestions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1)
+      } else {
+        // All questions answered, move to free-text phase
+        setClarificationPhase('freeText')
+      }
+    }
+  }
+  
+  const handleMultiSelectContinue = () => {
+    // For multi-select questions, allow continuing even if nothing selected (optional)
     if (currentQuestionIndex < clarificationQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1)
     } else {
@@ -919,13 +963,34 @@ export default function ReviewPage() {
       [currentQuestionIndex.toString()]: text,
     })
     // Update answer if "Other" is selected
+    const question = clarificationQuestions[currentQuestionIndex]
+    const questionType = question?.type || 'single'
     const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()]
-    if (currentAnswer && currentAnswer.toLowerCase().startsWith('other')) {
-      const trimmedText = text.trim()
-      setClarificationAnswers({
-        ...clarificationAnswers,
-        [currentQuestionIndex.toString()]: trimmedText ? `Other: ${trimmedText}` : 'Other',
-      })
+    
+    if (questionType === 'multiple') {
+      // Update "Other" in array if it exists
+      if (Array.isArray(currentAnswer)) {
+        const updatedOptions = currentAnswer.map(opt => {
+          if (opt.toLowerCase().startsWith('other')) {
+            const trimmedText = text.trim()
+            return trimmedText ? `Other: ${trimmedText}` : 'Other'
+          }
+          return opt
+        })
+        setClarificationAnswers({
+          ...clarificationAnswers,
+          [currentQuestionIndex.toString()]: updatedOptions,
+        })
+      }
+    } else {
+      // Single-select: update if "Other" is currently selected
+      if (currentAnswer && typeof currentAnswer === 'string' && currentAnswer.toLowerCase().startsWith('other')) {
+        const trimmedText = text.trim()
+        setClarificationAnswers({
+          ...clarificationAnswers,
+          [currentQuestionIndex.toString()]: trimmedText ? `Other: ${trimmedText}` : 'Other',
+        })
+      }
     }
   }
 
@@ -958,7 +1023,7 @@ export default function ReviewPage() {
     }
   }
 
-  const handleSubmitClarifications = async (answers?: Record<string, string>) => {
+  const handleSubmitClarifications = async (answers?: Record<string, string | string[]>) => {
     if (!plan?.id) {
       addToast({
         type: 'error',
@@ -997,13 +1062,21 @@ export default function ReviewPage() {
     setIsRegenerating(true)
 
     try {
-      // Validate all questions have corresponding answers (even if empty strings)
+      // Validate all questions have corresponding answers
+      // For single-select: answer must be non-empty string
+      // For multi-select: answer can be empty array (optional)
       const missingAnswers: number[] = []
-      clarificationQuestions.forEach((_, index) => {
+      clarificationQuestions.forEach((question, index) => {
         const answer = finalAnswers[index.toString()]
         if (answer === undefined) {
           missingAnswers.push(index + 1)
+        } else if (question.type === 'single') {
+          // Single-select requires a non-empty string
+          if (!answer || (typeof answer === 'string' && answer.trim() === '')) {
+            missingAnswers.push(index + 1)
+          }
         }
+        // Multi-select questions are optional (empty array is valid)
       })
       
       if (missingAnswers.length > 0) {
@@ -1016,10 +1089,20 @@ export default function ReviewPage() {
       }
       
       // Format answers for API - use question text as key
-      const formattedAnswers: Record<string, string> = {}
+      // Handle both string (single-select) and string[] (multi-select) answers
+      const formattedAnswers: Record<string, string | string[]> = {}
       clarificationQuestions.forEach((question, index) => {
-        const answer = finalAnswers[index.toString()] || ''
-        formattedAnswers[question.text] = answer
+        const answer = finalAnswers[index.toString()]
+        if (answer === undefined) {
+          // For multi-select, default to empty array; for single-select, default to empty string
+          formattedAnswers[question.text] = question.type === 'multiple' ? [] : ''
+        } else if (question.type === 'multiple') {
+          // Multi-select: ensure it's an array
+          formattedAnswers[question.text] = Array.isArray(answer) ? answer : (answer ? [answer] : [])
+        } else {
+          // Single-select: ensure it's a string
+          formattedAnswers[question.text] = Array.isArray(answer) ? answer.join(', ') : (answer || '')
+        }
       })
       
       // Add free-text answer if provided
@@ -1933,31 +2016,42 @@ export default function ReviewPage() {
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <h4 className="text-xl font-semibold text-[#d7d2cb] mb-4">
+                      <h4 className="text-xl font-semibold text-[#d7d2cb] mb-2">
                         {clarificationQuestions[currentQuestionIndex]?.text || ''}
                       </h4>
+                      {clarificationQuestions[currentQuestionIndex]?.type === 'multiple' && (
+                        <p className="text-sm text-[#d7d2cb]/60 mb-4">Check all that apply</p>
+                      )}
                       <div className="space-y-3">
                         {clarificationQuestions[currentQuestionIndex]?.options.map((option, optionIndex) => {
+                          const question = clarificationQuestions[currentQuestionIndex]
+                          const questionType = question?.type || 'single'
                           const isOther = option.toLowerCase().trim() === 'other'
-                          const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()] || ''
-                          const isSelected = isOther 
-                            ? currentAnswer.toLowerCase().startsWith('other')
-                            : currentAnswer === option
+                          const currentAnswer = clarificationAnswers[currentQuestionIndex.toString()]
+                          
+                          let isSelected: boolean
+                          if (questionType === 'multiple') {
+                            // Multi-select: check if option is in array
+                            const selectedOptions = Array.isArray(currentAnswer) ? currentAnswer : []
+                            if (isOther) {
+                              isSelected = selectedOptions.some(opt => opt.toLowerCase().startsWith('other'))
+                            } else {
+                              isSelected = selectedOptions.includes(option)
+                            }
+                          } else {
+                            // Single-select: check equality
+                            if (isOther) {
+                              isSelected = currentAnswer && typeof currentAnswer === 'string' && currentAnswer.toLowerCase().startsWith('other')
+                            } else {
+                              isSelected = currentAnswer === option
+                            }
+                          }
                           
                           return (
                             <div key={optionIndex}>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (isOther) {
-                                    setClarificationAnswers({
-                                      ...clarificationAnswers,
-                                      [currentQuestionIndex.toString()]: 'Other',
-                                    })
-                                  } else {
-                                    handleClarificationAnswer(option)
-                                  }
-                                }}
+                                onClick={() => handleClarificationAnswer(option)}
                                 className={`w-full text-left px-4 py-3 min-h-[44px] rounded-lg border-2 transition-all touch-manipulation ${
                                   isSelected
                                     ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
@@ -1967,15 +2061,31 @@ export default function ReviewPage() {
                                 aria-label={`Select option: ${option}`}
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                    isSelected
-                                      ? 'border-[var(--primary)] bg-[var(--primary)]'
-                                      : 'border-white/30'
-                                  }`}>
-                                    {isSelected && (
-                                      <div className="w-2 h-2 rounded-full bg-white" />
-                                    )}
-                                  </div>
+                                  {questionType === 'multiple' ? (
+                                    // Checkbox for multi-select
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                      isSelected
+                                        ? 'border-[var(--primary)] bg-[var(--primary)]'
+                                        : 'border-white/30'
+                                    }`}>
+                                      {isSelected && (
+                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    // Radio button for single-select
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                      isSelected
+                                        ? 'border-[var(--primary)] bg-[var(--primary)]'
+                                        : 'border-white/30'
+                                    }`}>
+                                      {isSelected && (
+                                        <div className="w-2 h-2 rounded-full bg-white" />
+                                      )}
+                                    </div>
+                                  )}
                                   <span className="flex-1 font-medium">{option}</span>
                                 </div>
                               </button>
@@ -2017,42 +2127,56 @@ export default function ReviewPage() {
                     Previous
                   </Button>
 
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => {
-                      const answer = clarificationAnswers[currentQuestionIndex.toString()] || ''
-                      const question = clarificationQuestions[currentQuestionIndex]
-                      if (!question) return
-                      
-                      if (answer.toLowerCase().startsWith('other')) {
-                        const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim()
-                        if (!otherText) {
+                  {clarificationQuestions[currentQuestionIndex]?.type === 'multiple' ? (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={handleMultiSelectContinue}
+                      className="flex items-center gap-2"
+                    >
+                      Next
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => {
+                        const answer = clarificationAnswers[currentQuestionIndex.toString()]
+                        const question = clarificationQuestions[currentQuestionIndex]
+                        if (!question) return
+                        
+                        // Validate answer exists for single-select
+                        if (!answer || (typeof answer === 'string' && answer.trim() === '')) {
                           addToast({
                             type: 'error',
-                            title: 'Please Specify',
-                            description: 'Please provide your answer in the "Other" field.',
+                            title: 'Please Select',
+                            description: 'Please select an option before continuing.',
                           })
                           return
                         }
-                      }
-                      
-                      if (answer) {
-                        const selectedOption = question.options.find(opt => {
-                          if (opt.toLowerCase().trim() === 'other') {
-                            return answer.toLowerCase().startsWith('other')
-                          }
-                          return answer === opt
-                        })
                         
-                        if (selectedOption) {
-                          handleClarificationAnswer(selectedOption)
+                        if (typeof answer === 'string' && answer.toLowerCase().startsWith('other')) {
+                          const otherText = clarificationOtherTexts[currentQuestionIndex.toString()]?.trim()
+                          if (!otherText) {
+                            addToast({
+                              type: 'error',
+                              title: 'Please Specify',
+                              description: 'Please provide your answer in the "Other" field.',
+                            })
+                            return
+                          }
                         }
-                      }
-                    }}
-                    disabled={!clarificationAnswers[currentQuestionIndex.toString()]}
-                    className="flex items-center gap-2"
-                  >
+                        
+                        if (currentQuestionIndex < clarificationQuestions.length - 1) {
+                          setCurrentQuestionIndex(currentQuestionIndex + 1)
+                        } else {
+                          setClarificationPhase('freeText')
+                        }
+                      }}
+                      disabled={!clarificationAnswers[currentQuestionIndex.toString()] || (typeof clarificationAnswers[currentQuestionIndex.toString()] === 'string' && clarificationAnswers[currentQuestionIndex.toString()].trim() === '')}
+                      className="flex items-center gap-2"
+                    >
                     {currentQuestionIndex === clarificationQuestions.length - 1 ? (
                       <>
                         Continue

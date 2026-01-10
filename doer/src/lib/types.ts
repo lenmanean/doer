@@ -296,6 +296,7 @@ export interface AIModelRequest {
   start_date: string // YYYY-MM-DD format
   clarifications?: Record<string, any>
   clarificationQuestions?: string[]
+  tools?: string[] // Extracted tools/software mentioned in clarifications
   availability?: NormalizedAvailability
   timeConstraints?: {
     isStartDateToday: boolean

@@ -3,10 +3,12 @@
  */
 
 import { formatTimeForDisplay } from '@/lib/date-utils'
+import { extractToolsFromClarifications, formatToolsForPrompt, groupToolsByCategory } from '@/lib/tool-extraction'
 
 /**
  * Combine goal text with clarifications into a single contextual string
  * This ensures AI has full context when analyzing goals
+ * Also extracts and highlights tools/software mentioned in clarifications
  */
 export function combineGoalWithClarifications(
   goalText: string,
@@ -38,9 +40,34 @@ export function combineGoalWithClarifications(
     return goalText
   }
 
+  // Extract tools from clarifications
+  const extractedTools = extractToolsFromClarifications(clarifications)
+  
   // Combine goal with clarifications in a structured way
   const clarificationsText = clarificationTexts.join(' ')
-  return `${goalText}\n\nAdditional context: ${clarificationsText}`
+  let result = `${goalText}\n\nAdditional context: ${clarificationsText}`
+  
+  // Add structured tools section if tools were found
+  if (extractedTools.length > 0) {
+    const toolsText = formatToolsForPrompt(extractedTools)
+    result += `\n\n${toolsText}`
+    
+    // Group tools by category for better context
+    const groupedTools = groupToolsByCategory(extractedTools)
+    const categorySections: string[] = []
+    
+    for (const [category, tools] of Object.entries(groupedTools)) {
+      if (category !== 'other' && tools.length > 0) {
+        categorySections.push(`${category}: ${tools.join(', ')}`)
+      }
+    }
+    
+    if (categorySections.length > 0) {
+      result += `\nTool categories: ${categorySections.join('; ')}`
+    }
+  }
+  
+  return result
 }
 
 export interface TimelineRequirement {

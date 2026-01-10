@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateRoadmapContent } from '@/lib/ai'
 import { authenticateApiRequest, ApiTokenError } from '@/lib/auth/api-token-auth'
 import { addDays, formatDateForDB, parseDateFromDB, formatTimeForDisplay } from '@/lib/date-utils'
+import { extractToolsFromClarifications } from '@/lib/tool-extraction'
 
 /**
  * Calculate the number of active days needed to fit a given duration,
@@ -715,12 +716,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Extract tools from clarifications
+    const extractedTools = extractToolsFromClarifications(finalClarifications)
+
     try {
       aiContent = await generateRoadmapContent({
         goal: finalGoalText,
         start_date: finalStartDate,
         clarifications: finalClarifications,
         clarificationQuestions: finalClarificationQuestions,
+        tools: extractedTools.length > 0 ? extractedTools : undefined,
         availability,
         timeConstraints,
       })
