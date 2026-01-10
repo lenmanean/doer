@@ -2279,13 +2279,28 @@ export default function ReviewPage() {
 
                 <div className="flex-1 overflow-y-auto mb-4 space-y-4" role="region" aria-label="Review answers">
                   {clarificationQuestions.map((question, index) => {
-                    const answer = clarificationAnswers[index.toString()] || ''
-                    const displayAnswer = answer.startsWith('Other: ') ? answer.substring(7) : answer
+                    const answer = clarificationAnswers[index.toString()]
+                    let displayAnswer: string
+                    
+                    if (Array.isArray(answer)) {
+                      // Multi-select: join array items
+                      displayAnswer = answer.length > 0 
+                        ? answer.map(opt => {
+                            // Remove "Other: " prefix if present
+                            return opt.startsWith('Other: ') ? opt.substring(7) : opt
+                          }).join(', ')
+                        : 'Not answered'
+                    } else if (typeof answer === 'string') {
+                      // Single-select: handle string answer
+                      displayAnswer = answer.startsWith('Other: ') ? answer.substring(7) : answer || 'Not answered'
+                    } else {
+                      displayAnswer = 'Not answered'
+                    }
                     
                     return (
                       <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
                         <p className="text-sm text-[#d7d2cb]/70 mb-2">{question.text}</p>
-                        <p className="text-base font-medium text-[#d7d2cb]">{displayAnswer || 'Not answered'}</p>
+                        <p className="text-base font-medium text-[#d7d2cb]">{displayAnswer}</p>
                       </div>
                     )
                   })}
