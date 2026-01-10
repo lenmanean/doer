@@ -2041,7 +2041,7 @@ export default function ReviewPage() {
                           } else {
                             // Single-select: check equality
                             if (isOther) {
-                              isSelected = currentAnswer && typeof currentAnswer === 'string' && currentAnswer.toLowerCase().startsWith('other')
+                              isSelected = !!(currentAnswer && typeof currentAnswer === 'string' && currentAnswer.toLowerCase().startsWith('other'))
                             } else {
                               isSelected = currentAnswer === option
                             }
