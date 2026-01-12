@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProvider } from '@/lib/notifications/providers/provider-factory'
+import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
 
 // Force dynamic rendering for webhooks
@@ -134,8 +135,22 @@ async function processEventAsync(event: any, teamId: string) {
     // Handle token revocation
     if (event.type === 'tokens_revoked') {
       logger.info('Slack tokens revoked', { teamId })
-      // TODO: Clean up connections for this team
-      // This would require finding all connections with this team_id and deleting them
+      
+      // Clean up connections for this team
+      const supabase = await createClient()
+      const { error: deleteError } = await supabase
+        .from('slack_connections')
+        .delete()
+        .eq('team_id', teamId)
+      
+      if (deleteError) {
+        logger.error('Failed to delete Slack connections after token revocation', {
+          error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+          teamId,
+        })
+      } else {
+        logger.info('Successfully cleaned up Slack connections after token revocation', { teamId })
+      }
     }
   } catch (error) {
     logger.error('Error in async event processing', {

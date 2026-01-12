@@ -123,7 +123,7 @@ async function handleStatusCommand(userId: string): Promise<any> {
   // Get active plan
   const { data: plan } = await supabase
     .from('plans')
-    .select('id, name, start_date, end_date')
+    .select('id, goal_text, summary_data, start_date, end_date')
     .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
@@ -151,8 +151,11 @@ async function handleStatusCommand(userId: string): Promise<any> {
   const completedTasks = completions?.length || 0
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
+  // Get plan title from summary_data or use goal_text
+  const planTitle = plan.summary_data?.goal_title || plan.goal_text || 'Untitled Plan'
+
   return {
-    text: `*${plan.name}*\n\nProgress: ${completedTasks}/${totalTasks} tasks (${progress}%)\nStart: ${new Date(plan.start_date).toLocaleDateString()}\nEnd: ${new Date(plan.end_date).toLocaleDateString()}`,
+    text: `*${planTitle}*\n\nProgress: ${completedTasks}/${totalTasks} tasks (${progress}%)\nStart: ${new Date(plan.start_date).toLocaleDateString()}\nEnd: ${plan.end_date ? new Date(plan.end_date).toLocaleDateString() : 'N/A'}`,
   }
 }
 
@@ -164,7 +167,7 @@ async function handlePlanCommand(userId: string): Promise<any> {
   
   const { data: plan } = await supabase
     .from('plans')
-    .select('id, name, start_date, end_date, description')
+    .select('id, goal_text, summary_data, start_date, end_date')
     .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
@@ -177,8 +180,12 @@ async function handlePlanCommand(userId: string): Promise<any> {
     }
   }
 
+  // Get plan title and summary from summary_data or use goal_text
+  const planTitle = plan.summary_data?.goal_title || plan.goal_text || 'Untitled Plan'
+  const planSummary = plan.summary_data?.plan_summary || plan.summary_data?.goal_summary || plan.goal_text || 'No description'
+
   return {
-    text: `*${plan.name}*\n\n${plan.description || 'No description'}\n\nStart: ${new Date(plan.start_date).toLocaleDateString()}\nEnd: ${new Date(plan.end_date).toLocaleDateString()}`,
+    text: `*${planTitle}*\n\n${planSummary}\n\nStart: ${new Date(plan.start_date).toLocaleDateString()}\nEnd: ${plan.end_date ? new Date(plan.end_date).toLocaleDateString() : 'N/A'}`,
   }
 }
 
