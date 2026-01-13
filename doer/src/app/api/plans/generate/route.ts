@@ -720,6 +720,9 @@ export async function POST(req: NextRequest) {
     const extractedTools = extractToolsFromClarifications(finalClarifications)
 
     try {
+      // Get userId from auth context or session user
+      const userId = authContext?.userId || sessionUser?.id || user?.id
+      
       aiContent = await generateRoadmapContent({
         goal: finalGoalText,
         start_date: finalStartDate,
@@ -728,7 +731,7 @@ export async function POST(req: NextRequest) {
         tools: extractedTools.length > 0 ? extractedTools : undefined,
         availability,
         timeConstraints,
-      })
+      }, userId)
 
       console.log('✅ AI content generated successfully')
     } catch (error) {

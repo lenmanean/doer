@@ -314,7 +314,7 @@ export async function POST(
     }
 
     // Generate new roadmap content
-    const aiContent = await generateRoadmapContent(aiRequest)
+    const aiContent = await generateRoadmapContent(aiRequest, user.id)
 
     // Calculate new end date
     const newEndDate = addDays(startDate, aiContent.timeline_days - 1)

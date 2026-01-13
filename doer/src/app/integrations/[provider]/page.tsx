@@ -103,6 +103,9 @@ export default function ProviderIntegrationsPage() {
   // Check if this is a Slack integration (notification-focused, not task management)
   const isSlackIntegration = provider === 'slack'
   
+  // Check if this is a Notion integration (knowledge integration)
+  const isNotionIntegration = provider === 'notion'
+  
   // Check if this is a task management integration (excludes Slack)
   const isTaskManagementIntegration = provider === 'todoist' || provider === 'asana' || provider === 'trello'
   
@@ -149,6 +152,18 @@ export default function ProviderIntegrationsPage() {
   const [teamId, setTeamId] = useState<string | null>(null)
   const [workspaces, setWorkspaces] = useState<Array<{ id: string; team_id: string; team_name: string; installed_at: string }>>([])
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null)
+  
+  // Notion-specific state
+  const [selectedPageIds, setSelectedPageIds] = useState<string[]>([])
+  const [selectedDatabaseIds, setSelectedDatabaseIds] = useState<string[]>([])
+  const [availablePages, setAvailablePages] = useState<Array<{ id: string; title: string; url: string }>>([])
+  const [availableDatabases, setAvailableDatabases] = useState<Array<{ id: string; title: string; url: string }>>([])
+  const [loadingPages, setLoadingPages] = useState(false)
+  const [loadingDatabases, setLoadingDatabases] = useState(false)
+  const [autoContextEnabled, setAutoContextEnabled] = useState(true)
+  const [autoExportEnabled, setAutoExportEnabled] = useState(false)
+  const [defaultPageId, setDefaultPageId] = useState<string | null>(null)
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null)
   
   // Sync state
   const [syncing, setSyncing] = useState(false)
@@ -382,6 +397,66 @@ export default function ProviderIntegrationsPage() {
     }
   }, [provider, isTaskManagementIntegration, addToast])
   
+  // Load Notion pages
+  const loadNotionPages = useCallback(async () => {
+    if (!isNotionIntegration || !connection) {
+      setAvailablePages([])
+      return
+    }
+    
+    try {
+      setLoadingPages(true)
+      const response = await fetch(`/api/integrations/${provider}/pages`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load pages')
+      }
+      
+      const data = await response.json()
+      setAvailablePages(data.pages || [])
+    } catch (error) {
+      console.error('Error loading Notion pages:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to load pages',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingPages(false)
+    }
+  }, [provider, isNotionIntegration, connection, addToast])
+  
+  // Load Notion databases
+  const loadNotionDatabases = useCallback(async () => {
+    if (!isNotionIntegration || !connection) {
+      setAvailableDatabases([])
+      return
+    }
+    
+    try {
+      setLoadingDatabases(true)
+      const response = await fetch(`/api/integrations/${provider}/databases`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load databases')
+      }
+      
+      const data = await response.json()
+      setAvailableDatabases(data.databases || [])
+    } catch (error) {
+      console.error('Error loading Notion databases:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to load databases',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setLoadingDatabases(false)
+    }
+  }, [provider, isNotionIntegration, connection, addToast])
+  
   // Load connection status function
   const loadConnection = useCallback(async (retryCount = 0) => {
     if (!user?.id) return
@@ -569,11 +644,76 @@ export default function ProviderIntegrationsPage() {
       }
     }
     
+    // Handle Notion integration
+    if (isNotionIntegration) {
+      try {
+        setLoadingConnection(true)
+        const response = await fetch(`/api/integrations/${provider}/status`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to load connection status')
+        }
+        
+        const data = await response.json()
+        
+        // If not connected and this is a retry after OAuth, wait a bit and retry
+        if (!data.connected && retryCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return loadConnection(retryCount + 1)
+        }
+        
+        // Handle multiple connections (workspaces)
+        if (data.connections && Array.isArray(data.connections) && data.connections.length > 0) {
+          const connection = data.connections[0] // Use first connection for now
+          setConnection(connection)
+          setSelectedPageIds(connection.selected_page_ids || [])
+          setSelectedDatabaseIds(connection.selected_database_ids || [])
+          setAutoContextEnabled(connection.auto_context_enabled !== false)
+          setAutoExportEnabled(connection.auto_export_enabled === true)
+          setDefaultPageId(connection.default_page_id || null)
+          setWorkspaceName(connection.workspace_name || null)
+          
+          // Load pages and databases if connected
+          if (connection.id) {
+            loadNotionPages()
+            loadNotionDatabases()
+          }
+        } else {
+          setConnection(data.connected ? data.connection : null)
+          if (data.connection) {
+            setSelectedPageIds(data.connection.selected_page_ids || [])
+            setSelectedDatabaseIds(data.connection.selected_database_ids || [])
+            setAutoContextEnabled(data.connection.auto_context_enabled !== false)
+            setAutoExportEnabled(data.connection.auto_export_enabled === true)
+            setDefaultPageId(data.connection.default_page_id || null)
+            setWorkspaceName(data.connection.workspace_name || null)
+            
+            // Load pages and databases if connected
+            loadNotionPages()
+            loadNotionDatabases()
+          }
+        }
+        
+        return data.connected
+      } catch (error) {
+        console.error('Error loading Notion connection:', error)
+        addToast({
+          type: 'error',
+          title: 'Failed to load connection',
+          description: 'Please try again later.',
+          duration: 5000,
+        })
+        return false
+      } finally {
+        setLoadingConnection(false)
+      }
+    }
+    
     // Unknown integration type
     setLoadingConnection(false)
     setConnection(null)
     return false
-  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, isSlackIntegration, loadCalendars, loadProjects, loadChannels, loadActivePlan, addToast, searchParams])
+  }, [user?.id, provider, isCalendarIntegration, isTaskManagementIntegration, isSlackIntegration, isNotionIntegration, loadCalendars, loadProjects, loadChannels, loadNotionPages, loadNotionDatabases, loadActivePlan, addToast, searchParams])
   
   // Handle OAuth callback query parameters
   useEffect(() => {
@@ -813,6 +953,18 @@ export default function ProviderIntegrationsPage() {
             localStorage.removeItem(`slack_current_workspace_${user.id}`)
           }
         }
+        
+        // Clear Notion-specific state
+        if (isNotionIntegration) {
+          setSelectedPageIds([])
+          setSelectedDatabaseIds([])
+          setAvailablePages([])
+          setAvailableDatabases([])
+          setAutoContextEnabled(true)
+          setAutoExportEnabled(false)
+          setDefaultPageId(null)
+          setWorkspaceName(null)
+        }
       }
       
       addToast({
@@ -831,6 +983,46 @@ export default function ProviderIntegrationsPage() {
         description: 'Please try again later.',
         duration: 5000,
       })
+    }
+  }
+  
+  // Update Notion settings
+  const updateNotionSettings = async (updates: {
+    selected_page_ids?: string[]
+    selected_database_ids?: string[]
+    default_page_id?: string | null
+    auto_context_enabled?: boolean
+    auto_export_enabled?: boolean
+  }) => {
+    if (!connection?.id) return
+    
+    try {
+      setUpdatingSettings(true)
+      const response = await fetch(`/api/integrations/${provider}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connection_id: connection.id,
+          ...updates,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update settings')
+      }
+      
+      // Reload connection to get updated state
+      await loadConnection()
+    } catch (error) {
+      console.error('Error updating Notion settings:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed to update settings',
+        description: 'Please try again later.',
+        duration: 5000,
+      })
+    } finally {
+      setUpdatingSettings(false)
     }
   }
   
@@ -1976,6 +2168,241 @@ export default function ProviderIntegrationsPage() {
                           <Send className="w-4 h-4" />
                           Send Test Notification
                         </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Notion Integration UI */}
+                  {isNotionIntegration && connection && (
+                    <div className="space-y-6">
+                      {/* Workspace Information */}
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Workspace
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            {workspaceName || connection.workspace_name || 'Unknown workspace'}
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/40 mt-1">
+                            Connected: {connection.installed_at 
+                              ? new Date(connection.installed_at).toLocaleDateString()
+                              : 'Unknown'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDisconnect()}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Disconnect
+                        </Button>
+                      </div>
+                      
+                      {/* Auto-Context Toggle */}
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Use Notion Content as Context
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Automatically include selected Notion pages/databases in AI plan generation
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoContextEnabled}
+                            onChange={(e) => {
+                              setAutoContextEnabled(e.target.checked)
+                              updateNotionSettings({ auto_context_enabled: e.target.checked })
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                        </label>
+                      </div>
+                      
+                      {/* Page Selection */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                            Select Pages for Context (max 5)
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={loadNotionPages}
+                            disabled={loadingPages}
+                          >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${loadingPages ? 'animate-spin' : ''}`} />
+                            Refresh
+                          </Button>
+                        </div>
+                        
+                        {loadingPages ? (
+                          <Skeleton className="h-12 w-full bg-white/5" />
+                        ) : availablePages.length === 0 ? (
+                          <p className="text-sm text-[var(--foreground)]/60">
+                            No pages found. Make sure pages are shared with your Notion integration.
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {availablePages.map((page) => (
+                              <label
+                                key={page.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPageIds.includes(page.id)}
+                                  onChange={() => {
+                                    const newIds = selectedPageIds.includes(page.id)
+                                      ? selectedPageIds.filter(id => id !== page.id)
+                                      : selectedPageIds.length < 5
+                                        ? [...selectedPageIds, page.id]
+                                        : selectedPageIds
+                                    setSelectedPageIds(newIds)
+                                    updateNotionSettings({ selected_page_ids: newIds })
+                                  }}
+                                  disabled={!selectedPageIds.includes(page.id) && selectedPageIds.length >= 5}
+                                  className="w-4 h-4 rounded border-white/20"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-[var(--foreground)]">
+                                    {page.title}
+                                  </p>
+                                  <a
+                                    href={page.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-[var(--foreground)]/60 hover:text-[var(--foreground)]/80"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Open in Notion →
+                                  </a>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Database Selection */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                            Select Databases for Context (max 2)
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={loadNotionDatabases}
+                            disabled={loadingDatabases}
+                          >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${loadingDatabases ? 'animate-spin' : ''}`} />
+                            Refresh
+                          </Button>
+                        </div>
+                        
+                        {loadingDatabases ? (
+                          <Skeleton className="h-12 w-full bg-white/5" />
+                        ) : availableDatabases.length === 0 ? (
+                          <p className="text-sm text-[var(--foreground)]/60">
+                            No databases found. Make sure databases are shared with your Notion integration.
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {availableDatabases.map((database) => (
+                              <label
+                                key={database.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedDatabaseIds.includes(database.id)}
+                                  onChange={() => {
+                                    const newIds = selectedDatabaseIds.includes(database.id)
+                                      ? selectedDatabaseIds.filter(id => id !== database.id)
+                                      : selectedDatabaseIds.length < 2
+                                        ? [...selectedDatabaseIds, database.id]
+                                        : selectedDatabaseIds
+                                    setSelectedDatabaseIds(newIds)
+                                    updateNotionSettings({ selected_database_ids: newIds })
+                                  }}
+                                  disabled={!selectedDatabaseIds.includes(database.id) && selectedDatabaseIds.length >= 2}
+                                  className="w-4 h-4 rounded border-white/20"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-[var(--foreground)]">
+                                    {database.title}
+                                  </p>
+                                  <a
+                                    href={database.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-[var(--foreground)]/60 hover:text-[var(--foreground)]/80"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Open in Notion →
+                                  </a>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Parent Page Selection for Exports */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                          Default Parent Page for Plan Exports
+                        </h3>
+                        <p className="text-xs text-[var(--foreground)]/60">
+                          Select a parent page where new plan pages will be created
+                        </p>
+                        <select
+                          value={defaultPageId || ''}
+                          onChange={(e) => {
+                            const newPageId = e.target.value || null
+                            setDefaultPageId(newPageId)
+                            updateNotionSettings({ default_page_id: newPageId })
+                          }}
+                          className="flex h-10 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-[#d7d2cb] ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2"
+                        >
+                          <option value="">Select a parent page...</option>
+                          {availablePages.map((page) => (
+                            <option key={page.id} value={page.id}>
+                              {page.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* Auto-Export Toggle */}
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div>
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            Auto-Export Plans to Notion
+                          </p>
+                          <p className="text-xs text-[var(--foreground)]/60">
+                            Automatically create Notion pages when plans are generated
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoExportEnabled}
+                            onChange={(e) => {
+                              setAutoExportEnabled(e.target.checked)
+                              updateNotionSettings({ auto_export_enabled: e.target.checked })
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                        </label>
                       </div>
                     </div>
                   )}

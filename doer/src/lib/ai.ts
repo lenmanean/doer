@@ -158,7 +158,7 @@ Return JSON format:
  * Generate roadmap structure with duration estimates and priority assignments
  * AI focuses on CONTENT and DURATION ESTIMATION - no dates or scheduling
  */
-export async function generateRoadmapContent(request: AIModelRequest): Promise<{
+export async function generateRoadmapContent(request: AIModelRequest, userId?: string): Promise<{
   timeline_days: number
   goal_text: string
   goal_title: string
@@ -298,6 +298,18 @@ export async function generateRoadmapContent(request: AIModelRequest): Promise<{
   // Combine goal with clarifications for full contextual awareness
   const contextualGoal = combineGoalWithClarifications(request.goal, request.clarifications)
   
+  // Fetch Notion context if available (before building prompt sections)
+  let notionContext: string | null = null
+  if (userId) {
+    try {
+      const { fetchNotionContext } = await import('@/lib/knowledge/notion-context')
+      notionContext = await fetchNotionContext(userId, request.goal)
+    } catch (error) {
+      // Silently fail if Notion context fetching fails - don't block plan generation
+      console.warn('Failed to fetch Notion context:', error)
+    }
+  }
+  
   // Build clarifications section for additional context (if structured Q&A format exists)
   const clarificationsSection = request.clarifications && request.clarificationQuestions ? `
 CLARIFICATIONS PROVIDED:
@@ -344,11 +356,20 @@ Examples:
 `
   }
 
+  // Build Notion context section if available
+  const notionContextSection = notionContext ? `
+NOTION CONTEXT:
+The user has provided the following context from their Notion workspace:
+${notionContext}
+
+Use this context to inform your plan generation. Reference relevant information from Notion when creating tasks and timelines.
+` : ''
+
   const prompt = `Create a structured plan with realistic duration estimates for:
 
 "${contextualGoal}"
 
-${clarificationsSection}${toolsSection}
+${clarificationsSection}${toolsSection}${notionContextSection}
 
 ${availabilityContext}${timeConstraintContext}DURATION ESTIMATION:
 • AI determines EXACT duration for each task based on complexity
