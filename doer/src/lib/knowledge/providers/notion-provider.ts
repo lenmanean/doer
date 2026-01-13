@@ -213,7 +213,20 @@ export class NotionProvider {
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: await response.text() }))
+      let errorMessage = response.statusText
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorData.error || response.statusText
+      } catch {
+        // If JSON parsing fails, try to get text
+        try {
+          const errorText = await response.text()
+          errorMessage = errorText || response.statusText
+        } catch {
+          // If text parsing also fails, use status text
+          errorMessage = response.statusText
+        }
+      }
       
       // Handle specific error codes
       if (response.status === 401) {
@@ -227,7 +240,7 @@ export class NotionProvider {
         return this.apiRequest<T>(accessToken, endpoint, options)
       }
       
-      throw new Error(`Notion API error: ${error.message || response.statusText}`)
+      throw new Error(`Notion API error: ${errorMessage}`)
     }
 
     return await response.json()
