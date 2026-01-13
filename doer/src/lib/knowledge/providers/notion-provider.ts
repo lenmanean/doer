@@ -402,7 +402,7 @@ export class NotionProvider {
     let cursor: string | undefined = undefined
     
     do {
-      const endpoint = `/blocks/${blockId}/children${cursor ? `?start_cursor=${cursor}` : ''}`
+      const endpoint: string = `/blocks/${blockId}/children${cursor ? `?start_cursor=${cursor}` : ''}`
       const response = await this.apiRequest<{
         results: any[]
         next_cursor: string | null
